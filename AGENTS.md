@@ -45,3 +45,17 @@ skills:
 - when: "Programmatic route tree building as an alternative to filesystem conventions: rootRoute, index, route, layout, physical, defineVirtualSubtreeConfig. Use with TanStack Router plugin's virtualRouteConfig option."
 use: "@tanstack/virtual-file-routes#virtual-file-routes"
 <!-- intent-skills:end -->
+
+## Project context (read these first)
+
+Before writing code or a PRD, read:
+
+- `CONTEXT.md` — what Smart Cart is + the shared domain language (household, week menu, basket, recipe, adaptation) + the hard rules.
+- `docs/decisions.md` — locked decisions (no auto-buy, grounded recipes, Dutch-first) and the open questions.
+- `docs/PRD.md` — the scope + the one flow we polish, sliced into agent-sized issues.
+
+Hard rules: no autonomous purchasing (we fill the basket, the user checks out); meal generation is grounded in the `recipe` table, never free-form/hallucinated; Dutch supermarkets (AH/Jumbo) first.
+
+## AI SDK
+
+This project uses the Vercel AI SDK. For patterns (streamText, generateObject, tool loops, prompt caching), load /ro:vercel-ai-sdk before adding or modifying any AI feature.

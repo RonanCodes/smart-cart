@@ -10,9 +10,8 @@ import { user } from './auth-schema'
 
 /**
  * Smart Cart domain schema (starter). The household profile is the personalization
- * core — the longer it is used the more it knows, which is the data moat. The
- * hackathon team builds week-menu generation, recipes, and the AH/Jumbo order layer
- * on top of this.
+ * core: the longer it is used the more it knows, which is the data moat.
+ * Week-menu generation, recipes, and the AH/Jumbo basket layer build on top of this.
  */
 
 /** A household: the unit Smart Cart plans for. One owner (a signed-in user). */
@@ -64,8 +63,48 @@ export const mealPlan = pgTable('meal_plan', {
       shoppingList: Array<{ item: string; qty: string }>
     }>()
     .notNull(),
-  /** 'draft' | 'confirmed' | 'ordered' — the trust gate lives here. */
+  /** 'draft' | 'confirmed' | 'shopped' — the user shops it themselves (no auto-buy). */
   status: text('status').notNull().default('draft'),
+  createdAt: timestamp('created_at')
+    .$defaultFn(() => new Date())
+    .notNull(),
+})
+
+/**
+ * Recipe catalogue. Populated from scraped sources (AH Allerhande, Jumbo Recepten,
+ * open datasets). Grounding week-menu generation in real recipes with real
+ * supermarket products is how we avoid the LLM hallucinating "random" recipes.
+ * Mostly jsonb so the scrape shape can evolve without a migration per source.
+ */
+export const recipe = pgTable('recipe', {
+  id: text('id').primaryKey(),
+  /** 'ah' | 'jumbo' | 'plus' | 'lidl' | 'hf' | 'manual' */
+  source: text('source').notNull(),
+  sourceUrl: text('source_url'),
+  title: text('title').notNull(),
+  servings: integer('servings'),
+  prepMinutes: integer('prep_minutes'),
+  calories: integer('calories'),
+  /** e.g. hoofdgerecht / bijgerecht */
+  category: text('category'),
+  /** vegan, vegetarian, glutenvrij, lactosevrij, keto, … */
+  dietaryTags: jsonb('dietary_tags')
+    .$type<Array<string>>()
+    .notNull()
+    .default([]),
+  /** Supermarket-specific products with quantities, ready to map to a basket. */
+  ingredients: jsonb('ingredients')
+    .$type<
+      Array<{ name: string; qty?: string; unit?: string; productId?: string }>
+    >()
+    .notNull()
+    .default([]),
+  instructions: jsonb('instructions')
+    .$type<Array<string>>()
+    .notNull()
+    .default([]),
+  /** Full scraped blob, kept verbatim as the source of truth. */
+  raw: jsonb('raw'),
   createdAt: timestamp('created_at')
     .$defaultFn(() => new Date())
     .notNull(),

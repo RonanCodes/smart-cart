@@ -17,6 +17,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate --config drizzle/neon/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config drizzle/neon/drizzle.config.ts",
+    "seed:recipes": "tsx scripts/seed-recipes.ts",
     "cf-typegen": "wrangler types",
     "quality": "pnpm run format && pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
     "prepare": "husky"

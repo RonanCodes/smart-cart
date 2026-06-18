@@ -1,10 +1,9 @@
 <div align="center">
   <img src="./public/mascot-avatar.png" alt="Smart Cart mascot" width="160" />
   <h1>Smart Cart</h1>
-  <p><strong>Your household groceries, done for you.</strong></p>
+  <p><strong>Never wonder what's for dinner again.</strong></p>
   <p>
     <a href="https://smartcart.ronanconnolly.dev">smartcart.ronanconnolly.dev</a>
-    · Built at Megathon Amsterdam 2026 by team Day42
   </p>
 </div>
 
@@ -12,21 +11,23 @@
 
 ## What it is
 
-Smart Cart is an AI grocery agent. It learns how your household eats (diet,
-allergies, taste, budget, portions), proactively plans the week's meals, and
-places your **real** order at Albert Heijn or Jumbo. You never make a list again.
+Smart Cart is an AI household food planner. It learns how your household eats
+(diet, allergies, taste, budget, portions), plans your week, and fills a
+ready-to-order basket at Albert Heijn or Jumbo in under a minute. You just check
+out.
 
 The difference from a recipe app or a price-comparison tool: those stop at
-_suggesting_. Smart Cart completes the job. One loop that gets smarter every week:
+_suggesting_. Smart Cart plans the week and builds the basket, and the whole plan
+adapts when life changes. One loop that fits you better every week:
 
 ```
-discover  →  plan  →  order  →  cook  →  learn
-   ▲                                        │
-   └────────────────────────────────────────┘
+learn  →  plan  →  fill basket  →  cook & rate
+   ▲                                    │
+   └────────────────────────────────────┘
 ```
 
-**Trust framing:** automated, with control. You confirm the basket, set a weekly
-spend cap, and override anything. Not "fully autonomous, no human in the loop".
+**Trust framing:** we never touch your money. Smart Cart plans and fills the
+basket; you check out. No autonomous purchasing, by design.
 
 ## Stack
 
