@@ -7,6 +7,7 @@ import {
   ScanLine,
   ShieldCheck,
 } from 'lucide-react'
+import { authClient } from '#/lib/auth-client'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
 import { Card, CardContent } from '#/components/ui/card'
@@ -44,6 +45,9 @@ const FEATURES = [
 ]
 
 function Home() {
+  const { data: session } = authClient.useSession()
+  const loggedIn = Boolean(session?.user)
+
   return (
     <div className="bg-background text-foreground">
       {/* Nav */}
@@ -58,9 +62,15 @@ function Home() {
               Design system
             </Button>
           </Link>
-          <a href="/sign-in">
-            <Button size="sm">Get started</Button>
-          </a>
+          {loggedIn ? (
+            <a href="/app">
+              <Button size="sm">Open app</Button>
+            </a>
+          ) : (
+            <a href="/sign-in">
+              <Button size="sm">Get started</Button>
+            </a>
+          )}
         </nav>
       </header>
 
@@ -78,8 +88,10 @@ function Home() {
             list again.
           </p>
           <div className="flex flex-wrap gap-3">
-            <a href="/sign-in">
-              <Button size="lg">Plan my first week</Button>
+            <a href={loggedIn ? '/app' : '/sign-in'}>
+              <Button size="lg">
+                {loggedIn ? 'Open app' : 'Plan my first week'}
+              </Button>
             </a>
             <a href="#how">
               <Button size="lg" variant="outline">

@@ -44,7 +44,7 @@ function SignIn() {
     })
     setBusy(false)
     if (signErr) return setError(signErr.message ?? 'That code did not work.')
-    window.location.href = '/'
+    window.location.href = '/app'
   }
 
   return (
