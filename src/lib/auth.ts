@@ -9,7 +9,7 @@ import { sendOtpEmail } from './email'
 /**
  * Better Auth is built lazily (async) because the DB handle and secrets are only
  * resolvable per-request inside the Worker. Sign-in is passwordless email OTP via
- * Resend — no Google Cloud / OAuth setup needed, fastest login to ship for the demo.
+ * Resend, no Google Cloud / OAuth setup needed, fastest login to ship for the demo.
  */
 async function buildAuth() {
   const db = await getDb()

@@ -36,7 +36,7 @@ basket; you check out. No autonomous purchasing, by design.
 | Framework | TanStack Start (SSR + server routes) on React 19   |
 | Styling   | Tailwind v4 + shadcn-style components (cva)        |
 | Database  | Neon Postgres via Drizzle (`neon-http` driver)     |
-| Auth      | Better Auth — passwordless email OTP (Resend)      |
+| Auth      | Better Auth: passwordless email OTP (Resend)       |
 | Email     | Resend                                             |
 | AI        | Vercel AI SDK (Anthropic primary, OpenAI / Google) |
 | Host      | Cloudflare Workers (`smartcart.ronanconnolly.dev`) |

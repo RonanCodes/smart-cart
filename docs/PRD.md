@@ -1,4 +1,4 @@
-# PRD — Smart Cart (draft, fill on the features call)
+# PRD: Smart Cart (draft, fill on the features call)
 
 Read `CONTEXT.md` and `docs/decisions.md` first. This is the scaffold; the team
 fills the TODOs on the call, then we slice it into vertical issues for an agent.
@@ -19,7 +19,7 @@ TODO on call: narrow the demo persona (e.g. a working couple, family of four).
 A household tells us about itself once and never has to plan a week of dinners or
 build a shopping list again. Every week: here are your dinners, here is your basket.
 
-## 4. Scope — the one flow we polish
+## 4. Scope: the one flow we polish
 
 Onboard (3-4 questions) → generate the week menu → fill a ready-to-order basket →
 adapt on a plain-language request.

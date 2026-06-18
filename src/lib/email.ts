@@ -37,7 +37,7 @@ function otpHtml(code: string): string {
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
   const apiKey = await readEnv('RESEND_API_KEY')
   if (!apiKey) {
-    throw new Error('RESEND_API_KEY is not set — cannot send the sign-in code.')
+    throw new Error('RESEND_API_KEY is not set, cannot send the sign-in code.')
   }
   const resend = new Resend(apiKey)
   const { error } = await resend.emails.send({
