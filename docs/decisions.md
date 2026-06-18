@@ -26,18 +26,27 @@ pick up cold. One line each; expand only when it bit us.
    surrounding story/images are); we use the recipe data, not verbatim copy, public
    info only. Have a "how we'd license this at scale" answer ready for VC questions.
 
-## Open (decide on the features call)
+## Locked on the feature call (2026-06-18)
 
-- The exact onboarding questions (which 3-4, in what order).
-- Week size and meal types (dinners only, or breakfast/lunch too?).
-- The single demo flow we polish for the pitch.
-- Which store is primary for the basket demo (AH or Jumbo).
-- Recipe source of record for the demo: scraped set vs a recipe-API early-access deal
-  (Teije has a lead) vs a curated small set.
-- Product name (Smart Cart is provisional).
+7. **The one flow:** swipe onboarding, instant first week, chat/voice replan,
+   one-click AH order, post-meal feedback loop. See `docs/PRD.md`.
+8. **Onboarding is swipe-first** (Tinder/Letterboxd on whole recipes) plus a few
+   light form fields. Not a survey.
+9. **One recipe per day of the week.** Household size sets portions. No
+   every-second-day mode for now (Teije: most families cook every night).
+10. **Primary store is Albert Heijn** for the one-click order. Show Jumbo but do
+    not build it. For all other stores, show the price only (no recipe-to-cart).
+11. **Recipe source of record:** the ~40k scraped recipes (Nicolas). If Teije's
+    Food Influencers United API early access lands, it does the recipe-to-product
+    step for us, which would free time for breakfast/lunch/snacks. Pending.
+12. **The moat is the learning loop**, not auto-buy. Feedback into memory, AI at
+    decision points, bring-your-own recipes, local AH/Jumbo integration.
+13. **Swipe algorithm** (Ronan): find intersections across rejected recipes, fewest
+    swipes to the user's top 20%, AI only at decision points.
+14. **Name: still open** (Smart Cart is provisional, Mega42 / Eurobuild also live).
 
-## How we turn this into work
+## Still open
 
-After the features call: write `docs/PRD.md`, then slice it into small vertical
-issues an agent (Codex / Claude) can pick up one at a time. Keep each issue to one
-flow step.
+- The exact 1-2 replan scenarios shown live in the demo.
+- The product name (and whether to buy a domain).
+- Whether the Food Influencers United API early access comes through.

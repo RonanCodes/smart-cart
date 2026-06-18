@@ -85,6 +85,12 @@ export const recipe = pgTable('recipe', {
   servings: integer('servings'),
   prepMinutes: integer('prep_minutes'),
   calories: integer('calories'),
+  /** grams of protein per serving when known (a key data point for many users). */
+  protein: integer('protein'),
+  /** cuisine, e.g. mexican, italian, thai. Used to avoid repeating one in a week. */
+  cuisine: text('cuisine'),
+  /** 'dinner' (default), 'breakfast', 'lunch', 'snack'. */
+  mealType: text('meal_type').notNull().default('dinner'),
   /** e.g. hoofdgerecht / bijgerecht */
   category: text('category'),
   /** vegan, vegetarian, glutenvrij, lactosevrij, keto, … */
@@ -105,6 +111,51 @@ export const recipe = pgTable('recipe', {
     .default([]),
   /** Full scraped blob, kept verbatim as the source of truth. */
   raw: jsonb('raw'),
+  createdAt: timestamp('created_at')
+    .$defaultFn(() => new Date())
+    .notNull(),
+})
+
+/**
+ * Recipe swipes: the onboarding (and ongoing) Tinder-style like/dislike signal.
+ * The preference algorithm reads these to infer what a household dislikes by
+ * finding the overlap across rejected recipes. The source of truth for taste.
+ */
+export const recipeSwipe = pgTable('recipe_swipe', {
+  id: text('id').primaryKey(),
+  householdId: text('household_id')
+    .notNull()
+    .references(() => household.id, { onDelete: 'cascade' }),
+  recipeId: text('recipe_id')
+    .notNull()
+    .references(() => recipe.id, { onDelete: 'cascade' }),
+  /** 'like' | 'dislike' | 'skip' */
+  direction: text('direction').notNull(),
+  /** Which swipe round this came from, for the fewest-swipes analysis. */
+  round: integer('round').notNull().default(0),
+  createdAt: timestamp('created_at')
+    .$defaultFn(() => new Date())
+    .notNull(),
+})
+
+/**
+ * Post-meal feedback: thumbs up or down plus a free note ("not pizza every week").
+ * Stored so the planner stops suggesting the same things (the learning loop).
+ */
+export const mealFeedback = pgTable('meal_feedback', {
+  id: text('id').primaryKey(),
+  householdId: text('household_id')
+    .notNull()
+    .references(() => household.id, { onDelete: 'cascade' }),
+  mealPlanId: text('meal_plan_id').references(() => mealPlan.id, {
+    onDelete: 'set null',
+  }),
+  recipeId: text('recipe_id').references(() => recipe.id, {
+    onDelete: 'set null',
+  }),
+  /** 'up' | 'down' */
+  rating: text('rating').notNull(),
+  note: text('note'),
   createdAt: timestamp('created_at')
     .$defaultFn(() => new Date())
     .notNull(),
