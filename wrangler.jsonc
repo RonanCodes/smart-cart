@@ -7,6 +7,9 @@
   "observability": {
     "enabled": true,
   },
+  "vars": {
+    "BETTER_AUTH_URL": "https://smartcart.ronanconnolly.dev",
+  },
   "routes": [
     { "pattern": "smartcart.ronanconnolly.dev", "custom_domain": true },
   ],
