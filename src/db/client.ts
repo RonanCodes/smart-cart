@@ -29,7 +29,7 @@ export type DbHealth =
   | { connected: true }
   | { connected: false; reason: 'unconfigured' | 'error'; detail?: string }
 
-/** Health probe. Never throws — observability must not crash a request. */
+/** Health probe. Never throws, observability must not crash a request. */
 export async function checkDbHealth(): Promise<DbHealth> {
   let url: string | undefined
   try {

@@ -8,7 +8,7 @@ import {
 import appCss from '../styles.css?url'
 
 const SITE_URL = 'https://smartcart.ronanconnolly.dev'
-const SITE_TITLE = 'Smart Cart — your household food planner'
+const SITE_TITLE = 'Smart Cart: your household food planner'
 const SITE_DESCRIPTION =
   'Smart Cart learns how your household eats, plans your week, and fills a ready-to-order basket at Albert Heijn or Jumbo in under a minute. You just check out.'
 

@@ -50,9 +50,9 @@ use: "@tanstack/virtual-file-routes#virtual-file-routes"
 
 Before writing code or a PRD, read:
 
-- `CONTEXT.md` — what Smart Cart is + the shared domain language (household, week menu, basket, recipe, adaptation) + the hard rules.
-- `docs/decisions.md` — locked decisions (no auto-buy, grounded recipes, Dutch-first) and the open questions.
-- `docs/PRD.md` — the scope + the one flow we polish, sliced into agent-sized issues.
+- `CONTEXT.md`: what Smart Cart is + the shared domain language (household, week menu, basket, recipe, adaptation) + the hard rules.
+- `docs/decisions.md`: locked decisions (no auto-buy, grounded recipes, Dutch-first) and the open questions.
+- `docs/PRD.md`: the scope + the one flow we polish, sliced into agent-sized issues.
 
 Hard rules: no autonomous purchasing (we fill the basket, the user checks out); meal generation is grounded in the `recipe` table, never free-form/hallucinated; Dutch supermarkets (AH/Jumbo) first.
 

@@ -63,7 +63,7 @@ export const mealPlan = pgTable('meal_plan', {
       shoppingList: Array<{ item: string; qty: string }>
     }>()
     .notNull(),
-  /** 'draft' | 'confirmed' | 'shopped' — the user shops it themselves (no auto-buy). */
+  /** 'draft' | 'confirmed' | 'shopped', the user shops it themselves (no auto-buy). */
   status: text('status').notNull().default('draft'),
   createdAt: timestamp('created_at')
     .$defaultFn(() => new Date())

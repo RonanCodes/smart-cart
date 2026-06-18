@@ -10,7 +10,7 @@ export interface GuardUser {
 /**
  * Resolve the signed-in user from the request cookie. Server-only: the auth import
  * is dynamic and inside the handler, so its `cloudflare:workers` / getRequest chain
- * is stripped from the client bundle — only this call site is statically reachable
+ * is stripped from the client bundle, only this call site is statically reachable
  * from client routes.
  */
 const resolveSessionUser = createServerFn({ method: 'GET' }).handler(
