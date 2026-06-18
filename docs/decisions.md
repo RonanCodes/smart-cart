@@ -33,15 +33,15 @@ pick up cold. One line each; expand only when it bit us.
 8. **Onboarding is swipe-first** (Tinder/Letterboxd on whole recipes) plus a few
    light form fields. Not a survey.
 9. **One recipe per day of the week.** Household size sets portions. No
-   every-second-day mode for now (Teije: most families cook every night).
+   every-second-day mode for now (most families cook every night).
 10. **Primary store is Albert Heijn** for the one-click order. Show Jumbo but do
     not build it. For all other stores, show the price only (no recipe-to-cart).
-11. **Recipe source of record:** the ~40k scraped recipes (Nicolas). If Teije's
-    Food Influencers United API early access lands, it does the recipe-to-product
-    step for us, which would free time for breakfast/lunch/snacks. Pending.
+11. **Recipe source of record:** the ~40k scraped recipes. If a recipe-to-product
+    API early access lands, it does the recipe-to-product step for us, which would
+    free time for breakfast/lunch/snacks. Pending.
 12. **The moat is the learning loop**, not auto-buy. Feedback into memory, AI at
     decision points, bring-your-own recipes, local AH/Jumbo integration.
-13. **Swipe algorithm** (Ronan): find intersections across rejected recipes, fewest
+13. **Swipe algorithm:** find intersections across rejected recipes, fewest
     swipes to the user's top 20%, AI only at decision points.
 14. **Name: still open** (Smart Cart is provisional, Mega42 / Eurobuild also live).
 
@@ -49,4 +49,4 @@ pick up cold. One line each; expand only when it bit us.
 
 - The exact 1-2 replan scenarios shown live in the demo.
 - The product name (and whether to buy a domain).
-- Whether the Food Influencers United API early access comes through.
+- Whether a recipe-to-product API early access comes through.

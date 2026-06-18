@@ -1,8 +1,8 @@
 # PRD: Smart Cart
 
 The spec is locked (feature call 2026-06-18). Read `CONTEXT.md` and
-`docs/decisions.md` first. An AI meal planner built on top of SlimMandje. One
-clear flow, a demo that lands three "aha" moments live.
+`docs/decisions.md` first. An AI household meal planner. One clear flow, a demo
+that lands three "aha" moments live.
 
 ## 1. Problem
 
@@ -43,8 +43,8 @@ Jumbo. Demo persona: a family planning the week's dinners.
 
 - Pantry / fridge scan. Exists elsewhere, fiddly, a side feature, not the killer.
 - Social recipe feed (TikTok / Instagram style). A later addition.
-- Breakfast / lunch / snacks (only if the Food Influencers United API lands and
-  frees up product-matching time).
+- Breakfast / lunch / snacks (only if a recipe-to-product API lands and frees up
+  product-matching time).
 
 ## 6. The demo
 
@@ -65,22 +65,26 @@ The shared seam is the database, and it is already defined in full
 so slices read and write existing tables and otherwise stay in their own folder.
 That is how we avoid merge conflicts.
 
-| #   | Slice                             | Owner         | Lives in (own these files)                                               | Reads/writes                                     |
-| --- | --------------------------------- | ------------- | ------------------------------------------------------------------------ | ------------------------------------------------ |
-| 1   | Recipe catalogue + seed           | Nicolas       | `scripts/seed-recipes.ts`, `data/recipes/`                               | `recipe`                                         |
-| 2   | Swipe onboarding UI + light forms | Teije + Ronan | `src/routes/onboarding.tsx`, `src/components/onboarding/*`               | `recipe`, `recipe_swipe`, `household`            |
-| 3   | Preference algorithm (the maths)  | Ronan         | `src/lib/preferences/*`                                                  | reads `recipe_swipe`, writes `household.profile` |
-| 4   | Week generation (grounded)        | Ronan         | `src/lib/planner/*`, `src/routes/api/plan.ts`                            | reads `recipe` + profile, writes `meal_plan`     |
-| 5   | Week view + chat/voice replan     | Ronan         | `src/routes/week.tsx`, `src/components/week/*`, `src/lib/agent/*`        | `meal_plan`                                      |
-| 6   | Product match + AH basket + price | Nicolas       | `src/lib/product-match/*`, `src/lib/pricing/*`, `src/routes/api/cart.ts` | `recipe`, `meal_plan`                            |
-| 7   | Feedback loop + memory            | Ronan         | `src/lib/feedback/*`, `src/routes/feedback.tsx`                          | `meal_feedback`, `household.profile`             |
-| 8   | Admin portal (demo notifications) | open          | `src/routes/admin/*`, `src/lib/notify/*`                                 | `meal_plan`, `meal_feedback`                     |
-| 9   | Voice agent (VAPI), optional      | Ronan         | `src/lib/voice/*`                                                        | calls slice 5                                    |
+Owner roles below are generic (Core = planning/algorithm, FE = UI, Integrations =
+data/supermarket). The point of the table is the file boundaries, so two people
+never edit the same file.
 
-Rules of the road (Teije's ask): Ronan sets up the lint/test rules and reviews
-PRs. Branch off `main`, one slice per PR, squash-merge. First hour on the day: write
-everything down and mock the screens, then split. For product matching, fake it
-till you make it if the real integration does not hold.
+| #   | Slice                             | Owner        | Lives in (own these files)                                               | Reads/writes                                     |
+| --- | --------------------------------- | ------------ | ------------------------------------------------------------------------ | ------------------------------------------------ |
+| 1   | Recipe catalogue + seed           | Integrations | `scripts/seed-recipes.ts`, `data/recipes/`                               | `recipe`                                         |
+| 2   | Swipe onboarding UI + light forms | FE           | `src/routes/onboarding.tsx`, `src/components/onboarding/*`               | `recipe`, `recipe_swipe`, `household`            |
+| 3   | Preference algorithm (the maths)  | Core         | `src/lib/preferences/*`                                                  | reads `recipe_swipe`, writes `household.profile` |
+| 4   | Week generation (grounded)        | Core         | `src/lib/planner/*`, `src/routes/api/plan.ts`                            | reads `recipe` + profile, writes `meal_plan`     |
+| 5   | Week view + chat/voice replan     | Core         | `src/routes/week.tsx`, `src/components/week/*`, `src/lib/agent/*`        | `meal_plan`                                      |
+| 6   | Product match + AH basket + price | Integrations | `src/lib/product-match/*`, `src/lib/pricing/*`, `src/routes/api/cart.ts` | `recipe`, `meal_plan`                            |
+| 7   | Feedback loop + memory            | Core         | `src/lib/feedback/*`, `src/routes/feedback.tsx`                          | `meal_feedback`, `household.profile`             |
+| 8   | Admin portal (demo notifications) | Open         | `src/routes/admin/*`, `src/lib/notify/*`                                 | `meal_plan`, `meal_feedback`                     |
+| 9   | Voice agent (VAPI), optional      | Core         | `src/lib/voice/*`                                                        | calls slice 5                                    |
+
+Rules of the road: the lint/test rules and PR review are owned by Core. Branch off
+`main`, one slice per PR, squash-merge. First hour on the day: write everything down
+and mock the screens, then split. For product matching, fake it till you make it if
+the real integration does not hold.
 
 ## How we know it works
 

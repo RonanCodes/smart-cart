@@ -18,7 +18,7 @@ async function buildAuth() {
   return betterAuth({
     secret,
     baseURL,
-    database: drizzleAdapter(db, { provider: 'pg', schema }),
+    database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     // Passwordless: no password to manage. Sign-in is a 6-digit code by email.
     emailAndPassword: { enabled: false },
     plugins: [

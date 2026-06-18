@@ -1,10 +1,9 @@
 # Local dev secrets for Smart Cart. Copy to .dev.vars (gitignored).
 # Production values are wrangler secrets, never committed.
 
-# Neon Postgres connection string (pooled). console.neon.tech → project → connect.
-NEON_DATABASE_URL="postgresql://<user>:<password>@<host>/smart-cart?sslmode=require"
+# D1 is a wrangler binding (no connection string needed locally).
 
-# Better Auth — generate with: openssl rand -base64 32
+# Better Auth: generate with: openssl rand -base64 32
 BETTER_AUTH_SECRET="<openssl rand -base64 32>"
 BETTER_AUTH_URL="http://localhost:3000"
 
