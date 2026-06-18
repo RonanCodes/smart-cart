@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [develop, main]
+    branches: [main]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -27,8 +27,8 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Workers
     needs: test
-    # Auto-deploy on every push to develop (i.e. every squash-merged PR).
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    # Auto-deploy on every push to main (i.e. every squash-merged PR).
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
     concurrency:

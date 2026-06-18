@@ -10,6 +10,6 @@ Thin pointer file. The real context lives in:
 Hard rules: no autonomous purchasing (fill the basket, user checks out); meal
 generation is grounded in the `recipe` table, never hallucinated; AH/Jumbo first.
 
-Ship flow: branch off `develop` → PR → squash-merge (auto-deploys). Never push to
-`develop`/`main` directly. Commits use emoji-conventional format. The pre-push hook
-runs the full gate (`pnpm quality`).
+Ship flow: feature branch off `main` → PR → squash-merge into `main` (auto-deploys).
+Never push to `main` directly. Commits use emoji-conventional format. The pre-push
+hook runs the full gate (`pnpm quality`).
