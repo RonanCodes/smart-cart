@@ -1,10 +1,9 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import {
   CalendarCheck,
   ShoppingCart,
   Sparkles,
   ThumbsUp,
-  ScanLine,
   ShieldCheck,
 } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
@@ -15,9 +14,9 @@ import { Card, CardContent } from '#/components/ui/card'
 export const Route = createFileRoute('/')({ component: Home })
 
 const LOOP = [
-  { icon: Sparkles, label: 'Discover', note: 'It learns your taste' },
+  { icon: Sparkles, label: 'Learn', note: 'How your household eats' },
   { icon: CalendarCheck, label: 'Plan', note: 'A week of dinners' },
-  { icon: ShoppingCart, label: 'Order', note: 'Real AH / Jumbo cart' },
+  { icon: ShoppingCart, label: 'Fill basket', note: 'Ready at AH / Jumbo' },
   { icon: ThumbsUp, label: 'Cook & rate', note: 'One tap feedback' },
 ]
 
@@ -29,18 +28,18 @@ const FEATURES = [
   },
   {
     icon: ShoppingCart,
-    title: 'One real cart',
-    body: 'Your menu plus your regular groceries become one filled basket at Albert Heijn or Jumbo, ready to check out.',
+    title: 'A basket in one click',
+    body: 'Your menu plus your regulars become one filled basket at Albert Heijn or Jumbo, with the price compared across stores. You check out.',
   },
   {
-    icon: ScanLine,
-    title: 'Fridge scan',
-    body: 'Snap a photo of your fridge and get recipes from what you already have. Less waste, fewer trips.',
+    icon: Sparkles,
+    title: 'Adapts to real life',
+    body: 'Tell it "we’re eating out Wednesday" or "the kids hate mushrooms" or "spend twenty euro less" and the whole week replans in seconds.',
   },
   {
     icon: ThumbsUp,
-    title: 'Gets smarter weekly',
-    body: 'Thumbs up the meals you liked. Good ones come back, the rest quietly disappear. Every order sharpens the next.',
+    title: 'Knows you better each week',
+    body: 'Thumbs up the meals you liked. Good ones come back, the rest quietly disappear. Every week it fits your household more closely.',
   },
 ]
 
@@ -57,11 +56,11 @@ function Home() {
           Smart Cart
         </span>
         <nav className="flex items-center gap-2">
-          <Link to="/styleguide">
+          <a href="#how">
             <Button variant="ghost" size="sm">
-              Design system
+              How it works
             </Button>
-          </Link>
+          </a>
           {loggedIn ? (
             <a href="/app">
               <Button size="sm">Open app</Button>
@@ -77,15 +76,15 @@ function Home() {
       {/* Hero */}
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-6 pt-10 pb-20 md:grid-cols-2">
         <div className="space-y-6">
-          <Badge variant="primary">Built at Megathon Amsterdam · Day42</Badge>
+          <Badge variant="primary">Your household food planner</Badge>
           <h1 className="text-5xl font-bold tracking-tight text-balance sm:text-6xl">
-            Your household groceries,{' '}
-            <span className="text-primary">done for you</span>.
+            Never wonder <span className="text-primary">what's for dinner</span>{' '}
+            again.
           </h1>
           <p className="text-muted-foreground max-w-md text-lg text-balance">
-            Smart Cart learns how your household eats, plans the week, and
-            places your real order at Albert Heijn or Jumbo. You never make a
-            list again.
+            Smart Cart learns how your household eats, plans your week, and
+            fills a ready-to-order basket at Albert Heijn or Jumbo in under a
+            minute. You just check out.
           </p>
           <div className="flex flex-wrap gap-3">
             <a href={loggedIn ? '/app' : '/sign-in'}>
@@ -101,7 +100,8 @@ function Home() {
           </div>
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
             <ShieldCheck className="text-primary h-4 w-4" />
-            Automated, with control. You confirm the basket and set a spend cap.
+            We never touch your money. Smart Cart plans and fills the basket;
+            you check out.
           </p>
         </div>
         <div className="relative">
@@ -123,8 +123,9 @@ function Home() {
             One loop that gets smarter every week
           </h2>
           <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-center">
-            Most apps stop at suggesting recipes. Smart Cart completes the job:
-            discover, plan, order, cook, learn. Every step feeds the next.
+            Most apps stop at suggesting recipes. Smart Cart goes further: it
+            learns your household, plans the week, and fills your basket. Every
+            week it fits you better.
           </p>
           <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {LOOP.map((step, i) => (
@@ -182,8 +183,9 @@ function Home() {
         </div>
       </section>
 
-      <footer className="text-muted-foreground mx-auto max-w-6xl px-6 py-10 text-sm">
-        Smart Cart · built by team Day42 at Megathon Amsterdam 2026
+      <footer className="text-muted-foreground mx-auto flex max-w-6xl items-center justify-between px-6 py-10 text-sm">
+        <span>© 2026 Smart Cart</span>
+        <span>Made in Amsterdam</span>
       </footer>
     </div>
   )

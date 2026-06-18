@@ -15,3 +15,6 @@ dist
 # build
 /build
 /.cache
+
+# large scraped recipe dumps (keep out of git; load via pnpm seed:recipes)
+data/recipes/*.json
