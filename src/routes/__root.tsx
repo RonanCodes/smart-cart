@@ -8,9 +8,9 @@ import {
 import appCss from '../styles.css?url'
 
 const SITE_URL = 'https://smartcart.ronanconnolly.dev'
-const SITE_TITLE = 'Smart Cart — your household groceries, done for you'
+const SITE_TITLE = 'Smart Cart — your household food planner'
 const SITE_DESCRIPTION =
-  'Smart Cart learns how your household eats, plans the week, and places your real order at Albert Heijn or Jumbo. Automated, with control.'
+  'Smart Cart learns how your household eats, plans your week, and fills a ready-to-order basket at Albert Heijn or Jumbo in under a minute. You just check out.'
 
 export const Route = createRootRoute({
   head: () => ({
