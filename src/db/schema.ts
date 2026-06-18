@@ -161,5 +161,28 @@ export const mealFeedback = pgTable('meal_feedback', {
     .notNull(),
 })
 
+/**
+ * Audit log: the history of what users do (page views, swipes, plan generated,
+ * replan, order, feedback). The admin console reads this and the presence Durable
+ * Object streams it live during the demo. Live presence (who is online, current
+ * page) lives in the DO; this table is the durable history.
+ */
+export const event = pgTable('event', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+  householdId: text('household_id').references(() => household.id, {
+    onDelete: 'set null',
+  }),
+  /** 'page_view' | 'swipe' | 'plan_generated' | 'replan' | 'order' | 'feedback' | ... */
+  type: text('type').notNull(),
+  /** The route/path for page views, when relevant. */
+  path: text('path'),
+  /** Free-form payload for the event (the swiped recipe, the replan text, etc). */
+  data: jsonb('data').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at')
+    .$defaultFn(() => new Date())
+    .notNull(),
+})
+
 // Re-export auth tables so a single `drizzle-kit generate` migrates everything.
 export * from './auth-schema'
