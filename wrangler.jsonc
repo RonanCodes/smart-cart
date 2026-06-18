@@ -5,8 +5,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
   "observability": {
-    "enabled": true
-  }
-  // Custom domain (smartcart.ronanconnolly.dev) is added post-deploy once DNS is wired:
-  //   "routes": [{ "pattern": "smartcart.ronanconnolly.dev", "custom_domain": true }]
+    "enabled": true,
+  },
+  "routes": [
+    { "pattern": "smartcart.ronanconnolly.dev", "custom_domain": true },
+  ],
 }

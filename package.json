@@ -18,7 +18,8 @@
     "db:generate": "drizzle-kit generate --config drizzle/neon/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config drizzle/neon/drizzle.config.ts",
     "cf-typegen": "wrangler types",
-    "quality": "pnpm run format && pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test"
+    "quality": "pnpm run format && pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
+    "prepare": "husky"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.85",
@@ -47,6 +48,7 @@
     "@commitlint/cli": "^21.0.2",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "latest",
+    "@tanstack/eslint-config": "^0.4.0",
     "@tanstack/react-devtools": "latest",
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/router-plugin": "^1.132.0",
@@ -71,11 +73,7 @@
     "vitest": "^4.1.5",
     "wrangler": "^4.101.0"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss",
-      "workerd"
-    ]
+  "lint-staged": {
+    "*.{js,mjs,cjs,ts,tsx,jsx,json,jsonc,css,md,yml,yaml,html}": "prettier --write"
   }
 }

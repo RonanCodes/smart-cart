@@ -1,0 +1,6 @@
+if [ -n "$SKIP_QUALITY_CHECKS" ]; then
+  echo "⏭️  SKIP_QUALITY_CHECKS set, skipping pre-push quality gate"
+  exit 0
+fi
+echo "🔍 Running quality gate before push (format + lint + typecheck + build + test)…"
+pnpm quality
