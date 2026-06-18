@@ -1,0 +1,15 @@
+# Local dev secrets for Smart Cart. Copy to .dev.vars (gitignored).
+# Production values are wrangler secrets, never committed.
+
+# Neon Postgres connection string (pooled). console.neon.tech → project → connect.
+NEON_DATABASE_URL="postgresql://<user>:<password>@<host>/smart-cart?sslmode=require"
+
+# Better Auth — generate with: openssl rand -base64 32
+BETTER_AUTH_SECRET="<openssl rand -base64 32>"
+BETTER_AUTH_URL="http://localhost:3000"
+
+# Resend transactional email (sign-in OTP code). Send from a verified domain.
+RESEND_API_KEY="<resend api key>"
+
+# LLM provider key for the meal-planning agent (at least one).
+ANTHROPIC_API_KEY="<anthropic api key>"

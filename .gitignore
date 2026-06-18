@@ -1,0 +1,17 @@
+node_modules
+.DS_Store
+.output
+.vinxi
+.wrangler
+dist
+.tanstack
+*.local
+
+# secrets
+.dev.vars
+.env
+.env.*
+
+# build
+/build
+/.cache
