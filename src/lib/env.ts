@@ -5,7 +5,7 @@
  */
 export async function readEnv(key: string): Promise<string | undefined> {
   const fromProcess =
-    typeof process !== 'undefined' ? process.env?.[key] : undefined
+    typeof process !== 'undefined' ? process.env[key] : undefined
   if (fromProcess) return fromProcess
   try {
     const { env } = await import('cloudflare:workers')
