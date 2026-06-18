@@ -1,9 +1,8 @@
 import { Resend } from 'resend'
 import { readEnv } from './env'
 
-// Personal Ronan Connolly Resend account (ronanconnolly.dev verified). The
-// RESEND_API_KEY secret for this app holds the personal key, never the Simplicity
-// Labs one.
+// Sends from the verified ronanconnolly.dev Resend account (the RESEND_API_KEY
+// secret holds that key).
 const FROM = 'Smart Cart <hello@ronanconnolly.dev>'
 const MASCOT = 'https://smartcart.ronanconnolly.dev/mascot-avatar.png'
 const GREEN = '#43A047'
@@ -24,7 +23,7 @@ function otpHtml(code: string): string {
         <p style="color:#8a988a;font-size:13px;line-height:1.5;margin:0;">It expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
       </div>
       <div style="padding:16px 28px;border-top:1px solid #f0f4f0;text-align:center;">
-        <p style="color:#9aa89a;font-size:12px;margin:0;">Smart Cart · built by Ronan Connolly</p>
+        <p style="color:#9aa89a;font-size:12px;margin:0;">Smart Cart</p>
       </div>
     </div>
   </div>`

@@ -1,33 +1,23 @@
 /**
- * Load scraped recipes from data/recipes/*.json into the Neon `recipe` table.
- *
- * Each JSON file is either an array of recipe objects or a single object. Shape is
- * flexible; the full object is kept in `raw`. Known fields are mapped to columns.
+ * Turn data/recipes/*.json into a D1-applyable SQL seed file.
  *
  *   pnpm seed:recipes
+ *   wrangler d1 execute smart_cart_db --remote --file=drizzle/seed/recipes.sql
+ *   # (use --local for local dev)
  *
- * Reads NEON_DATABASE_URL from the environment or .dev.vars. Idempotent: rows are
- * upserted on id (provide a stable `id` per recipe, e.g. "ah-12345", to re-run safely).
+ * Each JSON file is an array of recipe objects (or a single object). Known fields
+ * map to columns; the full object is kept in `raw`. Provide a stable `id` per
+ * recipe (e.g. "ah-12345") so re-applying is idempotent (INSERT OR REPLACE).
  */
-import { readdirSync, readFileSync, existsSync } from 'node:fs'
+import {
+  readdirSync,
+  readFileSync,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { neon } from '@neondatabase/serverless'
-import { drizzle } from 'drizzle-orm/neon-http'
-import { sql } from 'drizzle-orm'
-import { recipe } from '../src/db/schema'
-
-function loadEnv(): string {
-  if (process.env.NEON_DATABASE_URL) return process.env.NEON_DATABASE_URL
-  const devVars = join(process.cwd(), '.dev.vars')
-  if (existsSync(devVars)) {
-    for (const line of readFileSync(devVars, 'utf8').split('\n')) {
-      const m = line.match(/^\s*NEON_DATABASE_URL\s*=\s*"?([^"]+)"?\s*$/)
-      if (m?.[1]) return m[1]
-    }
-  }
-  throw new Error('NEON_DATABASE_URL not set (env or .dev.vars).')
-}
 
 type RawRecipe = Record<string, unknown> & { id?: string; title?: string }
 
@@ -38,25 +28,39 @@ const num = (v: unknown): number | undefined =>
 const arr = <T>(v: unknown): Array<T> | undefined =>
   Array.isArray(v) ? (v as Array<T>) : undefined
 
-function toRow(r: RawRecipe, source: string) {
-  return {
-    id: r.id ?? `${source}-${randomUUID()}`,
-    source: str(r.source) ?? source,
-    sourceUrl: str(r.sourceUrl) ?? str(r.url) ?? null,
-    title: r.title ?? 'Untitled',
-    servings: num(r.servings) ?? null,
-    prepMinutes: num(r.prepMinutes) ?? num(r.prep_minutes) ?? null,
-    calories: num(r.calories) ?? null,
-    category: str(r.category) ?? null,
-    dietaryTags: arr<string>(r.dietaryTags) ?? arr<string>(r.tags) ?? [],
-    ingredients: arr<{ name: string }>(r.ingredients) ?? [],
-    instructions: arr<string>(r.instructions) ?? [],
-    raw: r,
-  }
+/** Single-quote escape for SQLite literals. */
+const q = (v: string) => `'${v.replace(/'/g, "''")}'`
+const qjson = (v: unknown) => q(JSON.stringify(v ?? null))
+const qnull = (v: string | number | undefined) =>
+  v === undefined ? 'NULL' : typeof v === 'number' ? String(v) : q(v)
+
+function rowValues(r: RawRecipe, source: string): string {
+  const id = r.id ?? `${source}-${randomUUID()}`
+  const now = Math.floor(Date.now() / 1000)
+  return [
+    q(id),
+    q(str(r.source) ?? source),
+    qnull(str(r.sourceUrl) ?? str(r.url)),
+    q(r.title ?? 'Untitled'),
+    qnull(num(r.servings)),
+    qnull(num(r.prepMinutes) ?? num(r.prep_minutes)),
+    qnull(num(r.calories)),
+    qnull(num(r.protein)),
+    qnull(str(r.cuisine)),
+    q(str(r.mealType) ?? 'dinner'),
+    qnull(str(r.category)),
+    qjson(arr<string>(r.dietaryTags) ?? arr<string>(r.tags) ?? []),
+    qjson(arr(r.ingredients) ?? []),
+    qjson(arr<string>(r.instructions) ?? []),
+    qjson(r),
+    String(now),
+  ].join(', ')
 }
 
-async function main() {
-  const db = drizzle(neon(loadEnv()), { schema: { recipe } })
+const COLS =
+  'id, source, source_url, title, servings, prep_minutes, calories, protein, cuisine, meal_type, category, dietary_tags, ingredients, instructions, raw, created_at'
+
+function main() {
   const dir = join(process.cwd(), 'data', 'recipes')
   if (!existsSync(dir)) {
     console.log(
@@ -69,39 +73,29 @@ async function main() {
     console.log('No *.json files in data/recipes/.')
     return
   }
+  const lines: Array<string> = []
   let total = 0
   for (const file of files) {
     const source = file.replace(/\.json$/, '')
     const parsed = JSON.parse(readFileSync(join(dir, file), 'utf8')) as
       | Array<RawRecipe>
       | RawRecipe
-    const rows = (Array.isArray(parsed) ? parsed : [parsed]).map((r) =>
-      toRow(r, source),
-    )
-    // Batch upsert.
-    for (let i = 0; i < rows.length; i += 200) {
-      const batch = rows.slice(i, i + 200)
-      await db
-        .insert(recipe)
-        .values(batch)
-        .onConflictDoUpdate({
-          target: recipe.id,
-          set: {
-            title: sql`excluded.title`,
-            raw: sql`excluded.raw`,
-            ingredients: sql`excluded.ingredients`,
-            instructions: sql`excluded.instructions`,
-            dietaryTags: sql`excluded.dietary_tags`,
-          },
-        })
+    const rows = Array.isArray(parsed) ? parsed : [parsed]
+    for (const r of rows) {
+      lines.push(
+        `INSERT OR REPLACE INTO recipe (${COLS}) VALUES (${rowValues(r, source)});`,
+      )
     }
     total += rows.length
-    console.log(`  ${file}: ${rows.length} recipes`)
   }
-  console.log(`Done. Upserted ${total} recipes.`)
+  const outDir = join(process.cwd(), 'drizzle', 'seed')
+  mkdirSync(outDir, { recursive: true })
+  const out = join(outDir, 'recipes.sql')
+  writeFileSync(out, lines.join('\n') + '\n')
+  console.log(`Wrote ${total} recipes to ${out}`)
+  console.log(
+    'Apply with: wrangler d1 execute smart_cart_db --remote --file=drizzle/seed/recipes.sql',
+  )
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+main()

@@ -42,11 +42,14 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      # Apply only new Neon migrations (drizzle tracks applied ones in meta/_journal.json).
-      - name: Apply Neon migrations
-        env:
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-        run: pnpm db:migrate
+      # Apply only new D1 migrations (wrangler tracks applied ones in the
+      # d1_migrations table). Never a per-file execute loop (CF rate limits).
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations apply smart_cart_db --remote
       - name: Deploy worker
         uses: cloudflare/wrangler-action@v3
         with:

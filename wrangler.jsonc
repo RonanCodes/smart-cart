@@ -11,6 +11,14 @@
   "vars": {
     "BETTER_AUTH_URL": "https://smartcart.ronanconnolly.dev",
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "smart_cart_db",
+      "database_id": "ae8a801f-b647-4a28-8950-e38fd6511541",
+      "migrations_dir": "drizzle/migrations",
+    },
+  ],
   "routes": [
     { "pattern": "smartcart.ronanconnolly.dev", "custom_domain": true },
   ],
