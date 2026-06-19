@@ -72,7 +72,7 @@ describe('recsys registry', () => {
   })
 
   it('throws on an unknown key', () => {
-    expect(() => makeRecommender('bayesian', recipes)).toThrow(
+    expect(() => makeRecommender('does-not-exist', recipes)).toThrow(
       /Unknown recommender/,
     )
   })
