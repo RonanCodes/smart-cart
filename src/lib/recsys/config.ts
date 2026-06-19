@@ -11,7 +11,16 @@
  */
 import type { AdaptiveWeights } from './types'
 
-/** Registry key of the live recommender. The current benchmark winner. */
+/**
+ * Registry key of the live recommender. The current benchmark winner.
+ *
+ * Head-to-head on the frozen fixture v1 (300 users, recall@20): adaptive scores
+ * 0.105 @20 / 0.161 @30; bayesian (online logistic + Gaussian prior, #41) scores
+ * 0.088 @20 / 0.090 @30. Adaptive wins at every checkpoint, so it stays the live
+ * default. The Bayesian ranker is registered and benchmarked but not promoted; the
+ * likely lift (active-learning deck via posterior covariance) is a deferred
+ * follow-up, OUT of scope for #41.
+ */
 export const DEFAULT_ALGORITHM = 'adaptive'
 
 /**
