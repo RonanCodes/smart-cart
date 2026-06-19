@@ -28,7 +28,15 @@ async function buildAuth() {
         // Open sign-up: a first-time email creates the account on verify.
         sendVerificationOnSignUp: true,
         async sendVerificationOTP({ email, otp }) {
-          await sendOtpEmail(email, otp)
+          // Stash first so the demo skip-login path can read it back even if the
+          // email never goes out (Resend outage). See stashOtp/consumeOtp below.
+          stashOtp(email, otp)
+          // Non-fatal: a Resend outage must not throw out of the sign-in endpoint.
+          try {
+            await sendOtpEmail(email, otp)
+          } catch (err) {
+            console.error('sendOtpEmail failed (continuing):', err)
+          }
         },
       }),
     ],
@@ -40,4 +48,26 @@ let cached: Awaited<ReturnType<typeof buildAuth>> | undefined
 export async function getAuth() {
   if (!cached) cached = await buildAuth()
   return cached
+}
+
+/**
+ * DEMO SKIP-LOGIN support (Resend outage workaround).
+ *
+ * Better Auth hands us the plaintext OTP in `sendVerificationOTP`. We stash the most
+ * recent one per email so a server fn can read it back WITHIN THE SAME REQUEST (same
+ * Worker isolate) and complete sign-in without the email being delivered. The only
+ * consumer is `demo-auth.ts`. Remove this and the skip button after the demo. The
+ * normal email-OTP flow is unaffected.
+ */
+const lastOtpByEmail = new Map<string, string>()
+
+export function stashOtp(email: string, otp: string): void {
+  lastOtpByEmail.set(email.toLowerCase(), otp)
+}
+
+export function consumeOtp(email: string): string | undefined {
+  const key = email.toLowerCase()
+  const otp = lastOtpByEmail.get(key)
+  lastOtpByEmail.delete(key)
+  return otp
 }

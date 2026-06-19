@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { ShoppingCart } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
+import { requestDemoCode } from '#/lib/demo-auth'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import {
@@ -47,6 +48,27 @@ function SignIn() {
     window.location.href = '/app'
   }
 
+  // DEMO skip-login: email is down (Resend outage), so generate the code
+  // server-side and sign in with it directly. Preserves the email identity.
+  // Remove after the demo.
+  async function skipEmail() {
+    if (!email) return setError('Enter your email first.')
+    setBusy(true)
+    setError(null)
+    try {
+      const { otp } = await requestDemoCode({ data: { email } })
+      const { error: signErr } = await authClient.signIn.emailOtp({
+        email,
+        otp,
+      })
+      if (signErr) throw new Error(signErr.message ?? 'Sign-in failed.')
+      window.location.href = '/app'
+    } catch (err) {
+      setBusy(false)
+      setError(err instanceof Error ? err.message : 'Could not skip sign-in.')
+    }
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
       <Card className="w-full max-w-sm">
@@ -72,6 +94,15 @@ function SignIn() {
               />
               <Button type="submit" className="w-full" disabled={busy}>
                 {busy ? 'Sending…' : 'Email me a code'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                disabled={busy}
+                onClick={skipEmail}
+              >
+                Skip email (demo, Resend is down)
               </Button>
             </form>
           ) : (
