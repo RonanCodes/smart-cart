@@ -16,6 +16,7 @@ export {
   AdaptiveRecommender,
   makeRecommenders,
 } from './strategies'
+export { BayesianRecommender } from './strategies-bayesian'
 export {
   REGISTRY,
   makeRecommender,

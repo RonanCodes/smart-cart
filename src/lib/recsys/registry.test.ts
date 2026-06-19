@@ -40,15 +40,23 @@ function sampleSwipes(recipes: Array<RecipeLite>): Array<Swipe> {
 describe('recsys registry', () => {
   const recipes = catalogue()
 
-  it('registers all five strategies under their keys', () => {
+  it('registers all six strategies under their keys', () => {
     expect(registeredKeys()).toEqual([
       'random',
       'maths',
       'vector',
       'hybrid',
       'adaptive',
+      'bayesian',
     ])
-    for (const key of ['random', 'maths', 'vector', 'hybrid', 'adaptive']) {
+    for (const key of [
+      'random',
+      'maths',
+      'vector',
+      'hybrid',
+      'adaptive',
+      'bayesian',
+    ]) {
       expect(isRegistered(key)).toBe(true)
     }
     expect(isRegistered('nope')).toBe(false)
@@ -64,7 +72,7 @@ describe('recsys registry', () => {
   })
 
   it('throws on an unknown key', () => {
-    expect(() => makeRecommender('bayesian', recipes)).toThrow(
+    expect(() => makeRecommender('does-not-exist', recipes)).toThrow(
       /Unknown recommender/,
     )
   })

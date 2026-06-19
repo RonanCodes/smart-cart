@@ -43,6 +43,13 @@
         "30": 0.161444
       },
       "medianSwipesToTarget": 15
+    },
+    "bayesian": {
+      "recallByCheckpoint": {
+        "20": 0.087667,
+        "30": 0.0895
+      },
+      "medianSwipesToTarget": 15
     }
   }
 }
