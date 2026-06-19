@@ -11,17 +11,22 @@ export interface DeckCard {
 }
 
 /** Generic pantry staples that do not help identify a dish. Skipped on the card. */
-const PANTRY_STAPLES = new Set([
-  'salt',
-  'pepper',
-  'black pepper',
-  'water',
-  'olive oil',
-  'oil',
-  'sugar',
-  'butter',
-  'flour',
-])
+const PANTRY_STAPLES = new Set(['sugar', 'butter', 'flour'])
+
+/**
+ * Noise words: when one appears as a WORD in the ingredient name it is filler, so
+ * skip the whole ingredient. Catches descriptor variants like "warm water", "olive
+ * oil", "vegetable oil". Kept narrow so meaningful names ("peanut butter", "tomato
+ * paste") survive (those go through PANTRY_STAPLES exact-match instead).
+ */
+const NOISE_WORDS = new Set(['water', 'oil', 'salt', 'pepper'])
+
+function isNoise(name: string): boolean {
+  const key = name.toLowerCase()
+  if (PANTRY_STAPLES.has(key)) return true
+  const words = key.split(/[^a-z]+/).filter(Boolean)
+  return words.some((w) => NOISE_WORDS.has(w))
+}
 
 /** Up to `n` distinct, meaningful ingredient names for the card. */
 function keyIngredients(
@@ -33,7 +38,7 @@ function keyIngredients(
   for (const { name } of ingredients) {
     const clean = name.trim()
     const key = clean.toLowerCase()
-    if (!clean || seen.has(key) || PANTRY_STAPLES.has(key)) continue
+    if (!clean || seen.has(key) || isNoise(clean)) continue
     seen.add(key)
     out.push(clean)
     if (out.length >= n) break
