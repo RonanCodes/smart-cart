@@ -15,21 +15,24 @@ mental effort**.
 
 ## Ubiquitous language
 
-| Term                     | Means                                                                                                                                                                                                                                                  |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Household**            | The unit we plan for. Has a size (adults/children) and one owner (a signed-in user).                                                                                                                                                                   |
-| **Profile**              | What the household tells us + what we learn: allergies, dislikes, diet, calorie goal, budget, favourite store, loved tastes. The thing that gets richer over time.                                                                                     |
-| **Household memory**     | The accumulated learned profile. Our moat: after months we know "loves Mexican, two veggie nights, hates mushrooms, cooks under 30 min, spends €140/week", not just "family of four".                                                                  |
-| **Week menu (plan)**     | Seven (or N) dinners chosen for a household for a given week. Has a status: `draft` → `confirmed` → `shopped`.                                                                                                                                         |
-| **Recipe**               | A real dish from a scraped catalogue (AH Allerhande, Jumbo Recepten, open datasets), with ingredients (real supermarket products + quantities), dietary tags, calories, prep time, steps. We plan from these, we do not invent them.                   |
-| **Basket**               | The shopping list mapped to a specific store's products, priced, ready for the user to open in the AH or Jumbo app and check out.                                                                                                                      |
-| **Store**                | A supermarket: `ah` (Albert Heijn) or `jumbo` to start. Cross-store is our edge (we are not owned by one chain).                                                                                                                                       |
-| **Price comparison**     | The same basket costed across stores, so the user sees where it is cheaper.                                                                                                                                                                            |
-| **Adaptation / replan**  | The killer move: a plain-language change ("we're eating out Wednesday", "spend €20 less", "kids hate broccoli") replans the rest of the week instantly, by chat or voice.                                                                              |
-| **Swipe**                | The Tinder-style like/dislike/skip on a whole recipe. The fast onboarding intake, stored as `recipe_swipe` rows.                                                                                                                                       |
-| **Preference algorithm** | The core taste piece. Mostly maths: find the overlap (intersection / Venn) across REJECTED recipes to infer dislikes (no seafood, no Mexican twice) in the fewest swipes, getting the user to their top 20% of meals fast. AI only at decision points. |
-| **Feedback loop**        | After a meal, thumbs up/down + a note ("not pizza every week"), stored in memory (`meal_feedback`) so the planner stops repeating misses. The nudge fires around eating time. This is our edge over Jow.                                               |
-| **Jow**                  | jow.com, the French reference. Proof the model works, NOT what we copy. It has no feedback loop, is not really AI, and uses only its own recipes. It will not come to NL (market too small).                                                           |
+| Term                     | Means                                                                                                                                                                                                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Household**            | The unit we plan for. Has a size (adults/children) and one owner (a signed-in user).                                                                                                                                                                       |
+| **Profile**              | What the household tells us + what we learn: allergies, dislikes, diet, calorie goal, budget, favourite store, loved tastes. The thing that gets richer over time.                                                                                         |
+| **Household memory**     | The accumulated learned profile. Our moat: after months we know "loves Mexican, two veggie nights, hates mushrooms, cooks under 30 min, spends €140/week", not just "family of four".                                                                      |
+| **Week menu (plan)**     | Seven (or N) dinners chosen for a household for a given week. Has a status: `draft` → `confirmed` → `shopped`.                                                                                                                                             |
+| **Recipe**               | A real dish from a scraped catalogue (AH Allerhande, Jumbo Recepten, open datasets), with ingredients (real supermarket products + quantities), dietary tags, calories, prep time, steps. We plan from these, we do not invent them.                       |
+| **Basket**               | The shopping list mapped to a specific store's products, priced, ready for the user to open in the AH or Jumbo app and check out.                                                                                                                          |
+| **Store**                | A supermarket: `ah` (Albert Heijn) or `jumbo` to start. Cross-store is our edge (we are not owned by one chain).                                                                                                                                           |
+| **Price comparison**     | The same basket costed across stores, so the user sees where it is cheaper.                                                                                                                                                                                |
+| **Adaptation / replan**  | The killer move: a plain-language change ("we're eating out Wednesday", "spend €20 less", "kids hate broccoli") replans the rest of the week instantly, by chat or voice.                                                                                  |
+| **Swipe**                | The Tinder-style like/dislike/skip on a whole recipe. The fast onboarding intake, stored as `recipe_swipe` rows.                                                                                                                                           |
+| **Preference algorithm** | The core taste piece. Mostly maths: find the overlap (intersection / Venn) across REJECTED recipes to infer dislikes (no seafood, no Mexican twice) in the fewest swipes, getting the user to their top 20% of meals fast. AI only at decision points.     |
+| **Feedback loop**        | After a meal, thumbs up/down + a note ("not pizza every week"), stored in memory (`meal_feedback`) so the planner stops repeating misses. The nudge fires around eating time. This is our edge over Jow.                                                   |
+| **Jow**                  | jow.com, the French reference. Proof the model works, NOT what we copy. It has no feedback loop, is not really AI, and uses only its own recipes. It will not come to NL (market too small).                                                               |
+| **Meal swap**            | Replacing one dinner in a confirmed week with another, on the week view. Two flavours: swap for the next-best by preference (planner), or swap for something **similar** (vector neighbour, e.g. "like this but faster").                                  |
+| **Recipe neighbour**     | The nearest recipes to a given one in embedding space (CF Vectorize, cosine). Powers "more like this" and similar-meal swaps. Distinct from preference, which stays set-maths, neighbours are about dish similarity, not taste.                            |
+| **Replan intent**        | A plain-language change to a week ("eating out Wednesday", "no fish", "swap Friday"). Parsed deterministically for the common cases; the long tail falls back to the AI SDK. Some intents ("make it cheaper") need price data and wait on the basket work. |
 
 ## Hard rules
 
@@ -38,6 +41,14 @@ mental effort**.
 - **One recipe per day of the week.** Household size sets portions. No every-second-day mode for now.
 - **Dutch-first.** Real products from real Dutch supermarkets (AH, Jumbo). The thing we beat is static, non-learning planners.
 - **The loop is the moat.** Learning feedback + AI at decision points + bring-your-own recipes + local AH/Jumbo integration. That is what a single-store locked competitor (Picnic, Jow) cannot match.
+
+## Planner policy (grilled 2026-06-19)
+
+- **Pure preference, no forced variety.** The week is the top dinners by adaptive preference score. We do **not** impose a cuisine-variety constraint. If a household reads as a "Pasta person", a pasta-heavy week is the right answer, not a bug. The only de-dup is: never serve the **exact same recipe** twice in one week.
+- **Allergies and diet are hard filters; everything else is soft.** Allergies and vegetarian/vegan are absolute (those recipes are never candidates). Calorie goal, protein, and prep-time are scoring nudges, not filters, so the week always fills 7 days.
+- **First week uses the adaptive ranker over the full catalogue**, seeded by the onboarding swipes, not just the explicitly-liked recipes.
+- **Replan is chat-first, deterministic + AI fallback.** Voice (#17, VAPI) is deferred. Price-dependent intents ("cheaper") wait on the basket/price work.
+- **Similarity is CF-native and read-only over a fixed embedding.** See `docs/adr/0001-cf-vectorize-recipe-similarity.md`.
 
 ## The one flow that matters
 
