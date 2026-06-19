@@ -1,29 +1,32 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Users, FlaskConical } from 'lucide-react'
+import { Users, FlaskConical, ThumbsUp } from 'lucide-react'
 import {
   requireAdminBeforeLoad,
   listUsers,
   getBenchmarkMeta,
+  listRealFeedbackHouseholds,
 } from '#/lib/admin-server'
 import { cn } from '#/lib/utils'
 import { UsersPanel } from '#/components/admin/UsersPanel'
 import { BenchmarkConsole } from '#/components/admin/benchmark/BenchmarkConsole'
+import { RealFeedbackPanel } from '#/components/admin/RealFeedbackPanel'
 
-type Tab = 'users' | 'benchmark'
+type Tab = 'users' | 'benchmark' | 'feedback'
 
 export const Route = createFileRoute('/admin')({
   beforeLoad: requireAdminBeforeLoad,
   loader: async () => ({
     users: await listUsers(),
     benchmarkMeta: await getBenchmarkMeta(),
+    realFeedbackHouseholds: await listRealFeedbackHouseholds(),
   }),
   component: Admin,
 })
 
 function Admin() {
-  const { users, benchmarkMeta } = Route.useLoaderData()
+  const { users, benchmarkMeta, realFeedbackHouseholds } = Route.useLoaderData()
   const [tab, setTab] = useState<Tab>('users')
 
   return (
@@ -48,12 +51,18 @@ function Admin() {
           icon={<FlaskConical className="h-4 w-4" />}
           label="Benchmark"
         />
+        <TabButton
+          active={tab === 'feedback'}
+          onClick={() => setTab('feedback')}
+          icon={<ThumbsUp className="h-4 w-4" />}
+          label="Real feedback"
+        />
       </div>
 
-      {tab === 'users' ? (
-        <UsersPanel users={users} />
-      ) : (
-        <BenchmarkConsole meta={benchmarkMeta} />
+      {tab === 'users' && <UsersPanel users={users} />}
+      {tab === 'benchmark' && <BenchmarkConsole meta={benchmarkMeta} />}
+      {tab === 'feedback' && (
+        <RealFeedbackPanel households={realFeedbackHouseholds} />
       )}
     </main>
   )
