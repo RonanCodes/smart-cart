@@ -22,7 +22,9 @@ describe('runSingleAlgorithm (admin fast benchmark)', () => {
       expect(r.usersScored).toBeGreaterThan(0)
       expect(r.usersScored).toBeLessThanOrEqual(12)
     }
-  })
+    // Generous timeout: the bayesian strategy (online logistic regression) makes
+    // "every algorithm" slow on CI runners, well past vitest's default 5s.
+  }, 30000)
 
   it('is deterministic: same inputs produce identical numbers', () => {
     const a = runSingleAlgorithm(recipes, users, 'adaptive', { userLimit: 20 })
