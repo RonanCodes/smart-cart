@@ -6,6 +6,39 @@ export interface DeckCard {
   title: string
   cuisine: string | null
   imageUrl: string | null
+  /** A few key ingredients so an unfamiliar dish is still clear at a glance. */
+  ingredients: Array<string>
+}
+
+/** Generic pantry staples that do not help identify a dish. Skipped on the card. */
+const PANTRY_STAPLES = new Set([
+  'salt',
+  'pepper',
+  'black pepper',
+  'water',
+  'olive oil',
+  'oil',
+  'sugar',
+  'butter',
+  'flour',
+])
+
+/** Up to `n` distinct, meaningful ingredient names for the card. */
+function keyIngredients(
+  ingredients: Array<{ name: string }>,
+  n = 4,
+): Array<string> {
+  const out: Array<string> = []
+  const seen = new Set<string>()
+  for (const { name } of ingredients) {
+    const clean = name.trim()
+    const key = clean.toLowerCase()
+    if (!clean || seen.has(key) || PANTRY_STAPLES.has(key)) continue
+    seen.add(key)
+    out.push(clean)
+    if (out.length >= n) break
+  }
+  return out
 }
 
 /**
@@ -51,6 +84,7 @@ export async function loadCatalogue(): Promise<{
       title: r.title,
       cuisine: r.cuisine,
       imageUrl: raw?.imageUrl ?? null,
+      ingredients: keyIngredients(r.ingredients),
     })
   }
   return { recipes, cards }
