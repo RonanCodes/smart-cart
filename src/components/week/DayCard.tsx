@@ -1,7 +1,18 @@
-import { UtensilsCrossed, Shuffle, Clock, Flame, Beef } from 'lucide-react'
+import { useState } from 'react'
+import {
+  UtensilsCrossed,
+  Shuffle,
+  Sparkles,
+  Clock,
+  Flame,
+  Beef,
+} from 'lucide-react'
 import type { WeekDayView } from '#/lib/week-server'
+import type { SimilarSort } from '#/lib/vectors/similar'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
+import { SimilarSwap } from './SimilarSwap'
+import type { SimilarNeighbour } from './SimilarSwap'
 
 interface DayCardProps {
   day: WeekDayView
@@ -11,16 +22,45 @@ interface DayCardProps {
   locked: boolean
   /** Swap this day's dinner for the next-best by preference. */
   onSwap: () => void
+  /** Load similar recipes for this day's dinner under the given re-rank. */
+  onLoadSimilar: (sort: SimilarSort) => Promise<Array<SimilarNeighbour>>
+  /** The user picked a similar recipe for this day: write it into the plan. */
+  onPickSimilar: (recipeId: string) => Promise<void>
 }
 
 /**
  * One day's dinner card. Image (or a fallback glyph), title, cuisine, and the
  * prep / calories / protein chips when the recipe carries them. A skipped day
- * (eating out) renders an empty state instead of a recipe. Swap is a full-width
- * tappable button: no hover-only affordance, so it works on touch at 390px.
+ * (eating out) renders an empty state instead of a recipe.
+ *
+ * Two swaps, both full-width tappable buttons (no hover-only affordance, works on
+ * touch at 390px):
+ *  - "Swap" takes the next-best by preference (#12).
+ *  - "Similar" expands an inline chooser of the dish's nearest neighbours (#31), so
+ *    the replacement stays close to what is already planned ("like this, but a
+ *    different night"), with a faster / lighter re-rank toggle.
  */
-export function DayCard({ day, busy, locked, onSwap }: DayCardProps) {
+export function DayCard({
+  day,
+  busy,
+  locked,
+  onSwap,
+  onLoadSimilar,
+  onPickSimilar,
+}: DayCardProps) {
   const skipped = !day.recipeRef
+  const [showSimilar, setShowSimilar] = useState(false)
+  const [picking, setPicking] = useState(false)
+
+  async function pick(recipeId: string) {
+    setPicking(true)
+    try {
+      await onPickSimilar(recipeId)
+      setShowSimilar(false)
+    } finally {
+      setPicking(false)
+    }
+  }
 
   return (
     <div className="bg-card border-border flex flex-col overflow-hidden rounded-xl border shadow-sm">
@@ -78,16 +118,35 @@ export function DayCard({ day, busy, locked, onSwap }: DayCardProps) {
           </>
         )}
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-2 w-full"
-          disabled={locked || skipped}
-          onClick={onSwap}
-        >
-          <Shuffle className="h-4 w-4" />
-          {busy ? 'Swapping…' : 'Swap'}
-        </Button>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={locked || skipped || picking}
+            onClick={onSwap}
+          >
+            <Shuffle className="h-4 w-4" />
+            {busy ? 'Swapping…' : 'Swap'}
+          </Button>
+          <Button
+            variant={showSimilar ? 'default' : 'outline'}
+            size="sm"
+            disabled={locked || skipped || picking}
+            aria-expanded={showSimilar}
+            onClick={() => setShowSimilar((s) => !s)}
+          >
+            <Sparkles className="h-4 w-4" />
+            Similar
+          </Button>
+        </div>
+
+        {showSimilar && !skipped && (
+          <SimilarSwap
+            onLoad={onLoadSimilar}
+            onPick={(recipeId) => void pick(recipeId)}
+            picking={picking}
+          />
+        )}
       </div>
     </div>
   )
