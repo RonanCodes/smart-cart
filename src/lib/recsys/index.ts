@@ -26,3 +26,9 @@ export {
 export type { RecommenderFactory } from './registry'
 export { DEFAULT_ALGORITHM, DEFAULT_ADAPTIVE_WEIGHTS } from './config'
 export { trueScore, simulateSwipe, trueTopN } from './ground-truth'
+export {
+  foldRealFeedback,
+  mealFeedbackToSwipe,
+  foldStats,
+} from './feedback-fold'
+export type { MealFeedbackSignal, FoldStats } from './feedback-fold'
