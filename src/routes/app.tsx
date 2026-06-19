@@ -1,7 +1,13 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { ShoppingCart, LogOut } from 'lucide-react'
+import {
+  createFileRoute,
+  redirect,
+  useRouter,
+  Link,
+} from '@tanstack/react-router'
+import { ShoppingCart, LogOut, RefreshCw } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
+import { hasHousehold, getHouseholdSummary } from '#/lib/onboarding-server'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
 import {
@@ -13,12 +19,18 @@ import {
 } from '#/components/ui/card'
 
 export const Route = createFileRoute('/app')({
-  beforeLoad: requireUserBeforeLoad,
+  beforeLoad: async () => {
+    const ctx = await requireUserBeforeLoad()
+    if (!(await hasHousehold())) throw redirect({ to: '/onboarding' })
+    return ctx
+  },
+  loader: async () => ({ summary: await getHouseholdSummary() }),
   component: AppHome,
 })
 
 function AppHome() {
   const { user } = Route.useRouteContext()
+  const { summary } = Route.useLoaderData()
   const router = useRouter()
 
   async function signOut() {
@@ -46,41 +58,72 @@ function AppHome() {
 
       <main className="mx-auto max-w-4xl space-y-8 px-6 py-12">
         <div className="space-y-2">
-          <Badge variant="primary">You're signed in</Badge>
+          <Badge variant="primary">Your taste profile</Badge>
           <h1 className="text-3xl font-bold tracking-tight">
-            Welcome to Smart Cart
+            Here's what we learned about you
           </h1>
           <p className="text-muted-foreground">
-            This is your home. Next: tell Smart Cart about your household, and
-            it plans your week.
+            Built from your swipes. It sharpens every week as you cook and rate.
           </p>
         </div>
+
+        {summary && summary.badges.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+            {summary.badges.map((b) => (
+              <span
+                key={b.label}
+                className="bg-secondary text-secondary-foreground inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
+              >
+                <span className="text-lg">{b.emoji}</span>
+                {b.label}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="grid gap-6 sm:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>1. Set up your household</CardTitle>
+              <CardTitle>You gravitate to</CardTitle>
               <CardDescription>
-                Size, allergies, diet, budget, favourite supermarket. The more
-                it knows, the better it plans.
+                The flavours you swiped right on.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button disabled>Start onboarding (coming next)</Button>
+            <CardContent className="flex flex-wrap gap-2">
+              {summary?.lovedTastes.length ? (
+                summary.lovedTastes.map((t) => (
+                  <Badge key={t} variant="primary">
+                    {t}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-muted-foreground text-sm">
+                  Swipe a few more to sharpen this.
+                </span>
+              )}
+              {summary?.dislikes.map((t) => (
+                <Badge key={t} variant="outline">
+                  no {t}
+                </Badge>
+              ))}
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>2. Get your week</CardTitle>
+              <CardTitle>Your week</CardTitle>
               <CardDescription>
-                A full week of dinners, picked for you, ready to become one AH
-                or Jumbo cart.
+                Seven dinners picked for you, ready to become one AH or Jumbo
+                basket.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button variant="outline" disabled>
-                Plan my week (coming next)
-              </Button>
+            <CardContent className="space-y-3">
+              <Button disabled>Plan my week (coming next)</Button>
+              <Link to="/onboarding" className="block">
+                <Button variant="ghost" size="sm">
+                  <RefreshCw className="h-4 w-4" />
+                  Swipe more recipes
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
