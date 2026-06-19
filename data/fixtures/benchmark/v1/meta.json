@@ -1,0 +1,8 @@
+{
+  "version": "v1",
+  "rngSeed": 7,
+  "recipes": 1531,
+  "users": 300,
+  "frozenAt": "2026-06-19",
+  "note": "Deterministic benchmark inputs. The benchmark reads ONLY this fixture, never data/seed/ or D1. Regenerate with pnpm fixture:freeze and commit."
+}
