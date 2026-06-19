@@ -100,6 +100,11 @@ function Onboarding() {
               <h2 className="text-xl leading-tight font-semibold">
                 {card.title}
               </h2>
+              {card.ingredients.length > 0 && (
+                <p className="text-muted-foreground text-sm leading-snug">
+                  {card.ingredients.join(' · ')}
+                </p>
+              )}
             </div>
           </div>
         ) : (
