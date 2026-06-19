@@ -18,3 +18,6 @@ dist
 
 # large scraped recipe dumps (keep out of git; load via pnpm seed:recipes)
 data/recipes/*.json
+
+# generated d1 seed sql (regenerate via pnpm seed:recipes)
+drizzle/seed/*.sql
