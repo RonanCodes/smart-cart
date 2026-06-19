@@ -60,9 +60,9 @@ function rowValues(r: SeedRecipe, now: number): string {
     qnull(r.cuisine),
     q(r.mealType || 'dinner'),
     qnull(r.category),
-    qjson(r.dietaryTags ?? []),
-    qjson(r.ingredients ?? []),
-    qjson(r.instructions ?? []),
+    qjson(r.dietaryTags),
+    qjson(r.ingredients),
+    qjson(r.instructions),
     qjson(r),
     String(now),
   ].join(', ')
