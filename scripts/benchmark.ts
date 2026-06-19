@@ -5,25 +5,25 @@
  * the user's true top-20, as a function of how many swipes it took. The winner is
  * the one that reaches high recall in the fewest swipes.
  *
- *   pnpm tsx scripts/benchmark.ts
+ *   pnpm benchmark        # or: pnpm tsx scripts/benchmark.ts
+ *
+ * Runs against the FROZEN benchmark fixture (data/fixtures/benchmark/<version>/),
+ * not the live catalogue or D1, so the numbers are deterministic and reproducible
+ * with no network. Refresh the fixture with `pnpm fixture:freeze` after a deliberate
+ * catalogue change, then re-run this.
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import type { RecipeLite, Swipe, UserProfile } from '../src/lib/recsys/types'
+import type { RecipeLite, Swipe } from '../src/lib/recsys/types'
 import { makeRecommenders } from '../src/lib/recsys/strategies'
 import { simulateSwipe, trueTopN } from '../src/lib/recsys/ground-truth'
+import { loadBenchmarkFixture } from '../src/lib/recsys/fixture'
 
 const DECK = 5
 const CHECKPOINTS = [5, 10, 15, 20, 25, 30]
 const MAX = CHECKPOINTS[CHECKPOINTS.length - 1]!
 const TOP_N = 20
 const TARGET_RECALL = 0.6
-
-function load<T>(name: string): T {
-  return JSON.parse(
-    readFileSync(join(process.cwd(), 'data', 'seed', name), 'utf8'),
-  ) as T
-}
 
 function recall(got: Array<RecipeLite>, truth: Array<string>): number {
   if (truth.length === 0) return 1
@@ -33,8 +33,11 @@ function recall(got: Array<RecipeLite>, truth: Array<string>): number {
 }
 
 function main() {
-  const recipes = load<Array<RecipeLite>>('recipes.json')
-  const users = load<Array<UserProfile>>('synthetic-users.json')
+  const fixture = loadBenchmarkFixture()
+  const { recipes, users } = fixture
+  console.log(
+    `Fixture ${fixture.meta.version}: ${recipes.length} recipes, ${users.length} users (rng seed ${fixture.meta.rngSeed}).`,
+  )
   const names = makeRecommenders(recipes).map((r) => r.name)
 
   // Aggregate: recall at each checkpoint, and swipes-to-target per recommender.
@@ -79,7 +82,7 @@ function main() {
 
   // Markdown report.
   let md = `# Swipe recommender benchmark\n\n`
-  md += `Catalogue: ${recipes.length} recipes. Synthetic users: ${used}. Deck ${DECK}/round, recall@${TOP_N} vs each user's true top ${TOP_N}.\n\n`
+  md += `Frozen fixture: \`${fixture.meta.version}\` (${recipes.length} recipes, rng seed ${fixture.meta.rngSeed}). Synthetic users: ${used}. Deck ${DECK}/round, recall@${TOP_N} vs each user's true top ${TOP_N}. Deterministic, no live DB / no network.\n\n`
   md += `## Recall@${TOP_N} by swipe count\n\n`
   md += `| strategy | ${CHECKPOINTS.map((c) => `${c} swipes`).join(' | ')} | median swipes to ${TARGET_RECALL * 100}% |\n`
   md += `| --- | ${CHECKPOINTS.map(() => '---').join(' | ')} | --- |\n`
@@ -107,7 +110,15 @@ function main() {
   writeFileSync(
     join(process.cwd(), 'docs', 'benchmarks', 'results.json'),
     JSON.stringify(
-      { generatedFrom: { recipes: recipes.length, users: used }, summary },
+      {
+        fixture: {
+          version: fixture.meta.version,
+          rngSeed: fixture.meta.rngSeed,
+          recipes: recipes.length,
+          users: used,
+        },
+        summary,
+      },
       null,
       2,
     ),
