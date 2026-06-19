@@ -19,6 +19,7 @@ export async function loadCatalogue(): Promise<{
 }> {
   const { getDb } = await import('../db/client')
   const { recipe } = await import('../db/schema')
+  const { hasImage } = await import('../db/recipe-filters')
   const db = await getDb()
   const rows = await db
     .select({
@@ -31,6 +32,8 @@ export async function loadCatalogue(): Promise<{
       raw: recipe.raw,
     })
     .from(recipe)
+    // Only ever serve recipes with an image (deck/plan/swap cards).
+    .where(hasImage)
   const recipes: Array<RecipeLite> = []
   const cards = new Map<string, DeckCard>()
   for (const r of rows) {
