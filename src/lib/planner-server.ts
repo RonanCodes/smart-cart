@@ -40,6 +40,7 @@ export const generatePlan = createServerFn({ method: 'POST' }).handler(
     const { household, recipe, recipeSwipe, mealPlan } =
       await import('../db/schema')
     const { generateWeek } = await import('./planner/planner')
+    const { hasImage } = await import('../db/recipe-filters')
     const { eq } = await import('drizzle-orm')
     const db = await getDb()
 
@@ -65,6 +66,8 @@ export const generatePlan = createServerFn({ method: 'POST' }).handler(
         mealType: recipe.mealType,
       })
       .from(recipe)
+      // Only plan recipes that have an image (no broken cards in the week view).
+      .where(hasImage)
 
     const swipeRows = await db
       .select({

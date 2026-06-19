@@ -214,7 +214,8 @@ export async function similarRecipes(
 
   const { getDb } = await import('../../db/client')
   const { recipe } = await import('../../db/schema')
-  const { eq, inArray } = await import('drizzle-orm')
+  const { hasImage } = await import('../../db/recipe-filters')
+  const { eq, inArray, and } = await import('drizzle-orm')
   const { embed, similar } = await import('./index')
   const db = await getDb()
 
@@ -257,7 +258,8 @@ export async function similarRecipes(
           calories: recipe.calories,
         })
         .from(recipe)
-        .where(inArray(recipe.id, ids))
+        // Only suggest imaged recipes as swaps (no broken cards).
+        .where(and(inArray(recipe.id, ids), hasImage))
     : []
 
   const recipesById = new Map<string, SimilarRecipe>(
