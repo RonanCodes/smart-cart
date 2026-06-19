@@ -15,6 +15,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSimilarRouteImport } from './routes/api/similar'
 import { Route as ApiPlanRouteImport } from './routes/api/plan'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
@@ -49,6 +50,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSimilarRoute = ApiSimilarRouteImport.update({
+  id: '/api/similar',
+  path: '/api/similar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPlanRoute = ApiPlanRouteImport.update({
   id: '/api/plan',
   path: '/api/plan',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/styleguide': typeof StyleguideRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
+  '/api/similar': typeof ApiSimilarRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/styleguide': typeof StyleguideRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
+  '/api/similar': typeof ApiSimilarRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/styleguide': typeof StyleguideRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
+  '/api/similar': typeof ApiSimilarRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/styleguide'
     | '/api/health'
     | '/api/plan'
+    | '/api/similar'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/styleguide'
     | '/api/health'
     | '/api/plan'
+    | '/api/similar'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/styleguide'
     | '/api/health'
     | '/api/plan'
+    | '/api/similar'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   StyleguideRoute: typeof StyleguideRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiPlanRoute: typeof ApiPlanRoute
+  ApiSimilarRoute: typeof ApiSimilarRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/similar': {
+      id: '/api/similar'
+      path: '/api/similar'
+      fullPath: '/api/similar'
+      preLoaderRoute: typeof ApiSimilarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/plan': {
       id: '/api/plan'
       path: '/api/plan'
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   StyleguideRoute: StyleguideRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiPlanRoute: ApiPlanRoute,
+  ApiSimilarRoute: ApiSimilarRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
