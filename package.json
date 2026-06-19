@@ -18,6 +18,7 @@
     "db:generate": "drizzle-kit generate --config drizzle/d1.config.ts",
     "db:migrate:local": "wrangler d1 migrations apply smart_cart_db --local",
     "db:migrate:remote": "wrangler d1 migrations apply smart_cart_db --remote",
+    "import:recipes": "tsx scripts/import-recipes-db.ts",
     "seed:recipes": "tsx scripts/seed-recipes.ts",
     "embed:recipes": "tsx scripts/embed-recipes.ts",
     "cf-typegen": "wrangler types",

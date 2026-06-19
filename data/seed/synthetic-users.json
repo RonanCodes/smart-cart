@@ -1,7 +1,7 @@
 [
   {
     "id": "u000",
-    "lovedCuisines": ["Chinese"],
+    "lovedCuisines": ["British"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": [],
@@ -9,39 +9,39 @@
   },
   {
     "id": "u001",
-    "lovedCuisines": ["France", "Algerian"],
-    "dislikedCuisines": ["Polish"],
+    "lovedCuisines": ["Turkish", "Thai"],
+    "dislikedCuisines": ["Saudi arabian"],
     "lovedIngredients": ["chocolate", "spinach"],
     "dislikedIngredients": ["mushroom"],
     "vegetarian": false
   },
   {
     "id": "u002",
-    "lovedCuisines": ["Argentina", "Spanish", "Algerian"],
-    "dislikedCuisines": ["Vietnamese"],
+    "lovedCuisines": ["Thai", "Italian", "United states"],
+    "dislikedCuisines": ["Saudi arabian"],
     "lovedIngredients": ["rice", "pasta"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u003",
-    "lovedCuisines": ["Vietnamese", "Saudi Arabian", "Polish"],
-    "dislikedCuisines": ["Spanish"],
+    "lovedCuisines": ["Spanish", "Polish", "Turkish"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": ["cheese", "potato"],
     "dislikedIngredients": ["prawn"],
     "vegetarian": false
   },
   {
     "id": "u004",
-    "lovedCuisines": ["France", "Canadian", "Australian"],
-    "dislikedCuisines": ["Spanish"],
+    "lovedCuisines": ["Saudi arabian", "Spanish", "Thai"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": [],
     "dislikedIngredients": ["mushroom", "fish"],
     "vegetarian": false
   },
   {
     "id": "u005",
-    "lovedCuisines": ["Canadian"],
+    "lovedCuisines": ["Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta", "spinach"],
     "dislikedIngredients": ["anchovy", "liver"],
@@ -49,7 +49,7 @@
   },
   {
     "id": "u006",
-    "lovedCuisines": ["United States", "Thai", "Saudi Arabian"],
+    "lovedCuisines": ["Spanish", "Polish", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese", "egg"],
     "dislikedIngredients": [],
@@ -57,7 +57,7 @@
   },
   {
     "id": "u007",
-    "lovedCuisines": ["Thai", "India"],
+    "lovedCuisines": ["Polish", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chicken"],
     "dislikedIngredients": ["coconut", "coriander"],
@@ -65,7 +65,7 @@
   },
   {
     "id": "u008",
-    "lovedCuisines": ["Jamaican", "United States", "Turkish"],
+    "lovedCuisines": ["Algerian", "Spanish", "British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["liver", "salmon"],
@@ -73,7 +73,7 @@
   },
   {
     "id": "u009",
-    "lovedCuisines": ["Vietnamese", "Jamaican", "Spanish"],
+    "lovedCuisines": ["Spanish", "Algerian", "Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb", "pasta"],
     "dislikedIngredients": ["fish", "coriander"],
@@ -81,7 +81,7 @@
   },
   {
     "id": "u010",
-    "lovedCuisines": ["Vietnamese", "France", "Thai"],
+    "lovedCuisines": ["Spanish", "Turkish", "Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato", "rice"],
     "dislikedIngredients": ["coconut", "aubergine"],
@@ -89,7 +89,7 @@
   },
   {
     "id": "u011",
-    "lovedCuisines": ["Venezuela"],
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": ["fish"],
@@ -97,7 +97,7 @@
   },
   {
     "id": "u012",
-    "lovedCuisines": ["Argentina"],
+    "lovedCuisines": ["Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["mushroom", "coriander"],
@@ -105,7 +105,7 @@
   },
   {
     "id": "u013",
-    "lovedCuisines": ["India", "Jamaican", "Netherlands"],
+    "lovedCuisines": ["Vietnamese", "Turkish", "United states"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb", "pasta"],
     "dislikedIngredients": ["coconut", "prawn"],
@@ -113,47 +113,47 @@
   },
   {
     "id": "u014",
-    "lovedCuisines": ["Saudi Arabian"],
-    "dislikedCuisines": ["British"],
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["United states"],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander", "liver"],
     "vegetarian": false
   },
   {
     "id": "u015",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": ["Italian"],
+    "lovedCuisines": ["Vietnamese"],
+    "dislikedCuisines": ["Algerian"],
     "lovedIngredients": ["spinach", "potato"],
     "dislikedIngredients": ["aubergine", "coriander"],
     "vegetarian": false
   },
   {
     "id": "u016",
-    "lovedCuisines": ["Canadian"],
-    "dislikedCuisines": ["United States"],
+    "lovedCuisines": ["Saudi arabian"],
+    "dislikedCuisines": ["Spanish"],
     "lovedIngredients": ["chicken"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u017",
-    "lovedCuisines": ["Thai", "British"],
-    "dislikedCuisines": ["Chinese"],
+    "lovedCuisines": ["Polish", "United states"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u018",
-    "lovedCuisines": ["Thai", "Algerian", "Saudi Arabian"],
-    "dislikedCuisines": ["India"],
+    "lovedCuisines": ["Polish", "Thai", "Algerian"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": [],
     "dislikedIngredients": ["coconut", "olive"],
     "vegetarian": false
   },
   {
     "id": "u019",
-    "lovedCuisines": ["Australian", "Jamaican"],
+    "lovedCuisines": ["Thai", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander", "anchovy"],
@@ -161,7 +161,7 @@
   },
   {
     "id": "u020",
-    "lovedCuisines": ["Argentina", "Chinese", "Netherlands"],
+    "lovedCuisines": ["Italian", "Thai", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["aubergine", "coriander"],
@@ -169,7 +169,7 @@
   },
   {
     "id": "u021",
-    "lovedCuisines": ["Saudi Arabian", "Vietnamese"],
+    "lovedCuisines": ["Polish", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": ["liver", "coconut"],
@@ -177,15 +177,15 @@
   },
   {
     "id": "u022",
-    "lovedCuisines": ["Saudi Arabian"],
-    "dislikedCuisines": ["United States"],
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": ["chicken", "beef"],
     "dislikedIngredients": ["coconut", "prawn"],
     "vegetarian": false
   },
   {
     "id": "u023",
-    "lovedCuisines": ["Canadian", "Australian"],
+    "lovedCuisines": ["Saudi arabian", "Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": ["coriander"],
@@ -193,15 +193,15 @@
   },
   {
     "id": "u024",
-    "lovedCuisines": ["Jamaican", "Turkish"],
-    "dislikedCuisines": ["Canadian"],
+    "lovedCuisines": ["Algerian", "British"],
+    "dislikedCuisines": ["Saudi arabian"],
     "lovedIngredients": ["pasta", "chocolate"],
     "dislikedIngredients": [],
     "vegetarian": true
   },
   {
     "id": "u025",
-    "lovedCuisines": ["Thai"],
+    "lovedCuisines": ["Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "egg"],
     "dislikedIngredients": ["prawn", "olive"],
@@ -209,7 +209,7 @@
   },
   {
     "id": "u026",
-    "lovedCuisines": ["Algerian"],
+    "lovedCuisines": ["Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["liver"],
@@ -217,7 +217,7 @@
   },
   {
     "id": "u027",
-    "lovedCuisines": ["France", "Argentina"],
+    "lovedCuisines": ["Saudi arabian", "Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese", "chicken"],
     "dislikedIngredients": ["coconut", "aubergine"],
@@ -225,15 +225,15 @@
   },
   {
     "id": "u028",
-    "lovedCuisines": ["Argentina"],
-    "dislikedCuisines": ["Netherlands"],
+    "lovedCuisines": ["Italian"],
+    "dislikedCuisines": ["India"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u029",
-    "lovedCuisines": ["France", "Italian"],
+    "lovedCuisines": ["Saudi arabian", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -241,15 +241,15 @@
   },
   {
     "id": "u030",
-    "lovedCuisines": ["Canadian", "British"],
-    "dislikedCuisines": ["Norway"],
+    "lovedCuisines": ["Saudi arabian", "United states"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": ["rice", "cheese"],
     "dislikedIngredients": ["coriander", "coconut"],
     "vegetarian": false
   },
   {
     "id": "u031",
-    "lovedCuisines": ["Spanish", "United States", "India"],
+    "lovedCuisines": ["Italian", "Spanish", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": ["spinach"],
     "dislikedIngredients": [],
@@ -257,7 +257,7 @@
   },
   {
     "id": "u032",
-    "lovedCuisines": ["Canadian", "British"],
+    "lovedCuisines": ["Saudi arabian", "United states"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": ["coriander", "salmon"],
@@ -265,7 +265,7 @@
   },
   {
     "id": "u033",
-    "lovedCuisines": ["Saudi Arabian", "Argentina"],
+    "lovedCuisines": ["Polish", "Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coconut"],
@@ -273,7 +273,7 @@
   },
   {
     "id": "u034",
-    "lovedCuisines": ["Norway"],
+    "lovedCuisines": ["Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["liver", "salmon"],
@@ -281,7 +281,7 @@
   },
   {
     "id": "u035",
-    "lovedCuisines": ["Spanish"],
+    "lovedCuisines": ["Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander", "coconut"],
@@ -289,7 +289,7 @@
   },
   {
     "id": "u036",
-    "lovedCuisines": ["Polish", "India"],
+    "lovedCuisines": ["Turkish", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -297,7 +297,7 @@
   },
   {
     "id": "u037",
-    "lovedCuisines": ["Polish", "Canadian"],
+    "lovedCuisines": ["Turkish", "Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -305,7 +305,7 @@
   },
   {
     "id": "u038",
-    "lovedCuisines": ["Australian"],
+    "lovedCuisines": ["Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chocolate", "beef"],
     "dislikedIngredients": ["prawn", "coconut"],
@@ -313,23 +313,23 @@
   },
   {
     "id": "u039",
-    "lovedCuisines": ["Vietnamese", "British"],
-    "dislikedCuisines": ["Australian"],
+    "lovedCuisines": ["Saudi arabian", "United states"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": ["chocolate"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u040",
-    "lovedCuisines": ["France"],
-    "dislikedCuisines": ["Thai"],
+    "lovedCuisines": ["Saudi arabian"],
+    "dislikedCuisines": ["Polish"],
     "lovedIngredients": [],
     "dislikedIngredients": ["anchovy", "mushroom"],
     "vegetarian": false
   },
   {
     "id": "u041",
-    "lovedCuisines": ["Canadian"],
+    "lovedCuisines": ["Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese"],
     "dislikedIngredients": ["mushroom", "anchovy"],
@@ -337,55 +337,55 @@
   },
   {
     "id": "u042",
-    "lovedCuisines": ["Argentina", "Netherlands"],
-    "dislikedCuisines": ["Venezuela"],
+    "lovedCuisines": ["Italian", "India"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u043",
-    "lovedCuisines": ["Italian", "Turkish"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["Algerian", "British"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": ["chicken"],
     "dislikedIngredients": ["fish"],
     "vegetarian": true
   },
   {
     "id": "u044",
-    "lovedCuisines": ["Venezuela", "Australian"],
-    "dislikedCuisines": ["Norway"],
+    "lovedCuisines": ["India", "United states"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u045",
-    "lovedCuisines": ["Thai", "Saudi Arabian"],
-    "dislikedCuisines": ["Polish"],
+    "lovedCuisines": ["Polish", "Algerian"],
+    "dislikedCuisines": ["Saudi arabian"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u046",
-    "lovedCuisines": ["France", "British"],
-    "dislikedCuisines": ["Jamaican"],
+    "lovedCuisines": ["Saudi arabian", "United states"],
+    "dislikedCuisines": ["Algerian"],
     "lovedIngredients": [],
     "dislikedIngredients": ["prawn", "anchovy"],
     "vegetarian": false
   },
   {
     "id": "u047",
-    "lovedCuisines": ["Canadian", "Saudi Arabian"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Saudi arabian", "Polish"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["beef"],
     "dislikedIngredients": ["prawn"],
     "vegetarian": false
   },
   {
     "id": "u048",
-    "lovedCuisines": ["Polish", "France"],
+    "lovedCuisines": ["Turkish", "Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["liver", "coriander"],
@@ -393,7 +393,7 @@
   },
   {
     "id": "u049",
-    "lovedCuisines": ["Saudi Arabian"],
+    "lovedCuisines": ["Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["egg", "cheese"],
     "dislikedIngredients": ["salmon"],
@@ -401,7 +401,7 @@
   },
   {
     "id": "u050",
-    "lovedCuisines": ["Vietnamese", "France"],
+    "lovedCuisines": ["Spanish", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["spinach", "beef"],
     "dislikedIngredients": [],
@@ -409,7 +409,7 @@
   },
   {
     "id": "u051",
-    "lovedCuisines": ["Polish", "Norway"],
+    "lovedCuisines": ["Turkish", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -417,7 +417,7 @@
   },
   {
     "id": "u052",
-    "lovedCuisines": ["Algerian", "United States"],
+    "lovedCuisines": ["Thai", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["anchovy"],
@@ -425,7 +425,7 @@
   },
   {
     "id": "u053",
-    "lovedCuisines": ["Argentina"],
+    "lovedCuisines": ["Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chocolate", "beef"],
     "dislikedIngredients": ["mushroom", "anchovy"],
@@ -433,15 +433,15 @@
   },
   {
     "id": "u054",
-    "lovedCuisines": ["Spanish", "Thai"],
-    "dislikedCuisines": ["Vietnamese"],
+    "lovedCuisines": ["Italian", "Polish"],
+    "dislikedCuisines": ["Spanish"],
     "lovedIngredients": [],
     "dislikedIngredients": ["aubergine"],
     "vegetarian": false
   },
   {
     "id": "u055",
-    "lovedCuisines": ["Argentina"],
+    "lovedCuisines": ["Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": ["coriander"],
@@ -449,15 +449,15 @@
   },
   {
     "id": "u056",
-    "lovedCuisines": ["Canadian", "Vietnamese", "Venezuela"],
-    "dislikedCuisines": ["Chinese"],
+    "lovedCuisines": ["Saudi arabian", "Spanish", "India"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["chicken"],
     "dislikedIngredients": ["anchovy", "liver"],
     "vegetarian": false
   },
   {
     "id": "u057",
-    "lovedCuisines": ["Saudi Arabian", "Chinese"],
+    "lovedCuisines": ["Polish", "British"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb", "potato"],
     "dislikedIngredients": [],
@@ -465,15 +465,15 @@
   },
   {
     "id": "u058",
-    "lovedCuisines": ["Jamaican"],
-    "dislikedCuisines": ["British"],
+    "lovedCuisines": ["Turkish"],
+    "dislikedCuisines": ["United states"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u059",
-    "lovedCuisines": ["Polish", "Canadian"],
+    "lovedCuisines": ["Turkish", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["liver"],
@@ -481,23 +481,23 @@
   },
   {
     "id": "u060",
-    "lovedCuisines": ["Vietnamese", "Jamaican"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Spanish", "Algerian"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": [],
     "dislikedIngredients": ["aubergine", "liver"],
     "vegetarian": false
   },
   {
     "id": "u061",
-    "lovedCuisines": ["Netherlands"],
-    "dislikedCuisines": ["India"],
+    "lovedCuisines": ["India"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": ["mushroom"],
     "vegetarian": false
   },
   {
     "id": "u062",
-    "lovedCuisines": ["Chinese", "Saudi Arabian", "Jamaican"],
+    "lovedCuisines": ["British", "Polish", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["spinach", "egg"],
     "dislikedIngredients": [],
@@ -505,47 +505,47 @@
   },
   {
     "id": "u063",
-    "lovedCuisines": ["Venezuela"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["India"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u064",
-    "lovedCuisines": ["France", "British", "Thai"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["Saudi arabian", "United states", "Polish"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": ["spinach", "egg"],
     "dislikedIngredients": ["liver", "coconut"],
     "vegetarian": true
   },
   {
     "id": "u065",
-    "lovedCuisines": ["Algerian", "India"],
-    "dislikedCuisines": ["Spanish"],
+    "lovedCuisines": ["Thai", "Spanish"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": ["rice"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u066",
-    "lovedCuisines": ["Italian", "Saudi Arabian"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Algerian", "Polish"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": [],
     "dislikedIngredients": ["liver"],
     "vegetarian": false
   },
   {
     "id": "u067",
-    "lovedCuisines": ["France", "Polish"],
-    "dislikedCuisines": ["Chinese"],
+    "lovedCuisines": ["Saudi arabian", "Turkish"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u068",
-    "lovedCuisines": ["Australian"],
+    "lovedCuisines": ["Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato", "egg"],
     "dislikedIngredients": ["aubergine", "anchovy"],
@@ -553,15 +553,15 @@
   },
   {
     "id": "u069",
-    "lovedCuisines": ["Jamaican"],
-    "dislikedCuisines": ["Spanish"],
+    "lovedCuisines": ["Algerian"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": ["cheese", "pasta"],
     "dislikedIngredients": ["aubergine"],
     "vegetarian": true
   },
   {
     "id": "u070",
-    "lovedCuisines": ["Turkish"],
+    "lovedCuisines": ["British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["anchovy"],
@@ -569,7 +569,7 @@
   },
   {
     "id": "u071",
-    "lovedCuisines": ["Netherlands", "Argentina"],
+    "lovedCuisines": ["India", "Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander", "anchovy"],
@@ -577,7 +577,7 @@
   },
   {
     "id": "u072",
-    "lovedCuisines": ["Polish"],
+    "lovedCuisines": ["Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -585,7 +585,7 @@
   },
   {
     "id": "u073",
-    "lovedCuisines": ["Netherlands", "Turkish"],
+    "lovedCuisines": ["India", "British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -593,23 +593,23 @@
   },
   {
     "id": "u074",
-    "lovedCuisines": ["India", "Algerian"],
-    "dislikedCuisines": ["Venezuela"],
+    "lovedCuisines": ["Vietnamese", "Thai"],
+    "dislikedCuisines": ["India"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u075",
-    "lovedCuisines": ["Netherlands", "United States"],
-    "dislikedCuisines": ["Argentina"],
+    "lovedCuisines": ["India", "Spanish"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": ["egg", "beef"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u076",
-    "lovedCuisines": ["Thai"],
+    "lovedCuisines": ["Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coconut", "mushroom"],
@@ -617,7 +617,7 @@
   },
   {
     "id": "u077",
-    "lovedCuisines": ["Netherlands"],
+    "lovedCuisines": ["United states"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["olive"],
@@ -625,7 +625,7 @@
   },
   {
     "id": "u078",
-    "lovedCuisines": ["Polish"],
+    "lovedCuisines": ["Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese", "spinach"],
     "dislikedIngredients": ["fish", "coconut"],
@@ -633,7 +633,7 @@
   },
   {
     "id": "u079",
-    "lovedCuisines": ["British", "India"],
+    "lovedCuisines": ["United states", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chicken"],
     "dislikedIngredients": ["fish", "salmon"],
@@ -641,7 +641,7 @@
   },
   {
     "id": "u080",
-    "lovedCuisines": ["United States"],
+    "lovedCuisines": ["Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -649,7 +649,7 @@
   },
   {
     "id": "u081",
-    "lovedCuisines": ["Australian", "Italian"],
+    "lovedCuisines": ["United states", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["liver"],
@@ -657,7 +657,7 @@
   },
   {
     "id": "u082",
-    "lovedCuisines": ["Venezuela", "Saudi Arabian"],
+    "lovedCuisines": ["India", "Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb", "spinach"],
     "dislikedIngredients": ["coconut", "olive"],
@@ -665,7 +665,7 @@
   },
   {
     "id": "u083",
-    "lovedCuisines": ["Saudi Arabian", "Venezuela"],
+    "lovedCuisines": ["Polish", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["spinach", "beef"],
     "dislikedIngredients": ["anchovy"],
@@ -673,7 +673,7 @@
   },
   {
     "id": "u084",
-    "lovedCuisines": ["Netherlands"],
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coconut", "anchovy"],
@@ -681,15 +681,15 @@
   },
   {
     "id": "u085",
-    "lovedCuisines": ["Italian", "Norway"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["Algerian", "India"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u086",
-    "lovedCuisines": ["Norway", "British", "Venezuela"],
+    "lovedCuisines": ["Vietnamese", "United states", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["rice"],
     "dislikedIngredients": ["anchovy"],
@@ -697,15 +697,15 @@
   },
   {
     "id": "u087",
-    "lovedCuisines": ["India", "Spanish"],
-    "dislikedCuisines": ["Vietnamese"],
+    "lovedCuisines": ["Spanish", "Italian"],
+    "dislikedCuisines": ["Saudi arabian"],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": [],
     "vegetarian": true
   },
   {
     "id": "u088",
-    "lovedCuisines": ["Australian"],
+    "lovedCuisines": ["Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "rice"],
     "dislikedIngredients": [],
@@ -713,7 +713,7 @@
   },
   {
     "id": "u089",
-    "lovedCuisines": ["Thai"],
+    "lovedCuisines": ["Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["aubergine", "liver"],
@@ -721,7 +721,7 @@
   },
   {
     "id": "u090",
-    "lovedCuisines": ["Netherlands"],
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": [],
@@ -729,31 +729,31 @@
   },
   {
     "id": "u091",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": ["Italian"],
+    "lovedCuisines": ["Vietnamese"],
+    "dislikedCuisines": ["Algerian"],
     "lovedIngredients": [],
     "dislikedIngredients": ["aubergine", "anchovy"],
     "vegetarian": false
   },
   {
     "id": "u092",
-    "lovedCuisines": ["Jamaican", "Italian"],
-    "dislikedCuisines": ["British"],
+    "lovedCuisines": ["Algerian", "Turkish"],
+    "dislikedCuisines": ["United states"],
     "lovedIngredients": ["spinach", "cheese"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u093",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": ["Argentina"],
+    "lovedCuisines": ["Turkish"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": ["chocolate", "egg"],
     "dislikedIngredients": ["anchovy"],
     "vegetarian": false
   },
   {
     "id": "u094",
-    "lovedCuisines": ["Algerian", "Netherlands"],
+    "lovedCuisines": ["Thai", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["spinach", "potato"],
     "dislikedIngredients": [],
@@ -761,15 +761,15 @@
   },
   {
     "id": "u095",
-    "lovedCuisines": ["Vietnamese", "Italian", "France"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Spanish", "Algerian", "Saudi arabian"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u096",
-    "lovedCuisines": ["Spanish", "Thai", "Italian"],
+    "lovedCuisines": ["Italian", "Polish", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander"],
@@ -777,7 +777,7 @@
   },
   {
     "id": "u097",
-    "lovedCuisines": ["Norway", "India"],
+    "lovedCuisines": ["Vietnamese", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -785,7 +785,7 @@
   },
   {
     "id": "u098",
-    "lovedCuisines": ["Venezuela", "Australian"],
+    "lovedCuisines": ["India", "United states"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["aubergine"],
@@ -793,7 +793,7 @@
   },
   {
     "id": "u099",
-    "lovedCuisines": ["Chinese"],
+    "lovedCuisines": ["British"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato", "egg"],
     "dislikedIngredients": ["anchovy"],
@@ -801,15 +801,15 @@
   },
   {
     "id": "u100",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Vietnamese"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["beef", "pasta"],
     "dislikedIngredients": [],
     "vegetarian": true
   },
   {
     "id": "u101",
-    "lovedCuisines": ["Venezuela", "Argentina", "British"],
+    "lovedCuisines": ["India", "Thai", "United states"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb", "cheese"],
     "dislikedIngredients": ["prawn"],
@@ -817,15 +817,15 @@
   },
   {
     "id": "u102",
-    "lovedCuisines": ["France", "Algerian", "Vietnamese"],
-    "dislikedCuisines": ["Chinese"],
+    "lovedCuisines": ["Turkish", "Thai", "Spanish"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["chocolate", "egg"],
     "dislikedIngredients": ["salmon"],
     "vegetarian": true
   },
   {
     "id": "u103",
-    "lovedCuisines": ["British", "France"],
+    "lovedCuisines": ["United states", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": [],
@@ -833,15 +833,15 @@
   },
   {
     "id": "u104",
-    "lovedCuisines": ["Vietnamese", "Polish", "Norway"],
-    "dislikedCuisines": ["Thai"],
+    "lovedCuisines": ["Saudi arabian", "Turkish", "India"],
+    "dislikedCuisines": ["Polish"],
     "lovedIngredients": ["egg", "chocolate"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u105",
-    "lovedCuisines": ["Norway"],
+    "lovedCuisines": ["Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta", "potato"],
     "dislikedIngredients": [],
@@ -849,7 +849,7 @@
   },
   {
     "id": "u106",
-    "lovedCuisines": ["Jamaican"],
+    "lovedCuisines": ["Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -857,7 +857,7 @@
   },
   {
     "id": "u107",
-    "lovedCuisines": ["Spanish", "France"],
+    "lovedCuisines": ["Italian", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -865,7 +865,7 @@
   },
   {
     "id": "u108",
-    "lovedCuisines": ["Argentina", "Thai"],
+    "lovedCuisines": ["Italian", "Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": ["fish", "salmon"],
@@ -873,7 +873,7 @@
   },
   {
     "id": "u109",
-    "lovedCuisines": ["Canadian", "Norway"],
+    "lovedCuisines": ["Saudi arabian", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["rice"],
     "dislikedIngredients": ["fish"],
@@ -881,7 +881,7 @@
   },
   {
     "id": "u110",
-    "lovedCuisines": ["India"],
+    "lovedCuisines": ["Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese", "potato"],
     "dislikedIngredients": ["salmon"],
@@ -889,7 +889,7 @@
   },
   {
     "id": "u111",
-    "lovedCuisines": ["Venezuela", "Italian"],
+    "lovedCuisines": ["India", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese", "lamb"],
     "dislikedIngredients": [],
@@ -897,7 +897,7 @@
   },
   {
     "id": "u112",
-    "lovedCuisines": ["Vietnamese", "Chinese"],
+    "lovedCuisines": ["Spanish", "British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -905,7 +905,7 @@
   },
   {
     "id": "u113",
-    "lovedCuisines": ["Algerian"],
+    "lovedCuisines": ["Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef"],
     "dislikedIngredients": ["olive", "salmon"],
@@ -913,55 +913,55 @@
   },
   {
     "id": "u114",
-    "lovedCuisines": ["France", "Saudi Arabian"],
-    "dislikedCuisines": ["Spanish"],
+    "lovedCuisines": ["Turkish", "Polish"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": ["coconut"],
     "vegetarian": true
   },
   {
     "id": "u115",
-    "lovedCuisines": ["Norway"],
-    "dislikedCuisines": ["Polish"],
+    "lovedCuisines": ["Vietnamese"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": ["anchovy", "mushroom"],
     "vegetarian": false
   },
   {
     "id": "u116",
-    "lovedCuisines": ["France", "Canadian"],
-    "dislikedCuisines": ["India"],
+    "lovedCuisines": ["Saudi arabian", "Spanish"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": ["beef", "rice"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u117",
-    "lovedCuisines": ["Argentina", "Canadian"],
-    "dislikedCuisines": ["France"],
+    "lovedCuisines": ["Italian", "Saudi arabian"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": ["chicken", "potato"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u118",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Vietnamese"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": true
   },
   {
     "id": "u119",
-    "lovedCuisines": ["France", "Spanish"],
-    "dislikedCuisines": ["India"],
+    "lovedCuisines": ["Turkish", "Italian"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": ["chocolate"],
     "dislikedIngredients": ["liver", "prawn"],
     "vegetarian": false
   },
   {
     "id": "u120",
-    "lovedCuisines": ["Norway"],
+    "lovedCuisines": ["Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": ["olive"],
@@ -969,23 +969,23 @@
   },
   {
     "id": "u121",
-    "lovedCuisines": ["Italian"],
-    "dislikedCuisines": ["British"],
+    "lovedCuisines": ["Algerian"],
+    "dislikedCuisines": ["United states"],
     "lovedIngredients": ["spinach", "lamb"],
     "dislikedIngredients": ["coconut"],
     "vegetarian": false
   },
   {
     "id": "u122",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": ["Norway"],
+    "lovedCuisines": ["Spanish"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": ["lamb", "chicken"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u123",
-    "lovedCuisines": ["Spanish"],
+    "lovedCuisines": ["Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["spinach", "potato"],
     "dislikedIngredients": [],
@@ -993,7 +993,7 @@
   },
   {
     "id": "u124",
-    "lovedCuisines": ["Norway", "Jamaican"],
+    "lovedCuisines": ["Vietnamese", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["olive", "coconut"],
@@ -1001,7 +1001,7 @@
   },
   {
     "id": "u125",
-    "lovedCuisines": ["Canadian"],
+    "lovedCuisines": ["Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": ["salmon", "prawn"],
@@ -1009,7 +1009,7 @@
   },
   {
     "id": "u126",
-    "lovedCuisines": ["Spanish", "Polish"],
+    "lovedCuisines": ["Italian", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "spinach"],
     "dislikedIngredients": ["coconut"],
@@ -1017,7 +1017,7 @@
   },
   {
     "id": "u127",
-    "lovedCuisines": ["Polish"],
+    "lovedCuisines": ["Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chocolate"],
     "dislikedIngredients": ["coconut", "mushroom"],
@@ -1025,7 +1025,7 @@
   },
   {
     "id": "u128",
-    "lovedCuisines": ["Venezuela", "United States"],
+    "lovedCuisines": ["India", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb", "beef"],
     "dislikedIngredients": ["olive", "aubergine"],
@@ -1033,23 +1033,23 @@
   },
   {
     "id": "u129",
-    "lovedCuisines": ["Italian"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Algerian"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["cheese"],
     "dislikedIngredients": ["anchovy", "aubergine"],
     "vegetarian": false
   },
   {
     "id": "u130",
-    "lovedCuisines": ["Venezuela", "Saudi Arabian", "India"],
-    "dislikedCuisines": ["Australian"],
+    "lovedCuisines": ["India", "Polish", "Vietnamese"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": ["lamb", "egg"],
     "dislikedIngredients": ["olive", "anchovy"],
     "vegetarian": false
   },
   {
     "id": "u131",
-    "lovedCuisines": ["Thai"],
+    "lovedCuisines": ["Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chicken", "spinach"],
     "dislikedIngredients": ["aubergine", "fish"],
@@ -1057,7 +1057,7 @@
   },
   {
     "id": "u132",
-    "lovedCuisines": ["Spanish"],
+    "lovedCuisines": ["Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": ["prawn", "salmon"],
@@ -1065,31 +1065,31 @@
   },
   {
     "id": "u133",
-    "lovedCuisines": ["Australian", "Turkish", "Jamaican"],
-    "dislikedCuisines": ["Argentina"],
+    "lovedCuisines": ["Thai", "British", "Algerian"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": ["rice"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u134",
-    "lovedCuisines": ["Vietnamese", "United States", "Thai"],
-    "dislikedCuisines": ["Polish"],
+    "lovedCuisines": ["Saudi arabian", "Vietnamese", "Polish"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander"],
     "vegetarian": false
   },
   {
     "id": "u135",
-    "lovedCuisines": ["Turkish", "Canadian"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["British", "Saudi arabian"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u136",
-    "lovedCuisines": ["Polish", "Vietnamese"],
+    "lovedCuisines": ["Turkish", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": [],
@@ -1097,7 +1097,7 @@
   },
   {
     "id": "u137",
-    "lovedCuisines": ["Venezuela", "Turkish"],
+    "lovedCuisines": ["India", "British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["olive"],
@@ -1105,23 +1105,23 @@
   },
   {
     "id": "u138",
-    "lovedCuisines": ["Canadian"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["Saudi arabian"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": ["fish", "mushroom"],
     "vegetarian": false
   },
   {
     "id": "u139",
-    "lovedCuisines": ["Algerian", "Italian", "Thai"],
-    "dislikedCuisines": ["British"],
+    "lovedCuisines": ["Thai", "Algerian", "Polish"],
+    "dislikedCuisines": ["United states"],
     "lovedIngredients": ["lamb", "beef"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u140",
-    "lovedCuisines": ["France", "Canadian"],
+    "lovedCuisines": ["Saudi arabian", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": ["coconut"],
@@ -1129,7 +1129,7 @@
   },
   {
     "id": "u141",
-    "lovedCuisines": ["Algerian", "Polish"],
+    "lovedCuisines": ["Thai", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "rice"],
     "dislikedIngredients": ["anchovy", "coriander"],
@@ -1137,7 +1137,7 @@
   },
   {
     "id": "u142",
-    "lovedCuisines": ["Vietnamese", "Algerian"],
+    "lovedCuisines": ["Saudi arabian", "Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["anchovy", "mushroom"],
@@ -1145,15 +1145,15 @@
   },
   {
     "id": "u143",
-    "lovedCuisines": ["Italian", "Jamaican", "British"],
-    "dislikedCuisines": ["Chinese"],
+    "lovedCuisines": ["Algerian", "Turkish", "United states"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["cheese"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u144",
-    "lovedCuisines": ["Spanish"],
+    "lovedCuisines": ["Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": [],
@@ -1161,7 +1161,7 @@
   },
   {
     "id": "u145",
-    "lovedCuisines": ["Australian", "Polish"],
+    "lovedCuisines": ["Thai", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "pasta"],
     "dislikedIngredients": ["liver"],
@@ -1169,7 +1169,7 @@
   },
   {
     "id": "u146",
-    "lovedCuisines": ["Netherlands"],
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["anchovy", "salmon"],
@@ -1177,7 +1177,7 @@
   },
   {
     "id": "u147",
-    "lovedCuisines": ["Saudi Arabian", "Vietnamese"],
+    "lovedCuisines": ["Algerian", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -1185,15 +1185,15 @@
   },
   {
     "id": "u148",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": ["Australian"],
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": ["India"],
     "lovedIngredients": ["cheese", "lamb"],
     "dislikedIngredients": [],
     "vegetarian": true
   },
   {
     "id": "u149",
-    "lovedCuisines": ["Thai", "Vietnamese"],
+    "lovedCuisines": ["Polish", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["spinach"],
     "dislikedIngredients": [],
@@ -1201,7 +1201,7 @@
   },
   {
     "id": "u150",
-    "lovedCuisines": ["Algerian", "Chinese", "Norway"],
+    "lovedCuisines": ["Thai", "British", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": [],
@@ -1209,7 +1209,7 @@
   },
   {
     "id": "u151",
-    "lovedCuisines": ["Jamaican"],
+    "lovedCuisines": ["Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chicken", "lamb"],
     "dislikedIngredients": ["fish"],
@@ -1217,7 +1217,7 @@
   },
   {
     "id": "u152",
-    "lovedCuisines": ["France"],
+    "lovedCuisines": ["Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["anchovy"],
@@ -1225,15 +1225,15 @@
   },
   {
     "id": "u153",
-    "lovedCuisines": ["Chinese", "France", "India"],
-    "dislikedCuisines": ["Australian"],
+    "lovedCuisines": ["British", "Saudi arabian", "Vietnamese"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": [],
     "dislikedIngredients": ["fish", "liver"],
     "vegetarian": false
   },
   {
     "id": "u154",
-    "lovedCuisines": ["Vietnamese"],
+    "lovedCuisines": ["Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": [],
@@ -1241,7 +1241,7 @@
   },
   {
     "id": "u155",
-    "lovedCuisines": ["United States"],
+    "lovedCuisines": ["Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": ["salmon", "prawn"],
@@ -1249,7 +1249,7 @@
   },
   {
     "id": "u156",
-    "lovedCuisines": ["Chinese"],
+    "lovedCuisines": ["British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["anchovy"],
@@ -1257,7 +1257,7 @@
   },
   {
     "id": "u157",
-    "lovedCuisines": ["Turkish"],
+    "lovedCuisines": ["British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["anchovy"],
@@ -1265,7 +1265,7 @@
   },
   {
     "id": "u158",
-    "lovedCuisines": ["Italian"],
+    "lovedCuisines": ["Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "pasta"],
     "dislikedIngredients": ["fish", "mushroom"],
@@ -1273,15 +1273,15 @@
   },
   {
     "id": "u159",
-    "lovedCuisines": ["Venezuela"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["India"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": ["chocolate", "potato"],
     "dislikedIngredients": ["prawn"],
     "vegetarian": false
   },
   {
     "id": "u160",
-    "lovedCuisines": ["France", "Polish"],
+    "lovedCuisines": ["Saudi arabian", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": ["coriander"],
@@ -1289,23 +1289,23 @@
   },
   {
     "id": "u161",
-    "lovedCuisines": ["Jamaican", "Argentina"],
-    "dislikedCuisines": ["Thai"],
+    "lovedCuisines": ["Turkish", "Thai"],
+    "dislikedCuisines": ["Polish"],
     "lovedIngredients": [],
     "dislikedIngredients": ["aubergine"],
     "vegetarian": false
   },
   {
     "id": "u162",
-    "lovedCuisines": ["Thai"],
-    "dislikedCuisines": ["Saudi Arabian"],
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["Algerian"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u163",
-    "lovedCuisines": ["Thai"],
+    "lovedCuisines": ["Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": [],
@@ -1313,7 +1313,7 @@
   },
   {
     "id": "u164",
-    "lovedCuisines": ["India", "Turkish", "Jamaican"],
+    "lovedCuisines": ["Vietnamese", "British", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -1321,7 +1321,7 @@
   },
   {
     "id": "u165",
-    "lovedCuisines": ["Norway", "Canadian", "Italian"],
+    "lovedCuisines": ["Vietnamese", "Saudi arabian", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato", "pasta"],
     "dislikedIngredients": ["liver", "mushroom"],
@@ -1329,7 +1329,7 @@
   },
   {
     "id": "u166",
-    "lovedCuisines": ["Chinese"],
+    "lovedCuisines": ["British"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "spinach"],
     "dislikedIngredients": ["salmon"],
@@ -1337,15 +1337,15 @@
   },
   {
     "id": "u167",
-    "lovedCuisines": ["Saudi Arabian", "Venezuela"],
-    "dislikedCuisines": ["Polish"],
+    "lovedCuisines": ["Polish", "India"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": [],
     "dislikedIngredients": ["coconut", "aubergine"],
     "vegetarian": false
   },
   {
     "id": "u168",
-    "lovedCuisines": ["Polish"],
+    "lovedCuisines": ["Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["liver", "salmon"],
@@ -1353,7 +1353,7 @@
   },
   {
     "id": "u169",
-    "lovedCuisines": ["Spanish", "Norway"],
+    "lovedCuisines": ["Italian", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": ["coriander"],
@@ -1361,31 +1361,31 @@
   },
   {
     "id": "u170",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u171",
-    "lovedCuisines": ["Saudi Arabian"],
-    "dislikedCuisines": ["Netherlands"],
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["India"],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": ["anchovy"],
     "vegetarian": false
   },
   {
     "id": "u172",
-    "lovedCuisines": ["Jamaican"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["Algerian"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": ["rice"],
     "dislikedIngredients": ["coriander"],
     "vegetarian": false
   },
   {
     "id": "u173",
-    "lovedCuisines": ["Turkish", "Netherlands"],
+    "lovedCuisines": ["British", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese", "pasta"],
     "dislikedIngredients": ["liver", "anchovy"],
@@ -1393,7 +1393,7 @@
   },
   {
     "id": "u174",
-    "lovedCuisines": ["Venezuela"],
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["fish", "coriander"],
@@ -1401,7 +1401,7 @@
   },
   {
     "id": "u175",
-    "lovedCuisines": ["Polish", "Spanish", "Australian"],
+    "lovedCuisines": ["Turkish", "Italian", "United states"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb", "beef"],
     "dislikedIngredients": [],
@@ -1409,31 +1409,31 @@
   },
   {
     "id": "u176",
-    "lovedCuisines": ["Netherlands"],
-    "dislikedCuisines": ["India"],
+    "lovedCuisines": ["India"],
+    "dislikedCuisines": ["Spanish"],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander", "prawn"],
     "vegetarian": false
   },
   {
     "id": "u177",
-    "lovedCuisines": ["Spanish", "Chinese"],
-    "dislikedCuisines": ["Thai"],
+    "lovedCuisines": ["Italian", "British"],
+    "dislikedCuisines": ["Polish"],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": [],
     "vegetarian": true
   },
   {
     "id": "u178",
-    "lovedCuisines": ["Argentina", "Venezuela", "Norway"],
-    "dislikedCuisines": ["France"],
+    "lovedCuisines": ["Italian", "India", "Vietnamese"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u179",
-    "lovedCuisines": ["France"],
+    "lovedCuisines": ["Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chicken"],
     "dislikedIngredients": ["fish"],
@@ -1441,7 +1441,7 @@
   },
   {
     "id": "u180",
-    "lovedCuisines": ["Chinese", "United States", "Argentina"],
+    "lovedCuisines": ["British", "Spanish", "Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["mushroom"],
@@ -1449,7 +1449,7 @@
   },
   {
     "id": "u181",
-    "lovedCuisines": ["Algerian", "Chinese"],
+    "lovedCuisines": ["Thai", "British"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chicken"],
     "dislikedIngredients": ["mushroom", "liver"],
@@ -1457,15 +1457,15 @@
   },
   {
     "id": "u182",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": ["France"],
+    "lovedCuisines": ["Italian"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": ["prawn", "salmon"],
     "vegetarian": false
   },
   {
     "id": "u183",
-    "lovedCuisines": ["Norway", "Polish", "Thai"],
+    "lovedCuisines": ["Vietnamese", "Turkish", "Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese", "pasta"],
     "dislikedIngredients": ["aubergine"],
@@ -1473,7 +1473,7 @@
   },
   {
     "id": "u184",
-    "lovedCuisines": ["Saudi Arabian"],
+    "lovedCuisines": ["Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["rice", "beef"],
     "dislikedIngredients": ["olive", "prawn"],
@@ -1481,15 +1481,15 @@
   },
   {
     "id": "u185",
-    "lovedCuisines": ["Spanish", "Polish"],
-    "dislikedCuisines": ["Argentina"],
+    "lovedCuisines": ["Italian", "Turkish"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": ["salmon", "liver"],
     "vegetarian": false
   },
   {
     "id": "u186",
-    "lovedCuisines": ["Italian"],
+    "lovedCuisines": ["Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": ["salmon"],
@@ -1497,7 +1497,7 @@
   },
   {
     "id": "u187",
-    "lovedCuisines": ["Thai", "Venezuela"],
+    "lovedCuisines": ["Polish", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["mushroom", "fish"],
@@ -1505,7 +1505,7 @@
   },
   {
     "id": "u188",
-    "lovedCuisines": ["India", "Italian"],
+    "lovedCuisines": ["Vietnamese", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chocolate", "rice"],
     "dislikedIngredients": ["aubergine", "coconut"],
@@ -1513,7 +1513,7 @@
   },
   {
     "id": "u189",
-    "lovedCuisines": ["Australian", "Norway", "Saudi Arabian"],
+    "lovedCuisines": ["Thai", "Vietnamese", "Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": [],
@@ -1521,31 +1521,31 @@
   },
   {
     "id": "u190",
-    "lovedCuisines": ["United States"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["Spanish"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": [],
     "dislikedIngredients": ["salmon"],
     "vegetarian": true
   },
   {
     "id": "u191",
-    "lovedCuisines": ["France", "British"],
-    "dislikedCuisines": ["Venezuela"],
+    "lovedCuisines": ["Saudi arabian", "United states"],
+    "dislikedCuisines": ["India"],
     "lovedIngredients": ["cheese"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u192",
-    "lovedCuisines": ["Canadian", "Argentina", "France"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["Saudi arabian", "Thai", "Turkish"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": [],
     "dislikedIngredients": ["anchovy", "coriander"],
     "vegetarian": true
   },
   {
     "id": "u193",
-    "lovedCuisines": ["Polish", "Canadian", "Vietnamese"],
+    "lovedCuisines": ["Turkish", "Saudi arabian", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coconut"],
@@ -1553,23 +1553,23 @@
   },
   {
     "id": "u194",
-    "lovedCuisines": ["Jamaican"],
-    "dislikedCuisines": ["Italian"],
+    "lovedCuisines": ["Turkish"],
+    "dislikedCuisines": ["Algerian"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": true
   },
   {
     "id": "u195",
-    "lovedCuisines": ["Norway", "Netherlands"],
-    "dislikedCuisines": ["Argentina"],
+    "lovedCuisines": ["Vietnamese", "India"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": ["spinach"],
     "dislikedIngredients": ["anchovy", "prawn"],
     "vegetarian": false
   },
   {
     "id": "u196",
-    "lovedCuisines": ["Saudi Arabian", "United States"],
+    "lovedCuisines": ["Polish", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": [],
@@ -1577,7 +1577,7 @@
   },
   {
     "id": "u197",
-    "lovedCuisines": ["Chinese", "Vietnamese", "United States"],
+    "lovedCuisines": ["Italian", "Saudi arabian", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -1585,31 +1585,31 @@
   },
   {
     "id": "u198",
-    "lovedCuisines": ["Argentina", "Vietnamese"],
-    "dislikedCuisines": ["Australian"],
+    "lovedCuisines": ["Italian", "Saudi arabian"],
+    "dislikedCuisines": ["United states"],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": ["salmon"],
     "vegetarian": true
   },
   {
     "id": "u199",
-    "lovedCuisines": ["Jamaican", "India"],
-    "dislikedCuisines": ["Chinese"],
+    "lovedCuisines": ["Algerian", "Vietnamese"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": ["fish", "anchovy"],
     "vegetarian": false
   },
   {
     "id": "u200",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": ["Italian"],
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": ["Algerian"],
     "lovedIngredients": ["chocolate"],
     "dislikedIngredients": ["liver"],
     "vegetarian": false
   },
   {
     "id": "u201",
-    "lovedCuisines": ["India", "Turkish"],
+    "lovedCuisines": ["Vietnamese", "British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["olive", "coconut"],
@@ -1617,7 +1617,7 @@
   },
   {
     "id": "u202",
-    "lovedCuisines": ["Venezuela", "Vietnamese"],
+    "lovedCuisines": ["India", "Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato", "pasta"],
     "dislikedIngredients": [],
@@ -1625,7 +1625,7 @@
   },
   {
     "id": "u203",
-    "lovedCuisines": ["Australian", "India"],
+    "lovedCuisines": ["United states", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -1633,23 +1633,23 @@
   },
   {
     "id": "u204",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": ["Venezuela"],
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": ["olive"],
     "vegetarian": false
   },
   {
     "id": "u205",
-    "lovedCuisines": ["France", "Thai", "India"],
-    "dislikedCuisines": ["Argentina"],
+    "lovedCuisines": ["Turkish", "Polish", "Vietnamese"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u206",
-    "lovedCuisines": ["Chinese", "Spanish", "Thai"],
+    "lovedCuisines": ["British", "Italian", "Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -1657,15 +1657,15 @@
   },
   {
     "id": "u207",
-    "lovedCuisines": ["Thai", "Spanish"],
-    "dislikedCuisines": ["Canadian"],
+    "lovedCuisines": ["Polish", "Italian"],
+    "dislikedCuisines": ["Saudi arabian"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u208",
-    "lovedCuisines": ["Netherlands", "Polish"],
+    "lovedCuisines": ["United states", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": ["aubergine"],
@@ -1673,7 +1673,7 @@
   },
   {
     "id": "u209",
-    "lovedCuisines": ["France", "Polish", "Jamaican"],
+    "lovedCuisines": ["Turkish", "Saudi arabian", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": [],
@@ -1681,23 +1681,23 @@
   },
   {
     "id": "u210",
-    "lovedCuisines": ["Spanish", "India", "Chinese"],
-    "dislikedCuisines": ["France"],
+    "lovedCuisines": ["Italian", "Spanish", "British"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": [],
     "dislikedIngredients": ["salmon", "anchovy"],
     "vegetarian": true
   },
   {
     "id": "u211",
-    "lovedCuisines": ["Jamaican"],
-    "dislikedCuisines": ["Spanish"],
+    "lovedCuisines": ["Algerian"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": ["aubergine"],
     "vegetarian": false
   },
   {
     "id": "u212",
-    "lovedCuisines": ["Jamaican"],
+    "lovedCuisines": ["Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese"],
     "dislikedIngredients": [],
@@ -1705,7 +1705,7 @@
   },
   {
     "id": "u213",
-    "lovedCuisines": ["Italian", "Saudi Arabian"],
+    "lovedCuisines": ["Algerian", "Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -1713,15 +1713,15 @@
   },
   {
     "id": "u214",
-    "lovedCuisines": ["Saudi Arabian"],
-    "dislikedCuisines": ["Canadian"],
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["Spanish"],
     "lovedIngredients": [],
     "dislikedIngredients": ["prawn"],
     "vegetarian": false
   },
   {
     "id": "u215",
-    "lovedCuisines": ["Canadian", "India"],
+    "lovedCuisines": ["Saudi arabian", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander"],
@@ -1729,23 +1729,23 @@
   },
   {
     "id": "u216",
-    "lovedCuisines": ["France", "British"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Saudi arabian", "United states"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u217",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": ["Chinese"],
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["beef"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u218",
-    "lovedCuisines": ["British"],
+    "lovedCuisines": ["United states"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chicken"],
     "dislikedIngredients": ["olive", "coconut"],
@@ -1753,7 +1753,7 @@
   },
   {
     "id": "u219",
-    "lovedCuisines": ["Algerian", "Vietnamese"],
+    "lovedCuisines": ["Thai", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["olive"],
@@ -1761,7 +1761,7 @@
   },
   {
     "id": "u220",
-    "lovedCuisines": ["Netherlands"],
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "chicken"],
     "dislikedIngredients": ["olive", "mushroom"],
@@ -1769,7 +1769,7 @@
   },
   {
     "id": "u221",
-    "lovedCuisines": ["British"],
+    "lovedCuisines": ["United states"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["mushroom"],
@@ -1777,7 +1777,7 @@
   },
   {
     "id": "u222",
-    "lovedCuisines": ["Saudi Arabian"],
+    "lovedCuisines": ["Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese"],
     "dislikedIngredients": ["liver", "coriander"],
@@ -1785,15 +1785,15 @@
   },
   {
     "id": "u223",
-    "lovedCuisines": ["Venezuela", "British", "Argentina"],
-    "dislikedCuisines": ["Saudi Arabian"],
+    "lovedCuisines": ["India", "United states", "Italian"],
+    "dislikedCuisines": ["Polish"],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander", "salmon"],
     "vegetarian": false
   },
   {
     "id": "u224",
-    "lovedCuisines": ["India", "Venezuela"],
+    "lovedCuisines": ["Vietnamese", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["rice", "egg"],
     "dislikedIngredients": ["fish", "prawn"],
@@ -1801,23 +1801,23 @@
   },
   {
     "id": "u225",
-    "lovedCuisines": ["Vietnamese", "Turkish"],
-    "dislikedCuisines": ["Canadian"],
+    "lovedCuisines": ["Saudi arabian", "British"],
+    "dislikedCuisines": ["Spanish"],
     "lovedIngredients": ["spinach"],
     "dislikedIngredients": ["mushroom"],
     "vegetarian": true
   },
   {
     "id": "u226",
-    "lovedCuisines": ["Saudi Arabian", "Chinese"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Algerian", "British"],
+    "dislikedCuisines": ["Italian"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u227",
-    "lovedCuisines": ["Vietnamese"],
+    "lovedCuisines": ["Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese"],
     "dislikedIngredients": ["aubergine"],
@@ -1825,7 +1825,7 @@
   },
   {
     "id": "u228",
-    "lovedCuisines": ["Turkish", "Canadian"],
+    "lovedCuisines": ["British", "Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "cheese"],
     "dislikedIngredients": [],
@@ -1833,7 +1833,7 @@
   },
   {
     "id": "u229",
-    "lovedCuisines": ["Saudi Arabian", "Chinese"],
+    "lovedCuisines": ["Polish", "British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["fish", "olive"],
@@ -1841,23 +1841,23 @@
   },
   {
     "id": "u230",
-    "lovedCuisines": ["United States"],
-    "dislikedCuisines": ["Jamaican"],
+    "lovedCuisines": ["Spanish"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u231",
-    "lovedCuisines": ["Canadian", "Polish"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Saudi arabian", "Turkish"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": true
   },
   {
     "id": "u232",
-    "lovedCuisines": ["Argentina", "Turkish"],
+    "lovedCuisines": ["Italian", "British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -1865,23 +1865,23 @@
   },
   {
     "id": "u233",
-    "lovedCuisines": ["India", "Chinese"],
-    "dislikedCuisines": ["France"],
+    "lovedCuisines": ["Vietnamese", "British"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": ["spinach"],
     "dislikedIngredients": ["anchovy", "prawn"],
     "vegetarian": false
   },
   {
     "id": "u234",
-    "lovedCuisines": ["Vietnamese", "Argentina"],
-    "dislikedCuisines": ["France"],
+    "lovedCuisines": ["Spanish", "Italian"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": ["potato", "chicken"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u235",
-    "lovedCuisines": ["Thai"],
+    "lovedCuisines": ["Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["olive"],
@@ -1889,15 +1889,15 @@
   },
   {
     "id": "u236",
-    "lovedCuisines": ["Venezuela", "Italian"],
-    "dislikedCuisines": ["Polish"],
+    "lovedCuisines": ["India", "Algerian"],
+    "dislikedCuisines": ["Turkish"],
     "lovedIngredients": ["chicken", "beef"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u237",
-    "lovedCuisines": ["India"],
+    "lovedCuisines": ["Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander"],
@@ -1905,7 +1905,7 @@
   },
   {
     "id": "u238",
-    "lovedCuisines": ["Netherlands"],
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coconut", "salmon"],
@@ -1913,7 +1913,7 @@
   },
   {
     "id": "u239",
-    "lovedCuisines": ["Saudi Arabian"],
+    "lovedCuisines": ["Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["fish"],
@@ -1921,23 +1921,23 @@
   },
   {
     "id": "u240",
-    "lovedCuisines": ["France", "Turkish"],
-    "dislikedCuisines": ["British"],
+    "lovedCuisines": ["Turkish", "British"],
+    "dislikedCuisines": ["United states"],
     "lovedIngredients": [],
     "dislikedIngredients": ["olive", "mushroom"],
     "vegetarian": false
   },
   {
     "id": "u241",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": ["Argentina"],
+    "lovedCuisines": ["Spanish"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": ["rice"],
     "dislikedIngredients": ["fish"],
     "vegetarian": false
   },
   {
     "id": "u242",
-    "lovedCuisines": ["Algerian", "Vietnamese"],
+    "lovedCuisines": ["Thai", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chicken", "pasta"],
     "dislikedIngredients": ["anchovy", "mushroom"],
@@ -1945,23 +1945,23 @@
   },
   {
     "id": "u243",
-    "lovedCuisines": ["United States", "Venezuela"],
-    "dislikedCuisines": ["Canadian"],
+    "lovedCuisines": ["Spanish", "India"],
+    "dislikedCuisines": ["Saudi arabian"],
     "lovedIngredients": ["pasta", "rice"],
     "dislikedIngredients": [],
     "vegetarian": true
   },
   {
     "id": "u244",
-    "lovedCuisines": ["United States", "Canadian"],
-    "dislikedCuisines": ["Australian"],
+    "lovedCuisines": ["Spanish", "Saudi arabian"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u245",
-    "lovedCuisines": ["Italian", "Argentina"],
+    "lovedCuisines": ["Algerian", "Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta", "cheese"],
     "dislikedIngredients": [],
@@ -1969,7 +1969,7 @@
   },
   {
     "id": "u246",
-    "lovedCuisines": ["Norway"],
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chocolate"],
     "dislikedIngredients": ["fish"],
@@ -1977,23 +1977,23 @@
   },
   {
     "id": "u247",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": ["Norway"],
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": [],
     "dislikedIngredients": ["prawn"],
     "vegetarian": false
   },
   {
     "id": "u248",
-    "lovedCuisines": ["India", "Algerian"],
-    "dislikedCuisines": ["Thai"],
+    "lovedCuisines": ["Vietnamese", "Thai"],
+    "dislikedCuisines": ["Polish"],
     "lovedIngredients": ["lamb"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u249",
-    "lovedCuisines": ["Venezuela", "Turkish"],
+    "lovedCuisines": ["India", "British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -2001,7 +2001,7 @@
   },
   {
     "id": "u250",
-    "lovedCuisines": ["Venezuela", "Australian"],
+    "lovedCuisines": ["India", "Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": ["egg"],
     "dislikedIngredients": ["aubergine", "liver"],
@@ -2009,7 +2009,7 @@
   },
   {
     "id": "u251",
-    "lovedCuisines": ["Canadian"],
+    "lovedCuisines": ["Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -2017,31 +2017,31 @@
   },
   {
     "id": "u252",
-    "lovedCuisines": ["Jamaican"],
-    "dislikedCuisines": ["Polish"],
+    "lovedCuisines": ["Turkish"],
+    "dislikedCuisines": ["Saudi arabian"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u253",
-    "lovedCuisines": ["Polish", "United States"],
-    "dislikedCuisines": ["Chinese"],
+    "lovedCuisines": ["Turkish", "Spanish"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": ["chocolate"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u254",
-    "lovedCuisines": ["Polish", "British"],
-    "dislikedCuisines": ["Algerian"],
+    "lovedCuisines": ["Turkish", "United states"],
+    "dislikedCuisines": ["Thai"],
     "lovedIngredients": ["cheese", "beef"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u255",
-    "lovedCuisines": ["Algerian", "Norway"],
+    "lovedCuisines": ["Thai", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": ["fish"],
@@ -2049,23 +2049,23 @@
   },
   {
     "id": "u256",
-    "lovedCuisines": ["United States", "Australian", "Spanish"],
-    "dislikedCuisines": ["Vietnamese"],
+    "lovedCuisines": ["Spanish", "Thai", "Italian"],
+    "dislikedCuisines": ["Saudi arabian"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u257",
-    "lovedCuisines": ["Italian"],
-    "dislikedCuisines": ["United States"],
+    "lovedCuisines": ["Algerian"],
+    "dislikedCuisines": ["Spanish"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u258",
-    "lovedCuisines": ["Australian", "Venezuela"],
+    "lovedCuisines": ["United states", "Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -2073,15 +2073,15 @@
   },
   {
     "id": "u259",
-    "lovedCuisines": ["France", "Jamaican"],
-    "dislikedCuisines": ["Canadian"],
+    "lovedCuisines": ["Turkish", "Algerian"],
+    "dislikedCuisines": ["Spanish"],
     "lovedIngredients": ["rice", "chicken"],
     "dislikedIngredients": [],
     "vegetarian": true
   },
   {
     "id": "u260",
-    "lovedCuisines": ["Australian"],
+    "lovedCuisines": ["United states"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -2089,15 +2089,15 @@
   },
   {
     "id": "u261",
-    "lovedCuisines": ["Thai", "Argentina"],
-    "dislikedCuisines": ["Australian"],
+    "lovedCuisines": ["Polish", "Italian"],
+    "dislikedCuisines": ["United states"],
     "lovedIngredients": ["cheese", "lamb"],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u262",
-    "lovedCuisines": ["Australian", "Algerian", "United States"],
+    "lovedCuisines": ["United states", "Thai", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "potato"],
     "dislikedIngredients": ["coconut", "anchovy"],
@@ -2105,15 +2105,15 @@
   },
   {
     "id": "u263",
-    "lovedCuisines": ["Italian", "Netherlands"],
-    "dislikedCuisines": ["Norway"],
+    "lovedCuisines": ["Algerian", "India"],
+    "dislikedCuisines": ["Vietnamese"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u264",
-    "lovedCuisines": ["Chinese", "Saudi Arabian", "Venezuela"],
+    "lovedCuisines": ["British", "Polish", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["coconut", "mushroom"],
@@ -2121,7 +2121,7 @@
   },
   {
     "id": "u265",
-    "lovedCuisines": ["United States", "Canadian"],
+    "lovedCuisines": ["Spanish", "Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": ["liver", "prawn"],
@@ -2129,7 +2129,7 @@
   },
   {
     "id": "u266",
-    "lovedCuisines": ["United States"],
+    "lovedCuisines": ["Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": ["aubergine", "olive"],
@@ -2137,7 +2137,7 @@
   },
   {
     "id": "u267",
-    "lovedCuisines": ["Netherlands"],
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -2145,7 +2145,7 @@
   },
   {
     "id": "u268",
-    "lovedCuisines": ["Turkish", "Venezuela", "Netherlands"],
+    "lovedCuisines": ["British", "Vietnamese", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -2153,7 +2153,7 @@
   },
   {
     "id": "u269",
-    "lovedCuisines": ["France"],
+    "lovedCuisines": ["Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese"],
     "dislikedIngredients": [],
@@ -2161,23 +2161,23 @@
   },
   {
     "id": "u270",
-    "lovedCuisines": ["Norway"],
-    "dislikedCuisines": ["Turkish"],
+    "lovedCuisines": ["Vietnamese"],
+    "dislikedCuisines": ["British"],
     "lovedIngredients": [],
     "dislikedIngredients": ["coriander", "aubergine"],
     "vegetarian": false
   },
   {
     "id": "u271",
-    "lovedCuisines": ["Netherlands", "France"],
-    "dislikedCuisines": ["Polish"],
+    "lovedCuisines": ["India", "Turkish"],
+    "dislikedCuisines": ["Saudi arabian"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u272",
-    "lovedCuisines": ["Jamaican", "Australian"],
+    "lovedCuisines": ["Algerian", "Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": ["potato"],
     "dislikedIngredients": [],
@@ -2185,7 +2185,7 @@
   },
   {
     "id": "u273",
-    "lovedCuisines": ["Polish", "Canadian"],
+    "lovedCuisines": ["Turkish", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef"],
     "dislikedIngredients": ["olive"],
@@ -2193,15 +2193,15 @@
   },
   {
     "id": "u274",
-    "lovedCuisines": ["Jamaican", "Algerian", "Argentina"],
-    "dislikedCuisines": ["Saudi Arabian"],
+    "lovedCuisines": ["Algerian", "Thai", "Italian"],
+    "dislikedCuisines": ["Polish"],
     "lovedIngredients": [],
     "dislikedIngredients": [],
     "vegetarian": false
   },
   {
     "id": "u275",
-    "lovedCuisines": ["Chinese", "Algerian"],
+    "lovedCuisines": ["British", "Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": ["spinach", "chicken"],
     "dislikedIngredients": ["salmon"],
@@ -2209,7 +2209,7 @@
   },
   {
     "id": "u276",
-    "lovedCuisines": ["Italian", "Saudi Arabian"],
+    "lovedCuisines": ["Algerian", "Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["prawn"],
@@ -2217,7 +2217,7 @@
   },
   {
     "id": "u277",
-    "lovedCuisines": ["Venezuela"],
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -2225,7 +2225,7 @@
   },
   {
     "id": "u278",
-    "lovedCuisines": ["Italian", "Polish"],
+    "lovedCuisines": ["Algerian", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta"],
     "dislikedIngredients": [],
@@ -2233,7 +2233,7 @@
   },
   {
     "id": "u279",
-    "lovedCuisines": ["Algerian", "Spanish", "Vietnamese"],
+    "lovedCuisines": ["Thai", "Italian", "Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -2241,22 +2241,14 @@
   },
   {
     "id": "u280",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": ["Vietnamese"],
+    "lovedCuisines": ["Italian"],
+    "dislikedCuisines": ["Spanish"],
     "lovedIngredients": ["spinach"],
     "dislikedIngredients": ["anchovy"],
     "vegetarian": false
   },
   {
     "id": "u281",
-    "lovedCuisines": ["Venezuela"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u282",
     "lovedCuisines": ["India"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
@@ -2264,8 +2256,16 @@
     "vegetarian": true
   },
   {
+    "id": "u282",
+    "lovedCuisines": ["Vietnamese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": [],
+    "dislikedIngredients": [],
+    "vegetarian": true
+  },
+  {
     "id": "u283",
-    "lovedCuisines": ["Norway"],
+    "lovedCuisines": ["Vietnamese"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -2273,7 +2273,7 @@
   },
   {
     "id": "u284",
-    "lovedCuisines": ["Spanish", "Venezuela"],
+    "lovedCuisines": ["Italian", "India"],
     "dislikedCuisines": [],
     "lovedIngredients": ["cheese"],
     "dislikedIngredients": ["liver"],
@@ -2281,7 +2281,7 @@
   },
   {
     "id": "u285",
-    "lovedCuisines": ["United States"],
+    "lovedCuisines": ["Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chicken", "beef"],
     "dislikedIngredients": ["salmon"],
@@ -2289,7 +2289,7 @@
   },
   {
     "id": "u286",
-    "lovedCuisines": ["Venezuela", "Italian"],
+    "lovedCuisines": ["India", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": [],
@@ -2297,7 +2297,7 @@
   },
   {
     "id": "u287",
-    "lovedCuisines": ["Netherlands", "Norway", "France"],
+    "lovedCuisines": ["India", "Vietnamese", "Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["rice"],
     "dislikedIngredients": ["olive", "fish"],
@@ -2305,7 +2305,7 @@
   },
   {
     "id": "u288",
-    "lovedCuisines": ["Chinese", "United States"],
+    "lovedCuisines": ["British", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["chicken"],
     "dislikedIngredients": ["prawn"],
@@ -2313,7 +2313,7 @@
   },
   {
     "id": "u289",
-    "lovedCuisines": ["Spanish", "India", "Jamaican"],
+    "lovedCuisines": ["Italian", "Vietnamese", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["anchovy"],
@@ -2321,7 +2321,7 @@
   },
   {
     "id": "u290",
-    "lovedCuisines": ["United States", "Jamaican"],
+    "lovedCuisines": ["Spanish", "Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["aubergine"],
@@ -2329,15 +2329,15 @@
   },
   {
     "id": "u291",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": ["Italian"],
+    "lovedCuisines": ["Turkish"],
+    "dislikedCuisines": ["Algerian"],
     "lovedIngredients": ["chocolate", "egg"],
     "dislikedIngredients": ["anchovy", "olive"],
     "vegetarian": false
   },
   {
     "id": "u292",
-    "lovedCuisines": ["Jamaican"],
+    "lovedCuisines": ["Turkish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["beef", "cheese"],
     "dislikedIngredients": [],
@@ -2345,7 +2345,7 @@
   },
   {
     "id": "u293",
-    "lovedCuisines": ["Spanish"],
+    "lovedCuisines": ["Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta", "beef"],
     "dislikedIngredients": [],
@@ -2353,7 +2353,7 @@
   },
   {
     "id": "u294",
-    "lovedCuisines": ["Chinese"],
+    "lovedCuisines": ["British"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["olive"],
@@ -2361,7 +2361,7 @@
   },
   {
     "id": "u295",
-    "lovedCuisines": ["France"],
+    "lovedCuisines": ["Saudi arabian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["mushroom", "prawn"],
@@ -2369,7 +2369,7 @@
   },
   {
     "id": "u296",
-    "lovedCuisines": ["Turkish", "Algerian"],
+    "lovedCuisines": ["British", "Thai"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["salmon", "anchovy"],
@@ -2377,7 +2377,7 @@
   },
   {
     "id": "u297",
-    "lovedCuisines": ["France", "Saudi Arabian"],
+    "lovedCuisines": ["Saudi arabian", "Polish"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta", "lamb"],
     "dislikedIngredients": [],
@@ -2385,7 +2385,7 @@
   },
   {
     "id": "u298",
-    "lovedCuisines": ["Jamaican"],
+    "lovedCuisines": ["Algerian"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["fish"],
@@ -2393,7 +2393,7 @@
   },
   {
     "id": "u299",
-    "lovedCuisines": ["Polish", "Vietnamese"],
+    "lovedCuisines": ["Turkish", "Spanish"],
     "dislikedCuisines": [],
     "lovedIngredients": [],
     "dislikedIngredients": ["prawn"],
