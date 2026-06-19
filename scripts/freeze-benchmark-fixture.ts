@@ -29,6 +29,8 @@ interface SeedRecipe {
   category: string | null
   dietaryTags: Array<string>
   ingredients: Array<{ name: string }>
+  prepMinutes: number | null
+  calories: number | null
 }
 
 function readSeed<T>(name: string): T {
@@ -42,8 +44,10 @@ function main() {
   const users = readSeed<Array<UserProfile>>('synthetic-users.json')
 
   // Project to the exact RecipeLite shape the recommenders consume. Anything not
-  // read by the benchmark (instructions, images, macros) is dropped so the fixture
-  // is small and the contract is explicit.
+  // read by the benchmark (instructions, images) is dropped so the fixture is small
+  // and the contract is explicit. prepMinutes + calories ARE read now: the realistic
+  // synthetic users (#38) carry prep-time and calorie preferences that the
+  // ground-truth scores against, so those dims must travel into the fixture.
   const catalogue: Array<RecipeLite> = seed.map((r) => ({
     id: r.id,
     title: r.title,
@@ -51,6 +55,8 @@ function main() {
     category: r.category,
     dietaryTags: r.dietaryTags,
     ingredients: r.ingredients.map((i) => ({ name: i.name })),
+    prepMinutes: r.prepMinutes ?? null,
+    calories: r.calories ?? null,
   }))
 
   const dir = join(
