@@ -138,7 +138,13 @@ export function generateWeek(
     recipeId: s.recipeId,
     like: s.like,
   }))
-  const ranked = recommender.recommend(swipeSignal, candidates.length)
+  // The recommender returns RecipeLite; map back to the PlannerRecipe candidates
+  // (which carry the soft-scoring fields) by id, preserving the ranked order.
+  const byId = new Map(candidates.map((r) => [r.id, r]))
+  const ranked = recommender
+    .recommend(swipeSignal, candidates.length)
+    .map((r) => byId.get(r.id))
+    .filter((r): r is PlannerRecipe => r != null)
 
   // Preference is the dominant axis. Convert rank position to a descending score
   // (top of the list = highest), then add the small soft nudge. The position

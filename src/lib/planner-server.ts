@@ -91,7 +91,7 @@ export const generatePlan = createServerFn({ method: 'POST' }).handler(
       .filter((s) => s.direction === 'like' || s.direction === 'dislike')
       .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
 
-    const week = generateWeek(recipes, hh.profile ?? {}, swipes)
+    const week = generateWeek(recipes, hh.profile, swipes)
 
     const weekStart = mondayOf(new Date())
     const planId = crypto.randomUUID()
