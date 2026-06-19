@@ -19,6 +19,7 @@
     "db:migrate:local": "wrangler d1 migrations apply smart_cart_db --local",
     "db:migrate:remote": "wrangler d1 migrations apply smart_cart_db --remote",
     "seed:recipes": "tsx scripts/seed-recipes.ts",
+    "embed:recipes": "tsx scripts/embed-recipes.ts",
     "cf-typegen": "wrangler types",
     "quality": "pnpm run format && pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
     "prepare": "husky"

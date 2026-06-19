@@ -5,6 +5,9 @@
  * module is for cross-catalogue similarity and substitutions at scale.
  */
 
+export { recipeText } from './recipe-text'
+export type { RecipeForEmbedding } from './recipe-text'
+
 interface Env {
   AI: Ai
   RECIPES_VECTORS: VectorizeIndex
@@ -22,17 +25,6 @@ export async function embed(text: string): Promise<Array<number>> {
     data: Array<Array<number>>
   }
   return res.data[0] ?? []
-}
-
-/** Text we embed for a recipe: title + cuisine + ingredient names. */
-export function recipeText(r: {
-  title: string
-  cuisine: string | null
-  ingredients: Array<{ name: string }>
-}): string {
-  return [r.title, r.cuisine ?? '', r.ingredients.map((i) => i.name).join(', ')]
-    .filter(Boolean)
-    .join('. ')
 }
 
 export interface VectorRecipe {
