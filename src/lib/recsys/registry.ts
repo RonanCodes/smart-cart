@@ -19,6 +19,7 @@ import {
   RandomRecommender,
   VectorRecommender,
 } from './strategies'
+import { BayesianRecommender } from './strategies-bayesian'
 import { DEFAULT_ADAPTIVE_WEIGHTS } from './config'
 
 /** A factory that builds a recommender over a catalogue, with an optional seed. */
@@ -40,6 +41,10 @@ export const REGISTRY: Record<string, RecommenderFactory> = {
   hybrid: (recipes, seed) => new HybridRecommender(recipes, seed),
   adaptive: (recipes, seed, weights = DEFAULT_ADAPTIVE_WEIGHTS) =>
     new AdaptiveRecommender(recipes, seed, weights),
+  // Bayesian: online logistic regression with a Gaussian prior over a latent taste
+  // vector. Drops in under its own key; no call site changes. The `weights` arg is
+  // Adaptive-only, so Bayesian ignores it (it learns its own per-feature weights).
+  bayesian: (recipes, seed) => new BayesianRecommender(recipes, seed),
 }
 
 /** Every registered algorithm key, in registration order. */
