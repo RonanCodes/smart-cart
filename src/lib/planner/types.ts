@@ -1,4 +1,4 @@
-import type { RecipeLite } from '../recsys/types'
+import type { AdaptiveWeights, RecipeLite } from '../recsys/types'
 
 /**
  * The recipe shape the planner needs. It is RecipeLite (what the recommender
@@ -56,4 +56,15 @@ export interface PlanOptions {
   days?: number
   /** Seed for the adaptive recommender so a fixed profile is deterministic. */
   seed?: number
+  /**
+   * Registry key of the ranking algorithm. Defaults to the configured live
+   * default (DEFAULT_ALGORITHM). Lets the admin console / experiments rank with a
+   * different algorithm without changing the live config.
+   */
+  algorithm?: string
+  /**
+   * Adaptive tuning weights override (also drives the soft-score nudge). Defaults
+   * to DEFAULT_ADAPTIVE_WEIGHTS, which reproduces today's behaviour exactly.
+   */
+  weights?: AdaptiveWeights
 }

@@ -1,6 +1,13 @@
-import type { InferredTaste, RecipeLite, Recommender, Swipe } from './types'
+import type {
+  AdaptiveWeights,
+  InferredTaste,
+  RecipeLite,
+  Recommender,
+  Swipe,
+} from './types'
 import { Embedder, centroid, cosine } from './embedding'
 import type { SparseVec } from './embedding'
+import { DEFAULT_ADAPTIVE_WEIGHTS } from './config'
 
 /** Deterministic PRNG so the benchmark is reproducible (no Math.random). */
 function mulberry32(seed: number): () => number {
@@ -38,14 +45,17 @@ abstract class Base implements Recommender {
   constructor(
     protected recipes: Array<RecipeLite>,
     seed = 42,
+    /** The idf "common token" gate; default reproduces the original 0.12 literal. */
+    idfGate: number = DEFAULT_ADAPTIVE_WEIGHTS.idfGate,
   ) {
     for (const r of recipes) this.byId.set(r.id, r)
     for (const r of recipes)
       for (const t of this.ingTokens(r))
         this.df.set(t, (this.df.get(t) ?? 0) + 1)
-    // A token is "distinctive" if it appears in fewer than 12% of recipes; common
-    // staples (salt, onion, oil, sugar, even chicken) are not a learnable signal.
-    this.commonCutoff = recipes.length * 0.12
+    // A token is "distinctive" if it appears in fewer than `idfGate` of recipes;
+    // common staples (salt, onion, oil, sugar, even chicken) are not a learnable
+    // signal. Default 0.12.
+    this.commonCutoff = recipes.length * idfGate
     this.rng = mulberry32(seed)
   }
 
@@ -353,6 +363,15 @@ export class HybridRecommender extends VectorRecommender {
  */
 export class AdaptiveRecommender extends Base {
   readonly name = 'adaptive'
+  private weights: AdaptiveWeights
+  constructor(
+    recipes: Array<RecipeLite>,
+    seed = 42,
+    weights: AdaptiveWeights = DEFAULT_ADAPTIVE_WEIGHTS,
+  ) {
+    super(recipes, seed, weights.idfGate)
+    this.weights = weights
+  }
   private ing(r: RecipeLite): Array<string> {
     return [
       ...new Set(
@@ -371,12 +390,13 @@ export class AdaptiveRecommender extends Base {
     const dislikedC = new Set(taste.dislikedCuisines)
     const lovedI = new Set(taste.lovedIngredients)
     const dislikedI = new Set(taste.dislikedIngredients)
+    const { dislikedCuisinePenalty, ingredientMagnitude } = this.weights
     const score = (r: RecipeLite) => {
       let s = cw.get(r.cuisine ?? '') ?? 0
-      if (r.cuisine && dislikedC.has(r.cuisine)) s -= 1
+      if (r.cuisine && dislikedC.has(r.cuisine)) s -= dislikedCuisinePenalty
       for (const t of this.ing(r)) {
-        if (lovedI.has(t)) s += 0.5
-        if (dislikedI.has(t)) s -= 0.5
+        if (lovedI.has(t)) s += ingredientMagnitude
+        if (dislikedI.has(t)) s -= ingredientMagnitude
       }
       return s
     }

@@ -14,9 +14,11 @@ export const getOnboardingDeck = createServerFn({ method: 'POST' })
   .inputValidator((d: { swipes: Array<SwipeInput>; k?: number }) => d)
   .handler(async ({ data }): Promise<Array<DeckCard>> => {
     const { loadCatalogue } = await import('./recsys-data')
-    const { AdaptiveRecommender } = await import('./recsys/strategies')
+    const { makeRecommender } = await import('./recsys/registry')
+    const { DEFAULT_ALGORITHM } = await import('./recsys/config')
     const { recipes, cards } = await loadCatalogue()
-    const rec = new AdaptiveRecommender(recipes)
+    // Live onboarding always uses the configured default algorithm + weights.
+    const rec = makeRecommender(DEFAULT_ALGORITHM, recipes)
     const deck = rec.nextDeck(data.swipes, data.k ?? 8)
     return deck.flatMap((r) => {
       const c = cards.get(r.id)
@@ -44,12 +46,13 @@ export const finishOnboarding = createServerFn({ method: 'POST' })
     const { getDb } = await import('../db/client')
     const { household, recipeSwipe } = await import('../db/schema')
     const { loadCatalogue } = await import('./recsys-data')
-    const { AdaptiveRecommender } = await import('./recsys/strategies')
+    const { makeRecommender } = await import('./recsys/registry')
+    const { DEFAULT_ALGORITHM } = await import('./recsys/config')
     const { eq } = await import('drizzle-orm')
     const db = await getDb()
 
     const { recipes } = await loadCatalogue()
-    const taste = new AdaptiveRecommender(recipes).explain(
+    const taste = makeRecommender(DEFAULT_ALGORITHM, recipes).explain(
       data.swipes.map((s) => ({ recipeId: s.recipeId, like: s.like })),
     )
     const profile = {

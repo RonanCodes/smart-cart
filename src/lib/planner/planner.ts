@@ -1,5 +1,6 @@
-import type { Swipe } from '../recsys/types'
-import { AdaptiveRecommender } from '../recsys/strategies'
+import type { Swipe, SoftScoreWeights } from '../recsys/types'
+import { makeRecommender } from '../recsys/registry'
+import { DEFAULT_ADAPTIVE_WEIGHTS, DEFAULT_ALGORITHM } from '../recsys/config'
 import type {
   PlanOptions,
   PlannedWeek,
@@ -78,26 +79,31 @@ export function hardFilter(
  *    is the whole job, see CONTEXT.md).
  * Recipes missing a field get a neutral 0 for that term, never a penalty.
  */
-export function softScore(r: PlannerRecipe, profile: PlannerProfile): number {
+export function softScore(
+  r: PlannerRecipe,
+  profile: PlannerProfile,
+  /** Nudge weights; default reproduces the original 0.3 / 0.2 / 0.2 literals. */
+  soft: SoftScoreWeights = DEFAULT_ADAPTIVE_WEIGHTS.soft,
+): number {
   let s = 0
 
   if (profile.caloriesPerDay && r.calories != null) {
     // Assume dinner is roughly 40% of the day's calories.
     const target = profile.caloriesPerDay * 0.4
     const diff = Math.abs(r.calories - target) / target
-    // 0 diff -> +0.3, one target away or more -> 0.
-    s += 0.3 * Math.max(0, 1 - diff)
+    // 0 diff -> +calorie weight, one target away or more -> 0.
+    s += soft.calorie * Math.max(0, 1 - diff)
   }
 
   if (r.protein != null) {
-    // 40g+ protein dinner -> +0.2, scaling linearly from 0.
-    s += 0.2 * Math.min(1, r.protein / 40)
+    // 40g+ protein dinner -> +protein weight, scaling linearly from 0.
+    s += soft.protein * Math.min(1, r.protein / 40)
   }
 
   if (r.prepMinutes != null) {
-    // 15 min or less -> +0.2, 45 min or more -> 0.
+    // 15 min or less -> +prep weight, 45 min or more -> 0.
     const lift = Math.max(0, 1 - Math.max(0, r.prepMinutes - 15) / 30)
-    s += 0.2 * lift
+    s += soft.prep * lift
   }
 
   return s
@@ -126,14 +132,17 @@ export function generateWeek(
 ): PlannedWeek {
   const days = options.days ?? 7
   const seed = options.seed ?? 42
+  const algorithm = options.algorithm ?? DEFAULT_ALGORITHM
+  const weights = options.weights ?? DEFAULT_ADAPTIVE_WEIGHTS
 
   const candidates = hardFilter(recipes, profile)
 
-  // Rank the full candidate pool by adaptive preference, seeded by the swipes.
-  // We pass the candidates (not the whole catalogue) so hard-filtered recipes
-  // are never returned, and ask for every candidate ranked so we can apply the
-  // soft nudge over the full order.
-  const recommender = new AdaptiveRecommender(candidates, seed)
+  // Rank the full candidate pool by the configured preference algorithm, seeded by
+  // the swipes. We pass the candidates (not the whole catalogue) so hard-filtered
+  // recipes are never returned, and ask for every candidate ranked so we can apply
+  // the soft nudge over the full order. The default algorithm + weights reproduce
+  // today's adaptive behaviour exactly.
+  const recommender = makeRecommender(algorithm, candidates, seed, weights)
   const swipeSignal: Array<Swipe> = swipes.map((s) => ({
     recipeId: s.recipeId,
     like: s.like,
@@ -153,7 +162,7 @@ export function generateWeek(
   const scored = ranked.map((r, i) => ({
     recipe: r,
     // Higher is better. Rank 0 -> ranked.length, last -> 1.
-    score: ranked.length - i + softScore(r, profile),
+    score: ranked.length - i + softScore(r, profile, weights.soft),
     index: i,
   }))
 

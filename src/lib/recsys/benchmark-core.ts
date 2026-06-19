@@ -9,9 +9,14 @@
  * Node-only at the call sites because the fixture is read from disk via fixture.ts, but
  * this module itself only touches in-memory data, so it is safe to unit-test.
  */
-import type { RecipeLite, Swipe, UserProfile } from './types'
-import { makeRecommenders } from './strategies'
+import type { RecipeLite, Recommender, Swipe, UserProfile } from './types'
+import { makeRecommender, registeredKeys } from './registry'
 import { simulateSwipe, trueTopN } from './ground-truth'
+
+/** One recommender per registered algorithm key, in registration order. */
+function allRecommenders(recipes: Array<RecipeLite>): Array<Recommender> {
+  return registeredKeys().map((key) => makeRecommender(key, recipes))
+}
 
 export const DECK = 5
 export const CHECKPOINTS = [5, 10, 15, 20, 25, 30] as const
@@ -55,7 +60,7 @@ export function runBenchmark(
   recipes: Array<RecipeLite>,
   users: Array<UserProfile>,
 ): BenchmarkResult {
-  const names = makeRecommenders(recipes).map((r) => r.name)
+  const names = allRecommenders(recipes).map((r) => r.name)
 
   const recallSum = new Map<string, Map<number, number>>()
   const swipesToTarget = new Map<string, Array<number>>()
@@ -69,7 +74,7 @@ export function runBenchmark(
     const truth = trueTopN(user, recipes, TOP_N)
     if (truth.length === 0) continue
     usersScored++
-    for (const rec of makeRecommenders(recipes)) {
+    for (const rec of allRecommenders(recipes)) {
       const swipes: Array<Swipe> = []
       let reached = MAX + 1
       while (swipes.length < MAX) {
