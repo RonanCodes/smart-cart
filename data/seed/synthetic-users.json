@@ -1,2402 +1,3302 @@
 [
   {
     "id": "u000",
-    "lovedCuisines": ["British"],
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Moroccan"],
     "dislikedCuisines": [],
-    "lovedIngredients": ["potato"],
+    "lovedIngredients": ["olive", "tomato"],
     "dislikedIngredients": [],
-    "vegetarian": false
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u001",
-    "lovedCuisines": ["Turkish", "Thai"],
-    "dislikedCuisines": ["Saudi arabian"],
-    "lovedIngredients": ["chocolate", "spinach"],
-    "dislikedIngredients": ["mushroom"],
-    "vegetarian": false
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India", "Vietnamese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u002",
-    "lovedCuisines": ["Thai", "Italian", "United states"],
-    "dislikedCuisines": ["Saudi arabian"],
-    "lovedIngredients": ["rice", "pasta"],
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese"],
     "dislikedIngredients": [],
-    "vegetarian": false
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u003",
-    "lovedCuisines": ["Spanish", "Polish", "Turkish"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": ["cheese", "potato"],
-    "dislikedIngredients": ["prawn"],
-    "vegetarian": false
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
   },
   {
     "id": "u004",
-    "lovedCuisines": ["Saudi arabian", "Spanish", "Thai"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["mushroom", "fish"],
-    "vegetarian": false
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Vietnamese", "Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u005",
-    "lovedCuisines": ["Saudi arabian"],
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italiaans", "Greek"],
     "dislikedCuisines": [],
-    "lovedIngredients": ["pasta", "spinach"],
-    "dislikedIngredients": ["anchovy", "liver"],
-    "vegetarian": false
+    "lovedIngredients": ["cheese", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u006",
-    "lovedCuisines": ["Spanish", "Polish", "Algerian"],
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": ["cheese", "egg"],
+    "lovedIngredients": ["bean"],
     "dislikedIngredients": [],
-    "vegetarian": false
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u007",
-    "lovedCuisines": ["Polish", "Vietnamese"],
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Slovakia", "Canadian"],
     "dislikedCuisines": [],
-    "lovedIngredients": ["chicken"],
-    "dislikedIngredients": ["coconut", "coriander"],
-    "vegetarian": true
+    "lovedIngredients": ["cheese", "potato"],
+    "dislikedIngredients": ["prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
   },
   {
     "id": "u008",
-    "lovedCuisines": ["Algerian", "Spanish", "British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["liver", "salmon"],
-    "vegetarian": false
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Turkish"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["tomato", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u009",
-    "lovedCuisines": ["Spanish", "Algerian", "Italian"],
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Polish"],
     "dislikedCuisines": [],
-    "lovedIngredients": ["lamb", "pasta"],
-    "dislikedIngredients": ["fish", "coriander"],
-    "vegetarian": false
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": ["anchovy"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
   },
   {
     "id": "u010",
-    "lovedCuisines": ["Spanish", "Turkish", "Polish"],
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
-    "lovedIngredients": ["potato", "rice"],
-    "dislikedIngredients": ["coconut", "aubergine"],
-    "vegetarian": true
+    "lovedIngredients": ["rice", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u011",
-    "lovedCuisines": ["India"],
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": ["fish"],
-    "vegetarian": false
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
   },
   {
     "id": "u012",
-    "lovedCuisines": ["Italian"],
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["mushroom", "coriander"],
-    "vegetarian": false
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
   },
   {
     "id": "u013",
-    "lovedCuisines": ["Vietnamese", "Turkish", "United states"],
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": ["lamb", "pasta"],
-    "dislikedIngredients": ["coconut", "prawn"],
-    "vegetarian": false
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
   },
   {
     "id": "u014",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": ["United states"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander", "liver"],
-    "vegetarian": false
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u015",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": ["Algerian"],
-    "lovedIngredients": ["spinach", "potato"],
-    "dislikedIngredients": ["aubergine", "coriander"],
-    "vegetarian": false
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Netherlands", "British"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "potato"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
   },
   {
     "id": "u016",
-    "lovedCuisines": ["Saudi arabian"],
-    "dislikedCuisines": ["Spanish"],
-    "lovedIngredients": ["chicken"],
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
     "dislikedIngredients": [],
-    "vegetarian": false
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u017",
-    "lovedCuisines": ["Polish", "United states"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": [],
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Netherlands", "Polish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "chicken"],
     "dislikedIngredients": [],
-    "vegetarian": false
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
   },
   {
     "id": "u018",
-    "lovedCuisines": ["Polish", "Thai", "Algerian"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coconut", "olive"],
-    "vegetarian": false
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Thai"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u019",
-    "lovedCuisines": ["Thai", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander", "anchovy"],
-    "vegetarian": false
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["rice", "pasta"],
+    "dislikedIngredients": ["tofu", "curry", "cilantro", "anchovy"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u020",
-    "lovedCuisines": ["Italian", "Thai", "India"],
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["aubergine", "coriander"],
-    "vegetarian": false
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
   },
   {
     "id": "u021",
-    "lovedCuisines": ["Polish", "Spanish"],
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Moroccan", "Spanish"],
     "dislikedCuisines": [],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": ["liver", "coconut"],
-    "vegetarian": true
+    "lovedIngredients": ["cheese", "olive"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u022",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": ["chicken", "beef"],
-    "dislikedIngredients": ["coconut", "prawn"],
-    "vegetarian": false
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Slovakia"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["rice", "beef"],
+    "dislikedIngredients": ["aubergine", "tofu", "curry", "prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u023",
-    "lovedCuisines": ["Saudi arabian", "Thai"],
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India", "Malaysian"],
     "dislikedCuisines": [],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": ["coriander"],
-    "vegetarian": false
+    "lovedIngredients": ["curry", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u024",
-    "lovedCuisines": ["Algerian", "British"],
-    "dislikedCuisines": ["Saudi arabian"],
-    "lovedIngredients": ["pasta", "chocolate"],
-    "dislikedIngredients": [],
-    "vegetarian": true
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
   },
   {
     "id": "u025",
-    "lovedCuisines": ["Polish"],
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese"],
     "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "egg"],
-    "dislikedIngredients": ["prawn", "olive"],
-    "vegetarian": true
+    "lovedIngredients": ["curry", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u026",
-    "lovedCuisines": ["Thai"],
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Italiaans"],
     "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["liver"],
-    "vegetarian": false
+    "lovedIngredients": ["spinach", "cheese"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u027",
-    "lovedCuisines": ["Saudi arabian", "Italian"],
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": ["cheese", "chicken"],
-    "dislikedIngredients": ["coconut", "aubergine"],
-    "vegetarian": false
+    "lovedIngredients": ["beef", "lamb"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
   },
   {
     "id": "u028",
-    "lovedCuisines": ["Italian"],
-    "dislikedCuisines": ["India"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "lamb"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
   },
   {
     "id": "u029",
-    "lovedCuisines": ["Saudi arabian", "Algerian"],
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": [],
+    "lovedIngredients": ["pasta"],
     "dislikedIngredients": [],
-    "vegetarian": false
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
   },
   {
     "id": "u030",
-    "lovedCuisines": ["Saudi arabian", "United states"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": ["rice", "cheese"],
-    "dislikedIngredients": ["coriander", "coconut"],
-    "vegetarian": false
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
   },
   {
     "id": "u031",
-    "lovedCuisines": ["Italian", "Spanish", "Vietnamese"],
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": ["spinach"],
+    "lovedIngredients": ["lentil"],
     "dislikedIngredients": [],
-    "vegetarian": false
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u032",
-    "lovedCuisines": ["Saudi arabian", "United states"],
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italiaans", "Moroccan"],
     "dislikedCuisines": [],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": ["coriander", "salmon"],
-    "vegetarian": false
+    "lovedIngredients": ["spinach", "tomato"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u033",
-    "lovedCuisines": ["Polish", "Italian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u034",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["liver", "salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u035",
-    "lovedCuisines": ["Italian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander", "coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u036",
-    "lovedCuisines": ["Turkish", "Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u037",
-    "lovedCuisines": ["Turkish", "Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u038",
-    "lovedCuisines": ["Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chocolate", "beef"],
-    "dislikedIngredients": ["prawn", "coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u039",
-    "lovedCuisines": ["Saudi arabian", "United states"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": ["chocolate"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u040",
-    "lovedCuisines": ["Saudi arabian"],
-    "dislikedCuisines": ["Polish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["anchovy", "mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u041",
-    "lovedCuisines": ["Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese"],
-    "dislikedIngredients": ["mushroom", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u042",
-    "lovedCuisines": ["Italian", "India"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u043",
-    "lovedCuisines": ["Algerian", "British"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": ["chicken"],
-    "dislikedIngredients": ["fish"],
-    "vegetarian": true
-  },
-  {
-    "id": "u044",
-    "lovedCuisines": ["India", "United states"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u045",
-    "lovedCuisines": ["Polish", "Algerian"],
-    "dislikedCuisines": ["Saudi arabian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u046",
-    "lovedCuisines": ["Saudi arabian", "United states"],
-    "dislikedCuisines": ["Algerian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["prawn", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u047",
-    "lovedCuisines": ["Saudi arabian", "Polish"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["beef"],
-    "dislikedIngredients": ["prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u048",
-    "lovedCuisines": ["Turkish", "Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["liver", "coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u049",
+    "archetype": "comfort-food-traditionalist",
     "lovedCuisines": ["Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["egg", "cheese"],
-    "dislikedIngredients": ["salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u050",
-    "lovedCuisines": ["Spanish", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["spinach", "beef"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u051",
-    "lovedCuisines": ["Turkish", "Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u052",
-    "lovedCuisines": ["Thai", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u053",
-    "lovedCuisines": ["Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chocolate", "beef"],
-    "dislikedIngredients": ["mushroom", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u054",
-    "lovedCuisines": ["Italian", "Polish"],
-    "dislikedCuisines": ["Spanish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u055",
-    "lovedCuisines": ["Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato"],
-    "dislikedIngredients": ["coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u056",
-    "lovedCuisines": ["Saudi arabian", "Spanish", "India"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["chicken"],
-    "dislikedIngredients": ["anchovy", "liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u057",
-    "lovedCuisines": ["Polish", "British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["lamb", "potato"],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u058",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": ["United states"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u059",
-    "lovedCuisines": ["Turkish", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u060",
-    "lovedCuisines": ["Spanish", "Algerian"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["aubergine", "liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u061",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": ["mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u062",
-    "lovedCuisines": ["British", "Polish", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["spinach", "egg"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u063",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["potato"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u064",
-    "lovedCuisines": ["Saudi arabian", "United states", "Polish"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": ["spinach", "egg"],
-    "dislikedIngredients": ["liver", "coconut"],
-    "vegetarian": true
-  },
-  {
-    "id": "u065",
-    "lovedCuisines": ["Thai", "Spanish"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": ["rice"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u066",
-    "lovedCuisines": ["Algerian", "Polish"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u067",
-    "lovedCuisines": ["Saudi arabian", "Turkish"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["potato"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u068",
-    "lovedCuisines": ["Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato", "egg"],
-    "dislikedIngredients": ["aubergine", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u069",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": ["cheese", "pasta"],
-    "dislikedIngredients": ["aubergine"],
-    "vegetarian": true
-  },
-  {
-    "id": "u070",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u071",
-    "lovedCuisines": ["India", "Italian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u072",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u073",
-    "lovedCuisines": ["India", "British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u074",
-    "lovedCuisines": ["Vietnamese", "Thai"],
-    "dislikedCuisines": ["India"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u075",
-    "lovedCuisines": ["India", "Spanish"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": ["egg", "beef"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u076",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coconut", "mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u077",
-    "lovedCuisines": ["United states"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["olive"],
-    "vegetarian": false
-  },
-  {
-    "id": "u078",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese", "spinach"],
-    "dislikedIngredients": ["fish", "coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u079",
-    "lovedCuisines": ["United states", "Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chicken"],
-    "dislikedIngredients": ["fish", "salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u080",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u081",
-    "lovedCuisines": ["United states", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u082",
-    "lovedCuisines": ["India", "Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["lamb", "spinach"],
-    "dislikedIngredients": ["coconut", "olive"],
-    "vegetarian": false
-  },
-  {
-    "id": "u083",
-    "lovedCuisines": ["Polish", "India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["spinach", "beef"],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u084",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coconut", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u085",
-    "lovedCuisines": ["Algerian", "India"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u086",
-    "lovedCuisines": ["Vietnamese", "United states", "India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["rice"],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": true
-  },
-  {
-    "id": "u087",
-    "lovedCuisines": ["Spanish", "Italian"],
-    "dislikedCuisines": ["Saudi arabian"],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u088",
-    "lovedCuisines": ["Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "rice"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u089",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["aubergine", "liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u090",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u091",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": ["Algerian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["aubergine", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u092",
-    "lovedCuisines": ["Algerian", "Turkish"],
-    "dislikedCuisines": ["United states"],
-    "lovedIngredients": ["spinach", "cheese"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u093",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": ["chocolate", "egg"],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u094",
-    "lovedCuisines": ["Thai", "India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["spinach", "potato"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u095",
-    "lovedCuisines": ["Spanish", "Algerian", "Saudi arabian"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u096",
-    "lovedCuisines": ["Italian", "Polish", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u097",
-    "lovedCuisines": ["Vietnamese", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u098",
-    "lovedCuisines": ["India", "United states"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u099",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato", "egg"],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u100",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["beef", "pasta"],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u101",
-    "lovedCuisines": ["India", "Thai", "United states"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["lamb", "cheese"],
-    "dislikedIngredients": ["prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u102",
-    "lovedCuisines": ["Turkish", "Thai", "Spanish"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["chocolate", "egg"],
-    "dislikedIngredients": ["salmon"],
-    "vegetarian": true
-  },
-  {
-    "id": "u103",
-    "lovedCuisines": ["United states", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato"],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u104",
-    "lovedCuisines": ["Saudi arabian", "Turkish", "India"],
-    "dislikedCuisines": ["Polish"],
-    "lovedIngredients": ["egg", "chocolate"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u105",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta", "potato"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u106",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u107",
-    "lovedCuisines": ["Italian", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u108",
-    "lovedCuisines": ["Italian", "Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": ["fish", "salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u109",
-    "lovedCuisines": ["Saudi arabian", "India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["rice"],
-    "dislikedIngredients": ["fish"],
-    "vegetarian": false
-  },
-  {
-    "id": "u110",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese", "potato"],
-    "dislikedIngredients": ["salmon"],
-    "vegetarian": true
-  },
-  {
-    "id": "u111",
-    "lovedCuisines": ["India", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese", "lamb"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u112",
-    "lovedCuisines": ["Spanish", "British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u113",
-    "lovedCuisines": ["Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef"],
-    "dislikedIngredients": ["olive", "salmon"],
-    "vegetarian": true
-  },
-  {
-    "id": "u114",
-    "lovedCuisines": ["Turkish", "Polish"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": ["coconut"],
-    "vegetarian": true
-  },
-  {
-    "id": "u115",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": ["anchovy", "mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u116",
-    "lovedCuisines": ["Saudi arabian", "Spanish"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": ["beef", "rice"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u117",
-    "lovedCuisines": ["Italian", "Saudi arabian"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": ["chicken", "potato"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u118",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u119",
-    "lovedCuisines": ["Turkish", "Italian"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": ["chocolate"],
-    "dislikedIngredients": ["liver", "prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u120",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": ["olive"],
-    "vegetarian": false
-  },
-  {
-    "id": "u121",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": ["United states"],
-    "lovedIngredients": ["spinach", "lamb"],
-    "dislikedIngredients": ["coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u122",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": ["lamb", "chicken"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u123",
-    "lovedCuisines": ["Italian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["spinach", "potato"],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u124",
-    "lovedCuisines": ["Vietnamese", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["olive", "coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u125",
-    "lovedCuisines": ["Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": ["salmon", "prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u126",
-    "lovedCuisines": ["Italian", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "spinach"],
-    "dislikedIngredients": ["coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u127",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chocolate"],
-    "dislikedIngredients": ["coconut", "mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u128",
-    "lovedCuisines": ["India", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["lamb", "beef"],
-    "dislikedIngredients": ["olive", "aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u129",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["cheese"],
-    "dislikedIngredients": ["anchovy", "aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u130",
-    "lovedCuisines": ["India", "Polish", "Vietnamese"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": ["lamb", "egg"],
-    "dislikedIngredients": ["olive", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u131",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chicken", "spinach"],
-    "dislikedIngredients": ["aubergine", "fish"],
-    "vegetarian": true
-  },
-  {
-    "id": "u132",
-    "lovedCuisines": ["Italian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": ["prawn", "salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u133",
-    "lovedCuisines": ["Thai", "British", "Algerian"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": ["rice"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u134",
-    "lovedCuisines": ["Saudi arabian", "Vietnamese", "Polish"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u135",
-    "lovedCuisines": ["British", "Saudi arabian"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u136",
-    "lovedCuisines": ["Turkish", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u137",
-    "lovedCuisines": ["India", "British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["olive"],
-    "vegetarian": false
-  },
-  {
-    "id": "u138",
-    "lovedCuisines": ["Saudi arabian"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": ["fish", "mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u139",
-    "lovedCuisines": ["Thai", "Algerian", "Polish"],
-    "dislikedCuisines": ["United states"],
-    "lovedIngredients": ["lamb", "beef"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u140",
-    "lovedCuisines": ["Saudi arabian", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": ["coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u141",
-    "lovedCuisines": ["Thai", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "rice"],
-    "dislikedIngredients": ["anchovy", "coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u142",
-    "lovedCuisines": ["Saudi arabian", "Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["anchovy", "mushroom"],
-    "vegetarian": true
-  },
-  {
-    "id": "u143",
-    "lovedCuisines": ["Algerian", "Turkish", "United states"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["cheese"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u144",
-    "lovedCuisines": ["Italian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u145",
-    "lovedCuisines": ["Thai", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "pasta"],
-    "dislikedIngredients": ["liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u146",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["anchovy", "salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u147",
-    "lovedCuisines": ["Algerian", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u148",
-    "lovedCuisines": ["United states"],
-    "dislikedCuisines": ["India"],
-    "lovedIngredients": ["cheese", "lamb"],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u149",
-    "lovedCuisines": ["Polish", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["spinach"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u150",
-    "lovedCuisines": ["Thai", "British", "Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u151",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chicken", "lamb"],
-    "dislikedIngredients": ["fish"],
-    "vegetarian": false
-  },
-  {
-    "id": "u152",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u153",
-    "lovedCuisines": ["British", "Saudi arabian", "Vietnamese"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["fish", "liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u154",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u155",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": ["salmon", "prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u156",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u157",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u158",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "pasta"],
-    "dislikedIngredients": ["fish", "mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u159",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": ["chocolate", "potato"],
-    "dislikedIngredients": ["prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u160",
-    "lovedCuisines": ["Saudi arabian", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": ["coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u161",
-    "lovedCuisines": ["Turkish", "Thai"],
-    "dislikedCuisines": ["Polish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u162",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": ["Algerian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u163",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u164",
-    "lovedCuisines": ["Vietnamese", "British", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u165",
-    "lovedCuisines": ["Vietnamese", "Saudi arabian", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato", "pasta"],
-    "dislikedIngredients": ["liver", "mushroom"],
-    "vegetarian": true
-  },
-  {
-    "id": "u166",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "spinach"],
-    "dislikedIngredients": ["salmon"],
-    "vegetarian": true
-  },
-  {
-    "id": "u167",
-    "lovedCuisines": ["Polish", "India"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coconut", "aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u168",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["liver", "salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u169",
-    "lovedCuisines": ["Italian", "Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato"],
-    "dislikedIngredients": ["coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u170",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u171",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": ["India"],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u172",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": ["rice"],
-    "dislikedIngredients": ["coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u173",
-    "lovedCuisines": ["British", "India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese", "pasta"],
-    "dislikedIngredients": ["liver", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u174",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["fish", "coriander"],
-    "vegetarian": true
-  },
-  {
-    "id": "u175",
-    "lovedCuisines": ["Turkish", "Italian", "United states"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["lamb", "beef"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u176",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": ["Spanish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander", "prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u177",
-    "lovedCuisines": ["Italian", "British"],
-    "dislikedCuisines": ["Polish"],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u178",
-    "lovedCuisines": ["Italian", "India", "Vietnamese"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u179",
-    "lovedCuisines": ["Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chicken"],
-    "dislikedIngredients": ["fish"],
-    "vegetarian": false
-  },
-  {
-    "id": "u180",
-    "lovedCuisines": ["British", "Spanish", "Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u181",
-    "lovedCuisines": ["Thai", "British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chicken"],
-    "dislikedIngredients": ["mushroom", "liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u182",
-    "lovedCuisines": ["Italian"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": ["prawn", "salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u183",
-    "lovedCuisines": ["Vietnamese", "Turkish", "Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese", "pasta"],
-    "dislikedIngredients": ["aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u184",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["rice", "beef"],
-    "dislikedIngredients": ["olive", "prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u185",
-    "lovedCuisines": ["Italian", "Turkish"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": ["salmon", "liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u186",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": ["salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u187",
-    "lovedCuisines": ["Polish", "India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["mushroom", "fish"],
-    "vegetarian": true
-  },
-  {
-    "id": "u188",
-    "lovedCuisines": ["Vietnamese", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chocolate", "rice"],
-    "dislikedIngredients": ["aubergine", "coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u189",
-    "lovedCuisines": ["Thai", "Vietnamese", "Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u190",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["salmon"],
-    "vegetarian": true
-  },
-  {
-    "id": "u191",
-    "lovedCuisines": ["Saudi arabian", "United states"],
-    "dislikedCuisines": ["India"],
-    "lovedIngredients": ["cheese"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u192",
-    "lovedCuisines": ["Saudi arabian", "Thai", "Turkish"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["anchovy", "coriander"],
-    "vegetarian": true
-  },
-  {
-    "id": "u193",
-    "lovedCuisines": ["Turkish", "Saudi arabian", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u194",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": ["Algerian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u195",
-    "lovedCuisines": ["Vietnamese", "India"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": ["spinach"],
-    "dislikedIngredients": ["anchovy", "prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u196",
-    "lovedCuisines": ["Polish", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u197",
-    "lovedCuisines": ["Italian", "Saudi arabian", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u198",
-    "lovedCuisines": ["Italian", "Saudi arabian"],
-    "dislikedCuisines": ["United states"],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": ["salmon"],
-    "vegetarian": true
-  },
-  {
-    "id": "u199",
-    "lovedCuisines": ["Algerian", "Vietnamese"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": ["fish", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u200",
-    "lovedCuisines": ["United states"],
-    "dislikedCuisines": ["Algerian"],
-    "lovedIngredients": ["chocolate"],
-    "dislikedIngredients": ["liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u201",
-    "lovedCuisines": ["Vietnamese", "British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["olive", "coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u202",
-    "lovedCuisines": ["India", "Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato", "pasta"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u203",
-    "lovedCuisines": ["United states", "Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u204",
-    "lovedCuisines": ["United states"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": ["olive"],
-    "vegetarian": false
-  },
-  {
-    "id": "u205",
-    "lovedCuisines": ["Turkish", "Polish", "Vietnamese"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u206",
-    "lovedCuisines": ["British", "Italian", "Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u207",
-    "lovedCuisines": ["Polish", "Italian"],
-    "dislikedCuisines": ["Saudi arabian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u208",
-    "lovedCuisines": ["United states", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": ["aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u209",
-    "lovedCuisines": ["Turkish", "Saudi arabian", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u210",
-    "lovedCuisines": ["Italian", "Spanish", "British"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["salmon", "anchovy"],
-    "vegetarian": true
-  },
-  {
-    "id": "u211",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": ["aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u212",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u213",
-    "lovedCuisines": ["Algerian", "Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u214",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": ["Spanish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u215",
-    "lovedCuisines": ["Saudi arabian", "Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u216",
-    "lovedCuisines": ["Saudi arabian", "United states"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u217",
-    "lovedCuisines": ["United states"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["beef"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u218",
-    "lovedCuisines": ["United states"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chicken"],
-    "dislikedIngredients": ["olive", "coconut"],
-    "vegetarian": false
-  },
-  {
-    "id": "u219",
-    "lovedCuisines": ["Thai", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["olive"],
-    "vegetarian": false
-  },
-  {
-    "id": "u220",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "chicken"],
-    "dislikedIngredients": ["olive", "mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u221",
-    "lovedCuisines": ["United states"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u222",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese"],
-    "dislikedIngredients": ["liver", "coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u223",
-    "lovedCuisines": ["India", "United states", "Italian"],
-    "dislikedCuisines": ["Polish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander", "salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u224",
-    "lovedCuisines": ["Vietnamese", "India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["rice", "egg"],
-    "dislikedIngredients": ["fish", "prawn"],
-    "vegetarian": true
-  },
-  {
-    "id": "u225",
-    "lovedCuisines": ["Saudi arabian", "British"],
-    "dislikedCuisines": ["Spanish"],
-    "lovedIngredients": ["spinach"],
-    "dislikedIngredients": ["mushroom"],
-    "vegetarian": true
-  },
-  {
-    "id": "u226",
-    "lovedCuisines": ["Algerian", "British"],
-    "dislikedCuisines": ["Italian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u227",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese"],
-    "dislikedIngredients": ["aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u228",
-    "lovedCuisines": ["British", "Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "cheese"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u229",
-    "lovedCuisines": ["Polish", "British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["fish", "olive"],
-    "vegetarian": false
-  },
-  {
-    "id": "u230",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u231",
-    "lovedCuisines": ["Saudi arabian", "Turkish"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u232",
-    "lovedCuisines": ["Italian", "British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u233",
-    "lovedCuisines": ["Vietnamese", "British"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": ["spinach"],
-    "dislikedIngredients": ["anchovy", "prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u234",
-    "lovedCuisines": ["Spanish", "Italian"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": ["potato", "chicken"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u235",
-    "lovedCuisines": ["Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["olive"],
-    "vegetarian": false
-  },
-  {
-    "id": "u236",
-    "lovedCuisines": ["India", "Algerian"],
-    "dislikedCuisines": ["Turkish"],
-    "lovedIngredients": ["chicken", "beef"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u237",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander"],
-    "vegetarian": false
-  },
-  {
-    "id": "u238",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coconut", "salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u239",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["fish"],
-    "vegetarian": false
-  },
-  {
-    "id": "u240",
-    "lovedCuisines": ["Turkish", "British"],
-    "dislikedCuisines": ["United states"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["olive", "mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u241",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": ["rice"],
-    "dislikedIngredients": ["fish"],
-    "vegetarian": false
-  },
-  {
-    "id": "u242",
-    "lovedCuisines": ["Thai", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chicken", "pasta"],
-    "dislikedIngredients": ["anchovy", "mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u243",
-    "lovedCuisines": ["Spanish", "India"],
-    "dislikedCuisines": ["Saudi arabian"],
-    "lovedIngredients": ["pasta", "rice"],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u244",
-    "lovedCuisines": ["Spanish", "Saudi arabian"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u245",
-    "lovedCuisines": ["Algerian", "Italian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta", "cheese"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u246",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chocolate"],
-    "dislikedIngredients": ["fish"],
-    "vegetarian": false
-  },
-  {
-    "id": "u247",
-    "lovedCuisines": ["British"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u248",
-    "lovedCuisines": ["Vietnamese", "Thai"],
-    "dislikedCuisines": ["Polish"],
-    "lovedIngredients": ["lamb"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u249",
-    "lovedCuisines": ["India", "British"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u250",
-    "lovedCuisines": ["India", "Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["egg"],
-    "dislikedIngredients": ["aubergine", "liver"],
-    "vegetarian": false
-  },
-  {
-    "id": "u251",
-    "lovedCuisines": ["Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u252",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": ["Saudi arabian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u253",
-    "lovedCuisines": ["Turkish", "Spanish"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": ["chocolate"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u254",
-    "lovedCuisines": ["Turkish", "United states"],
-    "dislikedCuisines": ["Thai"],
-    "lovedIngredients": ["cheese", "beef"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u255",
-    "lovedCuisines": ["Thai", "Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": ["fish"],
-    "vegetarian": false
-  },
-  {
-    "id": "u256",
-    "lovedCuisines": ["Spanish", "Thai", "Italian"],
-    "dislikedCuisines": ["Saudi arabian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u257",
-    "lovedCuisines": ["Algerian"],
-    "dislikedCuisines": ["Spanish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u258",
-    "lovedCuisines": ["United states", "Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u259",
-    "lovedCuisines": ["Turkish", "Algerian"],
-    "dislikedCuisines": ["Spanish"],
-    "lovedIngredients": ["rice", "chicken"],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u260",
-    "lovedCuisines": ["United states"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u261",
-    "lovedCuisines": ["Polish", "Italian"],
-    "dislikedCuisines": ["United states"],
-    "lovedIngredients": ["cheese", "lamb"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u262",
-    "lovedCuisines": ["United states", "Thai", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "potato"],
-    "dislikedIngredients": ["coconut", "anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u263",
-    "lovedCuisines": ["Algerian", "India"],
-    "dislikedCuisines": ["Vietnamese"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u264",
-    "lovedCuisines": ["British", "Polish", "India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coconut", "mushroom"],
-    "vegetarian": false
-  },
-  {
-    "id": "u265",
-    "lovedCuisines": ["Spanish", "Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": ["liver", "prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u266",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato"],
-    "dislikedIngredients": ["aubergine", "olive"],
-    "vegetarian": true
-  },
-  {
-    "id": "u267",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u268",
-    "lovedCuisines": ["British", "Vietnamese", "India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u269",
-    "lovedCuisines": ["Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u270",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": ["British"],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["coriander", "aubergine"],
-    "vegetarian": false
-  },
-  {
-    "id": "u271",
-    "lovedCuisines": ["India", "Turkish"],
-    "dislikedCuisines": ["Saudi arabian"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u272",
-    "lovedCuisines": ["Algerian", "Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["potato"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u273",
-    "lovedCuisines": ["Turkish", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef"],
-    "dislikedIngredients": ["olive"],
-    "vegetarian": false
-  },
-  {
-    "id": "u274",
-    "lovedCuisines": ["Algerian", "Thai", "Italian"],
-    "dislikedCuisines": ["Polish"],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u275",
-    "lovedCuisines": ["British", "Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["spinach", "chicken"],
-    "dislikedIngredients": ["salmon"],
-    "vegetarian": false
-  },
-  {
-    "id": "u276",
-    "lovedCuisines": ["Algerian", "Polish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u277",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u278",
-    "lovedCuisines": ["Algerian", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["pasta"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u279",
-    "lovedCuisines": ["Thai", "Italian", "Saudi arabian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u280",
-    "lovedCuisines": ["Italian"],
-    "dislikedCuisines": ["Spanish"],
-    "lovedIngredients": ["spinach"],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u281",
-    "lovedCuisines": ["India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u282",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": true
-  },
-  {
-    "id": "u283",
-    "lovedCuisines": ["Vietnamese"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u284",
-    "lovedCuisines": ["Italian", "India"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["cheese"],
-    "dislikedIngredients": ["liver"],
-    "vegetarian": true
-  },
-  {
-    "id": "u285",
-    "lovedCuisines": ["Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chicken", "beef"],
-    "dislikedIngredients": ["salmon"],
-    "vegetarian": true
-  },
-  {
-    "id": "u286",
-    "lovedCuisines": ["India", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u287",
-    "lovedCuisines": ["India", "Vietnamese", "Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["rice"],
-    "dislikedIngredients": ["olive", "fish"],
-    "vegetarian": true
-  },
-  {
-    "id": "u288",
-    "lovedCuisines": ["British", "Spanish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["chicken"],
-    "dislikedIngredients": ["prawn"],
-    "vegetarian": false
-  },
-  {
-    "id": "u289",
-    "lovedCuisines": ["Italian", "Vietnamese", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["anchovy"],
-    "vegetarian": false
-  },
-  {
-    "id": "u290",
-    "lovedCuisines": ["Spanish", "Algerian"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["aubergine"],
-    "vegetarian": true
-  },
-  {
-    "id": "u291",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": ["Algerian"],
-    "lovedIngredients": ["chocolate", "egg"],
-    "dislikedIngredients": ["anchovy", "olive"],
-    "vegetarian": false
-  },
-  {
-    "id": "u292",
-    "lovedCuisines": ["Turkish"],
-    "dislikedCuisines": [],
-    "lovedIngredients": ["beef", "cheese"],
-    "dislikedIngredients": [],
-    "vegetarian": false
-  },
-  {
-    "id": "u293",
-    "lovedCuisines": ["Italian"],
     "dislikedCuisines": [],
     "lovedIngredients": ["pasta", "beef"],
     "dislikedIngredients": [],
-    "vegetarian": false
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u034",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Irish", "Polish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "potato"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u035",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u036",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Irish"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["chicken", "beef"],
+    "dislikedIngredients": ["coconut", "aubergine", "coriander", "shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u037",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "lamb"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u038",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u039",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u040",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u041",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Slovakia"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["beef", "potato"],
+    "dislikedIngredients": ["coconut", "olive", "tofu", "shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u042",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u043",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u044",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese", "Thai"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["noodle", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u045",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u046",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Slovakia"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["cheese", "pasta"],
+    "dislikedIngredients": ["coconut", "olive", "curry", "anchovy"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u047",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u048",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["noodle", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u049",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Malaysian", "India"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u050",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": ["prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u051",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India", "Thai"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u052",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Spanish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["olive", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u053",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Spanish", "Greek"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u054",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": ["shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u055",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": ["Malaysian"],
+    "lovedIngredients": ["rice", "potato"],
+    "dislikedIngredients": ["mushroom", "coriander", "curry", "shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u056",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Thai", "India"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u057",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Turkish", "Italian"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["spinach", "cheese"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u058",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Irish", "Canadian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u059",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Greek", "Turkish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese", "olive"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u060",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Moroccan", "Italiaans"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["tomato", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u061",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Netherlands"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["beef", "rice"],
+    "dislikedIngredients": ["tofu", "aubergine", "cilantro", "prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u062",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u063",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u064",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u065",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u066",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u067",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u068",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Irish", "Netherlands"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["potato", "beef"],
+    "dislikedIngredients": ["shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u069",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u070",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Malaysian", "Japanese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u071",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u072",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": ["prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u073",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Irish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": ["prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u074",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": ["prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u075",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "lamb"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u076",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u077",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u078",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u079",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["cheese", "pasta"],
+    "dislikedIngredients": ["curry", "coriander", "chili", "fish"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u080",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": ["fish"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u081",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India", "Vietnamese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u082",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["potato", "chicken"],
+    "dislikedIngredients": ["shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u083",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Moroccan", "Spanish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["olive", "tomato"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u084",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u085",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": ["salmon"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u086",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Thai", "Japanese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u087",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Canadian", "Netherlands"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "cheese"],
+    "dislikedIngredients": ["salmon"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u088",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u089",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u090",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Greek", "Spanish"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["tomato", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u091",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u092",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Polish", "Slovakia"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u093",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u094",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["cheese", "rice"],
+    "dislikedIngredients": ["coconut", "cilantro", "anchovy", "shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u095",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "pasta"],
+    "dislikedIngredients": ["fish"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u096",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "lamb"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u097",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u098",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u099",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Slovakia", "Netherlands"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta", "beef"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u100",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u101",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u102",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u103",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u104",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u105",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Turkish", "Moroccan"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["olive", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u106",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u107",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Greek", "Italiaans"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["tomato", "olive"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u108",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": ["fish"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u109",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": ["Malaysian"],
+    "lovedIngredients": ["potato", "chicken"],
+    "dislikedIngredients": ["olive", "chili", "coriander", "fish"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u110",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u111",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u112",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["British", "Polish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "potato"],
+    "dislikedIngredients": ["prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u113",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Greek"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach", "tomato"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u114",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u115",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India", "Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u116",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Spanish", "Turkish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u117",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u118",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u119",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["chicken", "rice"],
+    "dislikedIngredients": ["anchovy", "coconut", "chili", "shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u120",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u121",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u122",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["potato", "beef"],
+    "dislikedIngredients": ["chili", "curry", "aubergine", "prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u123",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Thai"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u124",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Spanish", "Greek"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["spinach", "olive"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u125",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Canadian", "Slovakia"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta", "chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u126",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["pasta", "cheese"],
+    "dislikedIngredients": ["mushroom", "chili", "coriander", "salmon"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u127",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "lamb"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u128",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Slovakia"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": ["prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u129",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u130",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": ["Malaysian"],
+    "lovedIngredients": ["beef", "rice"],
+    "dislikedIngredients": ["mushroom", "coconut", "cilantro", "prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u131",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Moroccan"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["olive", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u132",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Slovakia"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["cheese", "potato"],
+    "dislikedIngredients": ["anchovy", "curry", "tofu", "prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u133",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u134",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": ["fish"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u135",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u136",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese", "Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u137",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u138",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": ["fish"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u139",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u140",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u141",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Turkish"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["olive", "tomato"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u142",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u143",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Netherlands"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta", "chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u144",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["rice", "chicken"],
+    "dislikedIngredients": ["curry", "tofu", "coconut", "salmon"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u145",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Turkish", "Moroccan"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["tomato", "olive"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u146",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u147",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u148",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u149",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Turkish", "Italiaans"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["olive", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u150",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Moroccan", "Spanish"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["olive", "tomato"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u151",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u152",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u153",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u154",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u155",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u156",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Netherlands"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u157",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u158",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u159",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["pasta", "cheese"],
+    "dislikedIngredients": ["mushroom", "anchovy", "coriander", "prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u160",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Slovakia", "British"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "potato"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u161",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u162",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u163",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u164",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Moroccan", "Turkish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["tomato", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u165",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u166",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u167",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u168",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Greek", "Italian"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["olive", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u169",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u170",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Irish"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["potato", "beef"],
+    "dislikedIngredients": ["coconut", "tofu", "curry", "prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u171",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u172",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u173",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Thai", "India"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["noodle", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u174",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Greek", "Turkish"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["olive", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u175",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Malaysian", "Japanese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["noodle", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u176",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u177",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese", "Vietnamese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["noodle", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u178",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Netherlands", "British"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta", "chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u179",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u180",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u181",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["chicken", "rice"],
+    "dislikedIngredients": ["tofu", "cilantro", "anchovy", "anchovy"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u182",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["rice", "cheese"],
+    "dislikedIngredients": ["coconut", "curry", "cilantro", "prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u183",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Vietnamese", "Thai"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u184",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": ["shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u185",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Irish"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["pasta", "rice"],
+    "dislikedIngredients": ["tofu", "coriander", "coconut", "anchovy"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u186",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u187",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Slovakia", "Canadian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese", "potato"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u188",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Slovakia"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u189",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["United states", "British"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta", "chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u190",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u191",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u192",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u193",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "lamb"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u194",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u195",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Slovakia"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["pasta", "cheese"],
+    "dislikedIngredients": ["coconut", "anchovy", "coriander", "shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u196",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u197",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u198",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u199",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Thai", "Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u200",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Vietnamese", "Thai"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u201",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u202",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Netherlands"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["rice", "cheese"],
+    "dislikedIngredients": ["mushroom", "coconut", "olive", "salmon"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u203",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Vietnamese", "Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u204",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese", "Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u205",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "lamb"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u206",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": ["anchovy"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u207",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u208",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u209",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India", "Vietnamese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u210",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": ["Malaysian"],
+    "lovedIngredients": ["chicken", "pasta"],
+    "dislikedIngredients": ["aubergine", "coriander", "tofu", "shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u211",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Netherlands", "Irish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese", "beef"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u212",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u213",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Vietnamese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["noodle", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u214",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u215",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italiaans", "Italian"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["olive", "cheese"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u216",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u217",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u218",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u219",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Spanish", "Greek"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach", "olive"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u220",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u221",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["rice", "cheese"],
+    "dislikedIngredients": ["tofu", "coconut", "aubergine", "salmon"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u222",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italiaans", "Greek"],
+    "dislikedCuisines": ["Malaysian"],
+    "lovedIngredients": ["olive", "cheese"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u223",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Italiaans"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["olive", "spinach"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u224",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Spanish", "Italian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["tomato", "olive"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u225",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Spanish", "Greek"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["tomato", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u226",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u227",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Irish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u228",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Greek", "Turkish"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["cheese", "olive"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u229",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u230",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u231",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Irish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": ["prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u232",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u233",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": ["prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u234",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Malaysian", "Thai"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "noodle"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u235",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Thai", "Japanese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u236",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Greek", "Italiaans"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["tomato", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u237",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Spanish", "Italiaans"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["tomato", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u238",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "potato"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u239",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u240",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u241",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": ["shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u242",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u243",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese", "India"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "curry"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u244",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Turkish", "Greek"],
+    "dislikedCuisines": ["Malaysian"],
+    "lovedIngredients": ["cheese", "tomato"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u245",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Turkish", "Italiaans"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese", "spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u246",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Turkish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["olive", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u247",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["chicken", "cheese"],
+    "dislikedIngredients": ["curry", "aubergine", "olive", "fish"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u248",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Vietnamese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["noodle", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u249",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["bean"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u250",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese", "Malaysian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u251",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["cheese", "beef"],
+    "dislikedIngredients": ["olive", "mushroom", "anchovy", "shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u252",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u253",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Spanish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach", "tomato"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u254",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u255",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["noodle", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u256",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "lamb"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u257",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u258",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Greek", "Moroccan"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["olive", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u259",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italiaans", "Italian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese", "olive"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u260",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Spanish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["olive", "spinach"],
+    "dislikedIngredients": ["coconut"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u261",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Turkish", "Italian"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["olive", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u262",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u263",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lentil"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u264",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Thai", "Vietnamese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u265",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u266",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Greek", "Italian"],
+    "dislikedCuisines": ["India"],
+    "lovedIngredients": ["spinach", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u267",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["rice", "potato"],
+    "dislikedIngredients": ["olive", "anchovy", "aubergine", "prawn"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u268",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u269",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Spanish", "Greek"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["olive", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u270",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u271",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["British"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["cheese", "potato"],
+    "dislikedIngredients": ["aubergine", "cilantro", "chili", "salmon"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u272",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Slovakia"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["potato", "chicken"],
+    "dislikedIngredients": ["mushroom", "curry", "chili", "fish"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u273",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": ["Netherlands"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u274",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u275",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u276",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["chicken", "pasta"],
+    "dislikedIngredients": ["shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u277",
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
+  },
+  {
+    "id": "u278",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Spanish", "Moroccan"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["olive", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u279",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u280",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["lamb", "chicken"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u281",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Slovakia"],
+    "dislikedCuisines": ["Malaysian"],
+    "lovedIngredients": ["pasta", "cheese"],
+    "dislikedIngredients": ["mushroom", "curry", "anchovy", "fish"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u282",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["beef", "pork"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u283",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Greek", "Turkish"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["tomato", "olive"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u284",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India", "Vietnamese"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["curry", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u285",
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Moroccan", "Italian"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["tomato", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u286",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["spinach"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u287",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Canadian"],
+    "dislikedCuisines": ["Vietnamese"],
+    "lovedIngredients": ["chicken", "potato"],
+    "dislikedIngredients": ["tofu", "curry", "coconut", "shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u288",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["United states", "Irish"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pasta", "potato"],
+    "dislikedIngredients": ["shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u289",
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["pork", "beef"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u290",
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["United states"],
+    "dislikedCuisines": ["Japanese"],
+    "lovedIngredients": ["beef", "rice"],
+    "dislikedIngredients": ["aubergine", "curry", "mushroom", "salmon"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
+  },
+  {
+    "id": "u291",
+    "archetype": "comfort-food-traditionalist",
+    "lovedCuisines": ["Slovakia", "United states"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
+  },
+  {
+    "id": "u292",
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
+  },
+  {
+    "id": "u293",
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["Japanese", "Thai"],
+    "dislikedCuisines": [],
+    "lovedIngredients": ["coconut", "rice"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u294",
-    "lovedCuisines": ["British"],
+    "archetype": "mediterranean-foodie",
+    "lovedCuisines": ["Italian", "Italiaans"],
     "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["olive"],
-    "vegetarian": false
+    "lovedIngredients": ["spinach", "cheese"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u295",
-    "lovedCuisines": ["Saudi arabian"],
+    "archetype": "high-protein-meat-eater",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["mushroom", "prawn"],
-    "vegetarian": false
+    "lovedIngredients": ["chicken", "lamb"],
+    "dislikedIngredients": ["tofu"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": "hearty"
   },
   {
     "id": "u296",
-    "lovedCuisines": ["British", "Thai"],
-    "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["salmon", "anchovy"],
-    "vegetarian": false
+    "archetype": "fussy-plain-eater",
+    "lovedCuisines": ["Polish"],
+    "dislikedCuisines": ["Thai"],
+    "lovedIngredients": ["rice", "beef"],
+    "dislikedIngredients": ["coconut", "curry", "mushroom", "shrimp"],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u297",
-    "lovedCuisines": ["Saudi arabian", "Polish"],
+    "archetype": "veggie-quick-cook",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": ["pasta", "lamb"],
+    "lovedIngredients": ["cheese"],
     "dislikedIngredients": [],
-    "vegetarian": false
+    "vegetarian": true,
+    "maxPrepMinutes": 20,
+    "caloriePreference": "lighter"
   },
   {
     "id": "u298",
-    "lovedCuisines": ["Algerian"],
+    "archetype": "asian-explorer",
+    "lovedCuisines": ["India"],
     "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["fish"],
-    "vegetarian": false
+    "lovedIngredients": ["curry", "coconut"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": null,
+    "caloriePreference": null
   },
   {
     "id": "u299",
-    "lovedCuisines": ["Turkish", "Spanish"],
+    "archetype": "busy-weeknight-cook",
+    "lovedCuisines": [],
     "dislikedCuisines": [],
-    "lovedIngredients": [],
-    "dislikedIngredients": ["prawn"],
-    "vegetarian": false
+    "lovedIngredients": ["chicken"],
+    "dislikedIngredients": [],
+    "vegetarian": false,
+    "maxPrepMinutes": 20,
+    "caloriePreference": null
   }
 ]
