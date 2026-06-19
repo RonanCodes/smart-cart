@@ -1,0 +1,149 @@
+import { useState } from 'react'
+import {
+  createFileRoute,
+  redirect,
+  useNavigate,
+  Link,
+} from '@tanstack/react-router'
+import { ShoppingCart, ArrowLeft } from 'lucide-react'
+import { requireUserBeforeLoad } from '#/lib/route-guards'
+import { hasHousehold } from '#/lib/onboarding-server'
+import { loadWeek } from '#/lib/week-server'
+import type { WeekView } from '#/lib/week-server'
+import { replanWeek } from '#/lib/replan-server'
+import { generatePlan } from '#/lib/planner-server'
+import { DayCard } from '#/components/week/DayCard'
+import { ChatReplan } from '#/components/week/ChatReplan'
+import { Button } from '#/components/ui/button'
+
+interface WeekSearch {
+  plan?: string
+}
+
+export const Route = createFileRoute('/week')({
+  validateSearch: (search: Record<string, unknown>): WeekSearch => ({
+    plan: typeof search.plan === 'string' ? search.plan : undefined,
+  }),
+  beforeLoad: async () => {
+    const ctx = await requireUserBeforeLoad()
+    if (!(await hasHousehold())) throw redirect({ to: '/onboarding' })
+    return ctx
+  },
+  loaderDeps: ({ search }) => ({ plan: search.plan }),
+  loader: async ({ deps }): Promise<{ week: WeekView }> => {
+    // No plan id means "generate one and land on it". A fresh plan keeps the
+    // entry point forgiving: /week always shows a week.
+    if (!deps.plan) {
+      const { planId } = await generatePlan()
+      throw redirect({ to: '/week', search: { plan: planId } })
+    }
+    return { week: await loadWeek({ data: { planId: deps.plan } }) }
+  },
+  component: WeekPage,
+})
+
+function WeekPage() {
+  const { week: initial } = Route.useLoaderData()
+  const navigate = useNavigate()
+  const [week, setWeek] = useState<WeekView>(initial)
+  const [busyDay, setBusyDay] = useState<string | null>(null)
+  const [replanning, setReplanning] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  const locked = busyDay !== null || replanning
+
+  /** Move to a new plan revision: update local state and reflect it in the URL. */
+  function adopt(planId: string, next: WeekView) {
+    setWeek(next)
+    void navigate({ to: '/week', search: { plan: planId }, replace: true })
+  }
+
+  async function swap(day: string) {
+    if (locked) return
+    setBusyDay(day)
+    setMessage(null)
+    try {
+      const res = await replanWeek({
+        data: {
+          planId: week.planId,
+          instruction: `swap ${day}`,
+          focusedDay: day,
+        },
+      })
+      const next = await loadWeek({ data: { planId: res.planId } })
+      adopt(res.planId, next)
+      if (!res.changed) setMessage(res.message)
+    } catch {
+      setMessage('Could not swap that day, try again.')
+    } finally {
+      setBusyDay(null)
+    }
+  }
+
+  async function replan(instruction: string) {
+    if (locked) return
+    setReplanning(true)
+    setMessage(null)
+    try {
+      const res = await replanWeek({
+        data: { planId: week.planId, instruction },
+      })
+      const next = await loadWeek({ data: { planId: res.planId } })
+      adopt(res.planId, next)
+      setMessage(res.message)
+    } catch {
+      setMessage('Could not adjust the week, try again.')
+    } finally {
+      setReplanning(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen">
+      <header className="border-border mx-auto flex max-w-4xl items-center justify-between border-b px-5 py-4">
+        <span className="flex items-center gap-2 font-bold">
+          <ShoppingCart className="text-primary h-6 w-6" />
+          Smart Cart
+        </span>
+        <Link to="/app">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+        </Link>
+      </header>
+
+      <main className="mx-auto max-w-4xl space-y-6 px-5 py-8">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Your week</h1>
+          <p className="text-muted-foreground text-sm">
+            Seven dinners, one per day. Swap any day or tell us what changed.
+          </p>
+        </div>
+
+        <ChatReplan busy={replanning} onSubmit={replan} />
+
+        {message && (
+          <div
+            role="status"
+            className="bg-secondary text-secondary-foreground rounded-lg px-4 py-3 text-sm"
+          >
+            {message}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {week.days.map((d) => (
+            <DayCard
+              key={d.day}
+              day={d}
+              busy={busyDay === d.day}
+              locked={locked}
+              onSwap={() => swap(d.day)}
+            />
+          ))}
+        </div>
+      </main>
+    </div>
+  )
+}

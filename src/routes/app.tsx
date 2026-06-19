@@ -1,13 +1,16 @@
+import { useState } from 'react'
 import {
   createFileRoute,
   redirect,
   useRouter,
+  useNavigate,
   Link,
 } from '@tanstack/react-router'
 import { ShoppingCart, LogOut, RefreshCw } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import { hasHousehold, getHouseholdSummary } from '#/lib/onboarding-server'
+import { generatePlan } from '#/lib/planner-server'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
 import {
@@ -32,10 +35,22 @@ function AppHome() {
   const { user } = Route.useRouteContext()
   const { summary } = Route.useLoaderData()
   const router = useRouter()
+  const navigate = useNavigate()
+  const [planning, setPlanning] = useState(false)
 
   async function signOut() {
     await authClient.signOut()
     await router.navigate({ to: '/' })
+  }
+
+  async function planWeek() {
+    setPlanning(true)
+    try {
+      const { planId } = await generatePlan()
+      await navigate({ to: '/week', search: { plan: planId } })
+    } catch {
+      setPlanning(false)
+    }
   }
 
   return (
@@ -117,7 +132,9 @@ function AppHome() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button disabled>Plan my week (coming next)</Button>
+              <Button disabled={planning} onClick={planWeek}>
+                {planning ? 'Planning…' : 'Plan my week'}
+              </Button>
               <Link to="/onboarding" className="block">
                 <Button variant="ghost" size="sm">
                   <RefreshCw className="h-4 w-4" />
