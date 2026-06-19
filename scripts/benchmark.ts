@@ -11,26 +11,22 @@
  * not the live catalogue or D1, so the numbers are deterministic and reproducible
  * with no network. Refresh the fixture with `pnpm fixture:freeze` after a deliberate
  * catalogue change, then re-run this.
+ *
+ * The per-algorithm math lives in src/lib/recsys/benchmark-core.ts and is shared with
+ * the regression-gate test (benchmark.guard.test.ts), so "the benchmark" means the
+ * same thing in the report and in the gate.
  */
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import type { RecipeLite, Swipe } from '../src/lib/recsys/types'
-import { makeRecommenders } from '../src/lib/recsys/strategies'
-import { simulateSwipe, trueTopN } from '../src/lib/recsys/ground-truth'
+import {
+  CHECKPOINTS,
+  TARGET_RECALL,
+  TOP_N,
+  DECK,
+  MAX,
+  runBenchmark,
+} from '../src/lib/recsys/benchmark-core'
 import { loadBenchmarkFixture } from '../src/lib/recsys/fixture'
-
-const DECK = 5
-const CHECKPOINTS = [5, 10, 15, 20, 25, 30]
-const MAX = CHECKPOINTS[CHECKPOINTS.length - 1]!
-const TOP_N = 20
-const TARGET_RECALL = 0.6
-
-function recall(got: Array<RecipeLite>, truth: Array<string>): number {
-  if (truth.length === 0) return 1
-  const t = new Set(truth)
-  const hit = got.filter((r) => t.has(r.id)).length
-  return hit / Math.min(truth.length, TOP_N)
-}
 
 function main() {
   const fixture = loadBenchmarkFixture()
@@ -38,47 +34,10 @@ function main() {
   console.log(
     `Fixture ${fixture.meta.version}: ${recipes.length} recipes, ${users.length} users (rng seed ${fixture.meta.rngSeed}).`,
   )
-  const names = makeRecommenders(recipes).map((r) => r.name)
 
-  // Aggregate: recall at each checkpoint, and swipes-to-target per recommender.
-  const recallSum = new Map<string, Map<number, number>>()
-  const swipesToTarget = new Map<string, Array<number>>()
-  for (const n of names) {
-    recallSum.set(n, new Map(CHECKPOINTS.map((c) => [c, 0])))
-    swipesToTarget.set(n, [])
-  }
-
-  for (const user of users) {
-    const truth = trueTopN(user, recipes, TOP_N)
-    if (truth.length === 0) continue
-    for (const rec of makeRecommenders(recipes)) {
-      const swipes: Array<Swipe> = []
-      let reached = MAX + 1
-      while (swipes.length < MAX) {
-        const deck = rec.nextDeck(swipes, Math.min(DECK, MAX - swipes.length))
-        if (deck.length === 0) break
-        for (const r of deck)
-          swipes.push({ recipeId: r.id, like: simulateSwipe(user, r) })
-        const count = swipes.length
-        if (CHECKPOINTS.includes(count)) {
-          const r = recall(rec.recommend(swipes, TOP_N), truth)
-          recallSum
-            .get(rec.name)!
-            .set(count, recallSum.get(rec.name)!.get(count)! + r)
-          if (r >= TARGET_RECALL && reached > MAX) reached = count
-        }
-      }
-      swipesToTarget.get(rec.name)!.push(reached)
-    }
-  }
-
-  const used = users.filter(
-    (u) => trueTopN(u, recipes, TOP_N).length > 0,
-  ).length
-  const median = (a: Array<number>) => {
-    const s = [...a].sort((x, y) => x - y)
-    return s[Math.floor(s.length / 2)] ?? 0
-  }
+  const { usersScored, summary } = runBenchmark(recipes, users)
+  const used = usersScored
+  const names = Object.keys(summary)
 
   // Markdown report.
   let md = `# Swipe recommender benchmark\n\n`
@@ -86,24 +45,16 @@ function main() {
   md += `## Recall@${TOP_N} by swipe count\n\n`
   md += `| strategy | ${CHECKPOINTS.map((c) => `${c} swipes`).join(' | ')} | median swipes to ${TARGET_RECALL * 100}% |\n`
   md += `| --- | ${CHECKPOINTS.map(() => '---').join(' | ')} | --- |\n`
-  const summary: Record<string, unknown> = {}
   for (const n of names) {
+    const a = summary[n]!
     const cells = CHECKPOINTS.map(
-      (c) => `${((recallSum.get(n)!.get(c)! / used) * 100).toFixed(0)}%`,
+      (c) => `${(a.recallByCheckpoint[c]! * 100).toFixed(0)}%`,
     )
-    const reached = swipesToTarget.get(n)!.filter((x) => x <= MAX)
-    const pctReached = ((reached.length / used) * 100).toFixed(0)
-    const med = reached.length ? median(reached) : MAX + 1
-    md += `| **${n}** | ${cells.join(' | ')} | ${reached.length ? med : 'n/a'} (${pctReached}% reach) |\n`
-    summary[n] = {
-      recallByCheckpoint: Object.fromEntries(
-        CHECKPOINTS.map((c) => [c, recallSum.get(n)!.get(c)! / used]),
-      ),
-      medianSwipesToTarget: reached.length ? med : null,
-      pctReachedTarget: reached.length / used,
-    }
+    const med = a.medianSwipesToTarget
+    const pctReached = (a.pctReachedTarget * 100).toFixed(0)
+    md += `| **${n}** | ${cells.join(' | ')} | ${med != null ? med : 'n/a'} (${pctReached}% reach) |\n`
   }
-  md += `\nHigher recall sooner is better. "median swipes to ${TARGET_RECALL * 100}%" is the headline: the fewest swipes to a good match.\n`
+  md += `\nHigher recall sooner is better. "median swipes to ${TARGET_RECALL * 100}%" is the headline: the fewest swipes to a good match. Max ${MAX} swipes simulated.\n`
 
   mkdirSync(join(process.cwd(), 'docs', 'benchmarks'), { recursive: true })
   writeFileSync(join(process.cwd(), 'docs', 'benchmarks', 'results.md'), md)

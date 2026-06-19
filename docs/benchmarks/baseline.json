@@ -1,0 +1,48 @@
+{
+  "fixtureVersion": "v1",
+  "rngSeed": 7,
+  "recipes": 1531,
+  "usersScored": 300,
+  "metric": "recall@20",
+  "checkpoints": [20, 30],
+  "tolerance": 0.02,
+  "recordedAt": "2026-06-19",
+  "note": "Frozen-fixture benchmark baseline. The regression gate (benchmark.guard.test.ts) recomputes on the same fixture and fails if any algorithm regresses below recall - tolerance at any checkpoint. Refresh deliberately: re-run pnpm benchmark, regenerate, record the intent in the PR.",
+  "algorithms": {
+    "random": {
+      "recallByCheckpoint": {
+        "20": 0.089611,
+        "30": 0.102778
+      },
+      "medianSwipesToTarget": 5
+    },
+    "maths": {
+      "recallByCheckpoint": {
+        "20": 0.0885,
+        "30": 0.084833
+      },
+      "medianSwipesToTarget": 15
+    },
+    "vector": {
+      "recallByCheckpoint": {
+        "20": 0.036833,
+        "30": 0.0855
+      },
+      "medianSwipesToTarget": 25
+    },
+    "hybrid": {
+      "recallByCheckpoint": {
+        "20": 0.0355,
+        "30": 0.078167
+      },
+      "medianSwipesToTarget": 25
+    },
+    "adaptive": {
+      "recallByCheckpoint": {
+        "20": 0.104833,
+        "30": 0.161444
+      },
+      "medianSwipesToTarget": 15
+    }
+  }
+}

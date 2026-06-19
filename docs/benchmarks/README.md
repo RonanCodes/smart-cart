@@ -45,3 +45,14 @@ See `results.md` for the live table. The headline findings:
 
 The same `explain()` that powers the ranking also produces the profile badges and
 the admin "what we think they like" view, so the data points are reused everywhere.
+
+## Regression gate (hard)
+
+`baseline.json` is the committed accuracy baseline (recall@20 per algorithm at the 20-
+and 30-swipe checkpoints, plus median swipes-to-target). `src/lib/recsys/benchmark.guard.test.ts`
+recomputes the benchmark on the frozen fixture and FAILS if any algorithm's recall drops
+below `baseline - tolerance` (absolute 0.02). It is a normal vitest file, so it runs
+inside `pnpm quality` and the pre-push hook: no ranker change can silently regress recall.
+
+Refreshing the baseline is deliberate: re-run `pnpm benchmark`, regenerate `baseline.json`,
+and record why in the PR. See `docs/adr/0002-frozen-fixture-and-regression-gate.md`.
