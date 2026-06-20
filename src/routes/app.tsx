@@ -9,7 +9,11 @@ import {
 import { ShoppingCart, LogOut, RefreshCw } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
-import { hasHousehold, getHouseholdSummary } from '#/lib/onboarding-server'
+import {
+  hasHousehold,
+  getHouseholdSummary,
+  resetOnboarding,
+} from '#/lib/onboarding-server'
 import { generatePlan } from '#/lib/planner-server'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
@@ -50,6 +54,18 @@ function AppHome() {
       await navigate({ to: '/week', search: { plan: planId } })
     } catch {
       setPlanning(false)
+    }
+  }
+
+  const [resetting, setResetting] = useState(false)
+  async function resetAndOnboard() {
+    setResetting(true)
+    try {
+      await resetOnboarding()
+      // Full reload so the route loaders re-run with the cleared profile.
+      window.location.href = '/onboarding'
+    } catch {
+      setResetting(false)
     }
   }
 
@@ -141,6 +157,15 @@ function AppHome() {
                   Swipe more recipes
                 </Button>
               </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={resetting}
+                onClick={resetAndOnboard}
+              >
+                <RefreshCw className="h-4 w-4" />
+                {resetting ? 'Resetting…' : 'Reset & redo onboarding'}
+              </Button>
             </CardContent>
           </Card>
         </div>
