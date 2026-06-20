@@ -118,17 +118,22 @@ export const addWeekToShoppingList = createServerFn({ method: 'POST' })
     const { eq, and } = await import('drizzle-orm')
 
     if (plan.inserts.length > 0) {
-      await db.insert(shoppingListItem).values(
-        plan.inserts.map((line) => ({
-          id: crypto.randomUUID(),
-          householdId,
-          name: line.name,
-          amount: line.amount,
-          unit: line.unit,
-          checked: false,
-          source: line.source,
-        })),
-      )
+      const rows = plan.inserts.map((line) => ({
+        id: crypto.randomUUID(),
+        householdId,
+        name: line.name,
+        amount: line.amount,
+        unit: line.unit,
+        checked: false,
+        source: line.source,
+      }))
+      // D1 caps a statement at 100 bound parameters; each row binds 7, so insert
+      // in chunks of 12 (84 params) instead of one giant multi-row insert that
+      // 500s on a full week of ingredients.
+      const BATCH = 12
+      for (let i = 0; i < rows.length; i += BATCH) {
+        await db.insert(shoppingListItem).values(rows.slice(i, i + BATCH))
+      }
     }
 
     for (const u of plan.updates) {
