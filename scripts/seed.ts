@@ -24,7 +24,13 @@
  * is the canonical seeder wired into `npm run init` and CI.
  */
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  mkdtempSync,
+  rmSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildCatalogues } from '../src/lib/pricing/normalise'
@@ -173,6 +179,68 @@ function seedStoreProducts(local: boolean, tmp: string, now: number): void {
   }
 }
 
+// ---- embeddings (ADR-0004) -------------------------------------------------
+
+const EMBED_DIR = join(process.cwd(), 'data', 'embeddings')
+
+interface EmbeddingManifestFile {
+  model: string
+  dimensions: number
+}
+
+/**
+ * Load the committed embedding index (data/embeddings/*) into D1: a base64 vector
+ * onto each store_product row, and one recipe_embedding row per recipe. Skipped
+ * with a notice when the index has not been built yet (pnpm embed:catalogue), so
+ * a clone without an OpenAI key still seeds the rest of the catalogue.
+ */
+function seedEmbeddings(local: boolean, tmp: string, now: number): void {
+  const manifestPath = join(EMBED_DIR, 'manifest.json')
+  if (!existsSync(manifestPath)) {
+    console.log(
+      '[seed] embeddings: data/embeddings/ not found, skipping. Run pnpm embed:catalogue to build it.',
+    )
+    return
+  }
+  const manifest = JSON.parse(
+    readFileSync(manifestPath, 'utf8'),
+  ) as EmbeddingManifestFile
+
+  const products = JSON.parse(
+    readFileSync(join(EMBED_DIR, 'products.json'), 'utf8'),
+  ) as Array<{ id: string; v: string }>
+  console.log(
+    `[seed] product embeddings: ${products.length} rows -> ${local ? 'local' : 'remote'} D1, ${BATCH}/batch`,
+  )
+  let pdone = 0
+  for (const batch of chunk(products, BATCH)) {
+    const lines = batch.map(
+      (p) =>
+        `UPDATE store_product SET embedding = ${q(p.v)} WHERE id = ${q(p.id)};`,
+    )
+    applyBatch(lines.join('\n') + '\n', local, tmp)
+    pdone += batch.length
+    console.log(`[seed] product embeddings applied ${pdone}/${products.length}`)
+  }
+
+  const recipes = JSON.parse(
+    readFileSync(join(EMBED_DIR, 'recipes.json'), 'utf8'),
+  ) as Array<{ id: string; v: string }>
+  console.log(
+    `[seed] recipe embeddings: ${recipes.length} rows -> ${local ? 'local' : 'remote'} D1, ${BATCH}/batch`,
+  )
+  let rdone = 0
+  for (const batch of chunk(recipes, BATCH)) {
+    const lines = batch.map(
+      (r) =>
+        `INSERT OR REPLACE INTO recipe_embedding (recipe_id, embedding, model, dims, created_at) VALUES (${q(r.id)}, ${q(r.v)}, ${q(manifest.model)}, ${manifest.dimensions}, ${now});`,
+    )
+    applyBatch(lines.join('\n') + '\n', local, tmp)
+    rdone += batch.length
+    console.log(`[seed] recipe embeddings applied ${rdone}/${recipes.length}`)
+  }
+}
+
 function main(): void {
   const remote = process.argv.includes('--remote')
   const local = !remote
@@ -183,7 +251,8 @@ function main(): void {
     const now = Math.floor(Date.now() / 1000)
     seedRecipes(local, tmp, now)
     seedStoreProducts(local, tmp, now)
-    console.log('[seed] done. recipes + store products upserted.')
+    seedEmbeddings(local, tmp, now)
+    console.log('[seed] done. recipes + store products + embeddings upserted.')
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }

@@ -36,6 +36,12 @@ export const storeProduct = sqliteTable(
     unit: text('unit'),
     /** The normalised product blob, kept verbatim as the source of truth. */
     raw: text('raw', { mode: 'json' }).$type<Record<string, unknown>>(),
+    /**
+     * Base64-encoded Float32 embedding of the product name (ADR-0004), built
+     * offline by scripts/embed-catalogue.ts and loaded by `pnpm seed`. Null until
+     * the catalogue is embedded. Powers semantic ingredient->SKU matching.
+     */
+    embedding: text('embedding'),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .$defaultFn(() => new Date())
       .notNull(),

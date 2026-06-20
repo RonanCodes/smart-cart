@@ -19,4 +19,11 @@ export const models = {
   /** Kept available for a quick provider switch. */
   alternate: anthropic('claude-opus-4-8'),
   cheap: google('gemini-2.5-flash'),
+  /**
+   * Semantic matching embeddings (ADR-0004): ingredient->SKU, dish similarity,
+   * replan term-match. Multilingual (NL/EN). Dimension reduction (256) is passed
+   * at call time via providerOptions (see src/lib/embeddings/embed.ts), since
+   * `openai.embedding(id)` takes no settings object.
+   */
+  embedding: openai.embedding('text-embedding-3-small'),
 } as const
