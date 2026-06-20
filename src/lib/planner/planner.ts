@@ -149,27 +149,29 @@ function fitsBusy(r: PlannerRecipe): boolean {
 }
 
 /**
- * Generate a week of dinners for a household.
+ * Rank the household's candidate recipes into one preference-ordered pool.
  *
- * Policy (grilled 2026-06-19, CONTEXT.md "Planner policy"):
- *  - Pure preference. Rank the FULL catalogue with the adaptive recommender,
- *    seeded by the onboarding swipes. No cuisine-variety constraint, a pasta
- *    person gets a pasta week.
- *  - Allergies and diet are hard filters (done first, those recipes never
- *    become candidates). Calorie goal, protein and prep time are soft nudges.
- *  - The only de-dup is: never the same recipe twice in one week.
- *  - The week always fills its days; soft scoring never empties the pool.
+ * This is the shared core both `generateWeek` (which walks the pool to fill each
+ * day) and `topNForDay` (which takes the top few alternatives for one day) build
+ * on, so the week and the per-day alternatives agree on what "best for this
+ * household" means.
  *
- * Deterministic: same recipes + same profile + same swipes + same seed always
- * yields the same week (the recommender and the tie-breaks are seed-stable).
+ * Steps:
+ *  1. Hard filter (allergies + diet + dinners only) so forbidden recipes are
+ *     never candidates.
+ *  2. Rank the candidates with the configured preference algorithm, seeded by the
+ *     onboarding swipes.
+ *  3. Add the small soft nudge (calorie / protein / prep) and re-sort, so the
+ *     nudge only reshuffles recipes already adjacent in preference.
+ *
+ * Deterministic: same recipes + profile + swipes + seed -> same order.
  */
-export function generateWeek(
+export function rankRecipes(
   recipes: Array<PlannerRecipe>,
   profile: PlannerProfile,
   swipes: Array<{ recipeId: string; like: boolean }>,
-  options: PlanOptions = {},
-): PlannedWeek {
-  const days = options.days ?? 7
+  options: Pick<PlanOptions, 'seed' | 'algorithm' | 'weights'> = {},
+): Array<PlannerRecipe> {
   const seed = options.seed ?? 42
   const algorithm = options.algorithm ?? DEFAULT_ALGORITHM
   const weights = options.weights ?? DEFAULT_ADAPTIVE_WEIGHTS
@@ -207,15 +209,107 @@ export function generateWeek(
 
   scored.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score
-    // Stable tie-break on original rank, then id, so the week is deterministic.
+    // Stable tie-break on original rank, then id, so the order is deterministic.
     if (a.index !== b.index) return a.index - b.index
     return a.recipe.id < b.recipe.id ? -1 : 1
   })
 
+  return scored.map((s) => s.recipe)
+}
+
+/**
+ * Top-N alternative recipes for ONE day of an existing week, pre-ranked for the
+ * household. Powers the "tap a day -> pick from ~5 ready alternatives" edit: the
+ * sheet opens instantly because these come from the same fast ranking the week
+ * itself uses.
+ *
+ * Rules (so the picker never offers a duplicate or an unfit recipe):
+ *  - Same hard filters + preference ranking as the week (via `rankRecipes`).
+ *  - Exclude the day's current pick (`excludeRecipeId`) and every other recipe
+ *    already placed in the week (`weekRecipeIds`), so picking an alternative can
+ *    never create a repeat.
+ *  - Respect the day's type: a 'busy' day only offers quick dinners (with the
+ *    same shortest-available fallback `generateWeek` uses, so a busy day is never
+ *    left with zero options when the catalogue has recipes left).
+ *  - Return at most `n` (default 5), in preference order.
+ *
+ * Pure + deterministic, so it is unit-testable and instant on the client.
+ */
+export function topNForDay(
+  recipes: Array<PlannerRecipe>,
+  profile: PlannerProfile,
+  swipes: Array<{ recipeId: string; like: boolean }>,
+  params: {
+    /** The day's current recipe id, always excluded. Empty/undefined for a skipped day. */
+    excludeRecipeId?: string | null
+    /** Every recipe id already in the week (incl. the current pick), all excluded. */
+    weekRecipeIds?: Array<string>
+    /** The day's type, so a busy day only offers quick dinners. Defaults to 'home'. */
+    dayType?: DayType
+    /** How many alternatives to return. Defaults to 5. */
+    n?: number
+    seed?: number
+    algorithm?: string
+    weights?: PlanOptions['weights']
+  } = {},
+): Array<PlannerRecipe> {
+  const n = params.n ?? 5
+  const dayType = params.dayType ?? 'home'
+
+  // An 'out' day has no dinner to swap, so it has no alternatives.
+  if (dayType === 'out') return []
+
+  const excluded = new Set<string>(params.weekRecipeIds ?? [])
+  if (params.excludeRecipeId) excluded.add(params.excludeRecipeId)
+
+  const ranked = rankRecipes(recipes, profile, swipes, params)
+  const available = ranked.filter((r) => !excluded.has(r.id))
+
+  const wantsQuick = dayType === 'busy'
+  let pool = wantsQuick ? available.filter(fitsBusy) : available
+
+  // Graceful fallback, mirroring generateWeek: a busy day must still offer
+  // something when nothing quick is left. Fall back to the shortest available
+  // recipes (unknown prep counts as longest), still excluding the week's recipes.
+  if (wantsQuick && pool.length === 0) {
+    pool = [...available].sort((a, b) => {
+      const pa = a.prepMinutes ?? Number.POSITIVE_INFINITY
+      const pb = b.prepMinutes ?? Number.POSITIVE_INFINITY
+      if (pa !== pb) return pa - pb
+      return a.id < b.id ? -1 : 1
+    })
+  }
+
+  return pool.slice(0, n)
+}
+
+/**
+ * Generate a week of dinners for a household.
+ *
+ * Policy (grilled 2026-06-19, CONTEXT.md "Planner policy"):
+ *  - Pure preference. Rank the FULL catalogue with the adaptive recommender,
+ *    seeded by the onboarding swipes. No cuisine-variety constraint, a pasta
+ *    person gets a pasta week.
+ *  - Allergies and diet are hard filters (done first, those recipes never
+ *    become candidates). Calorie goal, protein and prep time are soft nudges.
+ *  - The only de-dup is: never the same recipe twice in one week.
+ *  - The week always fills its days; soft scoring never empties the pool.
+ *
+ * Deterministic: same recipes + same profile + same swipes + same seed always
+ * yields the same week (the recommender and the tie-breaks are seed-stable).
+ */
+export function generateWeek(
+  recipes: Array<PlannerRecipe>,
+  profile: PlannerProfile,
+  swipes: Array<{ recipeId: string; like: boolean }>,
+  options: PlanOptions = {},
+): PlannedWeek {
+  const days = options.days ?? 7
+
   // The preference-ordered pool we walk to fill each day. Walking the same order
   // for every day keeps the no-repeat rule (a `used` set) and the deterministic
   // pick. Each day only takes the highest-ranked recipe that FITS its type.
-  const pool = scored.map((s) => s.recipe)
+  const pool = rankRecipes(recipes, profile, swipes, options)
   const dayTypes = resolveDayTypes(days, profile, options.dayTypes)
 
   const used = new Set<string>()
