@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, useRouter, Link } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { User, LogOut, RefreshCw, Store, Bell, CircleHelp } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
@@ -16,12 +16,14 @@ export const Route = createFileRoute('/profile')({ component: Profile })
  */
 function Profile() {
   const { data: session } = authClient.useSession()
-  const router = useRouter()
   const [helpOpen, setHelpOpen] = useState(false)
 
   async function signOut() {
     await authClient.signOut()
-    await router.navigate({ to: '/' })
+    // Hard redirect so the server re-renders with the cleared session cookie
+    // (a client navigate left stale session state and did nothing). Local dev
+    // open-access keeps you signed in, so this only takes effect in prod.
+    window.location.href = '/'
   }
 
   if (!session?.user) {

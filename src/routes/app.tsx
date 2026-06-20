@@ -1,10 +1,5 @@
 import { useState } from 'react'
-import {
-  createFileRoute,
-  redirect,
-  useRouter,
-  useNavigate,
-} from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { LogOut, RefreshCw } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { authClient } from '#/lib/auth-client'
@@ -38,13 +33,16 @@ export const Route = createFileRoute('/app')({
 function AppHome() {
   const { user } = Route.useRouteContext()
   const { summary } = Route.useLoaderData()
-  const router = useRouter()
   const navigate = useNavigate()
   const [planning, setPlanning] = useState(false)
 
   async function signOut() {
     await authClient.signOut()
-    await router.navigate({ to: '/' })
+    // Hard redirect (not router.navigate): forces a full server round-trip so the
+    // route guards re-run with the cleared session cookie. A client navigate reused
+    // cached session state and left you on the app. (In local dev the open-access
+    // getSessionUser override keeps you signed in, so this only takes effect in prod.)
+    window.location.href = '/'
   }
 
   async function planWeek() {
