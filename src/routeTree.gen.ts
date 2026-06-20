@@ -23,6 +23,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSimilarRouteImport } from './routes/api/similar'
 import { Route as ApiPlanRouteImport } from './routes/api/plan'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiMollieWebhookRouteImport } from './routes/api/mollie/webhook'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
 const WeekRoute = WeekRouteImport.update({
@@ -95,6 +96,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMollieWebhookRoute = ApiMollieWebhookRouteImport.update({
+  id: '/api/mollie/webhook',
+  path: '/api/mollie/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/mollie/webhook': typeof ApiMollieWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/mollie/webhook': typeof ApiMollieWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/mollie/webhook': typeof ApiMollieWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/similar'
     | '/api/auth/$'
+    | '/api/mollie/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/similar'
     | '/api/auth/$'
+    | '/api/mollie/webhook'
   id:
     | '__root__'
     | '/'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/similar'
     | '/api/auth/$'
+    | '/api/mollie/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   ApiPlanRoute: typeof ApiPlanRoute
   ApiSimilarRoute: typeof ApiSimilarRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiMollieWebhookRoute: typeof ApiMollieWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -325,6 +338,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mollie/webhook': {
+      id: '/api/mollie/webhook'
+      path: '/api/mollie/webhook'
+      fullPath: '/api/mollie/webhook'
+      preLoaderRoute: typeof ApiMollieWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -351,6 +371,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPlanRoute: ApiPlanRoute,
   ApiSimilarRoute: ApiSimilarRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiMollieWebhookRoute: ApiMollieWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
