@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { ShoppingCart } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { requestDemoCode } from '#/lib/demo-auth'
 import { Button } from '#/components/ui/button'
@@ -73,7 +72,13 @@ function SignIn() {
     <main className="flex min-h-screen items-center justify-center px-6">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-          <ShoppingCart className="text-primary mb-2 h-8 w-8" />
+          <img
+            src="/brand/souso-v3-hello.png"
+            alt="Souso"
+            width={48}
+            height={48}
+            className="mb-2 h-12 w-12 rounded-full object-contain"
+          />
           <CardTitle>Sign in to Souso</CardTitle>
           <CardDescription>
             {step === 'email'

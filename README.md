@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="./public/mascot-avatar.png" alt="Smart Cart mascot" width="160" />
-  <h1>Smart Cart</h1>
+  <img src="./public/brand/souso-hero.png" alt="Souso, your sous chef" width="640" />
+  <h1>Souso</h1>
   <p><strong>Never wonder what's for dinner again.</strong></p>
   <p>
     <a href="https://smartcart.ronanconnolly.dev">smartcart.ronanconnolly.dev</a>

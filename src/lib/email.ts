@@ -4,7 +4,7 @@ import { readEnv } from './env'
 // Sends from the verified ronanconnolly.dev Resend account (the RESEND_API_KEY
 // secret holds that key).
 const FROM = 'Souso <hello@ronanconnolly.dev>'
-const MASCOT = 'https://smartcart.ronanconnolly.dev/mascot-avatar.png'
+const MASCOT = 'https://smartcart.ronanconnolly.dev/brand/souso-v3-hello.png'
 const GREEN = '#43A047'
 const CANVAS = '#FBFDF9'
 
