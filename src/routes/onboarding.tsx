@@ -1,20 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import {
-  Heart,
-  X,
-  UtensilsCrossed,
-  Sparkles,
-  Clock,
-  Minus,
-  Plus,
-  Users,
-} from 'lucide-react'
+import { Sparkles, Minus, Plus, Users } from 'lucide-react'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import { getOnboardingDeck, finishOnboarding } from '#/lib/onboarding-server'
 import type { DeckCard } from '#/lib/recsys-data'
+import { SwipeDeck } from '#/components/swipe-deck'
 import { Button } from '#/components/ui/button'
-import { Badge } from '#/components/ui/badge'
 import { DAY_LABELS, clampHouseholdCount } from '#/lib/onboarding-rhythm'
 
 export const Route = createFileRoute('/onboarding')({
@@ -188,66 +179,13 @@ function Onboarding() {
         </p>
       </header>
 
-      <div className="relative mt-6 flex-1">
-        {card ? (
-          <div className="bg-card border-border overflow-hidden rounded-2xl border shadow-sm">
-            <div className="bg-secondary aspect-[4/3] w-full">
-              {card.imageUrl ? (
-                <img
-                  src={card.imageUrl}
-                  alt={card.title}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="text-muted-foreground flex h-full items-center justify-center">
-                  <UtensilsCrossed className="h-10 w-10" />
-                </div>
-              )}
-            </div>
-            <div className="space-y-2 p-5">
-              <div className="flex flex-wrap items-center gap-2">
-                {card.cuisine && <Badge>{card.cuisine}</Badge>}
-                {card.prepMinutes != null && (
-                  <span className="text-muted-foreground inline-flex items-center gap-1 text-sm">
-                    <Clock className="h-3.5 w-3.5" />
-                    {card.prepMinutes} min
-                  </span>
-                )}
-              </div>
-              <h2 className="text-xl leading-tight font-semibold">
-                {card.title}
-              </h2>
-              {card.ingredients.length > 0 && (
-                <p className="text-muted-foreground text-sm leading-snug">
-                  {card.ingredients.join(' · ')}
-                </p>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="text-muted-foreground flex h-full items-center justify-center">
-            {ready ? 'Loading more…' : 'Finding recipes…'}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6 flex items-center justify-center gap-6">
-        <button
-          aria-label="Not for me"
-          disabled={!card || finishing}
-          onClick={() => card && swipe(card, false)}
-          className="border-border flex h-16 w-16 items-center justify-center rounded-full border bg-white text-red-500 shadow-sm transition active:scale-95 disabled:opacity-40"
-        >
-          <X className="h-7 w-7" />
-        </button>
-        <button
-          aria-label="Love it"
-          disabled={!card || finishing}
-          onClick={() => card && swipe(card, true)}
-          className="bg-primary text-primary-foreground flex h-16 w-16 items-center justify-center rounded-full shadow-sm transition active:scale-95 disabled:opacity-40"
-        >
-          <Heart className="h-7 w-7" />
-        </button>
+      <div className="mt-6 flex flex-1 flex-col">
+        <SwipeDeck
+          card={card}
+          ready={ready}
+          disabled={finishing}
+          onSwipe={swipe}
+        />
       </div>
 
       <Button
