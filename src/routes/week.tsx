@@ -19,6 +19,7 @@ import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
 import { generatePlan } from '#/lib/planner-server'
 import { DayCard } from '#/components/week/DayCard'
 import { ChatReplan } from '#/components/week/ChatReplan'
+import { EditDaySheet } from '#/components/week/EditDaySheet'
 
 interface WeekSearch {
   plan?: string
@@ -53,8 +54,13 @@ function WeekPage() {
   const [busyDay, setBusyDay] = useState<string | null>(null)
   const [replanning, setReplanning] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  /** The day whose edit sheet is open (tap-a-day -> ~5 alternatives). */
+  const [editDay, setEditDay] = useState<string | null>(null)
 
   const locked = busyDay !== null || replanning
+  const editing = editDay
+    ? (week.days.find((d) => d.day === editDay) ?? null)
+    : null
 
   /** Move to a new plan revision: update local state and reflect it in the URL. */
   function adopt(planId: string, next: WeekView) {
@@ -122,6 +128,30 @@ function WeekPage() {
     }
   }
 
+  /**
+   * Pick one of the day's ~5 ready alternatives (the tap-a-day edit, #123). Writes
+   * the chosen recipe into the day via the same revision write path the similar
+   * swap uses (applySimilarSwapToPlan accepts any catalogue recipe), reloads the
+   * week (which re-derives fresh alternatives for every day), and closes the sheet.
+   */
+  async function pickAlternative(day: string, recipeId: string) {
+    if (locked) return
+    setBusyDay(day)
+    setMessage(null)
+    try {
+      const res = await applySimilarSwapToPlan({
+        data: { planId: week.planId, day, recipeId },
+      })
+      const next = await loadWeek({ data: { planId: res.planId } })
+      adopt(res.planId, next)
+      setEditDay(null)
+    } catch {
+      setMessage('Could not swap that day, try again.')
+    } finally {
+      setBusyDay(null)
+    }
+  }
+
   async function replan(instruction: string) {
     if (locked) return
     setReplanning(true)
@@ -176,6 +206,7 @@ function WeekPage() {
               day={d}
               busy={busyDay === d.day}
               locked={locked}
+              onEdit={() => setEditDay(d.day)}
               onSwap={() => swap(d.day)}
               onLoadSimilar={(sort) => loadSimilar(d.day, sort)}
               onPickSimilar={(recipeId) => pickSimilar(d.day, recipeId)}
@@ -183,6 +214,18 @@ function WeekPage() {
           ))}
         </div>
       </div>
+
+      <EditDaySheet
+        day={editing}
+        open={editDay !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditDay(null)
+        }}
+        picking={busyDay !== null}
+        onPick={(recipeId) => {
+          if (editDay) void pickAlternative(editDay, recipeId)
+        }}
+      />
     </AppShell>
   )
 }

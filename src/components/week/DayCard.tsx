@@ -20,6 +20,8 @@ interface DayCardProps {
   busy: boolean
   /** Whether any action anywhere is in flight (disables this card's button). */
   locked: boolean
+  /** Tap the card to open the edit sheet (~5 ready alternatives). */
+  onEdit: () => void
   /** Swap this day's dinner for the next-best by preference. */
   onSwap: () => void
   /** Load similar recipes for this day's dinner under the given re-rank. */
@@ -35,6 +37,9 @@ interface DayCardProps {
  *
  * Two swaps, both full-width tappable buttons (no hover-only affordance, works on
  * touch at 390px):
+ *  - Tapping the card itself opens the edit sheet (#123): ~5 ready alternatives,
+ *    pre-ranked for the household and shipped with the week, so it opens instantly.
+ *    This is THE edit method.
  *  - "Swap" takes the next-best by preference (#12).
  *  - "Similar" expands an inline chooser of the dish's nearest neighbours (#31), so
  *    the replacement stays close to what is already planned ("like this, but a
@@ -44,6 +49,7 @@ export function DayCard({
   day,
   busy,
   locked,
+  onEdit,
   onSwap,
   onLoadSimilar,
   onPickSimilar,
@@ -64,61 +70,78 @@ export function DayCard({
 
   return (
     <div className="bg-card border-border flex flex-col overflow-hidden rounded-xl border shadow-sm">
-      <div className="bg-secondary aspect-[4/3] w-full">
-        {!skipped && day.imageUrl ? (
-          <img
-            src={day.imageUrl}
-            alt={day.meal}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="text-muted-foreground flex h-full items-center justify-center">
-            <UtensilsCrossed className="h-9 w-9" />
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-            {day.day}
-          </span>
-          {!skipped && day.cuisine && <Badge>{day.cuisine}</Badge>}
+      {/* The whole dish (image + title + macros) is one big tap target that opens
+          the edit sheet. A skipped day has nothing to edit, so it is inert. */}
+      <button
+        type="button"
+        disabled={locked || skipped || picking}
+        onClick={onEdit}
+        aria-label={skipped ? undefined : `Edit ${day.day}: ${day.meal}`}
+        className="flex flex-col text-left disabled:cursor-default"
+      >
+        <div className="bg-secondary aspect-[4/3] w-full">
+          {!skipped && day.imageUrl ? (
+            <img
+              src={day.imageUrl}
+              alt={day.meal}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="text-muted-foreground flex h-full items-center justify-center">
+              <UtensilsCrossed className="h-9 w-9" />
+            </div>
+          )}
         </div>
 
-        {skipped ? (
-          <p className="text-muted-foreground flex-1 text-sm">
-            Eating out, no dinner planned.
-          </p>
-        ) : (
-          <>
-            <h3 className="flex-1 text-base leading-snug font-semibold">
-              {day.meal}
-            </h3>
-            <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              {day.prepMinutes != null && (
-                <span className="inline-flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  {day.prepMinutes} min
-                </span>
-              )}
-              {day.calories != null && (
-                <span className="inline-flex items-center gap-1">
-                  <Flame className="h-3.5 w-3.5" />
-                  {day.calories} kcal
-                </span>
-              )}
-              {day.protein != null && (
-                <span className="inline-flex items-center gap-1">
-                  <Beef className="h-3.5 w-3.5" />
-                  {day.protein}g protein
-                </span>
-              )}
-            </div>
-          </>
-        )}
+        <div className="flex flex-1 flex-col gap-2 px-4 pt-4">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              {day.day}
+            </span>
+            {!skipped && day.cuisine && <Badge>{day.cuisine}</Badge>}
+          </div>
 
-        <div className="mt-2 grid grid-cols-2 gap-2">
+          {skipped ? (
+            <p className="text-muted-foreground flex-1 text-sm">
+              Eating out, no dinner planned.
+            </p>
+          ) : (
+            <>
+              <h3 className="flex-1 text-base leading-snug font-semibold">
+                {day.meal}
+              </h3>
+              <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                {day.prepMinutes != null && (
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    {day.prepMinutes} min
+                  </span>
+                )}
+                {day.calories != null && (
+                  <span className="inline-flex items-center gap-1">
+                    <Flame className="h-3.5 w-3.5" />
+                    {day.calories} kcal
+                  </span>
+                )}
+                {day.protein != null && (
+                  <span className="inline-flex items-center gap-1">
+                    <Beef className="h-3.5 w-3.5" />
+                    {day.protein}g protein
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </button>
+
+      <div className="flex flex-col gap-2 px-4 pb-4">
+        {!skipped && (
+          <p className="text-muted-foreground pt-2 text-center text-xs">
+            Tap the dish to see {day.alternatives.length || '5'} ready swaps
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"
             size="sm"
