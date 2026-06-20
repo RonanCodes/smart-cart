@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import type { MealFeedbackState } from './meal-feedback-server'
 
 /**
  * One ready alternative for a day, denormalised with the same card detail the
@@ -265,4 +266,46 @@ export const loadWeek = createServerFn({ method: 'GET' })
     })
 
     return { planId, weekStart: current.weekStart, days }
+  })
+
+/** Everything the /week route's loader needs, in one server round-trip (#251). */
+export interface WeekBootstrap {
+  week: WeekView
+  feedback: Array<MealFeedbackState>
+  missingFromList: number
+}
+
+/**
+ * Reshape the three /week reads into the loader's payload (#251). Pure glue, so
+ * the "batched shape == old 3-call shape" guarantee is unit-testable without the
+ * DB/session chain. Mirrors exactly what the old loader's Promise.all returned:
+ * `{ week, feedback, missingFromList: missing.missing }`.
+ */
+export function composeWeekBootstrap(
+  week: WeekView,
+  feedback: Array<MealFeedbackState>,
+  missing: { missing: number },
+): WeekBootstrap {
+  return { week, feedback, missingFromList: missing.missing }
+}
+
+/**
+ * The /week loader, batched into ONE round-trip (#251). The route used to fan out
+ * three GET server fns per visit (loadWeek + listMealFeedback + countMissingFromWeek
+ * in a Promise.all); this composes the same three server-only reads INSIDE one
+ * server handler, so the client makes a single call. Behaviour is unchanged: it
+ * runs the exact same three reads in parallel and returns the same shape the
+ * loader returned before.
+ */
+export const loadWeekBootstrap = createServerFn({ method: 'GET' })
+  .validator((data: { planId: string }) => data)
+  .handler(async ({ data }): Promise<WeekBootstrap> => {
+    const { listMealFeedback } = await import('./meal-feedback-server')
+    const { countMissingFromWeek } = await import('./shopping-list-server')
+    const [week, feedback, missing] = await Promise.all([
+      loadWeek({ data: { planId: data.planId } }),
+      listMealFeedback({ data: { planId: data.planId } }),
+      countMissingFromWeek({ data: { planId: data.planId } }),
+    ])
+    return composeWeekBootstrap(week, feedback, missing)
   })

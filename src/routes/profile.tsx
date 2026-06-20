@@ -11,33 +11,26 @@ import {
   Shield,
 } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
-import { isAdmin } from '#/lib/admin-server'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { List, ListRow } from '#/components/ui/list'
 import { Sheet } from '#/components/ui/sheet'
 import { Button } from '#/components/ui/button'
 import { NotificationsSheet } from '#/components/profile/notifications-sheet'
 import { StoreSheet } from '#/components/profile/store-sheet'
-import { getStore, storeLabel } from '#/lib/store-pref-server'
-import type { StoreSlug } from '#/lib/store-pref-server'
+import { storeLabel, loadProfileBootstrap } from '#/lib/store-pref-server'
+import type { StoreSlug, ProfileBootstrap } from '#/lib/store-pref-server'
 import { ProfileSkeleton } from '#/components/profile/ProfileSkeleton'
-
-interface ProfileData {
-  isAdmin: boolean
-  store: StoreSlug
-}
-
-async function loadProfile(): Promise<ProfileData> {
-  const [admin, store] = await Promise.all([isAdmin(), getStore()])
-  return { isAdmin: admin, store }
-}
 
 export const Route = createFileRoute('/profile')({
   // Server-decide admin status so the 'Admin console' row only renders for true
   // admins, and read the current preferred store so its row shows the real
-  // value. isAdmin reuses the /admin gate; getStore reads the household's
-  // preferredStore (defaults to 'ah' for guests / pre-onboard).
-  loader: (): Promise<ProfileData> => loadProfile(),
+  // value. ONE round-trip (#251): loadProfileBootstrap composes isAdmin +
+  // getStore server-side, replacing the two separate calls.
+  loader: (): Promise<ProfileBootstrap> => loadProfileBootstrap(),
+  // Reuse the loader result on back-nav within 30s (#251). The useQuery below
+  // already keeps the tab instant once mounted; route staleTime stops the loader
+  // itself re-firing on a Back into /profile.
+  staleTime: 30_000,
   // Skeleton while the loader resolves (#229). The loader still runs on the
   // server and hydrates first paint (SSR untouched); the skeleton only shows on
   // client-side navigations and slow loads, holding the settings layout.
@@ -59,7 +52,7 @@ function Profile() {
   // SSR; the query only refetches in the background once it goes stale (30s).
   const { data } = useQuery({
     queryKey: ['profile'],
-    queryFn: loadProfile,
+    queryFn: () => loadProfileBootstrap(),
     initialData: loaderData,
   })
   const { isAdmin, store: initialStore } = data

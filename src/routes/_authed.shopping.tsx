@@ -1,26 +1,9 @@
-import {
-  createFileRoute,
-  Link,
-  redirect,
-  useNavigate,
-} from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ShoppingBag } from 'lucide-react'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { Button } from '#/components/ui/button'
-import { requireUserBeforeLoad } from '#/lib/route-guards'
-import { hasHousehold } from '#/lib/onboarding-server'
-import { loadShoppingList } from '#/lib/shopping-server'
-import type { ShoppingListView } from '#/lib/shopping-server'
-import { loadStaples, frequentlyBoughtStaples } from '#/lib/staples-server'
-import type { StapleLine, FrequentStaple } from '#/lib/staples-server'
-import {
-  listShoppingItems,
-  addWeekToShoppingList,
-} from '#/lib/shopping-list-server'
-import type { ShoppingItem } from '#/lib/shopping'
-import { shouldAutoSeed } from '#/lib/shopping'
-import { getStore } from '#/lib/store-pref-server'
-import type { StoreSlug } from '#/lib/store-pref-server'
+import { loadShoppingBootstrap } from '#/lib/shopping-server'
+import type { ShoppingBootstrap } from '#/lib/shopping-server'
 import { EditableShoppingList } from '#/components/shopping/EditableShoppingList'
 import { CartLinks } from '#/components/shopping/CartLinks'
 import { StaplesSection } from '#/components/shopping/StaplesSection'
@@ -38,63 +21,25 @@ interface ShoppingSearch {
   cleared?: boolean
 }
 
-export const Route = createFileRoute('/shopping')({
+export const Route = createFileRoute('/_authed/shopping')({
   validateSearch: (search: Record<string, unknown>): ShoppingSearch => ({
     plan: typeof search.plan === 'string' ? search.plan : undefined,
     cleared: search.cleared === true || search.cleared === '1',
   }),
-  beforeLoad: async () => {
-    const ctx = await requireUserBeforeLoad()
-    if (!(await hasHousehold())) throw redirect({ to: '/onboarding' })
-    return ctx
-  },
+  // Auth + onboarding run ONCE in the shared `_authed` layout (#251); this route
+  // no longer re-fires the two guard server fns in its own beforeLoad.
+  // Reuse the loader result on back-nav within 30s (#251). Default route
+  // staleTime is 0, so coming back to /shopping always re-ran the (5-call) fan-out.
+  staleTime: 30_000,
   loaderDeps: ({ search }) => ({ plan: search.plan, cleared: search.cleared }),
-  loader: async ({
-    deps,
-  }): Promise<{
-    view: ShoppingListView
-    staples: Array<StapleLine>
-    frequentlyBought: Array<FrequentStaple>
-    items: Array<ShoppingItem>
-    preferredStore: StoreSlug
-  }> => {
-    const [view, staplesRes, frequentRes, itemsRes, preferredStore] =
-      await Promise.all([
-        loadShoppingList({ data: deps.plan ? { planId: deps.plan } : {} }),
-        loadStaples(),
-        frequentlyBoughtStaples(),
-        listShoppingItems(),
-        getStore(),
-      ])
-
-    // Auto-seed: if the household has a planned week but no saved rows yet,
-    // build the editable list from that week now, so the page IS the clean
-    // editable list on first visit instead of a read-only preview that needs a
-    // dead "Add to shopping list" tap. Idempotent on the server (planMerge
-    // dedupes), and only fired when the list is genuinely empty so a user who
-    // cleared their list is not fought by the page re-filling it.
-    let items = itemsRes.items
-    if (
-      shouldAutoSeed({
-        planId: view.planId,
-        savedItemCount: items.length,
-        clearedByUser: deps.cleared,
-      })
-    ) {
-      const seeded = await addWeekToShoppingList({
-        data: deps.plan ? { planId: deps.plan } : {},
-      })
-      items = seeded.items
-    }
-
-    return {
-      view,
-      staples: staplesRes.staples,
-      frequentlyBought: frequentRes.items,
-      items,
-      preferredStore,
-    }
-  },
+  loader: ({ deps }): Promise<ShoppingBootstrap> =>
+    // ONE round-trip (#251): loadShoppingBootstrap composes loadShoppingList +
+    // staples + frequently-bought + saved items + store, plus the same auto-seed
+    // branch, server-side. Same shape, same behaviour (the auto-seed still fires
+    // on first visit and is still suppressed by cleared=true).
+    loadShoppingBootstrap({
+      data: { planId: deps.plan, cleared: deps.cleared },
+    }),
   // Skeleton while the loader resolves (#226). The loader can auto-seed the list
   // from the week, so this is the slice's most visible loading win. SSR is
   // untouched: the loader runs server-side and hydrates first paint; the

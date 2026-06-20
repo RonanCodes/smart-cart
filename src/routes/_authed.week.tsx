@@ -7,9 +7,7 @@ import {
 } from '@tanstack/react-router'
 import { ShoppingBag } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
-import { requireUserBeforeLoad } from '#/lib/route-guards'
-import { hasHousehold } from '#/lib/onboarding-server'
-import { loadWeek } from '#/lib/week-server'
+import { loadWeek, loadWeekBootstrap } from '#/lib/week-server'
 import { weekPlanUrl } from '#/lib/week-url'
 import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { replanWeek } from '#/lib/replan-server'
@@ -19,15 +17,9 @@ import { addMealAlternatives } from '#/lib/add-meal-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
 import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
 import { generatePlan } from '#/lib/planner-server'
-import {
-  addWeekToShoppingList,
-  countMissingFromWeek,
-} from '#/lib/shopping-list-server'
+import { addWeekToShoppingList } from '#/lib/shopping-list-server'
 import { addToListCta } from '#/lib/shopping'
-import {
-  submitMealFeedback,
-  listMealFeedback,
-} from '#/lib/meal-feedback-server'
+import { submitMealFeedback } from '#/lib/meal-feedback-server'
 import type { MealFeedbackState } from '#/lib/meal-feedback-server'
 import type { MealRating } from '#/lib/meal-feedback'
 import { Button } from '#/components/ui/button'
@@ -42,15 +34,18 @@ interface WeekSearch {
   plan?: string
 }
 
-export const Route = createFileRoute('/week')({
+export const Route = createFileRoute('/_authed/week')({
   validateSearch: (search: Record<string, unknown>): WeekSearch => ({
     plan: typeof search.plan === 'string' ? search.plan : undefined,
   }),
-  beforeLoad: async () => {
-    const ctx = await requireUserBeforeLoad()
-    if (!(await hasHousehold())) throw redirect({ to: '/onboarding' })
-    return ctx
-  },
+  // Auth + onboarding now run ONCE in the shared `_authed` layout's beforeLoad
+  // (#251); this route reads `{ user, hasHousehold }` off context and no longer
+  // re-fires the two guard server fns.
+  // Reuse the loader result on back-nav within 30s instead of re-running it on
+  // every navigation (#251). TanStack Router's default route staleTime is 0, so
+  // returning to /week from /shopping always re-ran the loader (a fresh fan-out);
+  // 30s makes Back instant with no refetch while a genuine cold load still runs.
+  staleTime: 30_000,
   loaderDeps: ({ search }) => ({ plan: search.plan }),
   loader: async ({
     deps,
@@ -65,12 +60,10 @@ export const Route = createFileRoute('/week')({
       const { planId } = await generatePlan()
       throw redirect({ to: '/week', search: { plan: planId } })
     }
-    const [week, feedback, missing] = await Promise.all([
-      loadWeek({ data: { planId: deps.plan } }),
-      listMealFeedback({ data: { planId: deps.plan } }),
-      countMissingFromWeek({ data: { planId: deps.plan } }),
-    ])
-    return { week, feedback, missingFromList: missing.missing }
+    // ONE round-trip (#251): loadWeekBootstrap composes loadWeek +
+    // listMealFeedback + countMissingFromWeek server-side, replacing the old
+    // 3-call client Promise.all. Same shape, same data.
+    return loadWeekBootstrap({ data: { planId: deps.plan } })
   },
   // Skeleton while the loader resolves (#226). The loader still runs on the
   // server and hydrates first paint (SSR untouched); this only shows on
