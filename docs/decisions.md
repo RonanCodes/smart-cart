@@ -45,8 +45,31 @@ pick up cold. One line each; expand only when it bit us.
     swipes to the user's top 20%, AI only at decision points.
 14. **Name: still open** (Smart Cart is provisional, Mega42 / Eurobuild also live).
 
+## Locked on the monetisation call (2026-06-20)
+
+15. **Monetisation is a tip on add-to-cart, not a grocery charge.** We never take the
+    grocery payment (AH/Jumbo do, hard rule #1). Souso's revenue is an optional tip the
+    user adds when they fill the basket. This keeps decision #1 intact: we are paid for
+    the planning, not for buying groceries. Payments run through Mollie (iDEAL-first, NL).
+16. **Free tier then a default tip.** First 3 add-to-cart actions per month are free. After
+    that the tip slider appears on every add-to-cart, defaulting to 3% of the basket, the
+    user can slide it down (to 1%, or any whole percent up to 5%) or tap "no tip".
+17. **Reward, never guilt (the anti-dark-pattern rule).** The Souso mascot reacts to the
+    tip level with *positive-only* emotion: neutral-and-kind at no-tip (never sad or
+    disappointed), happier as the tip climbs (1% happy → 5% over the moon). We do not
+    punish declining. The UI labels it an optional default-on fee, not a "tip" if the
+    default is on, so it is honest. This is a deliberate stance we can defend to judges
+    and users: tipping made delightful without manipulation.
+18. **Fee floor + one-tap repeat.** Charge a minimum (1%, min €0.50) so small baskets do
+    not cost us money on Mollie's per-transaction fee. Use a Mollie mandate / recurring
+    payment so repeat tips are one-tap, not a full iDEAL redirect each time (demo can use
+    a single iDEAL/card charge; mandate is the production path).
+
 ## Still open
 
 - The exact 1-2 replan scenarios shown live in the demo.
 - The product name (and whether to buy a domain).
 - Whether a recipe-to-product API early access comes through.
+- Tip model: exact free-tier reset (calendar month vs rolling 30 days), and whether the
+  free counter is per-household or per-user.
+- Whether the default tip % (3%) survives user testing or should start lower.

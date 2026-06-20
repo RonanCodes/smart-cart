@@ -16,3 +16,10 @@ ANTHROPIC_API_KEY="<anthropic api key>"
 # Gated access: comma-separated emails allowed to complete sign-in. The admin
 # (tech@discopenguin.com) is always approved. Everyone else is waitlisted.
 APPROVED_EMAILS="friend@example.com, tester@example.com"
+
+# Mollie payments — the optional tip on add-to-cart (docs/PRD-tip.md). Use a
+# test_ key in dev, a live_ key in prod (wrangler secret). Profile is informational.
+MOLLIE_API_KEY="<mollie test_ or live_ key>"
+MOLLIE_PROFILE_ID="<pfl_ profile id>"
+# Public base URL, used to build Mollie redirect + webhook URLs.
+APP_URL="http://localhost:3000"
