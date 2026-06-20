@@ -2,6 +2,7 @@ import { useOnboardingForm } from './form-state'
 import { HouseholdStep } from './steps/household-step'
 import { DislikesStep } from './steps/dislikes-step'
 import { DietStep } from './steps/diet-step'
+import { StoreStep } from './steps/store-step'
 
 /**
  * Step registry — the ordered list of screens the stepped flow renders after the
@@ -86,8 +87,6 @@ export const STEPS: Array<OnboardingStep> = [
     id: 'store',
     title: 'Where do you shop?',
     subtitle: 'We build a ready-to-order basket here.',
-    Component: () => (
-      <StepStub note="Store: Albert Heijn / Jumbo / Picnic (Picnic tap = 'Coming soon, if we can convince the CTO'). Slice #109." />
-    ),
+    Component: StoreStep,
   },
 ]
