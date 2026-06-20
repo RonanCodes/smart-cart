@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import Vapi from '@vapi-ai/web'
+// Type-only: the SDK is loaded lazily inside the effect (see below) so a broken
+// ESM/CJS default-interop can never `new` at module/mount time and crash the page.
+import type Vapi from '@vapi-ai/web'
 import { Mic, Square, Loader2 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { VAPI_PUBLIC_KEY, VAPI_ASSISTANT_ID } from '#/config/vapi'
@@ -38,20 +40,43 @@ export function VoiceButton() {
 
   useEffect(() => {
     if (!VAPI_PUBLIC_KEY) return
+    let cancelled = false
 
-    const v = new Vapi(VAPI_PUBLIC_KEY)
-    vapi.current = v
-    v.on('call-start', () => setState('live'))
-    v.on('call-end', () => setState('idle'))
-    v.on('error', (e: unknown) => {
-      console.error('[vapi]', e)
-      setState('error')
-    })
-    // Transcripts + tool messages. Logged for now; later slices surface them.
-    v.on('message', (m: unknown) => console.log('[vapi]', m))
+    // Lazy-load the SDK + construct defensively. The prod build's interop made
+    // `new Vapi(...)` resolve to `new mod.default(...)` where .default was not a
+    // constructor, which threw at mount and crashed the whole week page. Loading
+    // it dynamically + resolving the constructor (.default ?? module) + wrapping
+    // in try/catch means a VAPI failure degrades to an inert button, never a
+    // page crash.
+    void import('@vapi-ai/web')
+      .then((mod) => {
+        if (cancelled) return
+        try {
+          const VapiCtor = ((mod as { default?: unknown }).default ??
+            mod) as new (key: string) => Vapi
+          const v = new VapiCtor(VAPI_PUBLIC_KEY)
+          vapi.current = v
+          v.on('call-start', () => setState('live'))
+          v.on('call-end', () => setState('idle'))
+          v.on('error', (e: unknown) => {
+            console.error('[vapi]', e)
+            setState('error')
+          })
+          // Transcripts + tool messages. Logged for now; later slices surface them.
+          v.on('message', (m: unknown) => console.log('[vapi]', m))
+        } catch (e) {
+          console.error('[vapi] init failed', e)
+          setState('error')
+        }
+      })
+      .catch((e) => {
+        console.error('[vapi] load failed', e)
+        setState('error')
+      })
 
     return () => {
-      v.stop()
+      cancelled = true
+      vapi.current?.stop()
       vapi.current = null
     }
   }, [])
