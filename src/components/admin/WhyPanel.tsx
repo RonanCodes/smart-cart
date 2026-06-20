@@ -34,7 +34,7 @@ export function WhyPanel({ users }: { users: Array<AdminUserRow> }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_2.4fr]">
       {/* User picker */}
-      <div className="space-y-2">
+      <div className="min-w-0 space-y-2">
         <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
           Pick a user
         </p>
@@ -70,14 +70,14 @@ export function WhyPanel({ users }: { users: Array<AdminUserRow> }) {
       </div>
 
       {/* The graph */}
-      <div className="border-border min-h-[60vh] rounded-xl border p-5">
+      <div className="border-border min-h-[60vh] min-w-0 rounded-xl border p-5">
         {loadingId ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : explanation ? (
           <WhyGraph explanation={explanation} />
         ) : (
           <p className="text-muted-foreground text-sm">
-            Select a user on the left to see why their recipes were chosen.
+            Pick a user to see why their recipes were chosen.
           </p>
         )}
       </div>
@@ -201,7 +201,9 @@ function Column({
   children: React.ReactNode
 }) {
   return (
-    <div>
+    // min-w-0 lets the grid track shrink so the recommendation titles inside
+    // can truncate instead of forcing the whole graph wider than its column.
+    <div className="min-w-0">
       <div className="mb-2">
         <h3 className="text-sm font-semibold">{title}</h3>
         {subtitle && (

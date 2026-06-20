@@ -5,15 +5,18 @@ import type { AdminUserRow, UserDatapoints } from '#/lib/admin-server'
 import { sendRateMealPush } from '#/lib/push-server'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
+import { Sheet } from '#/components/ui/sheet'
 
 /**
  * Short human label for a person's access state, factoring onboarding in: an
  * onboarded real user reads 'Onboarded', a granted/approved-but-never-onboarded
  * person reads 'Approved user', and a bare user row with no grant reads 'Not
- * onboarded'. The separate Admin badge already covers admins.
+ * onboarded'. Returns null for admins: the dedicated primary 'Admin' badge
+ * already covers them, so emitting an 'Admin' access tag too would duplicate
+ * the indicator on the row.
  */
-function accessTag(u: AdminUserRow): string {
-  if (u.access === 'admin') return 'Admin'
+function accessTag(u: AdminUserRow): string | null {
+  if (u.access === 'admin') return null
   if (u.onboarded) return 'Onboarded'
   if (u.access === 'user') return 'Approved user'
   return 'Not onboarded'
@@ -28,6 +31,11 @@ function accessTag(u: AdminUserRow): string {
 export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
   const [detail, setDetail] = useState<UserDatapoints | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  // Mobile-only: tapping a user opens the detail in a bottom sheet (there is no
+  // side-by-side "right panel" at < lg). Desktop ignores this and renders the
+  // detail inline. Closing the sheet does not clear `detail`, so the desktop
+  // panel keeps showing the last opened user.
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [pushBusy, setPushBusy] = useState<string | null>(null)
   const [pushMsg, setPushMsg] = useState<string | null>(null)
   // Emails revoked this session (drop the Admin badge + the Remove action without
@@ -50,6 +58,7 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
 
   async function open(userId: string) {
     setLoadingId(userId)
+    setSheetOpen(true) // no-op on desktop (sheet is lg:hidden)
     setDetail(await getUserDatapoints({ data: { userId } }))
     setLoadingId(null)
   }
@@ -75,7 +84,7 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
       {/* Users */}
-      <div className="space-y-2">
+      <div className="min-w-0 space-y-2">
         <div className="flex items-center justify-between gap-3 pb-1">
           <Button
             size="sm"
@@ -124,9 +133,24 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
                         config admin
                       </Badge>
                     )}
-                    <Badge variant="outline" className="shrink-0">
-                      {accessTag(u)}
-                    </Badge>
+                    {/* One status tag per row. Admins are covered by the
+                        primary 'Admin' badge above (accessTag returns null),
+                        so no duplicate 'Admin' tag here. Once an admin is
+                        revoked this session, surface their underlying user
+                        state instead of leaving the row untagged. */}
+                    {(() => {
+                      const tag =
+                        isRevoked && u.access === 'admin'
+                          ? u.onboarded
+                            ? 'Onboarded'
+                            : 'Approved user'
+                          : accessTag(u)
+                      return tag ? (
+                        <Badge variant="outline" className="shrink-0">
+                          {tag}
+                        </Badge>
+                      ) : null
+                    })()}
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {u.badges.slice(0, 3).map((b) => (
@@ -177,74 +201,116 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
         )}
       </div>
 
-      {/* Detail */}
-      <div className="border-border min-h-[60vh] rounded-xl border p-5">
+      {/* Detail — desktop only. At lg+ the detail sits side-by-side with the
+          list in the real width the data needs. Below lg it is hidden (the
+          column would have no room) and the mobile sheet takes over, so the
+          old squashed "Select a user on the left" sliver is gone on phones. */}
+      <div className="border-border hidden min-h-[60vh] min-w-0 rounded-xl border p-5 lg:block">
         {loadingId && !detail ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : detail ? (
-          <div className="space-y-5">
-            <div>
-              <h2 className="font-semibold">{detail.email}</h2>
-              <p className="text-muted-foreground text-sm">
-                What we think they like
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {detail.badges.map((b) => (
-                <span
-                  key={b.label}
-                  className="bg-secondary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm"
-                >
-                  {b.emoji} {b.label}
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {detail.lovedTastes.map((t) => (
-                <Badge key={t} variant="primary">
-                  {t}
-                </Badge>
-              ))}
-              {detail.dislikes.map((t) => (
-                <Badge key={t} variant="outline">
-                  no {t}
-                </Badge>
-              ))}
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-semibold">
-                Data points ({detail.swipes.length} swipes)
-              </h3>
-              <div className="max-h-[50vh] space-y-1 overflow-auto">
-                {detail.swipes.map((s, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between border-b py-1.5 text-sm"
-                  >
-                    <span className="flex items-center gap-2 truncate">
-                      {s.direction === 'like' ? (
-                        <ThumbsUp className="text-primary h-4 w-4 shrink-0" />
-                      ) : (
-                        <ThumbsDown className="h-4 w-4 shrink-0 text-red-500" />
-                      )}
-                      <span className="truncate">{s.recipeTitle}</span>
-                    </span>
-                    <span className="text-muted-foreground ml-2 shrink-0 text-xs">
-                      {s.cuisine ?? ''}
-                    </span>
-                  </div>
-                ))}
-                {detail.swipes.length === 0 && (
-                  <p className="text-muted-foreground text-sm">No swipes.</p>
-                )}
-              </div>
-            </div>
-          </div>
+          <DatapointsDetail detail={detail} />
         ) : (
           <p className="text-muted-foreground text-sm">
             Select a user on the left.
           </p>
         )}
+      </div>
+
+      {/* Detail — mobile sheet. Slides up when a user is tapped on a narrow
+          screen; desktop never sees it (lg:hidden), so there is no double
+          render. */}
+      <div className="lg:hidden">
+        <Sheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          title={detail?.email ?? 'User data points'}
+        >
+          {loadingId && !detail ? (
+            <p className="text-muted-foreground py-6 text-sm">Loading…</p>
+          ) : detail ? (
+            <div className="pb-2">
+              <DatapointsDetail detail={detail} hideEmailHeader />
+            </div>
+          ) : null}
+        </Sheet>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The per-user data-points read: inferred badges, loved/disliked tastes, and
+ * the raw swipe list. Shared by the desktop side-by-side panel and the mobile
+ * bottom sheet so both render the exact same content. `hideEmailHeader` drops
+ * the email title in the sheet, where the sheet title already carries it.
+ */
+function DatapointsDetail({
+  detail,
+  hideEmailHeader,
+}: {
+  detail: UserDatapoints
+  hideEmailHeader?: boolean
+}) {
+  return (
+    <div className="space-y-5">
+      {!hideEmailHeader && (
+        <div>
+          <h2 className="font-semibold">{detail.email}</h2>
+          <p className="text-muted-foreground text-sm">
+            What we think they like
+          </p>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {detail.badges.map((b) => (
+          <span
+            key={b.label}
+            className="bg-secondary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm"
+          >
+            {b.emoji} {b.label}
+          </span>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {detail.lovedTastes.map((t) => (
+          <Badge key={t} variant="primary">
+            {t}
+          </Badge>
+        ))}
+        {detail.dislikes.map((t) => (
+          <Badge key={t} variant="outline">
+            no {t}
+          </Badge>
+        ))}
+      </div>
+      <div>
+        <h3 className="mb-2 text-sm font-semibold">
+          Data points ({detail.swipes.length} swipes)
+        </h3>
+        <div className="max-h-[50vh] space-y-1 overflow-auto">
+          {detail.swipes.map((s, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between border-b py-1.5 text-sm"
+            >
+              <span className="flex items-center gap-2 truncate">
+                {s.direction === 'like' ? (
+                  <ThumbsUp className="text-primary h-4 w-4 shrink-0" />
+                ) : (
+                  <ThumbsDown className="h-4 w-4 shrink-0 text-red-500" />
+                )}
+                <span className="truncate">{s.recipeTitle}</span>
+              </span>
+              <span className="text-muted-foreground ml-2 shrink-0 text-xs">
+                {s.cuisine ?? ''}
+              </span>
+            </div>
+          ))}
+          {detail.swipes.length === 0 && (
+            <p className="text-muted-foreground text-sm">No swipes.</p>
+          )}
+        </div>
       </div>
     </div>
   )
