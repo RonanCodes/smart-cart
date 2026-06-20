@@ -37,6 +37,7 @@ export {
   concatAmounts,
   mergeAmount,
   planMerge,
+  shouldAutoSeed,
 } from './persist'
 export type {
   ShoppingItem,

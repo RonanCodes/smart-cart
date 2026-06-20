@@ -74,6 +74,25 @@ export function lineToNewItem(line: ShoppingLine): NewShoppingItem {
 }
 
 /**
+ * Should the Shopping tab auto-seed its editable list from the week on load?
+ *
+ * The page is the clean editable list by default: when the household has a
+ * planned week (a non-null plan id) but has not saved any rows yet, we seed the
+ * list from that week so the user lands on the real list instead of a read-only
+ * preview, with no dead "Add to shopping list" tap required. Once any row
+ * exists (a recipe seed, a staple, or a manual add) we never re-seed, so a
+ * user who cleared the list is not fought by the page re-filling it. The seed
+ * itself is idempotent on the server (planMerge dedupes), so this guard is
+ * about intent, not correctness.
+ */
+export function shouldAutoSeed(input: {
+  planId: string | null
+  savedItemCount: number
+}): boolean {
+  return input.planId !== null && input.savedItemCount === 0
+}
+
+/**
  * Try to sum two amount strings that share a single trailing unit, e.g.
  * '450 g' + '200 g' => '650 g', '2' + '3' => '5'. Returns null when either side
  * is compound ('2 + 15 g'), carries unparsed notes, or the units differ, in

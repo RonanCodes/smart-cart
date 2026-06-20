@@ -41,6 +41,10 @@ export function EditableShoppingList({
 
   const remaining = items.filter((i) => !i.checked).length
   const allChecked = items.length > 0 && remaining === 0
+  // Light grouping: still-to-buy first, ticked-off collapsed beneath. Order
+  // within each group is preserved (the loader returns oldest-first).
+  const unchecked = items.filter((i) => !i.checked)
+  const checked = items.filter((i) => i.checked)
 
   async function toggle(item: ShoppingItem) {
     setBusyId(item.id)
@@ -144,9 +148,9 @@ export function EditableShoppingList({
         )}
       </div>
 
-      {items.length > 0 && (
+      {unchecked.length > 0 && (
         <div className="bg-card border-border divide-border divide-y overflow-hidden rounded-[var(--radius-ios)] border">
-          {items.map((item) => (
+          {unchecked.map((item) => (
             <ItemRow
               key={item.id}
               item={item}
@@ -157,6 +161,27 @@ export function EditableShoppingList({
               onRemove={() => remove(item.id)}
             />
           ))}
+        </div>
+      )}
+
+      {checked.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-muted-foreground/80 px-1 text-xs font-medium">
+            In the trolley ({checked.length})
+          </p>
+          <div className="bg-card/60 border-border divide-border divide-y overflow-hidden rounded-[var(--radius-ios)] border">
+            {checked.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                busy={busyId === item.id}
+                onToggle={() => toggle(item)}
+                onSaveName={(v) => saveField(item.id, 'name', v)}
+                onSaveAmount={(v) => saveField(item.id, 'amount', v)}
+                onRemove={() => remove(item.id)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -248,24 +273,24 @@ function ItemRow({
               : 'font-medium'
           }
         />
-        <p className="text-muted-foreground/80 mt-0.5 truncate text-xs">
-          {item.source === 'recipe'
-            ? 'from your week'
-            : item.source === 'staple'
-              ? 'staple'
-              : 'added by you'}
-        </p>
       </div>
 
-      <div className="w-24 shrink-0 text-right">
+      <div className="w-20 shrink-0 text-right">
         <InlineEdit
           value={item.amount ?? ''}
-          ariaLabel={`Edit amount of ${item.name}`}
-          placeholder="Amount"
+          ariaLabel={
+            item.amount
+              ? `Edit amount of ${item.name}`
+              : `Add an amount for ${item.name}`
+          }
+          // Empty amounts read as a quiet "+" affordance, not the word
+          // "Amount", so most rows are just a clean name (#178 de-noise).
+          placeholder="+"
           onSave={onSaveAmount}
           className={`text-sm font-semibold tabular-nums ${
             item.checked ? 'text-muted-foreground' : 'text-foreground'
           }`}
+          emptyClassName="text-muted-foreground/35 text-base font-normal"
           align="right"
         />
       </div>
@@ -295,6 +320,7 @@ function InlineEdit({
   placeholder,
   onSave,
   className = '',
+  emptyClassName = 'text-muted-foreground/60 italic',
   align = 'left',
 }: {
   value: string
@@ -302,6 +328,8 @@ function InlineEdit({
   placeholder: string
   onSave: (value: string) => void
   className?: string
+  /** Styling for the placeholder shown when the value is empty. */
+  emptyClassName?: string
   align?: 'left' | 'right'
 }) {
   const [editing, setEditing] = useState(false)
@@ -350,9 +378,7 @@ function InlineEdit({
         align === 'right' ? 'text-right' : 'text-left'
       } ${className}`}
     >
-      {value || (
-        <span className="text-muted-foreground/60 italic">{placeholder}</span>
-      )}
+      {value || <span className={emptyClassName}>{placeholder}</span>}
     </button>
   )
 }

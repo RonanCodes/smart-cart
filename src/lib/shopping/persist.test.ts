@@ -6,6 +6,7 @@ import {
   concatAmounts,
   mergeAmount,
   planMerge,
+  shouldAutoSeed,
 } from './persist'
 import type { ShoppingItem } from './persist'
 import type { ShoppingLine } from './types'
@@ -56,6 +57,25 @@ describe('lineToNewItem', () => {
     )
     expect(result.amount).toBeNull()
     expect(result.unit).toBeNull()
+  })
+})
+
+describe('shouldAutoSeed', () => {
+  it('seeds when a week is planned and no rows are saved yet', () => {
+    expect(shouldAutoSeed({ planId: 'plan-1', savedItemCount: 0 })).toBe(true)
+  })
+
+  it('does not seed when rows already exist (idempotent revisit)', () => {
+    expect(shouldAutoSeed({ planId: 'plan-1', savedItemCount: 3 })).toBe(false)
+  })
+
+  it('does not seed when there is no planned week', () => {
+    expect(shouldAutoSeed({ planId: null, savedItemCount: 0 })).toBe(false)
+  })
+
+  it('does not re-seed a list the user cleared back down to one row', () => {
+    // A single staple still counts as "has rows"; the page must not refill.
+    expect(shouldAutoSeed({ planId: 'plan-1', savedItemCount: 1 })).toBe(false)
   })
 })
 

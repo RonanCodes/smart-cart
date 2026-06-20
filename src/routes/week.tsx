@@ -237,9 +237,14 @@ function WeekPage() {
     setMessage(null)
     try {
       await addWeekToShoppingList({ data: { planId: week.planId } })
-      void navigate({ to: '/shopping', search: { plan: week.planId } })
+      // Await the navigation so the Shopping loader re-runs (and re-reads the
+      // rows we just persisted) before we drop the busy state. Without the
+      // await the button could re-enable on a half-finished transition; with
+      // it the user reliably lands on the saved, editable list.
+      await navigate({ to: '/shopping', search: { plan: week.planId } })
     } catch {
       setMessage('Could not add to your shopping list, try again.')
+    } finally {
       setAddingToList(false)
     }
   }
