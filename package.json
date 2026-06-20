@@ -38,6 +38,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-router": "latest",
     "@tanstack/react-start": "latest",
+    "@vapi-ai/web": "^2.5.2",
     "ai": "^6.0.207",
     "better-auth": "^1.6.19",
     "class-variance-authority": "^0.7.1",

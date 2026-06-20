@@ -19,6 +19,7 @@ import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
 import { generatePlan } from '#/lib/planner-server'
 import { DayCard } from '#/components/week/DayCard'
 import { ChatReplan } from '#/components/week/ChatReplan'
+import { VoiceButton } from '#/components/week/VoiceButton'
 import { EditDaySheet } from '#/components/week/EditDaySheet'
 
 interface WeekSearch {
@@ -189,6 +190,8 @@ function WeekPage() {
 
       <div className="space-y-6 px-5 pt-2">
         <ChatReplan busy={replanning} onSubmit={replan} />
+
+        <VoiceButton />
 
         {message && (
           <div

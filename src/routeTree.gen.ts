@@ -23,6 +23,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSimilarRouteImport } from './routes/api/similar'
 import { Route as ApiPlanRouteImport } from './routes/api/plan'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiVapiToolRouteImport } from './routes/api/vapi/tool'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
 const WeekRoute = WeekRouteImport.update({
@@ -95,6 +96,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVapiToolRoute = ApiVapiToolRouteImport.update({
+  id: '/api/vapi/tool',
+  path: '/api/vapi/tool',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/vapi/tool': typeof ApiVapiToolRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/vapi/tool': typeof ApiVapiToolRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/vapi/tool': typeof ApiVapiToolRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/similar'
     | '/api/auth/$'
+    | '/api/vapi/tool'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/similar'
     | '/api/auth/$'
+    | '/api/vapi/tool'
   id:
     | '__root__'
     | '/'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/similar'
     | '/api/auth/$'
+    | '/api/vapi/tool'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   ApiPlanRoute: typeof ApiPlanRoute
   ApiSimilarRoute: typeof ApiSimilarRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiVapiToolRoute: typeof ApiVapiToolRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -325,6 +338,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/vapi/tool': {
+      id: '/api/vapi/tool'
+      path: '/api/vapi/tool'
+      fullPath: '/api/vapi/tool'
+      preLoaderRoute: typeof ApiVapiToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -351,6 +371,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPlanRoute: ApiPlanRoute,
   ApiSimilarRoute: ApiSimilarRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiVapiToolRoute: ApiVapiToolRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

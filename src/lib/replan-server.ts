@@ -166,6 +166,135 @@ export const replanWeek = createServerFn({ method: 'POST' })
   })
 
 /**
+ * Replan a household's CURRENT (most recent) week from a plain-language
+ * instruction, identified by `householdId` rather than the request cookie.
+ *
+ * This is the internal entry point the VAPI tool webhook uses: that call is
+ * server-to-server and carries no session cookie, so identity comes from the
+ * signed call token (verified to a `householdId`), not `getSessionUser`. It picks
+ * the household's latest meal_plan row as the week to edit (the in-app replan
+ * always edits the plan the user is looking at; voice has no such context, so it
+ * targets the newest), runs the same pure replan engine, and persists a new
+ * revision exactly like `replanWeek`. Returns null if the household has no plan.
+ *
+ * Server-only: dynamic imports keep the D1 binding and the engine out of the
+ * client bundle (the planner-server pattern).
+ */
+export async function replanForHousehold(
+  householdId: string,
+  instruction: string,
+): Promise<ReplanResponse | null> {
+  const { getDb } = await import('../db/client')
+  const { recipe, recipeSwipe, mealPlan, household } =
+    await import('../db/schema')
+  const { replan } = await import('./replan/replan')
+  const { eq, desc } = await import('drizzle-orm')
+  const db = await getDb()
+
+  const householdRows = await db
+    .select({ id: household.id, profile: household.profile })
+    .from(household)
+    .where(eq(household.id, householdId))
+    .limit(1)
+  const hh = householdRows[0]
+  if (!hh) return null
+
+  // No plan id over voice: edit the household's most recent week.
+  const planRows = await db
+    .select({
+      id: mealPlan.id,
+      weekStart: mealPlan.weekStart,
+      plan: mealPlan.plan,
+    })
+    .from(mealPlan)
+    .where(eq(mealPlan.householdId, hh.id))
+    .orderBy(desc(mealPlan.createdAt))
+    .limit(1)
+  const current = planRows[0]
+  if (!current) return null
+
+  const recipeRows = await db
+    .select({
+      id: recipe.id,
+      title: recipe.title,
+      cuisine: recipe.cuisine,
+      category: recipe.category,
+      dietaryTags: recipe.dietaryTags,
+      ingredients: recipe.ingredients,
+      calories: recipe.calories,
+      protein: recipe.protein,
+      prepMinutes: recipe.prepMinutes,
+      mealType: recipe.mealType,
+    })
+    .from(recipe)
+
+  const swipeRows = await db
+    .select({
+      recipeId: recipeSwipe.recipeId,
+      direction: recipeSwipe.direction,
+    })
+    .from(recipeSwipe)
+    .where(eq(recipeSwipe.householdId, hh.id))
+
+  const recipes = recipeRows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    cuisine: r.cuisine,
+    category: r.category,
+    dietaryTags: r.dietaryTags,
+    ingredients: r.ingredients.map((i) => ({ name: i.name })),
+    calories: r.calories,
+    protein: r.protein,
+    prepMinutes: r.prepMinutes,
+    mealType: r.mealType,
+  }))
+
+  const swipes = swipeRows
+    .filter((s) => s.direction === 'like' || s.direction === 'dislike')
+    .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
+
+  const week: PlannedWeek = {
+    days: current.plan.days.map((d) => ({
+      day: d.day,
+      meal: d.meal,
+      recipeRef: d.recipeRef ?? '',
+    })),
+  }
+
+  const aiDeps = await buildAiDeps()
+  const result = await replan(
+    instruction,
+    { week, recipes, profile: hh.profile, swipes },
+    aiDeps,
+  )
+
+  const newId = crypto.randomUUID()
+  await db.insert(mealPlan).values({
+    id: newId,
+    householdId: hh.id,
+    weekStart: current.weekStart,
+    plan: {
+      days: result.week.days.map((d) => ({
+        day: d.day,
+        meal: d.meal,
+        recipeRef: d.recipeRef,
+      })),
+      shoppingList: [],
+    },
+    status: 'draft',
+  })
+
+  return {
+    planId: newId,
+    weekStart: current.weekStart,
+    week: result.week,
+    changed: result.changed,
+    message: result.message,
+    source: result.source,
+  }
+}
+
+/**
  * If the user gave no day but is focused on one ("not this one" while looking at
  * Friday), fold the focused day into the instruction so the deterministic swap
  * path can target it. Pure string shaping, no engine logic.
