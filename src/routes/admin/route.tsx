@@ -1,7 +1,15 @@
 import type { ReactNode } from 'react'
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router'
-import { Users, FlaskConical, ThumbsUp, Network, Mail } from 'lucide-react'
+import {
+  Users,
+  FlaskConical,
+  ThumbsUp,
+  Network,
+  Mail,
+  ChevronLeft,
+} from 'lucide-react'
 import { requireAdminBeforeLoad } from '#/lib/admin-server'
+import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { cn } from '#/lib/utils'
 
 /**
@@ -10,6 +18,13 @@ import { cn } from '#/lib/utils'
  * route-aware `activeProps`), and the matched child renders in the <Outlet/>.
  * Each child owns ONLY its own loader, so opening one tab does not run the
  * other tabs' server fns (e.g. Waitlist no longer runs getBenchmarkMeta).
+ *
+ * Layout: admin lives inside the shared AppShell so it sits in the same
+ * device-frame as Week / Shopping / Profile on desktop and fits 390px on
+ * mobile. The bottom TabBar gives an always-present way back into the user
+ * app, and the header carries an explicit "Back to app" affordance. The admin
+ * sub-nav is a horizontally scrollable row so all five tabs reach on a narrow
+ * screen without wrapping.
  */
 export const Route = createFileRoute('/admin')({
   beforeLoad: requireAdminBeforeLoad,
@@ -18,15 +33,29 @@ export const Route = createFileRoute('/admin')({
 
 function AdminLayout() {
   return (
-    <main className="mx-auto max-w-6xl px-6 py-8">
-      <h1 className="mb-1 text-2xl font-bold">Admin</h1>
-      <p className="text-muted-foreground mb-6 text-sm">
-        Synthetic users, the data points behind their tastes, and the
-        recommender benchmark.
-      </p>
+    <AppShell>
+      <ScreenHeader
+        title="Admin"
+        subtitle="Synthetic users, the data behind their tastes, and the recommender benchmark."
+        action={
+          <Link
+            to="/week"
+            className="text-muted-foreground hover:text-foreground -mr-1 flex items-center gap-0.5 rounded-full px-2 py-1 text-sm font-medium transition active:scale-95"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden />
+            Back to app
+          </Link>
+        }
+      />
 
-      {/* Tabs (each is a real route so refresh + deep-link stay on the tab) */}
-      <div role="tablist" className="border-border mb-6 flex gap-1 border-b">
+      {/* Sub-nav: each tab is a real route so refresh + deep-link stay on the
+          tab. Horizontally scrollable on narrow widths (no wrap) so all five
+          tabs are reachable at 390px. */}
+      <nav
+        role="tablist"
+        aria-label="Admin sections"
+        className="border-border ios-scroll mb-5 flex gap-1 overflow-x-auto border-b px-4"
+      >
         <TabLink
           to="/admin/users"
           icon={<Users className="h-4 w-4" />}
@@ -52,10 +81,12 @@ function AdminLayout() {
           icon={<Mail className="h-4 w-4" />}
           label="Waitlist"
         />
-      </div>
+      </nav>
 
-      <Outlet />
-    </main>
+      <div className="px-4">
+        <Outlet />
+      </div>
+    </AppShell>
   )
 }
 
@@ -72,11 +103,11 @@ function TabLink({
     <Link
       to={to}
       role="tab"
-      className="text-muted-foreground hover:text-foreground -mb-px flex items-center gap-2 border-b-2 border-transparent px-4 py-2.5 text-sm font-medium transition"
+      className="text-muted-foreground hover:text-foreground -mb-px flex shrink-0 items-center gap-2 border-b-2 border-transparent px-3 py-2.5 text-sm font-medium whitespace-nowrap transition"
       activeProps={{
         'aria-selected': true,
         className: cn(
-          '-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition',
+          '-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition',
           'border-primary text-foreground',
         ),
       }}
