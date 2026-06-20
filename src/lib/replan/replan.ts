@@ -29,6 +29,16 @@ export async function replan(
     return applyReplan(deterministic, ctx, 'deterministic')
   }
 
-  const edit = await runAiFallback(instruction, aiDeps)
+  // Ground the model in the household's hard filters + the real catalogue unless
+  // the caller already passed its own context. The planner still enforces every
+  // filter downstream; this only stops the model emitting an impossible bias.
+  const deps: AiFallbackDeps = aiDeps.promptContext
+    ? aiDeps
+    : {
+        ...aiDeps,
+        promptContext: { profile: ctx.profile, recipes: ctx.recipes },
+      }
+
+  const edit = await runAiFallback(instruction, deps)
   return applyReplan(edit, ctx, 'ai-fallback')
 }

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { LanguageModel } from 'ai'
+import type { PlannerProfile, PlannerRecipe } from '../planner/types'
 import type { ReplanEdit } from './types'
 
 /**
@@ -59,16 +60,67 @@ Rules:
 - "term" is a single lowercase food or cuisine word, or null.
 - "termKind" is "cuisine" for a cuisine ("italian", "thai"), "ingredient" for a food ("salmon", "pork"), or null.
 - Only fill "days" with the exact weekday names mentioned.
-- If you are unsure, return type "unknown". Never guess a recipe.`
+- If you are unsure, return type "unknown". Never guess a recipe.
+- A real recipe is always picked downstream from a fixed catalogue that already respects the household's hard filters (diet, allergies, dislikes). You do not need to re-state those filters; just emit the change the user asked for. Never emit a "more-of" or "exclude" term that would fight a hard filter (for example, never bias toward an ingredient the household is allergic to).`
 
-/** Build the user prompt for a given instruction. Pure, for testability. */
-export function buildFallbackPrompt(instruction: string): {
+/**
+ * The household + catalogue context the prompt is grounded in. All optional: with
+ * none of it the prompt is the bare instruction (back-compat). With it, the model
+ * is told the hard filters it must not fight and the cuisines actually available,
+ * so a "more-of italian" never lands when there is no Italian recipe to pick.
+ */
+export interface FallbackPromptContext {
+  /** Household hard filters + biases (diet, allergies, dislikes). */
+  profile?: PlannerProfile
+  /** The catalogue, used only to derive the set of available cuisines. */
+  recipes?: Array<PlannerRecipe>
+}
+
+/** Distinct, sorted, lowercased cuisines present in the catalogue. */
+function availableCuisines(recipes: Array<PlannerRecipe>): Array<string> {
+  const set = new Set<string>()
+  for (const r of recipes) {
+    if (r.cuisine) set.add(r.cuisine.toLowerCase().trim())
+  }
+  return [...set].sort()
+}
+
+/**
+ * Build the user prompt for a given instruction. Pure, for testability.
+ *
+ * When a `ctx` is supplied, the prompt is grounded: it states the household's
+ * hard filters (so the model does not bias toward something it cannot have) and
+ * the cuisines that actually exist in the catalogue (so "more-of" / "exclude"
+ * cuisine terms stay realistic). With no `ctx` the prompt is just the bare
+ * instruction, exactly as before.
+ */
+export function buildFallbackPrompt(
+  instruction: string,
+  ctx: FallbackPromptContext = {},
+): {
   system: string
   prompt: string
 } {
+  const lines: Array<string> = []
+  const p = ctx.profile
+  if (p?.diet) lines.push(`Diet: ${p.diet}.`)
+  if (p?.allergies?.length)
+    lines.push(`Allergies (must never appear): ${p.allergies.join(', ')}.`)
+  if (p?.cuisinesDisliked?.length)
+    lines.push(`Dislikes: ${p.cuisinesDisliked.join(', ')}.`)
+  if (ctx.recipes?.length) {
+    const cuisines = availableCuisines(ctx.recipes)
+    if (cuisines.length)
+      lines.push(`Cuisines available in the catalogue: ${cuisines.join(', ')}.`)
+  }
+
+  const context = lines.length
+    ? `Household context (constraints already enforced downstream):\n${lines.join('\n')}\n\n`
+    : ''
+
   return {
     system: SYSTEM_PROMPT,
-    prompt: `Instruction: ${instruction.trim()}`,
+    prompt: `${context}Instruction: ${instruction.trim()}`,
   }
 }
 
@@ -126,6 +178,12 @@ export interface AiFallbackDeps {
    * inside the Worker). Tests pass a stub so no network is touched.
    */
   generateObject?: GenerateObjectFn
+  /**
+   * Optional grounding context (household profile + catalogue) folded into the
+   * prompt so the model's constraint respects the hard filters and the cuisines
+   * that actually exist. Absent = bare-instruction prompt.
+   */
+  promptContext?: FallbackPromptContext
 }
 
 /**
@@ -151,7 +209,10 @@ export async function runAiFallback(
 
   if (!deps.model) return unknownEdit
 
-  const { system, prompt } = buildFallbackPrompt(instruction)
+  const { system, prompt } = buildFallbackPrompt(
+    instruction,
+    deps.promptContext,
+  )
   try {
     const gen = deps.generateObject ?? (await loadGenerateObject())
     const { object } = await gen({
