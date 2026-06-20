@@ -10,6 +10,8 @@ import appCss from '../styles.css?url'
 import { DevBanner } from '../components/DevBanner'
 import { registerServiceWorker } from '../lib/push-client'
 import { QueryClientProvider } from '../lib/query-client'
+import { ErrorBoundary } from '../components/ErrorBoundary'
+import { log } from '../lib/log'
 
 const SITE_URL = 'https://smartcart.ronanconnolly.dev'
 const SITE_TITLE = 'Souso: your sous chef for recipes and the weekly shop'
@@ -80,13 +82,29 @@ function RootComponent() {
   // and makes the manifest-declared app installable.
   useEffect(() => {
     void registerServiceWorker()
+    // Global client error catchers -> logger -> /api/log -> Workers Logs.
+    const onError = (e: ErrorEvent) =>
+      log.error('window.error', e.error ?? e.message, {
+        filename: e.filename,
+        lineno: e.lineno,
+      })
+    const onRejection = (e: PromiseRejectionEvent) =>
+      log.error('window.unhandledrejection', e.reason)
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onRejection)
+    return () => {
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onRejection)
+    }
   }, [])
 
   return (
     <RootDocument>
-      <QueryClientProvider>
-        <Outlet />
-      </QueryClientProvider>
+      <ErrorBoundary>
+        <QueryClientProvider>
+          <Outlet />
+        </QueryClientProvider>
+      </ErrorBoundary>
     </RootDocument>
   )
 }

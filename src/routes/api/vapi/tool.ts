@@ -54,6 +54,11 @@ export const Route = createFileRoute('/api/vapi/tool')({
           const { dispatchVapiTool } =
             await import('../../../lib/vapi-dispatch')
           const calls = extractToolCalls(body)
+          const { log } = await import('../../../lib/log')
+          log.info('vapi.tool_call', {
+            tools: calls.map((c) => c.name),
+            identified: Boolean(claims),
+          })
           const results = await Promise.all(
             calls.map(async (c) => {
               let result: string
@@ -70,6 +75,7 @@ export const Route = createFileRoute('/api/vapi/tool')({
                   )
                 }
               } catch (err) {
+                log.error('vapi.tool_failed', err, { tool: c.name })
                 result =
                   err instanceof Error
                     ? `Sorry, that didn't work: ${err.message}`
@@ -80,7 +86,9 @@ export const Route = createFileRoute('/api/vapi/tool')({
           )
 
           return Response.json({ results })
-        } catch {
+        } catch (err) {
+          const { log } = await import('../../../lib/log')
+          log.error('vapi.webhook_failed', err)
           // Last-resort guard: never let the handler throw. VAPI ignores non-200,
           // so even on an unexpected failure we answer 200 with an empty result set.
           return Response.json({ results: [] })

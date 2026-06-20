@@ -64,10 +64,6 @@ export function confidenceFromCosine(score: number): MatchConfidence {
 const RETRIEVE_FLOOR = 0.5
 
 /**
- * Resolve the nearest product vectors for a store into candidates with full
- * product detail. Pure: takes the loaded vector index + an id->product lookup.
- */
-/**
  * Merge top-K from multiple query vectors (e.g. English + Dutch search terms).
  * Keeps the best cosine score per product id across all queries.
  */

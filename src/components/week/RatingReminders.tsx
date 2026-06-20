@@ -17,7 +17,7 @@ import { usePushSubscription } from '#/components/push/use-push-subscription'
  * knows where they stand.
  */
 export function RatingReminders() {
-  const { state, enable } = usePushSubscription()
+  const { state, enable, disable } = usePushSubscription()
 
   // Nothing to show where push can't work or isn't set up: keep the week clean.
   if (
@@ -43,9 +43,16 @@ export function RatingReminders() {
         </p>
       </div>
       {state === 'subscribed' ? (
-        <span className="text-primary inline-flex shrink-0 items-center gap-1 text-sm font-medium">
-          <Check className="h-4 w-4" aria-hidden /> On
-        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          onClick={() => void disable()}
+          aria-label="Turn off rating reminders"
+        >
+          <Check className="text-primary h-4 w-4" aria-hidden />
+          On · Turn off
+        </Button>
       ) : (
         <Button
           size="sm"

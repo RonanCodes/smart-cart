@@ -19,6 +19,21 @@ import type {
 } from './recsys/types'
 import type { FoldStats } from './recsys/feedback-fold'
 import type { UserExplanation } from './recsys/explain-why'
+import { executeReset } from './reset-plan'
+import type { ResetExecutor, HouseholdScopedTable } from './reset-plan'
+import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
+// Type-only imports (erased at build, no client-bundle leak): the reset
+// executor needs the household-scoped table types to name its delete targets.
+// The runtime tables are still pulled in via dynamic import() in loadResetTables.
+import type {
+  household as householdTable,
+  mealPlan as mealPlanTable,
+  recipeSwipe as recipeSwipeTable,
+  mealFeedback as mealFeedbackTable,
+} from '../db/schema'
+import type { shoppingListItem as shoppingListItemTable } from '../db/shopping-list-schema'
+import type { staple as stapleTable } from '../db/staples-schema'
+import type { pushSubscription as pushSubscriptionTable } from '../db/push-subscription-schema'
 
 /**
  * Who can see the admin console. The list is env-driven (comma-separated
@@ -463,6 +478,174 @@ export const grantAdmin = createServerFn({ method: 'POST' })
       })
     return { email, grant: 'admin' }
   })
+
+// ---------------------------------------------------------------------------
+// Reset to fresh: wipe a user's (or every user's) household data so they
+// re-onboard on next open. The old recommender left stale badges / inferred
+// taste behind; a reset clears every household-scoped row so onboarding's
+// hasHousehold guard fires again. D1 does NOT cascade foreign keys, so each
+// child table is deleted EXPLICITLY (child-before-parent) before the household
+// row. Auth (user/session) + admin config (access_grant / admin_notification_pref)
+// are never touched, so the person stays signed in and admin grants survive.
+// The delete plan lives in the pure reset-plan.ts module (single source of truth).
+// ---------------------------------------------------------------------------
+
+/** The DB client type, named via a helper so the executor can reference it. */
+async function getDbForReset() {
+  const { getDb } = await import('../db/client')
+  return getDb()
+}
+
+/** The household-scoped Drizzle tables the reset deletes from. */
+interface ResetTables {
+  household: typeof householdTable
+  mealPlan: typeof mealPlanTable
+  recipeSwipe: typeof recipeSwipeTable
+  mealFeedback: typeof mealFeedbackTable
+  shoppingListItem: typeof shoppingListItemTable
+  staple: typeof stapleTable
+  pushSubscription: typeof pushSubscriptionTable
+}
+
+/** Load every household-scoped table the reset deletes from. */
+async function loadResetTables(): Promise<ResetTables> {
+  const { household, mealPlan, recipeSwipe, mealFeedback } =
+    await import('../db/schema')
+  const { shoppingListItem } = await import('../db/shopping-list-schema')
+  const { staple } = await import('../db/staples-schema')
+  const { pushSubscription } = await import('../db/push-subscription-schema')
+  return {
+    household,
+    mealPlan,
+    recipeSwipe,
+    mealFeedback,
+    shoppingListItem,
+    staple,
+    pushSubscription,
+  }
+}
+
+/**
+ * Build a Drizzle-backed reset executor: maps each child-table key from the pure
+ * plan to its real Drizzle delete (keyed by household_id), and the household
+ * delete to a delete by the household's own id.
+ *
+ * D1 caps a statement at 100 bound params; every delete here is a single-column
+ * equality (one bound param), so there is no param pressure however many rows a
+ * delete touches.
+ */
+async function makeResetExecutor(
+  db: Awaited<ReturnType<typeof getDbForReset>>,
+  tables: ResetTables,
+): Promise<ResetExecutor> {
+  const { eq } = await import('drizzle-orm')
+  // Map each plan table key to its Drizzle table + the household_id column the
+  // delete filters on. Typed loosely (the column as AnySQLiteColumn) because the
+  // six tables have different row shapes; the executor only ever filters by id.
+  const childTable: Record<
+    HouseholdScopedTable,
+    { table: Parameters<typeof db.delete>[0]; householdId: AnySQLiteColumn }
+  > = {
+    recipe_swipe: {
+      table: tables.recipeSwipe,
+      householdId: tables.recipeSwipe.householdId,
+    },
+    meal_feedback: {
+      table: tables.mealFeedback,
+      householdId: tables.mealFeedback.householdId,
+    },
+    meal_plan: {
+      table: tables.mealPlan,
+      householdId: tables.mealPlan.householdId,
+    },
+    shopping_list_item: {
+      table: tables.shoppingListItem,
+      householdId: tables.shoppingListItem.householdId,
+    },
+    staple: { table: tables.staple, householdId: tables.staple.householdId },
+    push_subscription: {
+      table: tables.pushSubscription,
+      householdId: tables.pushSubscription.householdId,
+    },
+  }
+  return {
+    async clearChild(table, householdId) {
+      const { table: t, householdId: col } = childTable[table]
+      await db.delete(t).where(eq(col, householdId))
+    },
+    async deleteHousehold(householdId) {
+      await db
+        .delete(tables.household)
+        .where(eq(tables.household.id, householdId))
+    },
+  }
+}
+
+/**
+ * Delete every household-scoped row for ONE household (child tables first), then
+ * the household row, by walking the pure reset plan against a Drizzle executor.
+ * Shared by resetUserData (one household) and resetAllUsersData (looped).
+ */
+async function wipeHousehold(
+  db: Awaited<ReturnType<typeof getDbForReset>>,
+  tables: ResetTables,
+  householdId: string,
+) {
+  const exec = await makeResetExecutor(db, tables)
+  await executeReset(exec, householdId)
+}
+
+/**
+ * Reset ONE user to fresh: admin-gated. Resolve the user's household, then wipe
+ * every household-scoped row (explicit per-table deletes, no FK cascade on D1)
+ * and finally the household row. The auth user/session is left intact, so the
+ * person stays signed in but has no household; the route guards then send them
+ * to /onboarding on next open. No-op (ok:false) if the user has no household.
+ */
+export const resetUserData = createServerFn({ method: 'POST' })
+  .inputValidator((d: { userId: string }) => d)
+  .handler(
+    async ({ data }): Promise<{ ok: boolean; householdId: string | null }> => {
+      if (!(await adminUser())) throw new Error('forbidden')
+      const { eq } = await import('drizzle-orm')
+      const tables = await loadResetTables()
+      const db = await getDbForReset()
+      const hh = (
+        await db
+          .select({ id: tables.household.id })
+          .from(tables.household)
+          .where(eq(tables.household.ownerId, data.userId))
+          .limit(1)
+      )[0]
+      if (!hh) return { ok: false, householdId: null }
+      await wipeHousehold(db, tables, hh.id)
+      return { ok: true, householdId: hh.id }
+    },
+  )
+
+/**
+ * Reset ALL users to fresh: SUPER-ADMIN-gated (this is destructive). Wipe every
+ * household-scoped row across every household, then every household row. We loop
+ * per household so the deletes stay child-before-parent and each delete is a
+ * single-param statement (well under D1's 100-bound-param limit). Auth + admin
+ * config are untouched, so everyone stays signed in and admin grants survive.
+ * Returns how many households were cleared.
+ */
+export const resetAllUsersData = createServerFn({ method: 'POST' }).handler(
+  async (): Promise<{ ok: true; householdsCleared: number }> => {
+    const viewer = await adminViewer()
+    if (!viewer || !viewer.isSuperAdmin) throw new Error('forbidden')
+    const tables = await loadResetTables()
+    const db = await getDbForReset()
+    const households = await db
+      .select({ id: tables.household.id })
+      .from(tables.household)
+    for (const hh of households) {
+      await wipeHousehold(db, tables, hh.id)
+    }
+    return { ok: true, householdsCleared: households.length }
+  },
+)
 
 export interface Datapoint {
   recipeTitle: string

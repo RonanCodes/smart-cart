@@ -1,13 +1,24 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import { SafeArea } from '#/components/ui/safe-area'
 import { OnboardingFlow } from '#/components/onboarding/onboarding-flow'
-import { completeOnboarding } from '#/lib/onboarding-server'
+import { OnboardingSkeleton } from '#/components/onboarding/OnboardingSkeleton'
+import { completeOnboarding, hasHousehold } from '#/lib/onboarding-server'
 import type { OnboardingDraft } from '#/components/onboarding/form-state'
 
 export const Route = createFileRoute('/onboarding')({
   beforeLoad: requireUserBeforeLoad,
+  // Read whether the signed-in user already has a household (a 'redo onboarding'
+  // re-entry vs a fresh run). The loader runs on the server and hydrates first
+  // paint (SSR untouched); the component re-reads it through useQuery seeded by
+  // this result so flicking back to the route is instant with no refetch (#232,
+  // the #230 pattern).
+  loader: (): Promise<boolean> => hasHousehold(),
+  // Skeleton mirroring the Jow-style step/form shell while the loader resolves
+  // (#229/#232). Shows on client navigations and slow loads, not on SSR.
+  pendingComponent: OnboardingSkeleton,
   component: Onboarding,
 })
 
@@ -26,6 +37,17 @@ export const Route = createFileRoute('/onboarding')({
 function Onboarding() {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
+  const loaderData = Route.useLoaderData()
+  // Cache the household-exists flag under the shared QueryClient (#232) seeded by
+  // the loader's server result, so first paint stays SSR and re-entry is instant.
+  // A returning household (a 'redo onboarding' re-entry) gets the intro
+  // carousel's existing 'I have an account' affordance routing them to sign-in;
+  // the form steps + persistence + push-prompt step are untouched.
+  const { data: alreadyOnboarded } = useQuery({
+    queryKey: ['onboarding', 'has-household'],
+    queryFn: hasHousehold,
+    initialData: loaderData,
+  })
 
   async function handleComplete(draft: OnboardingDraft) {
     setError(null)
@@ -42,7 +64,7 @@ function Onboarding() {
   return (
     <SafeArea
       edges={['top', 'bottom', 'left', 'right']}
-      className="bg-background mx-auto flex w-full max-w-md flex-col"
+      className="bg-background mx-auto flex h-[100dvh] w-full max-w-md flex-col overflow-hidden"
     >
       {error && (
         <div
@@ -52,7 +74,16 @@ function Onboarding() {
           {error}
         </div>
       )}
-      <OnboardingFlow onComplete={handleComplete} />
+      <OnboardingFlow
+        onComplete={handleComplete}
+        onSignIn={
+          alreadyOnboarded
+            ? () => {
+                window.location.href = '/sign-in'
+              }
+            : undefined
+        }
+      />
     </SafeArea>
   )
 }

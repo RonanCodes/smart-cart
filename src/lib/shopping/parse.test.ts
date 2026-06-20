@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseQty } from './parse'
+import { parseQty, splitQtyAndUnit } from './parse'
 
 describe('parseQty', () => {
   it('parses plain integers and decimals', () => {
@@ -42,5 +42,59 @@ describe('parseQty', () => {
 
   it('never throws on a malformed fraction', () => {
     expect(parseQty('1/0').value).toBeNull()
+  })
+})
+
+describe('splitQtyAndUnit', () => {
+  it('splits a packed mass / volume amount (the #238 bug case)', () => {
+    expect(splitQtyAndUnit('350 g')).toEqual({ qty: '350', unit: 'g' })
+    expect(splitQtyAndUnit('200 ml')).toEqual({ qty: '200', unit: 'ml' })
+    expect(splitQtyAndUnit('2 el')).toEqual({ qty: '2', unit: 'el' })
+  })
+
+  it('handles a packed amount with no space ("200ml")', () => {
+    expect(splitQtyAndUnit('200ml')).toEqual({ qty: '200', unit: 'ml' })
+  })
+
+  it('keeps a bare number as a unitless count', () => {
+    expect(splitQtyAndUnit('4')).toEqual({ qty: '4', unit: undefined })
+  })
+
+  it('splits a fraction or mixed-number head from its unit', () => {
+    expect(splitQtyAndUnit('1/2 tsp')).toEqual({ qty: '1/2', unit: 'tsp' })
+    expect(splitQtyAndUnit('1 1/2 cup')).toEqual({ qty: '1 1/2', unit: 'cup' })
+  })
+
+  it('keeps a range head whole and splits the unit', () => {
+    expect(splitQtyAndUnit('1-2 el')).toEqual({ qty: '1-2', unit: 'el' })
+    expect(splitQtyAndUnit('1 to 2 cloves')).toEqual({
+      qty: '1 to 2',
+      unit: 'cloves',
+    })
+  })
+
+  it('splits a European decimal comma head', () => {
+    expect(splitQtyAndUnit('2,5 dl')).toEqual({ qty: '2,5', unit: 'dl' })
+  })
+
+  it('keeps a multi-word count unit ("3 tenen")', () => {
+    expect(splitQtyAndUnit('3 tenen')).toEqual({ qty: '3', unit: 'tenen' })
+  })
+
+  it('returns nothing for a non-numeric or empty amount', () => {
+    expect(splitQtyAndUnit('a pinch')).toEqual({
+      qty: undefined,
+      unit: undefined,
+    })
+    expect(splitQtyAndUnit('')).toEqual({ qty: undefined, unit: undefined })
+    expect(splitQtyAndUnit(undefined)).toEqual({
+      qty: undefined,
+      unit: undefined,
+    })
+  })
+
+  it('round-trips through parseQty for the numeric head', () => {
+    const s = splitQtyAndUnit('350 g')
+    expect(parseQty(s.qty).value).toBe(350)
   })
 })

@@ -89,8 +89,11 @@ export function OnboardingFlow({
 
   return (
     <OnboardingFormProvider value={formValue}>
-      <div className="flex flex-1 flex-col" data-testid="onboarding-steps">
-        <header className="px-5 pt-4">
+      <div
+        className="flex min-h-0 flex-1 flex-col"
+        data-testid="onboarding-steps"
+      >
+        <header className="shrink-0 px-5 pt-4">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -119,7 +122,7 @@ export function OnboardingFlow({
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col px-5 pt-6">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-6">
           <h1 className="text-[1.6rem] leading-tight font-bold tracking-tight">
             {step.title}
           </h1>
@@ -133,7 +136,10 @@ export function OnboardingFlow({
           </div>
         </div>
 
-        <div className="px-5 pt-4 pb-8">
+        <div
+          className="shrink-0 px-5 pt-4 pb-8"
+          data-testid="onboarding-footer"
+        >
           <Button
             size="pill"
             disabled={!canAdvance}

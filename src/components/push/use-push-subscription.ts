@@ -4,7 +4,12 @@ import {
   registerServiceWorker,
   urlBase64ToUint8Array,
 } from '#/lib/push-client'
-import { getPushConfig, subscribePush } from '#/lib/push-server'
+import {
+  getPushConfig,
+  subscribePush,
+  unsubscribePush,
+} from '#/lib/push-server'
+import { log } from '#/lib/log'
 
 /**
  * The lifecycle of a browser push opt-in (#149, extracted in #204):
@@ -42,6 +47,11 @@ export interface UsePushSubscription {
    * 'idle' or 'error'; a no-op otherwise. Never throws — failures land in `state`.
    */
   enable: () => Promise<void>
+  /**
+   * Turn reminders off: browser `unsubscribe()` + server-side delete. Safe from
+   * 'subscribed'; settles back to 'idle' on success. Never throws.
+   */
+  disable: () => Promise<void>
 }
 
 /**
@@ -93,14 +103,17 @@ export function usePushSubscription(): UsePushSubscription {
   const enable = useCallback(async () => {
     if (!publicKey) return
     setState('subscribing')
+    log.info('push.enable_start')
     try {
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
+        log.info('push.permission_not_granted', { permission })
         setState(permission === 'denied' ? 'denied' : 'idle')
         return
       }
       const reg = await registerServiceWorker()
       if (!reg) {
+        log.error('push.sw_register_failed')
         setState('error')
         return
       }
@@ -111,12 +124,37 @@ export function usePushSubscription(): UsePushSubscription {
         // a Uint8Array is a valid applicationServerKey at runtime.
         applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
       })
+      log.info('push.browser_subscribed', { endpoint: sub.endpoint })
       await subscribePush({ data: { subscription: sub.toJSON() } })
+      log.info('push.enable_ok')
       setState('subscribed')
-    } catch {
+    } catch (err) {
+      // The bare catch used to swallow this — now we capture WHY it failed
+      // (browser subscribe vs the server store) in Workers Logs.
+      log.error('push.enable_failed', err)
       setState('error')
     }
   }, [publicKey])
 
-  return { state, enable }
+  const disable = useCallback(async () => {
+    setState('subscribing')
+    log.info('push.disable_start')
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+      const sub = await reg?.pushManager.getSubscription()
+      const endpoint = sub?.endpoint ?? ''
+      // Browser-side unsubscribe + server-side delete (both halves).
+      if (sub) await sub.unsubscribe()
+      if (endpoint) await unsubscribePush({ data: { endpoint } })
+      log.info('push.disable_ok')
+      setState('idle')
+    } catch (err) {
+      log.error('push.disable_failed', err)
+      // Couldn't tear it down cleanly: keep showing 'subscribed' so the user can
+      // retry, rather than a misleading 'off'.
+      setState('subscribed')
+    }
+  }, [])
+
+  return { state, enable, disable }
 }

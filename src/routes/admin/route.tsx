@@ -64,8 +64,8 @@ function AdminLayout() {
         />
 
         {/* Sub-nav: each tab is a real route so refresh + deep-link stay on the
-            tab. Horizontally scrollable on narrow widths (no wrap) so all tabs
-            are reachable at 390px. */}
+            tab. Horizontally scrollable on narrow widths (no wrap) so all six
+            tabs are reachable at 390px. */}
         <nav
           role="tablist"
           aria-label="Admin sections"

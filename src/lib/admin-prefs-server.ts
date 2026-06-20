@@ -12,6 +12,11 @@ async function currentAdminEmail(): Promise<string | null> {
   const { getSessionUser } = await import('./server-auth')
   const u = await getSessionUser()
   if (!u) return null
+  // Local dev open-access: any (dev) session is an admin so the waitlist
+  // notify-toggle + admin-prefs work with no ADMIN_EMAILS setup. Mirrors the
+  // adminUser() bypass in admin-server.ts. Dead code in the deployed build
+  // (import.meta.env.DEV is false there), so prod behaviour is unchanged.
+  if (import.meta.env.DEV) return u.email.trim().toLowerCase()
   const { resolveAdminEmails } = await import('./admin-emails')
   const admins = await resolveAdminEmails()
   const email = u.email.trim().toLowerCase()
