@@ -1,14 +1,19 @@
 /**
  * Refresh the vendored checkjebon price snapshot.
  *
- *   pnpm tsx scripts/sync-checkjebon.ts            # trimmed snapshot (default)
- *   pnpm tsx scripts/sync-checkjebon.ts --full     # full ~10 MB file, untrimmed
+ *   pnpm tsx scripts/sync-checkjebon.ts            # AH + Jumbo, full assortment
+ *   pnpm tsx scripts/sync-checkjebon.ts --full     # every store, untrimmed
  *
  * Fetches `data/supermarkets.json` from supermarkt/checkjebon (MIT, see
  * src/lib/pricing/data/NOTICE.md) and writes it under
- * src/lib/pricing/data/supermarkets.json. By default it trims each store to a
- * representative subset of common grocery products (keyword-filtered, capped)
- * so the committed file stays small; --full vendors the whole thing.
+ * src/lib/pricing/data/supermarkets.json.
+ *
+ * By default it keeps ONLY the supported stores (AH + Jumbo) but their FULL
+ * assortment. There is deliberately no keyword allowlist: semantic matching
+ * (ADR-0004) resolves an ingredient to the right SKU from the whole catalogue,
+ * so pre-filtering by a hand-curated keyword list would just blind the matcher
+ * to anything off-list (it is exactly what hid `AH Tarwebloem`). `--full`
+ * vendors every store for ad-hoc price comparison.
  *
  * This is a refresh tool, not a request-path fetch. The app reads the committed
  * snapshot; it never calls GitHub at runtime. ToS caveat: scraped upstream data,
@@ -29,130 +34,8 @@ const OUT = join(
   'supermarkets.json',
 )
 
-/** Per-store cap when trimming, and the common-grocery keywords to keep. */
-const PER_STORE_CAP = 400
-const KEEP_KEYWORDS = [
-  'pasta',
-  'penne',
-  'spaghetti',
-  'macaroni',
-  'rijst',
-  'rice',
-  'melk',
-  'milk',
-  'kaas',
-  'cheese',
-  'boter',
-  'butter',
-  'ei ',
-  'eieren',
-  'egg',
-  'kip',
-  'chicken',
-  'rund',
-  'beef',
-  'gehakt',
-  'mince',
-  'ui',
-  'onion',
-  'knoflook',
-  'garlic',
-  'tomaat',
-  'tomato',
-  'tomaten',
-  'paprika',
-  'pepper',
-  'wortel',
-  'carrot',
-  'aardappel',
-  'potato',
-  'brood',
-  'bread',
-  'bloem',
-  'flour',
-  'suiker',
-  'sugar',
-  'zout',
-  'salt',
-  'olie',
-  'oil',
-  'olijfolie',
-  'olive',
-  'room',
-  'cream',
-  'yoghurt',
-  'yogurt',
-  'banaan',
-  'banana',
-  'appel',
-  'apple',
-  'sinaasappel',
-  'orange',
-  'komkommer',
-  'cucumber',
-  'sla',
-  'lettuce',
-  'spinazie',
-  'spinach',
-  'champignon',
-  'mushroom',
-  'courgette',
-  'aubergine',
-  'zalm',
-  'salmon',
-  'tonijn',
-  'tuna',
-  'garnaal',
-  'prawn',
-  'shrimp',
-  'spek',
-  'bacon',
-  'worst',
-  'sausage',
-  'pesto',
-  'passata',
-  'bouillon',
-  'stock',
-  'azijn',
-  'vinegar',
-  'mosterd',
-  'mustard',
-  'honing',
-  'honey',
-  'kokosmelk',
-  'coconut',
-  'curry',
-  'kerrie',
-  'komijn',
-  'cumin',
-  'peterselie',
-  'parsley',
-  'basilicum',
-  'basil',
-  'citroen',
-  'lemon',
-  'limoen',
-  'lime',
-  'gember',
-  'ginger',
-  'bonen',
-  'beans',
-  'kikkererwten',
-  'chickpea',
-  'linzen',
-  'lentil',
-  'mais',
-  'corn',
-  'erwten',
-  'peas',
-  'broccoli',
-  'bloemkool',
-  'cauliflower',
-  'prei',
-  'leek',
-  'selderij',
-  'celery',
-]
+/** The supported stores ("AH/Jumbo first"). Others are dropped unless --full. */
+const SUPPORTED_STORES = new Set(['ah', 'jumbo'])
 
 interface RawProduct {
   n: string
@@ -168,22 +51,6 @@ interface RawStore {
   i?: string
 }
 
-function trim(stores: Array<RawStore>): Array<RawStore> {
-  const pattern = new RegExp(
-    KEEP_KEYWORDS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(
-      '|',
-    ),
-    'i',
-  )
-  return stores.map((store) => {
-    const products = store.d ?? []
-    const kept = products
-      .filter((p) => pattern.test(p.n))
-      .slice(0, PER_STORE_CAP)
-    return { ...store, d: kept }
-  })
-}
-
 async function main() {
   const full = process.argv.includes('--full')
   console.log(`[sync] fetching ${RAW_URL}`)
@@ -197,7 +64,9 @@ async function main() {
   const stores = (await res.json()) as RawStore[]
   console.log(`[sync] got ${stores.length} stores`)
 
-  const output = full ? stores : trim(stores)
+  const output = full
+    ? stores
+    : stores.filter((s) => SUPPORTED_STORES.has(s.n.toLowerCase()))
 
   mkdirSync(dirname(OUT), { recursive: true })
   writeFileSync(OUT, JSON.stringify(output, null, 0))
@@ -206,7 +75,7 @@ async function main() {
     console.log(`  ${store.n}: ${(store.d ?? []).length} products`)
   }
   console.log(
-    `[sync] wrote ${OUT} (${full ? 'full' : 'trimmed'}). Keep the MIT NOTICE.`,
+    `[sync] wrote ${OUT} (${full ? 'full' : 'AH + Jumbo, full assortment'}). Keep the MIT NOTICE.`,
   )
 }
 

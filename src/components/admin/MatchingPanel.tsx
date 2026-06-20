@@ -122,9 +122,19 @@ export function MatchingPanel() {
                 </li>
               )}
               {result.candidates.map((c, i) => (
-                <li key={i} className="flex items-center justify-between p-2.5">
-                  <span>{c.name}</span>
-                  <span className="text-muted-foreground tabular-nums">
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-3 p-2.5"
+                >
+                  <span className="min-w-0">
+                    {c.name}
+                    {c.size ? (
+                      <span className="text-muted-foreground ml-1.5 text-xs">
+                        ({c.size})
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="text-muted-foreground shrink-0 tabular-nums">
                     {euro(c.priceCents)} &middot; {c.score.toFixed(3)}
                   </span>
                 </li>

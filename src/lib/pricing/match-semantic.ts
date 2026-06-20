@@ -40,19 +40,28 @@ const NO_MATCH = (store: string): IngredientMatch => ({
 })
 
 /**
- * Map a cosine score to a confidence band. text-embedding-3-small scores sit on
- * their own scale (different from the old token overlap), so these are tuned
- * conservatively; refine against the admin scenario runner as coverage grows.
+ * Map a cosine score to a confidence band. Calibrated for text-embedding-3-small
+ * at 256 dims (EMBEDDING_DIMENSIONS): the Matryoshka reduction compresses every
+ * vector toward a high baseline, so UNRELATED products sit at a ~0.48-0.52 noise
+ * floor while a genuine match lands ~0.7+ (measured: "tarwebloem" -> "AH
+ * Tarwebloem" 0.72, vs 0.50-0.52 for unrelated rolls/baby food). The old 0.45
+ * `medium` cutoff was BELOW that floor, so a no-match was dressed up as a
+ * confident match. Bands now start above the noise floor; tune against the admin
+ * scenario runner as coverage grows.
  */
 export function confidenceFromCosine(score: number): MatchConfidence {
-  if (score >= 0.6) return 'high'
-  if (score >= 0.45) return 'medium'
-  if (score > 0) return 'low'
+  if (score >= 0.62) return 'high'
+  if (score >= 0.55) return 'medium'
+  if (score >= 0.5) return 'low'
   return 'none'
 }
 
-/** Below this cosine we do not trust a candidate enough to even rerank it. */
-const RETRIEVE_FLOOR = 0.3
+/**
+ * Below this cosine a candidate is at/under the 256-dim noise floor, so it is not
+ * a real match: drop it rather than retrieve/rerank it (a missing product should
+ * read as "no match", not a confident wrong one).
+ */
+const RETRIEVE_FLOOR = 0.5
 
 /**
  * Resolve the nearest product vectors for a store into candidates with full

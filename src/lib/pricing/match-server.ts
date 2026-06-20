@@ -27,7 +27,12 @@ export interface MatchScenarioResult {
   /** False when no OPENAI_API_KEY: the runner cannot embed the query, so empty. */
   keyPresent: boolean
   /** The retrieved candidates (cosine top-K), nearest first. */
-  candidates: Array<{ name: string; priceCents: number; score: number }>
+  candidates: Array<{
+    name: string
+    size: string | null
+    priceCents: number
+    score: number
+  }>
   /** Cheap tier: cosine top-1, confidence from the score. No LLM. */
   cheap: MatchHit
   /** Accurate tier: the LLM-reranked pick. Null when there was nothing to rerank. */
@@ -87,7 +92,7 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
       candidates,
       store,
       {
-        model: models.fast,
+        model: models.rerank,
       },
     )
 
@@ -106,6 +111,7 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
       keyPresent,
       candidates: candidates.map((c) => ({
         name: c.product.name,
+        size: c.product.size.raw.trim() || null,
         priceCents: c.product.priceCents,
         score: c.score,
       })),
