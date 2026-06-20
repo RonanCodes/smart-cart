@@ -53,3 +53,6 @@ export {
   storeSlugs,
   coveredStoreSlugs,
 } from './catalogue'
+
+export type { ProductSearchHit, ProductSearchOptions } from './search'
+export { searchProducts } from './search'
