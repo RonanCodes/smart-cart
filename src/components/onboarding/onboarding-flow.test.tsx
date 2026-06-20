@@ -4,6 +4,14 @@ import { OnboardingFlow } from './onboarding-flow'
 import { IntroCarousel } from './intro-carousel'
 import { STEPS } from './steps'
 
+// The final 'Stay in the loop' step (#204) calls the shared push hook, which hits
+// server fns + browser push APIs that don't exist under jsdom. Mock it so the flow
+// test exercises navigation, not the subscribe machinery (that has its own test).
+const pushState = vi.fn(() => 'idle')
+vi.mock('#/components/push/use-push-subscription', () => ({
+  usePushSubscription: () => ({ state: pushState(), enable: vi.fn() }),
+}))
+
 describe('IntroCarousel', () => {
   it('renders the first Souso value slide with paging dots and a CTA', () => {
     render(<IntroCarousel onGetStarted={() => {}} />)
@@ -64,6 +72,34 @@ describe('OnboardingFlow', () => {
     expect(finish.textContent).toContain('Build my week')
     fireEvent.click(finish)
     expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the optional notifications step last with a build CTA', () => {
+    render(<OnboardingFlow onComplete={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
+    for (let i = 0; i < STEPS.length - 1; i++) {
+      fireEvent.click(screen.getByTestId('onboarding-next'))
+    }
+    expect(screen.getByTestId('notifications-step')).toBeTruthy()
+    expect(screen.getByTestId('notifications-enable')).toBeTruthy()
+    expect(screen.getByTestId('onboarding-next').textContent).toContain(
+      'Build my week',
+    )
+  })
+
+  it('lets the user skip notifications (just build) when push is unavailable', () => {
+    pushState.mockReturnValue('unsupported')
+    const onComplete = vi.fn()
+    render(<OnboardingFlow onComplete={onComplete} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
+    for (let i = 0; i < STEPS.length - 1; i++) {
+      fireEvent.click(screen.getByTestId('onboarding-next'))
+    }
+    // No Enable button on an unavailable browser, but Build my week still completes.
+    expect(screen.queryByTestId('notifications-enable')).toBeNull()
+    fireEvent.click(screen.getByTestId('onboarding-next'))
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    pushState.mockReturnValue('idle')
   })
 
   it('steps back from the first step to the intro carousel', () => {
