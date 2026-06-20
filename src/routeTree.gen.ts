@@ -9,12 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as WeekRouteImport } from './routes/week'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as ShoppingRouteImport } from './routes/shopping'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -24,6 +26,11 @@ import { Route as ApiPlanRouteImport } from './routes/api/plan'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WeekRoute = WeekRouteImport.update({
   id: '/week',
   path: '/week',
@@ -52,6 +59,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DiscoverRoute = DiscoverRouteImport.update({
@@ -100,12 +112,14 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/app': typeof AppRoute
   '/discover': typeof DiscoverRoute
+  '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
+  '/welcome': typeof WelcomeRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
@@ -116,12 +130,14 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/app': typeof AppRoute
   '/discover': typeof DiscoverRoute
+  '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
+  '/welcome': typeof WelcomeRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
@@ -133,12 +149,14 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/app': typeof AppRoute
   '/discover': typeof DiscoverRoute
+  '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
+  '/welcome': typeof WelcomeRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
@@ -151,12 +169,14 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/discover'
+    | '/login'
     | '/onboarding'
     | '/profile'
     | '/shopping'
     | '/sign-in'
     | '/styleguide'
     | '/week'
+    | '/welcome'
     | '/api/health'
     | '/api/plan'
     | '/api/similar'
@@ -167,12 +187,14 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/discover'
+    | '/login'
     | '/onboarding'
     | '/profile'
     | '/shopping'
     | '/sign-in'
     | '/styleguide'
     | '/week'
+    | '/welcome'
     | '/api/health'
     | '/api/plan'
     | '/api/similar'
@@ -183,12 +205,14 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/discover'
+    | '/login'
     | '/onboarding'
     | '/profile'
     | '/shopping'
     | '/sign-in'
     | '/styleguide'
     | '/week'
+    | '/welcome'
     | '/api/health'
     | '/api/plan'
     | '/api/similar'
@@ -200,12 +224,14 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AppRoute: typeof AppRoute
   DiscoverRoute: typeof DiscoverRoute
+  LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   ProfileRoute: typeof ProfileRoute
   ShoppingRoute: typeof ShoppingRoute
   SignInRoute: typeof SignInRoute
   StyleguideRoute: typeof StyleguideRoute
   WeekRoute: typeof WeekRoute
+  WelcomeRoute: typeof WelcomeRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiPlanRoute: typeof ApiPlanRoute
   ApiSimilarRoute: typeof ApiSimilarRoute
@@ -214,6 +240,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/week': {
       id: '/week'
       path: '/week'
@@ -254,6 +287,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/discover': {
@@ -320,12 +360,14 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AppRoute: AppRoute,
   DiscoverRoute: DiscoverRoute,
+  LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   ProfileRoute: ProfileRoute,
   ShoppingRoute: ShoppingRoute,
   SignInRoute: SignInRoute,
   StyleguideRoute: StyleguideRoute,
   WeekRoute: WeekRoute,
+  WelcomeRoute: WelcomeRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiPlanRoute: ApiPlanRoute,
   ApiSimilarRoute: ApiSimilarRoute,

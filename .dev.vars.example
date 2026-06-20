@@ -12,3 +12,7 @@ RESEND_API_KEY="<resend api key>"
 
 # LLM provider key for the meal-planning agent (at least one).
 ANTHROPIC_API_KEY="<anthropic api key>"
+
+# Gated access: comma-separated emails allowed to complete sign-in. The admin
+# (tech@discopenguin.com) is always approved. Everyone else is waitlisted.
+APPROVED_EMAILS="friend@example.com, tester@example.com"
