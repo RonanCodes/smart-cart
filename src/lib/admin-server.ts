@@ -17,6 +17,9 @@ async function adminUser() {
   const { getSessionUser } = await import('./server-auth')
   const u = await getSessionUser()
   if (!u) return null
+  // Local dev open-access: any (dev) session is an admin so /admin opens with no
+  // setup. Dead code in the deployed build (import.meta.env.DEV is false there).
+  if (import.meta.env.DEV) return u
   const { readEnv } = await import('./env')
   const { parseApprovedList, isApprovedIn } = await import('./access-rules')
   const admins = parseApprovedList(await readEnv('ADMIN_EMAILS'))

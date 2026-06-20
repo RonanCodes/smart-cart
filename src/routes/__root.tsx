@@ -6,6 +6,7 @@ import {
   Scripts,
 } from '@tanstack/react-router'
 import appCss from '../styles.css?url'
+import { DevBanner } from '../components/DevBanner'
 
 const SITE_URL = 'https://smartcart.ronanconnolly.dev'
 const SITE_TITLE = 'Souso: your sous chef for recipes and the weekly shop'
@@ -63,6 +64,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <DevBanner />
         <Scripts />
       </body>
     </html>
