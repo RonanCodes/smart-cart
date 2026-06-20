@@ -1,18 +1,31 @@
-# Local dev secrets for Smart Cart. Copy to .dev.vars (gitignored).
+# Local dev secrets for Souso. Copy to .dev.vars (gitignored).
 # Production values are wrangler secrets, never committed.
+#
+# EVERYTHING HERE IS OPTIONAL. `npm run init && npm run start` boots with zero
+# keys: sign-in uses the demo skip-login button, meal planning is set-maths, and
+# AI/Vectorize features fall back. Fill these in only for the full experience.
 
 # D1 is a wrangler binding (no connection string needed locally).
 
-# Better Auth: generate with: openssl rand -base64 32
+# Better Auth: generate with: openssl rand -base64 32 (npm run init auto-fills this).
 BETTER_AUTH_SECRET="<openssl rand -base64 32>"
 BETTER_AUTH_URL="http://localhost:3000"
 
 # Resend transactional email (sign-in OTP code). Send from a verified domain.
+# Without it, use the "skip email login" demo button on the sign-in page.
 RESEND_API_KEY="<resend api key>"
 
-# LLM provider key for the meal-planning agent (at least one).
+# LLM provider for AI replan/chat. OpenAI is the primary provider; Anthropic is
+# the switchable alternate. At least one enables the AI features (otherwise the
+# planner uses set-maths). You only need ONE.
+OPENAI_API_KEY="<openai api key>"
 ANTHROPIC_API_KEY="<anthropic api key>"
 
 # Gated access: comma-separated emails allowed to complete sign-in. The admin
-# (tech@discopenguin.com) is always approved. Everyone else is waitlisted.
+# (tech@discopenguin.com) is always approved. Everyone else is waitlisted. Add
+# your own email here to sign in for real, or just use the demo skip-login.
 APPROVED_EMAILS="friend@example.com, tester@example.com"
+
+# Comma-separated admin emails (can see /admin). tech@discopenguin.com is always
+# an admin. Add yours to view the admin console + waitlist locally.
+ADMIN_EMAILS="tech@discopenguin.com"
