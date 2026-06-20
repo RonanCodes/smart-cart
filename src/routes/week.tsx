@@ -1,11 +1,6 @@
 import { useState } from 'react'
-import {
-  createFileRoute,
-  redirect,
-  useNavigate,
-  Link,
-} from '@tanstack/react-router'
-import { ShoppingCart, ArrowLeft } from 'lucide-react'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import { hasHousehold } from '#/lib/onboarding-server'
 import { loadWeek } from '#/lib/week-server'
@@ -18,7 +13,6 @@ import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
 import { generatePlan } from '#/lib/planner-server'
 import { DayCard } from '#/components/week/DayCard'
 import { ChatReplan } from '#/components/week/ChatReplan'
-import { Button } from '#/components/ui/button'
 
 interface WeekSearch {
   plan?: string
@@ -141,28 +135,13 @@ function WeekPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="border-border mx-auto flex max-w-4xl items-center justify-between border-b px-5 py-4">
-        <span className="flex items-center gap-2 font-bold">
-          <ShoppingCart className="text-primary h-6 w-6" />
-          Smart Cart
-        </span>
-        <Link to="/app">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-        </Link>
-      </header>
+    <AppShell>
+      <ScreenHeader
+        title="Your week"
+        subtitle="Seven dinners, one per day. Swap any day or tell us what changed."
+      />
 
-      <main className="mx-auto max-w-4xl space-y-6 px-5 py-8">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">Your week</h1>
-          <p className="text-muted-foreground text-sm">
-            Seven dinners, one per day. Swap any day or tell us what changed.
-          </p>
-        </div>
-
+      <div className="space-y-6 px-5 pt-2">
         <ChatReplan busy={replanning} onSubmit={replan} />
 
         {message && (
@@ -174,7 +153,7 @@ function WeekPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4">
           {week.days.map((d) => (
             <DayCard
               key={d.day}
@@ -187,7 +166,7 @@ function WeekPage() {
             />
           ))}
         </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }

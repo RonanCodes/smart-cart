@@ -1,14 +1,26 @@
 import * as React from 'react'
 import { cn } from '#/lib/utils'
 
-export function Card({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  /**
+   * iOS-native card: a larger radius, softer shadow, no hairline border. Use on
+   * the mobile app surfaces; the default (bordered) card still suits desktop
+   * and the styleguide.
+   */
+  ios?: boolean
+  /** Add press feedback for cards that act as a single tappable target. */
+  pressable?: boolean
+}
+
+export function Card({ className, ios, pressable, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'bg-card text-card-foreground border-border rounded-xl border shadow-sm',
+        'bg-card text-card-foreground',
+        ios
+          ? 'rounded-[var(--radius-ios)] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_-12px_rgba(0,0,0,0.12)]'
+          : 'border-border rounded-xl border shadow-sm',
+        pressable && 'transition active:scale-[0.985]',
         className,
       )}
       {...props}

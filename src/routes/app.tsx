@@ -6,7 +6,8 @@ import {
   useNavigate,
   Link,
 } from '@tanstack/react-router'
-import { ShoppingCart, LogOut, RefreshCw } from 'lucide-react'
+import { LogOut, RefreshCw } from 'lucide-react'
+import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { authClient } from '#/lib/auth-client'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import {
@@ -70,33 +71,20 @@ function AppHome() {
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="border-border mx-auto flex max-w-4xl items-center justify-between border-b px-6 py-4">
-        <span className="flex items-center gap-2 font-bold">
-          <ShoppingCart className="text-primary h-6 w-6" />
-          Smart Cart
-        </span>
-        <div className="flex items-center gap-3">
-          <span className="text-muted-foreground hidden text-sm sm:inline">
-            {user.email}
-          </span>
+    <AppShell>
+      <ScreenHeader
+        title="Here's what we learned about you"
+        subtitle="Built from your swipes. It sharpens every week as you cook and rate."
+        action={
           <Button variant="outline" size="sm" onClick={signOut}>
             <LogOut className="h-4 w-4" />
-            Sign out
+            <span className="hidden sm:inline">Sign out</span>
           </Button>
-        </div>
-      </header>
+        }
+      />
 
-      <main className="mx-auto max-w-4xl space-y-8 px-6 py-12">
-        <div className="space-y-2">
-          <Badge variant="primary">Your taste profile</Badge>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Here's what we learned about you
-          </h1>
-          <p className="text-muted-foreground">
-            Built from your swipes. It sharpens every week as you cook and rate.
-          </p>
-        </div>
+      <div className="space-y-8 px-5 pt-2">
+        <Badge variant="primary">Your taste profile · {user.email}</Badge>
 
         {summary && summary.badges.length > 0 && (
           <div className="flex flex-wrap gap-3">
@@ -112,8 +100,8 @@ function AppHome() {
           </div>
         )}
 
-        <div className="grid gap-6 sm:grid-cols-2">
-          <Card>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Card ios>
             <CardHeader>
               <CardTitle>You gravitate to</CardTitle>
               <CardDescription>
@@ -139,7 +127,7 @@ function AppHome() {
               ))}
             </CardContent>
           </Card>
-          <Card>
+          <Card ios>
             <CardHeader>
               <CardTitle>Your week</CardTitle>
               <CardDescription>
@@ -169,7 +157,7 @@ function AppHome() {
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }
