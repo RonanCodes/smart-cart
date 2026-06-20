@@ -54,7 +54,7 @@ export function RealFeedbackPanel({
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
       {/* Real households */}
-      <div className="space-y-2">
+      <div className="min-w-0 space-y-2">
         <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
           Households with real feedback
         </p>
@@ -80,7 +80,7 @@ export function RealFeedbackPanel({
       </div>
 
       {/* Comparison */}
-      <div className="border-border min-h-[60vh] rounded-xl border p-5">
+      <div className="border-border min-h-[60vh] min-w-0 rounded-xl border p-5">
         {loading ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
         ) : comparison && active ? (
@@ -170,7 +170,7 @@ export function RealFeedbackPanel({
                 {active.topRecipes.map((r, i) => (
                   <div
                     key={r.id}
-                    className="flex items-center justify-between border-b py-1.5 text-sm"
+                    className="flex min-w-0 items-center justify-between border-b py-1.5 text-sm"
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="text-muted-foreground w-5 shrink-0 text-xs">
@@ -188,8 +188,8 @@ export function RealFeedbackPanel({
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">
-            Select a household on the left to compare its ranking with vs
-            without real feedback.
+            Pick a household to compare its ranking with vs without real
+            feedback.
           </p>
         )}
       </div>
