@@ -67,6 +67,34 @@ const RETRIEVE_FLOOR = 0.5
  * Resolve the nearest product vectors for a store into candidates with full
  * product detail. Pure: takes the loaded vector index + an id->product lookup.
  */
+/**
+ * Merge top-K from multiple query vectors (e.g. English + Dutch search terms).
+ * Keeps the best cosine score per product id across all queries.
+ */
+export function selectCandidatesFromQueries(
+  queryVectors: ReadonlyArray<ReadonlyArray<number>>,
+  entries: ReadonlyArray<ProductVectorEntry>,
+  lookup: ReadonlyMap<string, StoreProduct>,
+  k: number,
+): Array<ProductCandidate> {
+  const best = new Map<string, number>()
+  const scanK = Math.max(k * 3, 30)
+  for (const qv of queryVectors) {
+    for (const h of topK(qv, entries, scanK)) {
+      if (h.score < RETRIEVE_FLOOR) continue
+      const prev = best.get(h.id)
+      if (prev === undefined || h.score > prev) best.set(h.id, h.score)
+    }
+  }
+  const ranked = [...best.entries()].sort((a, b) => b[1] - a[1]).slice(0, k)
+  const out: Array<ProductCandidate> = []
+  for (const [id, score] of ranked) {
+    const product = lookup.get(id)
+    if (product) out.push({ product, score })
+  }
+  return out
+}
+
 export function selectCandidates(
   queryVector: ReadonlyArray<number>,
   entries: ReadonlyArray<ProductVectorEntry>,
@@ -121,20 +149,29 @@ export async function rerankMatch(
   candidates: ReadonlyArray<ProductCandidate>,
   store: string,
   deps: RerankDeps,
-): Promise<IngredientMatch> {
-  if (candidates.length === 0) return NO_MATCH(store)
-  if (!deps.model) return cheapMatch(store, candidates)
+): Promise<{
+  match: IngredientMatch
+  reason?: string
+  declined?: boolean
+  llmFallback?: boolean
+}> {
+  if (candidates.length === 0) return { match: NO_MATCH(store) }
+  if (!deps.model) {
+    return { match: cheapMatch(store, candidates), llmFallback: true }
+  }
 
   try {
     const result = await runRerank(ingredient, candidates, deps)
-    // A genuine decline (null) means none fit: no match, rather than forcing the
-    // top hit the model just rejected.
-    if (!result) return NO_MATCH(store)
-    // Keep the candidate's cosine as `score`; use the model's confidence band.
-    return toMatch(store, result.candidate, result.confidence)
+    if (!result) return { match: NO_MATCH(store) }
+    if (result.kind === 'decline') {
+      return { match: NO_MATCH(store), reason: result.reason, declined: true }
+    }
+    return {
+      match: toMatch(store, result.candidate, result.confidence),
+      reason: result.reason,
+    }
   } catch {
-    // Transient model error must never break a basket: fall back to cosine top-1.
-    return cheapMatch(store, candidates)
+    return { match: cheapMatch(store, candidates), llmFallback: true }
   }
 }
 

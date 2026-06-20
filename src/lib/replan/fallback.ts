@@ -229,6 +229,6 @@ export async function runAiFallback(
 
 /** Lazy-load the real `generateObject` so it never enters a non-Worker bundle. */
 async function loadGenerateObject(): Promise<GenerateObjectFn> {
-  const { generateObject } = await import('ai')
+  const { generateObject } = await import('../braintrust-ai')
   return generateObject
 }
