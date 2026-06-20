@@ -4,12 +4,17 @@ import { createServerFn } from '@tanstack/react-start'
  * Resolve the household's shopping list into one-click AH + Jumbo cart
  * deep-links.
  *
- * For each persisted shopping-list item we run the EXISTING pricing matcher
- * (matchIngredient against the checkjebon catalogue) to find that item's AH and
- * Jumbo product, pull the store SKU off the matched product's slug, and hand the
- * {sku, qty} pairs to the pure URL builders in `./cart-links`. Items the matcher
- * cannot place in a store are skipped, and the count of matched-vs-skipped is
- * returned so the UI can say "(N of M items)".
+ * For each persisted shopping-list item we resolve that item's AH and Jumbo
+ * product D1-first (the seeded `store_product` table via
+ * `resolveIngredientForStore`), falling back to the runtime bundled checkjebon
+ * catalogue when D1 has no match, pull the store SKU off the matched product's
+ * slug, and hand the {sku, qty} pairs to the pure URL builders in
+ * `./cart-links`. Items neither catalogue can place in a store are skipped, and
+ * the count of matched-vs-skipped is returned so the UI can say "(N of M items)".
+ *
+ * The D1-first resolution is the #165 persisted recipe -> ingredient -> product
+ * link; the bundle fallback keeps the cart working on a fresh clone that has not
+ * seeded `store_product`, so this is purely additive (no regression).
  *
  * No store auth, no credentials, no new secrets: the deep-links are public URLs
  * the stores already honour. Server-only modules (DB, catalogue) are imported
@@ -83,28 +88,23 @@ export const buildCartLinks = createServerFn({ method: 'GET' }).handler(
 
     const names = rows.map((r) => r.name)
 
-    const { getCatalogue } = await import('./pricing')
-    const { matchIngredient } = await import('./pricing')
+    const { resolveIngredientForStore } =
+      await import('./pricing/ingredient-resolver-server')
     const { ahProductId, jumboSku, ahBulkCartUrl, jumboBulkCartUrl } =
       await import('./cart-links')
-
-    const ahCat = getCatalogue('ah')
-    const jumboCat = getCatalogue('jumbo')
 
     const ahItems: Array<{ sku: string; qty: number }> = []
     const jumboItems: Array<{ sku: string; qty: number }> = []
 
     for (const name of names) {
-      if (ahCat) {
-        const m = matchIngredient(name, ahCat)
-        const id = ahProductId(m.product?.slug)
-        if (id) ahItems.push({ sku: id, qty: 1 })
-      }
-      if (jumboCat) {
-        const m = matchIngredient(name, jumboCat)
-        const sku = jumboSku(m.product?.slug)
-        if (sku) jumboItems.push({ sku, qty: 1 })
-      }
+      // D1-first (seeded store_product), bundled-catalogue fallback inside.
+      const ah = await resolveIngredientForStore(name, 'ah')
+      const id = ahProductId(ah.match.product?.slug)
+      if (id) ahItems.push({ sku: id, qty: 1 })
+
+      const jumbo = await resolveIngredientForStore(name, 'jumbo')
+      const sku = jumboSku(jumbo.match.product?.slug)
+      if (sku) jumboItems.push({ sku, qty: 1 })
     }
 
     return {

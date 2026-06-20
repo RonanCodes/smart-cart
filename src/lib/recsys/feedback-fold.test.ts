@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { Swipe } from './types'
+import type { RecipeLite, Swipe } from './types'
 import {
   foldRealFeedback,
   foldStats,
   mealFeedbackToSwipe,
 } from './feedback-fold'
+import { AdaptiveRecommender } from './strategies'
 
 describe('mealFeedbackToSwipe', () => {
   it('maps thumbs-up to a positive swipe', () => {
@@ -117,5 +118,76 @@ describe('foldStats', () => {
       netNew: 2,
       total: 4,
     })
+  })
+})
+
+/**
+ * The pref -> recipe -> ranking link, end-to-end (#165 part 3).
+ *
+ * The recsys unit tests already prove swipes -> ranking. This block proves the
+ * load-bearing #165 claim explicitly: a household's REAL meal feedback, folded
+ * on top of onboarding swipes, MEASURABLY changes which recipes the recommender
+ * ranks for their week. We feed the folded observation set into the same
+ * AdaptiveRecommender the live planner uses and assert the top-N ranking moves.
+ */
+describe('pref -> ranking link: folded feedback changes the week', () => {
+  /** Two-cuisine catalogue so a taste flip is observable in the ranking. */
+  function catalogue(): Array<RecipeLite> {
+    const out: Array<RecipeLite> = []
+    let id = 0
+    for (const cuisine of ['Italian', 'Thai']) {
+      for (let i = 0; i < 12; i++) {
+        out.push({
+          id: `${cuisine.toLowerCase()}-${id++}`,
+          title: `${cuisine} dish ${i}`,
+          cuisine,
+          category: 'Main',
+          dietaryTags: [],
+          ingredients: [{ name: 'onion' }, { name: 'garlic' }],
+        })
+      }
+    }
+    return out
+  }
+
+  const recipes = catalogue()
+  const italianIds = recipes
+    .filter((r) => r.cuisine === 'Italian')
+    .map((r) => r.id)
+
+  /** Onboarding: this household liked Italian, disliked Thai. */
+  const onboarding: Array<Swipe> = recipes.map((r) => ({
+    recipeId: r.id,
+    like: r.cuisine === 'Italian',
+  }))
+
+  function topIds(swipes: Array<Swipe>, n: number): Array<string> {
+    const rec = new AdaptiveRecommender(recipes)
+    return rec.recommend(swipes, n).map((r) => r.id)
+  }
+
+  it('feedback that flips taste reorders the week ranking', () => {
+    // After cooking, they thumbs-DOWN every Italian dish and thumbs-UP Thai.
+    const feedback = recipes.map((r) => ({
+      recipeId: r.id,
+      rating: r.cuisine === 'Italian' ? 'down' : 'up',
+    }))
+
+    const before = topIds(onboarding, 6)
+    const folded = foldRealFeedback(onboarding, feedback)
+    const after = topIds(folded, 6)
+
+    // The folded observation set is a real taste flip, so the top-6 must change.
+    expect(after).not.toEqual(before)
+    // And it must move TOWARDS the newly-loved cuisine: more Thai than before.
+    const thaiBefore = before.filter((id) => !italianIds.includes(id)).length
+    const thaiAfter = after.filter((id) => !italianIds.includes(id)).length
+    expect(thaiAfter).toBeGreaterThan(thaiBefore)
+  })
+
+  it('no feedback leaves the week ranking unchanged (baseline)', () => {
+    const before = topIds(onboarding, 6)
+    const after = topIds(foldRealFeedback(onboarding, []), 6)
+    expect(after).toEqual(before)
   })
 })
