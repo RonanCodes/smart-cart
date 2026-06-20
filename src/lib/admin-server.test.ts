@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { shapeWaitlist } from './admin-server'
+import { shapeWaitlist, waitlistRowActions } from './admin-server'
 import { ADMIN_EMAIL } from './access-rules'
 
 describe('shapeWaitlist', () => {
@@ -112,5 +112,90 @@ describe('shapeWaitlist', () => {
     )
     expect(view.viewerIsSuperAdmin).toBe(false)
     expect(view.rows[0]!.revocable).toBe(false)
+  })
+})
+
+describe('waitlistRowActions', () => {
+  it('not approved, not admin -> Approve as user + Make admin only', () => {
+    expect(
+      waitlistRowActions({
+        grant: 'none',
+        configAdmin: false,
+        revocable: false,
+      }),
+    ).toEqual({
+      approveAsUser: true,
+      makeAdmin: true,
+      approvedTag: false,
+      adminBadge: false,
+      configAdminTag: false,
+      removeAdmin: false,
+    })
+  })
+
+  it('approved user (not admin) -> Approved tag + Make admin, never Approve', () => {
+    const a = waitlistRowActions({
+      grant: 'user',
+      configAdmin: false,
+      revocable: false,
+    })
+    expect(a.approvedTag).toBe(true)
+    expect(a.makeAdmin).toBe(true)
+    expect(a.approveAsUser).toBe(false)
+    expect(a.adminBadge).toBe(false)
+    expect(a.configAdminTag).toBe(false)
+    expect(a.removeAdmin).toBe(false)
+  })
+
+  it('DB-granted admin (super-admin viewer) -> Admin badge + Remove admin, no approve/make-admin', () => {
+    const a = waitlistRowActions({
+      grant: 'admin',
+      configAdmin: false,
+      revocable: true,
+    })
+    expect(a.adminBadge).toBe(true)
+    expect(a.removeAdmin).toBe(true)
+    expect(a.approveAsUser).toBe(false)
+    expect(a.makeAdmin).toBe(false)
+    expect(a.configAdminTag).toBe(false)
+  })
+
+  it('DB-granted admin (non-super-admin viewer) -> Admin badge only, no Remove', () => {
+    const a = waitlistRowActions({
+      grant: 'admin',
+      configAdmin: false,
+      revocable: false,
+    })
+    expect(a.adminBadge).toBe(true)
+    expect(a.removeAdmin).toBe(false)
+    expect(a.makeAdmin).toBe(false)
+  })
+
+  it('config/owner admin -> Admin badge + config tag, NO action buttons (the #209 bug)', () => {
+    // A config admin sits on the waitlist with no DB grant (grant 'none') but
+    // configAdmin true. It must NOT offer Approve as user / Make admin.
+    const a = waitlistRowActions({
+      grant: 'none',
+      configAdmin: true,
+      revocable: false,
+    })
+    expect(a.adminBadge).toBe(true)
+    expect(a.configAdminTag).toBe(true)
+    expect(a.approveAsUser).toBe(false)
+    expect(a.makeAdmin).toBe(false)
+    expect(a.approvedTag).toBe(false)
+    expect(a.removeAdmin).toBe(false)
+  })
+
+  it('config admin takes precedence even if the row also has a user grant', () => {
+    const a = waitlistRowActions({
+      grant: 'user',
+      configAdmin: true,
+      revocable: false,
+    })
+    expect(a.adminBadge).toBe(true)
+    expect(a.configAdminTag).toBe(true)
+    expect(a.makeAdmin).toBe(false)
+    expect(a.approvedTag).toBe(false)
   })
 })

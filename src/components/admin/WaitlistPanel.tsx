@@ -6,7 +6,12 @@ import type {
   WaitlistRowView,
   GrantState,
 } from '#/lib/admin-server'
-import { grantUser, grantAdmin, revokeAdmin } from '#/lib/admin-server'
+import {
+  grantUser,
+  grantAdmin,
+  revokeAdmin,
+  waitlistRowActions,
+} from '#/lib/admin-server'
 import { setMyWaitlistNotify } from '#/lib/admin-prefs-server'
 import { cn } from '#/lib/utils'
 
@@ -100,12 +105,20 @@ function WaitlistRow({ row }: { row: WaitlistRowView }) {
     }
   }
 
-  const isUser = grant === 'user'
-  const isAdmin = grant === 'admin'
+  // Derive the per-state controls from the (server-decided) grant + flags. The
+  // optimistic `grant` is the only value that changes after a click; configAdmin
+  // and revocable come straight from the row. See waitlistRowActions for the
+  // full state matrix (and its unit test for the proof it's right).
+  const actions = waitlistRowActions({ grant, configAdmin, revocable })
 
   return (
-    <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
+    // Mobile-first: email + date on their own full-width line, the action
+    // controls in a second row that wraps. The email NEVER competes with the
+    // buttons for width, so it can always render (truncating with an ellipsis
+    // only when the email itself is too long). From `sm` up the controls sit
+    // inline to the right of the email.
+    <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">{email}</span>
         {/*
           toLocaleString resolves to the runtime's locale + timezone, which
@@ -122,28 +135,42 @@ function WaitlistRow({ row }: { row: WaitlistRowView }) {
         </span>
       </div>
 
-      <div className="flex shrink-0 flex-wrap gap-2">
-        {/* Approve as user: shown only when not yet granted. Admin already
-            implies login access, so a granted/admin email needs no user button. */}
-        {grant === 'none' ? (
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {/* Approve as user: not-yet-granted, non-admin rows only. */}
+        {actions.approveAsUser && (
           <GrantButton
             label="Approve as user"
             icon={<Check className="h-4 w-4" />}
             saving={saving}
             onClick={() => run('user', grantUser)}
           />
-        ) : isUser ? (
-          <span className="text-muted-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium">
-            <Check className="h-4 w-4" /> User
-          </span>
-        ) : null}
+        )}
 
-        {/* Make admin: relabels + disables once the email is an admin. */}
-        {isAdmin ? (
+        {/* Approved: a plain user who already has login access. Static tag. */}
+        {actions.approvedTag && (
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium">
+            <Check className="h-4 w-4" /> Approved
+          </span>
+        )}
+
+        {/* Admin badge: any admin (DB-granted OR config). */}
+        {actions.adminBadge && (
           <span className="text-primary inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium">
             <Shield className="h-4 w-4" /> Admin
           </span>
-        ) : (
+        )}
+
+        {/* config admin: env/owner admin, not a DB grant -> no revoke, no
+            approve/make-admin. */}
+        {actions.configAdminTag && (
+          <span className="text-muted-foreground border-border inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium">
+            config admin
+          </span>
+        )}
+
+        {/* Make admin: non-admin rows only (relabels to the Admin badge above
+            once promoted). */}
+        {actions.makeAdmin && (
           <GrantButton
             label="Make admin"
             icon={<Shield className="h-4 w-4" />}
@@ -153,16 +180,9 @@ function WaitlistRow({ row }: { row: WaitlistRowView }) {
           />
         )}
 
-        {/* config admin: env/owner admin, not a DB grant -> no revoke. */}
-        {configAdmin && grant !== 'admin' && (
-          <span className="text-muted-foreground border-border inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium">
-            <Shield className="h-4 w-4" /> config admin
-          </span>
-        )}
-
         {/* Remove admin: super-admin only, DB-granted admins only. Hides once
             the grant drops below admin (after a successful revoke). */}
-        {revocable && grant === 'admin' && (
+        {actions.removeAdmin && (
           <GrantButton
             label="Remove admin"
             icon={<ShieldOff className="h-4 w-4" />}
