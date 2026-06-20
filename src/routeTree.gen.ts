@@ -18,11 +18,17 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as AppRouteImport } from './routes/app'
-import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ApiSimilarRouteImport } from './routes/api/similar'
 import { Route as ApiPlanRouteImport } from './routes/api/plan'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as AdminWhyRouteImport } from './routes/admin/why'
+import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminFeedbackRouteImport } from './routes/admin/feedback'
+import { Route as AdminBenchmarkRouteImport } from './routes/admin/benchmark'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
 const WeekRoute = WeekRouteImport.update({
@@ -70,7 +76,7 @@ const AppRoute = AppRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
+const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
@@ -79,6 +85,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const ApiSimilarRoute = ApiSimilarRouteImport.update({
   id: '/api/similar',
@@ -95,6 +106,31 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminWhyRoute = AdminWhyRouteImport.update({
+  id: '/why',
+  path: '/why',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminWaitlistRoute = AdminWaitlistRouteImport.update({
+  id: '/waitlist',
+  path: '/waitlist',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminBenchmarkRoute = AdminBenchmarkRouteImport.update({
+  id: '/benchmark',
+  path: '/benchmark',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -103,7 +139,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/app': typeof AppRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
@@ -113,14 +149,19 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
+  '/admin/benchmark': typeof AdminBenchmarkRoute
+  '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/waitlist': typeof AdminWaitlistRoute
+  '/admin/why': typeof AdminWhyRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/app': typeof AppRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
@@ -130,15 +171,21 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
+  '/admin/benchmark': typeof AdminBenchmarkRoute
+  '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/waitlist': typeof AdminWaitlistRoute
+  '/admin/why': typeof AdminWhyRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
+  '/admin': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/app': typeof AppRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
@@ -148,9 +195,15 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
+  '/admin/benchmark': typeof AdminBenchmarkRoute
+  '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/waitlist': typeof AdminWaitlistRoute
+  '/admin/why': typeof AdminWhyRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -167,14 +220,19 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/styleguide'
     | '/week'
+    | '/admin/benchmark'
+    | '/admin/feedback'
+    | '/admin/users'
+    | '/admin/waitlist'
+    | '/admin/why'
     | '/api/health'
     | '/api/plan'
     | '/api/similar'
+    | '/admin/'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/app'
     | '/discover'
     | '/login'
@@ -184,9 +242,15 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/styleguide'
     | '/week'
+    | '/admin/benchmark'
+    | '/admin/feedback'
+    | '/admin/users'
+    | '/admin/waitlist'
+    | '/admin/why'
     | '/api/health'
     | '/api/plan'
     | '/api/similar'
+    | '/admin'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -201,15 +265,21 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/styleguide'
     | '/week'
+    | '/admin/benchmark'
+    | '/admin/feedback'
+    | '/admin/users'
+    | '/admin/waitlist'
+    | '/admin/why'
     | '/api/health'
     | '/api/plan'
     | '/api/similar'
+    | '/admin/'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AppRoute: typeof AppRoute
   DiscoverRoute: typeof DiscoverRoute
   LoginRoute: typeof LoginRoute
@@ -294,7 +364,7 @@ declare module '@tanstack/react-router' {
       id: '/admin'
       path: '/admin'
       fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -303,6 +373,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/api/similar': {
       id: '/api/similar'
@@ -325,6 +402,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/why': {
+      id: '/admin/why'
+      path: '/why'
+      fullPath: '/admin/why'
+      preLoaderRoute: typeof AdminWhyRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/waitlist': {
+      id: '/admin/waitlist'
+      path: '/waitlist'
+      fullPath: '/admin/waitlist'
+      preLoaderRoute: typeof AdminWaitlistRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/feedback': {
+      id: '/admin/feedback'
+      path: '/feedback'
+      fullPath: '/admin/feedback'
+      preLoaderRoute: typeof AdminFeedbackRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/benchmark': {
+      id: '/admin/benchmark'
+      path: '/benchmark'
+      fullPath: '/admin/benchmark'
+      preLoaderRoute: typeof AdminBenchmarkRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -335,9 +447,31 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteRouteChildren {
+  AdminBenchmarkRoute: typeof AdminBenchmarkRoute
+  AdminFeedbackRoute: typeof AdminFeedbackRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminWaitlistRoute: typeof AdminWaitlistRoute
+  AdminWhyRoute: typeof AdminWhyRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminBenchmarkRoute: AdminBenchmarkRoute,
+  AdminFeedbackRoute: AdminFeedbackRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminWaitlistRoute: AdminWaitlistRoute,
+  AdminWhyRoute: AdminWhyRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   AppRoute: AppRoute,
   DiscoverRoute: DiscoverRoute,
   LoginRoute: LoginRoute,
@@ -355,12 +489,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
