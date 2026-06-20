@@ -29,3 +29,10 @@ APPROVED_EMAILS="friend@example.com, tester@example.com"
 # Comma-separated admin emails (can see /admin). tech@discopenguin.com is always
 # an admin. Add yours to view the admin console + waitlist locally.
 ADMIN_EMAILS="tech@discopenguin.com"
+
+# Mollie payments — the optional tip on add-to-cart (docs/PRD-tip.md). Use a
+# test_ key in dev, a live_ key in prod (wrangler secret). Profile is informational.
+MOLLIE_API_KEY="<mollie test_ or live_ key>"
+MOLLIE_PROFILE_ID="<pfl_ profile id>"
+# Public base URL, used to build Mollie redirect + webhook URLs.
+APP_URL="http://localhost:3000"
