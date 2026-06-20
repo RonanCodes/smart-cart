@@ -17,7 +17,11 @@ import { applySimilarSwapToPlan } from '#/lib/swap-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
 import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
 import { generatePlan } from '#/lib/planner-server'
-import { addWeekToShoppingList } from '#/lib/shopping-list-server'
+import {
+  addWeekToShoppingList,
+  countMissingFromWeek,
+} from '#/lib/shopping-list-server'
+import { addToListCta } from '#/lib/shopping'
 import {
   submitMealFeedback,
   listMealFeedback,
@@ -46,24 +50,33 @@ export const Route = createFileRoute('/week')({
   loaderDeps: ({ search }) => ({ plan: search.plan }),
   loader: async ({
     deps,
-  }): Promise<{ week: WeekView; feedback: Array<MealFeedbackState> }> => {
+  }): Promise<{
+    week: WeekView
+    feedback: Array<MealFeedbackState>
+    missingFromList: number
+  }> => {
     // No plan id means "generate one and land on it". A fresh plan keeps the
     // entry point forgiving: /week always shows a week.
     if (!deps.plan) {
       const { planId } = await generatePlan()
       throw redirect({ to: '/week', search: { plan: planId } })
     }
-    const [week, feedback] = await Promise.all([
+    const [week, feedback, missing] = await Promise.all([
       loadWeek({ data: { planId: deps.plan } }),
       listMealFeedback({ data: { planId: deps.plan } }),
+      countMissingFromWeek({ data: { planId: deps.plan } }),
     ])
-    return { week, feedback }
+    return { week, feedback, missingFromList: missing.missing }
   },
   component: WeekPage,
 })
 
 function WeekPage() {
-  const { week: initial, feedback: initialFeedback } = Route.useLoaderData()
+  const {
+    week: initial,
+    feedback: initialFeedback,
+    missingFromList,
+  } = Route.useLoaderData()
   const navigate = useNavigate()
   const [week, setWeek] = useState<WeekView>(initial)
   const [busyDay, setBusyDay] = useState<string | null>(null)
@@ -318,14 +331,19 @@ function WeekPage() {
         </div>
 
         <div className="pt-2 pb-2">
-          <Button
-            size="pill"
-            disabled={addingToList || locked}
-            onClick={() => void addToShoppingList()}
-          >
-            <ShoppingBag className="h-5 w-5" aria-hidden />
-            {addingToList ? 'Adding...' : 'Add to shopping list'}
-          </Button>
+          {(() => {
+            const cta = addToListCta(missingFromList)
+            return (
+              <Button
+                size="pill"
+                disabled={addingToList || locked || cta.disabled}
+                onClick={() => void addToShoppingList()}
+              >
+                <ShoppingBag className="h-5 w-5" aria-hidden />
+                {addingToList ? 'Adding...' : cta.label}
+              </Button>
+            )
+          })()}
         </div>
       </div>
 

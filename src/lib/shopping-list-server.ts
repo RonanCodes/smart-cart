@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { lineToNewItem, planMerge } from './shopping'
+import { lineToNewItem, planMerge, countMissing } from './shopping'
 import type { ShoppingItem, ShoppingItemSource } from './shopping'
 import type { getDb } from '../db/client'
 
@@ -149,6 +149,33 @@ export const addWeekToShoppingList = createServerFn({ method: 'POST' })
     }
 
     return reloadItems(db, householdId)
+  })
+
+/**
+ * How many of the current week's ingredients are NOT yet on the saved list.
+ *
+ * Reuses the exact derivation `addWeekToShoppingList` writes (the consolidated,
+ * portion-scaled lines) and the same `planMerge` diff, so the count is the
+ * number of rows pressing the CTA would actually insert: `inserts.length`. The
+ * week page reads this to choose between "All added" (0) and "Add N item(s)".
+ * Pure read, no writes.
+ */
+export const countMissingFromWeek = createServerFn({ method: 'GET' })
+  .inputValidator((d?: { planId?: string }) => d ?? {})
+  .handler(async ({ data }): Promise<{ missing: number }> => {
+    const householdId = await requireHouseholdId()
+    const { getDb } = await import('../db/client')
+    const db = await getDb()
+
+    const { loadShoppingList } = await import('./shopping-server')
+    const view = await loadShoppingList({
+      data: data.planId ? { planId: data.planId } : {},
+    })
+    const incoming = view.list.lines.map(lineToNewItem)
+    if (incoming.length === 0) return { missing: 0 }
+
+    const { items: existing } = await reloadItems(db, householdId)
+    return { missing: countMissing(existing, incoming) }
   })
 
 /** Add one manual item (name + optional amount). */

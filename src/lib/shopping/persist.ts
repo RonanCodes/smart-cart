@@ -84,11 +84,19 @@ export function lineToNewItem(line: ShoppingLine): NewShoppingItem {
  * user who cleared the list is not fought by the page re-filling it. The seed
  * itself is idempotent on the server (planMerge dedupes), so this guard is
  * about intent, not correctness.
+ *
+ * `clearedByUser` is the deliberate-empty signal: an empty list reached by
+ * tapping "Clear all" is a CHOICE, not a never-seeded state, so we must not
+ * immediately re-fill it. Clearing to empty stays cleared until the user adds
+ * something back. Without this flag, "Clear all" on a planned week would race
+ * the loader into re-seeding the very rows the user just wiped.
  */
 export function shouldAutoSeed(input: {
   planId: string | null
   savedItemCount: number
+  clearedByUser?: boolean
 }): boolean {
+  if (input.clearedByUser) return false
   return input.planId !== null && input.savedItemCount === 0
 }
 
@@ -215,4 +223,39 @@ export function planMerge(
 export function mergeAmount(a: string | null, b: string | null): string | null {
   const summed = sumAmounts(a, b)
   return summed !== null ? summed : concatAmounts(a, b)
+}
+
+/**
+ * How many incoming lines are genuinely NEW relative to the existing list.
+ * That is exactly `planMerge(...).inserts.length`: a line that folds its amount
+ * into an existing row is not "missing", it is already represented. The week
+ * CTA uses this to decide between "All added" (0) and "Add N item(s)" (N>0).
+ */
+export function countMissing(
+  existing: Array<ShoppingItem>,
+  incoming: Array<NewShoppingItem>,
+): number {
+  return planMerge(existing, incoming).inserts.length
+}
+
+/**
+ * The label + disabled state for the week's "Add to shopping list" CTA, given
+ * how many week ingredients are not yet on the saved list.
+ *
+ *  - 0 missing  -> disabled, "All added" (nothing to do; everything is there).
+ *  - 1 missing  -> "Add 1 item to shopping list" (singular).
+ *  - N missing  -> "Add N items to shopping list" (plural).
+ *
+ * Pure and string-only so the visual states are unit-tested without React.
+ */
+export function addToListCta(missingCount: number): {
+  label: string
+  disabled: boolean
+} {
+  if (missingCount <= 0) return { label: 'All added', disabled: true }
+  const noun = missingCount === 1 ? 'item' : 'items'
+  return {
+    label: `Add ${missingCount} ${noun} to shopping list`,
+    disabled: false,
+  }
 }
