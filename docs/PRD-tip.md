@@ -27,14 +27,14 @@ visibly happier as you tip more. It turns a fee into brand personality.
 
 The mascot reacts with **positive-only** emotion. We never punish declining.
 
-| Tip | Mascot asset | Vibe |
-| --- | --- | --- |
-| No tip | `souso-hat-plain` / `souso-2d-wave` | warm, neutral: "All good, here's your basket!" |
-| 1% | `souso-2d-wave` | happy |
-| 2% | `souso-mascot-basket` | chuffed |
-| 3% (default) | `souso-2d-cook` | beaming |
-| 4% | `souso-hat-celebrate` | thrilled |
-| 5% | `souso-2d-celebrate` | over the moon |
+| Tip          | Mascot asset                        | Vibe                                           |
+| ------------ | ----------------------------------- | ---------------------------------------------- |
+| No tip       | `souso-hat-plain` / `souso-2d-wave` | warm, neutral: "All good, here's your basket!" |
+| 1%           | `souso-2d-wave`                     | happy                                          |
+| 2%           | `souso-mascot-basket`               | chuffed                                        |
+| 3% (default) | `souso-2d-cook`                     | beaming                                        |
+| 4%           | `souso-hat-celebrate`               | thrilled                                       |
+| 5%           | `souso-2d-celebrate`                | over the moon                                  |
 
 - Slider snaps to whole percents; mascot crossfades as you drag.
 - "No tip" is a real, unpunished tap target. No sad face, no disappointed copy.

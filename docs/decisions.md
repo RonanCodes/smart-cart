@@ -55,7 +55,7 @@ pick up cold. One line each; expand only when it bit us.
     that the tip slider appears on every add-to-cart, defaulting to 3% of the basket, the
     user can slide it down (to 1%, or any whole percent up to 5%) or tap "no tip".
 17. **Reward, never guilt (the anti-dark-pattern rule).** The Souso mascot reacts to the
-    tip level with *positive-only* emotion: neutral-and-kind at no-tip (never sad or
+    tip level with _positive-only_ emotion: neutral-and-kind at no-tip (never sad or
     disappointed), happier as the tip climbs (1% happy → 5% over the moon). We do not
     punish declining. The UI labels it an optional default-on fee, not a "tip" if the
     default is on, so it is honest. This is a deliberate stance we can defend to judges
