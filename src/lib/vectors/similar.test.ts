@@ -4,9 +4,9 @@ import type { Neighbour, SimilarRecipe } from './similar'
 
 /**
  * Unit tests for the pure neighbour post-processing. Everything here runs against
- * a STUBBED Vectorize neighbour list and an in-memory recipe map, so there is no
- * network, no Vectorize binding, and no Cloudflare token. The live Vectorize query
- * is exercised only by an optional manual smoke, never in CI.
+ * a STUBBED scored-neighbour list and an in-memory recipe map, so there is no DB
+ * and no I/O. The scorer itself (similar-score.ts) and the I/O orchestration
+ * (similarRecipes) are covered separately.
  */
 
 function recipe(over: Partial<SimilarRecipe> & { id: string }): SimilarRecipe {
@@ -114,7 +114,7 @@ describe('postProcessNeighbours', () => {
     expect(out.map((r) => r.id)).toEqual(['b', 'c'])
   })
 
-  it('keeps Vectorize nearest-first order by default (similarity)', () => {
+  it('keeps the scorer nearest-first order by default (similarity)', () => {
     const recipes = mapOf(
       recipe({ id: 'self' }),
       recipe({ id: 'a', prepMinutes: 40 }),

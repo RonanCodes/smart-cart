@@ -23,7 +23,7 @@ export async function dispatchVapiTool(
       if (!instruction) {
         return 'Tell me what to change, for example "eating out Wednesday".'
       }
-      const { replanForHousehold } = await import('./replan-server')
+      const { replanForHousehold } = await import('./replan-internal-server')
       const res = await replanForHousehold(householdId, instruction)
       if (!res) {
         return "You don't have a week planned yet, so there's nothing to change."

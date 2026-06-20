@@ -1,8 +1,23 @@
 import { useState } from 'react'
-import { ThumbsUp, ThumbsDown } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, Bell } from 'lucide-react'
 import { getUserDatapoints } from '#/lib/admin-server'
 import type { AdminUserRow, UserDatapoints } from '#/lib/admin-server'
+import { sendRateMealPush } from '#/lib/push-server'
 import { Badge } from '#/components/ui/badge'
+import { Button } from '#/components/ui/button'
+
+/**
+ * Short human label for a person's access state, factoring onboarding in: an
+ * onboarded real user reads 'Onboarded', a granted/approved-but-never-onboarded
+ * person reads 'Approved user', and a bare user row with no grant reads 'Not
+ * onboarded'. The separate Admin badge already covers admins.
+ */
+function accessTag(u: AdminUserRow): string {
+  if (u.access === 'admin') return 'Admin'
+  if (u.onboarded) return 'Onboarded'
+  if (u.access === 'user') return 'Approved user'
+  return 'Not onboarded'
+}
 
 /**
  * The synthetic-users list + per-user data-points drill-down. Extracted verbatim
@@ -13,6 +28,8 @@ import { Badge } from '#/components/ui/badge'
 export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
   const [detail, setDetail] = useState<UserDatapoints | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [pushBusy, setPushBusy] = useState<string | null>(null)
+  const [pushMsg, setPushMsg] = useState<string | null>(null)
 
   async function open(userId: string) {
     setLoadingId(userId)
@@ -20,36 +37,103 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
     setLoadingId(null)
   }
 
+  // Send a "rate the meal" push. `target` is a userId, or 'all' for everyone.
+  // Stops row clicks from also opening the data-points drawer.
+  async function sendPush(target: string | 'all') {
+    setPushBusy(target)
+    setPushMsg(null)
+    try {
+      const res =
+        target === 'all'
+          ? await sendRateMealPush({ data: { all: true } })
+          : await sendRateMealPush({ data: { userId: target } })
+      setPushMsg(res.message)
+    } catch {
+      setPushMsg('Could not send the push, try again.')
+    } finally {
+      setPushBusy(null)
+    }
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
       {/* Users */}
       <div className="space-y-2">
-        {users.map((u) => (
-          <button
-            key={u.userId}
-            onClick={() => open(u.userId)}
-            className="border-border hover:bg-secondary flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition"
+        <div className="flex items-center justify-between gap-3 pb-1">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pushBusy !== null}
+            onClick={() => void sendPush('all')}
           >
-            <div className="min-w-0">
-              <div className="truncate text-sm font-medium">{u.email}</div>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {u.badges.slice(0, 3).map((b) => (
-                  <span key={b.label} className="text-xs">
-                    {b.emoji} {b.label}
-                  </span>
-                ))}
-                {u.badges.length === 0 && (
-                  <span className="text-muted-foreground text-xs">
-                    not onboarded
-                  </span>
-                )}
-              </div>
+            <Bell className="h-4 w-4" aria-hidden />
+            {pushBusy === 'all' ? 'Sending…' : 'Send rate-meal push to all'}
+          </Button>
+        </div>
+        {pushMsg && (
+          <p
+            role="status"
+            className="text-muted-foreground bg-secondary rounded-lg px-3 py-2 text-xs"
+          >
+            {pushMsg}
+          </p>
+        )}
+        {users.map((u) => {
+          // No user row -> nothing to drill into; render a static card so the
+          // operator still sees the person, their admin badge + access tag.
+          const interactive = u.userId !== null
+          return (
+            <div key={u.email} className="flex items-stretch gap-2">
+              <button
+                onClick={() => interactive && open(u.userId!)}
+                disabled={!interactive}
+                className="border-border enabled:hover:bg-secondary flex min-w-0 flex-1 items-center justify-between rounded-lg border px-4 py-3 text-left transition disabled:cursor-default disabled:opacity-70"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="truncate text-sm font-medium">
+                      {u.email}
+                    </span>
+                    {u.isAdmin && (
+                      <Badge variant="primary" className="shrink-0">
+                        Admin
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="shrink-0">
+                      {accessTag(u)}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {u.badges.slice(0, 3).map((b) => (
+                      <span key={b.label} className="text-xs">
+                        {b.emoji} {b.label}
+                      </span>
+                    ))}
+                    {u.badges.length === 0 && (
+                      <span className="text-muted-foreground text-xs">
+                        {u.onboarded ? 'no badges yet' : 'not onboarded'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span className="text-muted-foreground ml-3 shrink-0 text-xs">
+                  {u.swipes} swipes
+                </span>
+              </button>
+              {interactive && (
+                <button
+                  type="button"
+                  aria-label={`Send rate-meal push to ${u.email}`}
+                  disabled={pushBusy !== null}
+                  onClick={() => void sendPush(u.userId!)}
+                  className="border-border text-muted-foreground enabled:hover:bg-secondary inline-flex w-11 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-50"
+                >
+                  <Bell className="h-4 w-4" aria-hidden />
+                </button>
+              )}
             </div>
-            <span className="text-muted-foreground ml-3 shrink-0 text-xs">
-              {u.swipes} swipes
-            </span>
-          </button>
-        ))}
+          )
+        })}
         {users.length === 0 && (
           <p className="text-muted-foreground text-sm">No users yet.</p>
         )}

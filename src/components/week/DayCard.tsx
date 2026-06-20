@@ -6,6 +6,7 @@ import {
   Clock,
   Flame,
   Beef,
+  Plus,
 } from 'lucide-react'
 import type { WeekDayView } from '#/lib/week-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
@@ -13,6 +14,8 @@ import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { SimilarSwap } from './SimilarSwap'
 import type { SimilarNeighbour } from './SimilarSwap'
+import { MealRating } from './MealRating'
+import type { MealRating as Rating } from '#/lib/meal-feedback'
 
 interface DayCardProps {
   day: WeekDayView
@@ -22,12 +25,25 @@ interface DayCardProps {
   locked: boolean
   /** Tap the card to open the edit sheet (~5 ready alternatives). */
   onEdit: () => void
+  /**
+   * Add a meal to this (eating-out / empty) day: opens the same picker so the user
+   * can drop a dinner in (#175). Only called for a skipped day.
+   */
+  onAdd: () => void
   /** Swap this day's dinner for the next-best by preference. */
   onSwap: () => void
   /** Load similar recipes for this day's dinner under the given re-rank. */
   onLoadSimilar: (sort: SimilarSort) => Promise<Array<SimilarNeighbour>>
   /** The user picked a similar recipe for this day: write it into the plan. */
   onPickSimilar: (recipeId: string) => Promise<void>
+  /** The saved post-meal rating for this day's dinner (null = not rated). */
+  rating: Rating
+  /** The saved post-meal note for this day's dinner, if any. */
+  ratingNote: string | null
+  /** Whether a rating write is in flight for this day. */
+  ratingBusy: boolean
+  /** Submit a post-meal rating + note for this day's dinner (#126). */
+  onRate: (next: { rating: Rating; note: string | null }) => Promise<void>
 }
 
 /**
@@ -50,9 +66,14 @@ export function DayCard({
   busy,
   locked,
   onEdit,
+  onAdd,
   onSwap,
   onLoadSimilar,
   onPickSimilar,
+  rating,
+  ratingNote,
+  ratingBusy,
+  onRate,
 }: DayCardProps) {
   const skipped = !day.recipeRef
   const [showSimilar, setShowSimilar] = useState(false)
@@ -74,9 +95,11 @@ export function DayCard({
           the edit sheet. A skipped day has nothing to edit, so it is inert. */}
       <button
         type="button"
-        disabled={locked || skipped || picking}
-        onClick={onEdit}
-        aria-label={skipped ? undefined : `Edit ${day.day}: ${day.meal}`}
+        disabled={locked || picking}
+        onClick={skipped ? onAdd : onEdit}
+        aria-label={
+          skipped ? `Add a meal to ${day.day}` : `Edit ${day.day}: ${day.meal}`
+        }
         className="flex flex-col text-left disabled:cursor-default"
       >
         <div className="bg-secondary aspect-[4/3] w-full">
@@ -136,38 +159,62 @@ export function DayCard({
       </button>
 
       <div className="flex flex-col gap-2 px-4 pb-4">
-        {!skipped && (
-          <p className="text-muted-foreground pt-2 text-center text-xs">
-            Tap the dish to see {day.alternatives.length || '5'} ready swaps
-          </p>
+        {skipped ? (
+          // An eating-out / empty day is not a dead end: a primary action drops a
+          // household-ranked dinner in (#175), reusing the same picker the edit
+          // flow uses. The card body taps through to the same sheet.
+          <Button
+            size="sm"
+            className="mt-2 w-full"
+            disabled={locked || picking}
+            onClick={onAdd}
+          >
+            <Plus className="h-4 w-4" />
+            {busy ? 'Adding…' : 'Add a meal'}
+          </Button>
+        ) : (
+          <>
+            <p className="text-muted-foreground pt-2 text-center text-xs">
+              Tap the dish to see {day.alternatives.length || '5'} ready swaps
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={locked || picking}
+                onClick={onSwap}
+              >
+                <Shuffle className="h-4 w-4" />
+                {busy ? 'Swapping…' : 'Swap'}
+              </Button>
+              <Button
+                variant={showSimilar ? 'default' : 'outline'}
+                size="sm"
+                disabled={locked || picking}
+                aria-expanded={showSimilar}
+                onClick={() => setShowSimilar((s) => !s)}
+              >
+                <Sparkles className="h-4 w-4" />
+                Similar
+              </Button>
+            </div>
+          </>
         )}
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={locked || skipped || picking}
-            onClick={onSwap}
-          >
-            <Shuffle className="h-4 w-4" />
-            {busy ? 'Swapping…' : 'Swap'}
-          </Button>
-          <Button
-            variant={showSimilar ? 'default' : 'outline'}
-            size="sm"
-            disabled={locked || skipped || picking}
-            aria-expanded={showSimilar}
-            onClick={() => setShowSimilar((s) => !s)}
-          >
-            <Sparkles className="h-4 w-4" />
-            Similar
-          </Button>
-        </div>
 
         {showSimilar && !skipped && (
           <SimilarSwap
             onLoad={onLoadSimilar}
             onPick={(recipeId) => void pick(recipeId)}
             picking={picking}
+          />
+        )}
+
+        {!skipped && (
+          <MealRating
+            rating={rating}
+            note={ratingNote}
+            busy={ratingBusy}
+            onSubmit={onRate}
           />
         )}
       </div>

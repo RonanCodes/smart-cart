@@ -53,7 +53,7 @@ export const STEPS: Array<OnboardingStep> = [
   {
     id: 'cuisine',
     title: 'Cuisines you love',
-    subtitle: 'Tap to love a cuisine, tap again to rule it out.',
+    subtitle: 'One tap to like, tap again to dislike, once more to clear.',
     Component: CuisineStep,
   },
   {

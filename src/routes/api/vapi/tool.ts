@@ -40,7 +40,8 @@ export const Route = createFileRoute('/api/vapi/tool')({
           const body: unknown = await request.json().catch(() => ({}))
 
           // 2. Derive identity from the verified token only.
-          const { verifyVapiToken } = await import('../../../lib/vapi-server')
+          const { verifyVapiToken } =
+            await import('../../../lib/vapi-verify-server')
           const claims = await verifyVapiToken(extractCallToken(body))
 
           // 3. Dispatch each tool call. One try/catch per call so a single

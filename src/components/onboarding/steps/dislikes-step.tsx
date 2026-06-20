@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Plus, X } from 'lucide-react'
 import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
+import { suggestDislikes } from '#/lib/onboarding/common-dislikes'
 import { useOnboardingForm } from '../form-state'
 
 /**
@@ -67,13 +68,18 @@ export function DislikesStep() {
     }
   }
 
-  function addCustom() {
-    const value = query.trim()
+  /** Add a specific label (from a suggestion tap) and clear the search box. */
+  function add(label: string) {
+    const value = label.trim()
     if (!value) return
     if (!includesCI(selected, value)) {
       patch({ dislikes: [...selected, value] })
     }
     setQuery('')
+  }
+
+  function addCustom() {
+    add(query)
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -82,6 +88,13 @@ export function DislikesStep() {
       addCustom()
     }
   }
+
+  /** Autocomplete suggestions from the curated catalogue: matches `query`,
+   * minus the preset chips on screen and anything already selected. */
+  const suggestions = React.useMemo(
+    () => suggestDislikes(query, { shown: SUGGESTED, selected }),
+    [query, selected],
+  )
 
   return (
     <div className="flex flex-col gap-5" data-testid="dislikes-step">
@@ -112,24 +125,60 @@ export function DislikesStep() {
         })}
       </div>
 
-      <div className="flex items-center gap-2">
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Search an ingredient"
-          aria-label="Search an ingredient"
-          className="h-11"
-        />
-        <button
-          type="button"
-          onClick={addCustom}
-          disabled={!query.trim()}
-          aria-label="Add ingredient"
-          className="border-border bg-card flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition active:scale-95 disabled:opacity-40"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Search an ingredient"
+            aria-label="Search an ingredient"
+            role="combobox"
+            aria-expanded={suggestions.length > 0}
+            aria-autocomplete="list"
+            aria-controls="dislikes-suggestions"
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            className="h-11"
+          />
+          <button
+            type="button"
+            onClick={addCustom}
+            disabled={!query.trim()}
+            aria-label="Add ingredient"
+            className="border-border bg-card flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition active:scale-95 disabled:opacity-40"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+        </div>
+
+        {suggestions.length > 0 && (
+          <ul
+            id="dislikes-suggestions"
+            role="listbox"
+            aria-label="Suggested ingredients"
+            className="border-border bg-card flex flex-col overflow-hidden rounded-lg border"
+          >
+            {suggestions.map((label) => (
+              <li key={label} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  onClick={() => add(label)}
+                  className="border-border/60 hover:bg-muted active:bg-muted flex w-full items-center gap-2 border-b px-4 py-3 text-left text-sm transition last:border-b-0"
+                >
+                  <Plus
+                    aria-hidden
+                    className="text-muted-foreground h-4 w-4 shrink-0"
+                  />
+                  {label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )

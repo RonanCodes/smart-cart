@@ -22,6 +22,48 @@
       "when": 1782200000000,
       "tag": "0002_staples",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1782400000000,
+      "tag": "0003_admin_notification_pref",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1782600000000,
+      "tag": "0004_access_grant",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1782800000000,
+      "tag": "0005_shopping_list_item",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1783000000000,
+      "tag": "0006_store_product",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1783200000000,
+      "tag": "0007_push_subscription",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1783400000000,
+      "tag": "0008_tip",
+      "breakpoints": true
     }
   ]
 }

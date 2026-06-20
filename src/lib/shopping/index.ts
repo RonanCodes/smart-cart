@@ -29,3 +29,21 @@ export type { CanonicalUnit } from './units'
 
 export { summariseWaste, hasExactAmount, wasteLevel, reuseLabel } from './waste'
 export type { WasteSummary, WasteLevel } from './waste'
+
+export {
+  normaliseItemName,
+  lineToNewItem,
+  sumAmounts,
+  concatAmounts,
+  mergeAmount,
+  planMerge,
+  shouldAutoSeed,
+  countMissing,
+  addToListCta,
+} from './persist'
+export type {
+  ShoppingItem,
+  ShoppingItemSource,
+  NewShoppingItem,
+  MergePlan,
+} from './persist'

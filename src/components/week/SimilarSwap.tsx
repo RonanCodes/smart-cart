@@ -25,8 +25,9 @@ const SORTS: Array<{ key: SimilarSort; label: string }> = [
 
 /**
  * The "swap for something similar" chooser. Distinct from the next-best Swap: it
- * shows the actual nearest-neighbour recipes (Vectorize, #31) so the replacement
- * stays close to the current dish ("like this, but a different night"). A re-rank
+ * shows the actual nearest-neighbour recipes (set-maths similarity) so the
+ * replacement stays close to the current dish ("like this, but a different
+ * night"). A re-rank
  * toggle surfaces the faster / lighter sorts the similar API supports.
  *
  * Mobile-first: every row is a full-width tappable button and the sort toggle is

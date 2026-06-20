@@ -134,6 +134,12 @@
   /* iOS card radius: rounder than the desktop default for the native feel. */
   --radius-ios: 1.25rem;
 
+  /* Desktop device-frame width. The mobile-first surface is centred in a
+     phone-width column above the --app-frame-min breakpoint so a wide window
+     reads as "an app on a desktop", not a stranded narrow column. */
+  --app-frame-width: 30rem; /* 480px */
+  --app-frame-min: 481px;
+
   /* The translucent material behind the tab bar + sheet headers. A near-white
      wash so light mode stays clean (flagged: light mode needs work). */
   --material: oklch(0.99 0.006 120 / 0.78);
@@ -236,5 +242,82 @@ body {
   .sheet-backdrop[data-state='open'],
   .sheet-backdrop[data-state='closed'] {
     animation-duration: 0.01ms;
+  }
+}
+
+/* ── Desktop device frame ─────────────────────────────────────────────────────
+   The whole app is mobile-first. On a phone (<= 480px) it fills the viewport and
+   nothing below applies, the layout is byte-for-byte unchanged. From 481px up we
+   stop letting it sprawl: the screen sits in a centred phone-width column over a
+   warm, food-forward backdrop with a soft shadow + rounded corners so a desktop
+   window reads as "the app, framed" instead of a stranded narrow strip.
+
+   The shell adds `.app-backdrop` (the page-wide wash) and `.app-frame` (the
+   centred column); the fixed TabBar adds `.app-tabbar` so it lines up with the
+   frame instead of spanning the viewport. */
+@media (min-width: 481px) {
+  .app-backdrop {
+    /* A warm pantry-light wash behind the framed app: soft tomato + leaf tints
+       bleeding in from the top corners over the off-white canvas. Subtle, never
+       loud, the framed column is still the hero. */
+    background-color: oklch(0.97 0.012 95);
+    background-image:
+      radial-gradient(
+        110% 70% at 12% -8%,
+        oklch(0.86 0.06 40 / 0.5),
+        transparent 60%
+      ),
+      radial-gradient(
+        110% 70% at 92% 0%,
+        oklch(0.88 0.06 145 / 0.45),
+        transparent 58%
+      );
+    background-attachment: fixed;
+  }
+
+  .app-frame {
+    width: 100%;
+    max-width: var(--app-frame-width);
+    margin-inline: auto;
+    /* The framed column carries the app canvas + a lifted-card shadow so it sits
+       above the backdrop. Min-height fills the viewport so short screens still
+       read as a full device. */
+    min-height: 100dvh;
+    background-color: var(--color-background);
+    box-shadow:
+      0 1px 2px oklch(0.3 0.03 60 / 0.06),
+      0 18px 50px -12px oklch(0.3 0.04 60 / 0.22);
+  }
+
+  /* Pin the fixed tab bar to the framed column rather than the whole viewport. */
+  .app-tabbar {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: var(--app-frame-width);
+    border-left: 1px solid var(--color-hairline);
+    border-right: 1px solid var(--color-hairline);
+  }
+}
+
+.dark {
+  /* Darker, still warm, so the frame reads the same way at night. */
+  --app-backdrop-dark: oklch(0.16 0.015 150);
+}
+@media (min-width: 481px) {
+  .dark .app-backdrop {
+    background-color: oklch(0.16 0.015 150);
+    background-image:
+      radial-gradient(
+        110% 70% at 12% -8%,
+        oklch(0.32 0.05 40 / 0.45),
+        transparent 60%
+      ),
+      radial-gradient(
+        110% 70% at 92% 0%,
+        oklch(0.3 0.05 145 / 0.4),
+        transparent 58%
+      );
   }
 }

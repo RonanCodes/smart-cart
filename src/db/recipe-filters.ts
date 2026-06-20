@@ -2,13 +2,16 @@ import { sql } from 'drizzle-orm'
 import { recipe } from './schema'
 
 /**
- * SQL predicate: the recipe has a usable image.
+ * SQL predicate for a recipe the app may surface as a card (deck, weekly plan,
+ * similar neighbours). Two gates:
  *
- * Images live in `raw.imageUrl` (a JSON blob, no dedicated column). About 55% of the
- * imported catalogue has no image (mostly food.com rows), and an imageless card looks
- * broken in the swipe deck / week view / similar-swap. So every recipe-SELECTION point
- * the user sees a card from (deck, weekly plan, similar neighbours) filters on this.
- * The imageless recipes stay in the table (they still carry ingredients/macros for the
- * price-matching work), they just never surface as a card.
+ *  1. Dutch supermarket source only: `source IN ('ah','jumbo')`. The catalogue
+ *     also holds older foodcom + themealdb rows, but the product is Albert Heijn /
+ *     Jumbo, so only those recipes are shown. The rest stay in the table (they
+ *     still carry ingredients/macros for price-matching) but never surface.
+ *  2. Has a usable image: `raw.imageUrl` is set (an imageless card looks broken).
+ *     Every AH/Jumbo recipe has one, so this is belt-and-braces.
+ *
+ * Keeping the export name `hasImage` since every selection point already imports it.
  */
-export const hasImage = sql`json_extract(${recipe.raw}, '$.imageUrl') is not null and json_extract(${recipe.raw}, '$.imageUrl') <> ''`
+export const hasImage = sql`${recipe.source} in ('ah', 'jumbo') and json_extract(${recipe.raw}, '$.imageUrl') is not null and json_extract(${recipe.raw}, '$.imageUrl') <> ''`

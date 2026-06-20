@@ -7,7 +7,7 @@
  *   1. install dependencies (pnpm)
  *   2. create .dev.vars from .dev.vars.example (auto-filling a BETTER_AUTH_SECRET)
  *   3. apply the D1 migrations to the local database
- *   4. seed the local database with the recipe catalogue
+ *   4. seed the local database with recipes + store products
  *
  * After this finishes, `npm run start` boots the app at http://localhost:3000.
  *
@@ -78,9 +78,9 @@ if (existsSync(devVars)) {
 step(3, 'Applying database migrations (local D1)')
 run('pnpm', ['db:migrate:local'])
 
-// ---- 4. seed recipes ------------------------------------------------------
-step(4, 'Seeding the recipe catalogue (local D1)')
-run('pnpm', ['reseed:d1', '--local'])
+// ---- 4. seed recipes + store products -------------------------------------
+step(4, 'Seeding recipes + store products (local D1)')
+run('pnpm', ['seed', '--local'])
 
 console.log(
   '\nSetup complete. Start the app with:\n  npm run start\n  -> http://localhost:3000\n',

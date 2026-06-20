@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { Clock, PiggyBank, Sparkles, Leaf } from 'lucide-react'
 import { joinWaitlist } from '#/lib/waitlist-server'
 import { SafeArea } from '#/components/ui/safe-area'
@@ -8,8 +9,9 @@ import { Input } from '#/components/ui/input'
 /**
  * Souso marketing landing: conversion-focused, mobile-first (390px), built for
  * a TikTok launch. Hero + mascot reference brand assets by URL (committed by the
- * mascot agent, not here). A prominent waitlist email capture is the single CTA;
- * there is NO login button (login is hidden, approved users use /login directly).
+ * mascot agent, not here). A prominent waitlist email capture is the primary CTA;
+ * a small, discrete 'Log in' link at the very bottom lets already-approved users
+ * reach /login without the waitlist drowning it out.
  *
  * Mounted at the public entry route / (the swipe-deck opener is retired).
  */
@@ -155,6 +157,17 @@ export function Landing() {
             first, guesswork last.
           </p>
         </section>
+
+        {/* Discrete entry for already-approved users. Kept quiet so the
+            waitlist stays the primary CTA. */}
+        <div className="mt-10 text-center">
+          <Link
+            to="/login"
+            className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 transition hover:underline"
+          >
+            Already have access? Log in
+          </Link>
+        </div>
       </div>
     </SafeArea>
   )

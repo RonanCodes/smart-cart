@@ -1,8 +1,18 @@
 import { createServerFn } from '@tanstack/react-start'
 import { redirect } from '@tanstack/react-router'
+// Bundled at build time, NOT read from disk: Cloudflare Workers has no filesystem,
+// so a runtime readFileSync threw "[unenv] fs.readFileSync is not implemented" and
+// 500'd the whole /admin loader in prod. The baseline is tiny (~1KB), so importing
+// it is free and works on the edge.
+import benchmarkBaseline from '../../docs/benchmarks/baseline.json'
 import { deriveBadges } from './badges'
 import type { Badge } from './badges'
-import type { AdaptiveWeights, InferredTaste } from './recsys/types'
+import type {
+  AdaptiveWeights,
+  InferredTaste,
+  RecipeLite,
+  UserProfile,
+} from './recsys/types'
 import type { FoldStats } from './recsys/feedback-fold'
 import type { UserExplanation } from './recsys/explain-why'
 
@@ -17,10 +27,42 @@ async function adminUser() {
   const { getSessionUser } = await import('./server-auth')
   const u = await getSessionUser()
   if (!u) return null
+  // Local dev open-access: any (dev) session is an admin so /admin opens with no
+  // setup. Dead code in the deployed build (import.meta.env.DEV is false there).
+  if (import.meta.env.DEV) return u
   const { readEnv } = await import('./env')
-  const { parseApprovedList, isApprovedIn } = await import('./access-rules')
+  const { parseApprovedList, isAdminWith, ADMIN_EMAIL } =
+    await import('./access-rules')
+  // Env admins + the always-included default owner (mirrors admin-emails.ts),
+  // so the console can never be locked out.
   const admins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
-  return isApprovedIn(u.email, admins) ? u : null
+  admins.add(ADMIN_EMAIL)
+  // DB-backed admin grants (role='admin') let the console promote admins with no
+  // redeploy. A missing grant table degrades to env-only (loadAdminGrantMap
+  // returns an empty map) rather than locking everyone out.
+  const grants = await loadAdminGrantMap()
+  return isAdminWith(u.email, admins, grants) ? u : null
+}
+
+/**
+ * Load the DB-backed grant map (normalised email -> role) for the admin gate +
+ * the waitlist view. Dynamically imports the DB client + schema so nothing
+ * server-only leaks to the client bundle. Returns an empty map if the table is
+ * unavailable (e.g. migration 0004 not yet applied).
+ */
+async function loadAdminGrantMap() {
+  const { grantMapFrom } = await import('./access-rules')
+  try {
+    const { getDb } = await import('../db/client')
+    const { accessGrant } = await import('../db/access-grant-schema')
+    const db = await getDb()
+    const rows = await db
+      .select({ email: accessGrant.email, role: accessGrant.role })
+      .from(accessGrant)
+    return grantMapFrom(rows)
+  } catch {
+    return grantMapFrom([])
+  }
 }
 
 export const isAdmin = createServerFn({ method: 'GET' }).handler(
@@ -32,12 +74,21 @@ export async function requireAdminBeforeLoad(): Promise<void> {
   if (!(await isAdmin())) throw redirect({ to: '/' })
 }
 
+/**
+ * One person in the admin Users view. `userId` / `householdId` are null for a
+ * person who is granted / approved / admin-by-env but has never signed in (no
+ * `user` row). The panel disables the data-points drill-down for those (no
+ * userId to look up). `access` + `isAdmin` drive the Admin badge + access tag.
+ */
 export interface AdminUserRow {
-  userId: string
+  userId: string | null
   email: string
   householdId: string | null
   swipes: number
   badges: Array<Badge>
+  isAdmin: boolean
+  access: 'admin' | 'user' | 'none'
+  onboarded: boolean
 }
 
 export const listUsers = createServerFn({ method: 'GET' }).handler(
@@ -46,6 +97,9 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
     const { getDb } = await import('../db/client')
     const { user, household, recipeSwipe } = await import('../db/schema')
     const { eq, count } = await import('drizzle-orm')
+    const { readEnv } = await import('./env')
+    const { parseApprovedList, mergePeople, ADMIN_EMAIL } =
+      await import('./access-rules')
     const db = await getDb()
     const rows = await db
       .select({
@@ -61,13 +115,27 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
       .from(recipeSwipe)
       .groupBy(recipeSwipe.householdId)
     const byHid = new Map(counts.map((c) => [c.hid, c.n]))
-    return rows.map((r) => ({
-      userId: r.userId,
-      email: r.email,
-      householdId: r.householdId,
-      swipes: r.householdId ? (byHid.get(r.householdId) ?? 0) : 0,
-      badges: r.profile ? deriveBadges(r.profile) : [],
-    }))
+
+    // Resolve the env + DB access sets so people who never signed in still show.
+    // Env admins always include the default owner (mirrors admin-emails.ts), so
+    // the console can never present as locked out.
+    const envAdmins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
+    envAdmins.add(ADMIN_EMAIL)
+    const envApproved = parseApprovedList(await readEnv('APPROVED_EMAILS'))
+    const grants = await loadAdminGrantMap()
+
+    return mergePeople<Badge>({
+      userRows: rows.map((r) => ({
+        userId: r.userId,
+        email: r.email,
+        householdId: r.householdId,
+        swipes: r.householdId ? (byHid.get(r.householdId) ?? 0) : 0,
+        badges: r.profile ? deriveBadges(r.profile) : [],
+      })),
+      envAdmins,
+      envApproved,
+      grants,
+    })
   },
 )
 
@@ -77,11 +145,16 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
 // outside the main profile schema (src/db/waitlist-schema.ts).
 // ---------------------------------------------------------------------------
 
+/** The access state of a waitlist email: not granted, granted user, or admin. */
+export type GrantState = 'none' | 'user' | 'admin'
+
 /** One waitlist signup, shaped for the admin list. */
 export interface WaitlistRowView {
   email: string
   /** ISO-8601 signup timestamp. */
   createdAt: string
+  /** Current DB-backed grant for this email, so buttons reflect state. */
+  grant: GrantState
 }
 
 export interface WaitlistView {
@@ -91,19 +164,25 @@ export interface WaitlistView {
 
 /**
  * Shape raw waitlist rows into the admin view: newest first, dates as ISO
- * strings, plus the total count. Pure so it can be unit-tested with a fixture.
+ * strings, each tagged with its current grant state, plus the total count. Pure
+ * so it can be unit-tested with a fixture (pass the grant map the rows resolve
+ * against; default empty = nobody granted).
  */
 export function shapeWaitlist(
   rows: Array<{ email: string; createdAt: Date | string | number }>,
+  grants: ReadonlyMap<string, 'user' | 'admin'> = new Map(),
 ): WaitlistView {
   const view = rows
-    .map((r) => ({
-      email: r.email,
-      createdAt:
-        r.createdAt instanceof Date
-          ? r.createdAt.toISOString()
-          : new Date(r.createdAt).toISOString(),
-    }))
+    .map(
+      (r): WaitlistRowView => ({
+        email: r.email,
+        createdAt:
+          r.createdAt instanceof Date
+            ? r.createdAt.toISOString()
+            : new Date(r.createdAt).toISOString(),
+        grant: grants.get(r.email.trim().toLowerCase()) ?? 'none',
+      }),
+    )
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   return { count: view.length, rows: view }
 }
@@ -117,9 +196,79 @@ export const listWaitlist = createServerFn({ method: 'GET' }).handler(
     const rows = await db
       .select({ email: waitlist.email, createdAt: waitlist.createdAt })
       .from(waitlist)
-    return shapeWaitlist(rows)
+    const grants = await loadAdminGrantMap()
+    return shapeWaitlist(rows, grants)
   },
 )
+
+// ---------------------------------------------------------------------------
+// Access grants: approve a waitlisted person (role 'user') or promote them to
+// admin (role 'admin') from the console, with NO redeploy. Both upsert into the
+// access_grant table keyed on the normalised email, so they are idempotent.
+// Admin-gated. isApproved (access.ts) + the adminUser gate above read these.
+// ---------------------------------------------------------------------------
+
+/**
+ * Grant login access to `email` (role 'user'). No-op if the email is ALREADY an
+ * admin grant (admin implies user, so we never downgrade an admin to a plain
+ * user). Returns the resulting grant state.
+ */
+export const grantUser = createServerFn({ method: 'POST' })
+  .inputValidator((d: { email: string }) => d)
+  .handler(async ({ data }): Promise<{ email: string; grant: GrantState }> => {
+    if (!(await adminUser())) throw new Error('forbidden')
+    const { normalizeEmail } = await import('./access-rules')
+    const email = normalizeEmail(data.email)
+    if (!email) throw new Error('email required')
+    const { getDb } = await import('../db/client')
+    const { accessGrant } = await import('../db/access-grant-schema')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+    // Don't downgrade an existing admin grant.
+    const existing = (
+      await db
+        .select({ role: accessGrant.role })
+        .from(accessGrant)
+        .where(eq(accessGrant.email, email))
+        .limit(1)
+    )[0]
+    if (existing?.role === 'admin') return { email, grant: 'admin' }
+    const now = new Date()
+    await db
+      .insert(accessGrant)
+      .values({ email, role: 'user', createdAt: now })
+      .onConflictDoUpdate({
+        target: accessGrant.email,
+        set: { role: 'user', createdAt: now },
+      })
+    return { email, grant: 'user' }
+  })
+
+/**
+ * Promote `email` to admin (role 'admin'; admin implies login access too).
+ * Upsert keyed on the normalised email, so it is idempotent. Returns the
+ * resulting grant state.
+ */
+export const grantAdmin = createServerFn({ method: 'POST' })
+  .inputValidator((d: { email: string }) => d)
+  .handler(async ({ data }): Promise<{ email: string; grant: GrantState }> => {
+    if (!(await adminUser())) throw new Error('forbidden')
+    const { normalizeEmail } = await import('./access-rules')
+    const email = normalizeEmail(data.email)
+    if (!email) throw new Error('email required')
+    const { getDb } = await import('../db/client')
+    const { accessGrant } = await import('../db/access-grant-schema')
+    const db = await getDb()
+    const now = new Date()
+    await db
+      .insert(accessGrant)
+      .values({ email, role: 'admin', createdAt: now })
+      .onConflictDoUpdate({
+        target: accessGrant.email,
+        set: { role: 'admin', createdAt: now },
+      })
+    return { email, grant: 'admin' }
+  })
 
 export interface Datapoint {
   recipeTitle: string
@@ -222,14 +371,7 @@ export const getBenchmarkMeta = createServerFn({ method: 'GET' }).handler(
     const { registeredKeys } = await import('./recsys/registry')
     const { DEFAULT_ALGORITHM, DEFAULT_ADAPTIVE_WEIGHTS } =
       await import('./recsys/config')
-    const { readFileSync } = await import('node:fs')
-    const { join } = await import('node:path')
-    const baselineRaw = JSON.parse(
-      readFileSync(
-        join(process.cwd(), 'docs', 'benchmarks', 'baseline.json'),
-        'utf8',
-      ),
-    ) as {
+    const baselineRaw = benchmarkBaseline as {
       metric: string
       checkpoints: Array<number>
       algorithms: Record<string, BaselineAlgo>
@@ -286,18 +428,23 @@ export const runBenchmarkFast = createServerFn({ method: 'POST' })
     }
     const { loadBenchmarkFixture } = await import('./recsys/fixture')
     const { runSingleAlgorithm } = await import('./recsys/benchmark-core')
-    const { readFileSync } = await import('node:fs')
-    const { join } = await import('node:path')
-    const baseline = JSON.parse(
-      readFileSync(
-        join(process.cwd(), 'docs', 'benchmarks', 'baseline.json'),
-        'utf8',
-      ),
-    ) as { checkpoints: Array<number> }
-    const checkpoints = baseline.checkpoints
+    const checkpoints = (benchmarkBaseline as { checkpoints: Array<number> })
+      .checkpoints
     const userLimit = Math.min(80, Math.max(10, data.userLimit ?? 40))
 
-    const { recipes, users } = loadBenchmarkFixture()
+    // The frozen fixture is read from disk (fixture.ts), which only works where
+    // there's a filesystem, local dev / Node. On the edge there is none, so a
+    // benchmark RUN is a local-dev tool; surface a clear message instead of a 500.
+    // (The /admin page + every other tab work in prod; only this button is local.)
+    let recipes: Array<RecipeLite>
+    let users: Array<UserProfile>
+    try {
+      ;({ recipes, users } = loadBenchmarkFixture())
+    } catch {
+      throw new Error(
+        'The benchmark runs in local dev only (no filesystem on the edge). Run it with `npm run start`.',
+      )
+    }
     const started = Date.now()
     const result = runSingleAlgorithm(recipes, users, data.algorithm, {
       checkpoints,

@@ -23,6 +23,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # Seed the LOCAL/test D1 (recipes + store products) so integration tests
+      # run against a real catalogue. Local-only: no CF credentials, no remote
+      # writes (remote seeding is a deploy-time command, kept out of CI to dodge
+      # rate limits). The recsys benchmark keeps using its frozen fixture.
+      - name: Migrate + seed local D1
+        run: |
+          pnpm db:migrate:local
+          pnpm seed --local
       - run: pnpm quality
   deploy:
     name: Deploy to Cloudflare Workers
