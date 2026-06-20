@@ -28,6 +28,7 @@ import { Button } from '#/components/ui/button'
 import { DayCard } from '#/components/week/DayCard'
 import { ChatReplan } from '#/components/week/ChatReplan'
 import { EditDaySheet } from '#/components/week/EditDaySheet'
+import { RatingReminders } from '#/components/week/RatingReminders'
 
 interface WeekSearch {
   plan?: string
@@ -280,6 +281,8 @@ function WeekPage() {
 
       <div className="space-y-6 px-5 pt-2">
         <ChatReplan busy={replanning} onSubmit={replan} />
+
+        <RatingReminders />
 
         {message && (
           <div
