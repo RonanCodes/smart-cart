@@ -7,7 +7,10 @@ import type {
   ShoppingList,
   ShoppingRecipe,
   WasteSummary,
+  ShoppingItem,
 } from './shopping'
+import type { StapleLine, FrequentStaple } from './staples-server'
+import type { StoreSlug } from './store-pref-server'
 
 /**
  * The shopping-list view's payload: the consolidated list, the subset of lines
@@ -224,5 +227,64 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
       list,
       shared,
       waste,
+    }
+  })
+
+/** Everything the /shopping route's loader needs, in one round-trip (#251). */
+export interface ShoppingBootstrap {
+  view: ShoppingListView
+  staples: Array<StapleLine>
+  frequentlyBought: Array<FrequentStaple>
+  items: Array<ShoppingItem>
+  preferredStore: StoreSlug
+}
+
+/**
+ * The /shopping loader, batched into ONE round-trip (#251). The route used to fan
+ * out five GET server fns per visit (loadShoppingList + loadStaples +
+ * frequentlyBoughtStaples + listShoppingItems + getStore) plus a conditional
+ * auto-seed write. This composes the same reads INSIDE one server handler and
+ * keeps the identical auto-seed branch, so behaviour is unchanged: the list
+ * still self-seeds from the week on first visit, and a deliberate "Clear all"
+ * (cleared=true) still suppresses the re-seed.
+ */
+export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
+  .inputValidator((d?: { planId?: string; cleared?: boolean }) => d ?? {})
+  .handler(async ({ data }): Promise<ShoppingBootstrap> => {
+    const { loadStaples, frequentlyBoughtStaples } =
+      await import('./staples-server')
+    const { listShoppingItems, addWeekToShoppingList } =
+      await import('./shopping-list-server')
+    const { getStore } = await import('./store-pref-server')
+    const { shouldAutoSeed } = await import('./shopping')
+
+    const planArg = data.planId ? { planId: data.planId } : {}
+    const [view, staplesRes, frequentRes, itemsRes, preferredStore] =
+      await Promise.all([
+        loadShoppingList({ data: planArg }),
+        loadStaples(),
+        frequentlyBoughtStaples(),
+        listShoppingItems(),
+        getStore(),
+      ])
+
+    let items = itemsRes.items
+    if (
+      shouldAutoSeed({
+        planId: view.planId,
+        savedItemCount: items.length,
+        clearedByUser: data.cleared,
+      })
+    ) {
+      const seeded = await addWeekToShoppingList({ data: planArg })
+      items = seeded.items
+    }
+
+    return {
+      view,
+      staples: staplesRes.staples,
+      frequentlyBought: frequentRes.items,
+      items,
+      preferredStore,
     }
   })

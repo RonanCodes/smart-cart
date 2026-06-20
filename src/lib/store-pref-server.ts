@@ -103,6 +103,27 @@ export const getStore = createServerFn({ method: 'GET' }).handler(
   },
 )
 
+/** Everything the /profile route's loader needs, in one round-trip (#251). */
+export interface ProfileBootstrap {
+  isAdmin: boolean
+  store: StoreSlug
+}
+
+/**
+ * The /profile loader, batched into ONE round-trip (#251). The route's local
+ * loadProfile() used to call isAdmin() + getStore() as two separate GET server
+ * fns; this composes the same two reads INSIDE one server handler so the client
+ * makes a single call. Behaviour and shape are unchanged, so the route's existing
+ * useQuery seeding (initialData = loader result) keeps working untouched.
+ */
+export const loadProfileBootstrap = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<ProfileBootstrap> => {
+    const { isAdmin } = await import('./admin-server')
+    const [admin, store] = await Promise.all([isAdmin(), getStore()])
+    return { isAdmin: admin, store }
+  },
+)
+
 /**
  * Persist the household's preferred store. Validates the slug to a real store
  * (rejecting Picnic / junk) before touching the DB. Writes ONLY the
