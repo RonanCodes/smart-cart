@@ -83,28 +83,28 @@ export const buildCartLinks = createServerFn({ method: 'GET' }).handler(
 
     const names = rows.map((r) => r.name)
 
-    const { getCatalogue } = await import('./pricing')
-    const { matchIngredient } = await import('./pricing')
     const { ahProductId, jumboSku, ahBulkCartUrl, jumboBulkCartUrl } =
       await import('./cart-links')
+    const { resolveLinesForStore } = await import('./pricing/resolve-lines')
 
-    const ahCat = getCatalogue('ah')
-    const jumboCat = getCatalogue('jumbo')
-
+    // Semantic resolution (ADR-0004): embed each list item once per store and
+    // take the nearest product by cosine, so "mushroom" resolves to the Dutch
+    // champignon SKU with no synonym table. Requires OPENAI_API_KEY; with no key
+    // it returns no matches (honest empty cart) rather than the old token matcher.
     const ahItems: Array<{ sku: string; qty: number }> = []
     const jumboItems: Array<{ sku: string; qty: number }> = []
 
-    for (const name of names) {
-      if (ahCat) {
-        const m = matchIngredient(name, ahCat)
-        const id = ahProductId(m.product?.slug)
-        if (id) ahItems.push({ sku: id, qty: 1 })
-      }
-      if (jumboCat) {
-        const m = matchIngredient(name, jumboCat)
-        const sku = jumboSku(m.product?.slug)
-        if (sku) jumboItems.push({ sku, qty: 1 })
-      }
+    const [ahResolved, jumboResolved] = await Promise.all([
+      resolveLinesForStore(names, 'ah'),
+      resolveLinesForStore(names, 'jumbo'),
+    ])
+    for (const { match } of ahResolved) {
+      const id = ahProductId(match.product?.slug)
+      if (id) ahItems.push({ sku: id, qty: 1 })
+    }
+    for (const { match } of jumboResolved) {
+      const sku = jumboSku(match.product?.slug)
+      if (sku) jumboItems.push({ sku, qty: 1 })
     }
 
     return {
