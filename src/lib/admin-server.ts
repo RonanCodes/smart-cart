@@ -1,8 +1,18 @@
 import { createServerFn } from '@tanstack/react-start'
 import { redirect } from '@tanstack/react-router'
+// Bundled at build time, NOT read from disk: Cloudflare Workers has no filesystem,
+// so a runtime readFileSync threw "[unenv] fs.readFileSync is not implemented" and
+// 500'd the whole /admin loader in prod. The baseline is tiny (~1KB), so importing
+// it is free and works on the edge.
+import benchmarkBaseline from '../../docs/benchmarks/baseline.json'
 import { deriveBadges } from './badges'
 import type { Badge } from './badges'
-import type { AdaptiveWeights, InferredTaste } from './recsys/types'
+import type {
+  AdaptiveWeights,
+  InferredTaste,
+  RecipeLite,
+  UserProfile,
+} from './recsys/types'
 import type { FoldStats } from './recsys/feedback-fold'
 import type { UserExplanation } from './recsys/explain-why'
 
@@ -17,6 +27,9 @@ async function adminUser() {
   const { getSessionUser } = await import('./server-auth')
   const u = await getSessionUser()
   if (!u) return null
+  // Local dev open-access: any (dev) session is an admin so /admin opens with no
+  // setup. Dead code in the deployed build (import.meta.env.DEV is false there).
+  if (import.meta.env.DEV) return u
   const { readEnv } = await import('./env')
   const { parseApprovedList, isApprovedIn } = await import('./access-rules')
   const admins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
@@ -222,14 +235,7 @@ export const getBenchmarkMeta = createServerFn({ method: 'GET' }).handler(
     const { registeredKeys } = await import('./recsys/registry')
     const { DEFAULT_ALGORITHM, DEFAULT_ADAPTIVE_WEIGHTS } =
       await import('./recsys/config')
-    const { readFileSync } = await import('node:fs')
-    const { join } = await import('node:path')
-    const baselineRaw = JSON.parse(
-      readFileSync(
-        join(process.cwd(), 'docs', 'benchmarks', 'baseline.json'),
-        'utf8',
-      ),
-    ) as {
+    const baselineRaw = benchmarkBaseline as {
       metric: string
       checkpoints: Array<number>
       algorithms: Record<string, BaselineAlgo>
@@ -286,18 +292,23 @@ export const runBenchmarkFast = createServerFn({ method: 'POST' })
     }
     const { loadBenchmarkFixture } = await import('./recsys/fixture')
     const { runSingleAlgorithm } = await import('./recsys/benchmark-core')
-    const { readFileSync } = await import('node:fs')
-    const { join } = await import('node:path')
-    const baseline = JSON.parse(
-      readFileSync(
-        join(process.cwd(), 'docs', 'benchmarks', 'baseline.json'),
-        'utf8',
-      ),
-    ) as { checkpoints: Array<number> }
-    const checkpoints = baseline.checkpoints
+    const checkpoints = (benchmarkBaseline as { checkpoints: Array<number> })
+      .checkpoints
     const userLimit = Math.min(80, Math.max(10, data.userLimit ?? 40))
 
-    const { recipes, users } = loadBenchmarkFixture()
+    // The frozen fixture is read from disk (fixture.ts), which only works where
+    // there's a filesystem, local dev / Node. On the edge there is none, so a
+    // benchmark RUN is a local-dev tool; surface a clear message instead of a 500.
+    // (The /admin page + every other tab work in prod; only this button is local.)
+    let recipes: Array<RecipeLite>
+    let users: Array<UserProfile>
+    try {
+      ;({ recipes, users } = loadBenchmarkFixture())
+    } catch {
+      throw new Error(
+        'The benchmark runs in local dev only (no filesystem on the edge). Run it with `npm run start`.',
+      )
+    }
     const started = Date.now()
     const result = runSingleAlgorithm(recipes, users, data.algorithm, {
       checkpoints,

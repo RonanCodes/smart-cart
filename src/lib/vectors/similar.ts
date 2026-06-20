@@ -1,22 +1,22 @@
 /**
- * "Similar recipes" over Cloudflare Vectorize (ADR-0001).
+ * "Similar recipes" via set-maths token overlap (see similar-score.ts). Replaces
+ * the original Cloudflare Vectorize + Workers AI embeddings path (ADR-0001) so the
+ * app needs no remote bindings, no embed job, and no Cloudflare account in local
+ * dev. Scoring is `rankBySimilarity` (Jaccard over recipeText + a same-cuisine
+ * boost); everything below this scorer is unchanged.
  *
- * Given a recipe id, return its nearest neighbours from the `smart-cart-recipes`
- * index, filtered to be sensible swaps: the query recipe itself is dropped, and
- * the household's HARD filters (allergies, vegetarian/vegan diet) are applied so
- * every neighbour is a valid substitution. Optionally re-rank the neighbours by
- * prep time ("faster") or calories ("lighter") when the caller asks.
+ * Given a recipe id, return its nearest neighbours, filtered to be sensible swaps:
+ * the query recipe itself is dropped, and the household's HARD filters (allergies,
+ * vegetarian/vegan diet) are applied so every neighbour is a valid substitution.
+ * Optionally re-rank by prep time ("faster") or calories ("lighter").
  *
- * Why the post-processing is a pure function: the stored Vectorize metadata only
- * carries `cuisine` (see scripts/embed-recipes.ts), so allergy/diet filtering and
- * the prep/calorie re-rank need the full recipe rows from D1. We split the pure
+ * Why the post-processing is a pure function: allergy/diet filtering and the
+ * prep/calorie re-rank need the full recipe rows from D1, so we split the pure
  * neighbour post-processing (`postProcessNeighbours`) from the I/O orchestration
- * (`similarRecipes`) so the post-processing unit-tests against a stubbed neighbour
- * list with no network, no Vectorize, and no token. Mirrors the recipe-text.ts
- * split: pure logic lives where tests can reach it without the Worker runtime.
+ * (`similarRecipes`) and unit-test it against a stubbed neighbour list.
  */
 
-import { recipeText } from './recipe-text'
+import { rankBySimilarity } from './similar-score'
 
 /** A recipe row, narrowed to the fields neighbour post-processing reads. */
 export interface SimilarRecipe {
@@ -186,10 +186,10 @@ export function postProcessNeighbours(
 }
 
 /**
- * The Vectorize topK to request. We over-fetch relative to `limit` because the
- * hard filter drops some neighbours (a vegetarian household discards every meat
- * neighbour), and the query recipe itself consumes one slot. A generous topK
- * keeps the final list full after filtering without a second query.
+ * How many top-scored neighbours to keep before post-processing. We over-fetch
+ * relative to `limit` because the hard filter drops some neighbours (a vegetarian
+ * household discards every meat neighbour) and the query recipe itself consumes a
+ * slot, so a generous cut keeps the final list full after filtering.
  */
 function topKFor(limit: number): number {
   return Math.max(20, limit * 5)
@@ -197,13 +197,14 @@ function topKFor(limit: number): number {
 
 /**
  * Orchestrate a similar-recipes query end to end (the I/O path; not unit-tested,
- * exercised by an optional live smoke). Embeds the query recipe's text, queries
- * Vectorize for its neighbours, loads the candidate recipe rows from D1, then
- * hands everything to the pure `postProcessNeighbours`.
+ * the scoring + post-processing are). Loads the query recipe and the imaged
+ * catalogue from D1, scores every candidate against the query with the set-maths
+ * `rankBySimilarity` (no embeddings, no Vectorize, no token), then hands the top
+ * neighbours to the pure `postProcessNeighbours`.
  *
- * Reads Vectorize + recipe + household.profile; writes nothing. The query recipe
- * row is loaded so we embed identical text to the catalogue (recipeText), which
- * keeps similarity self-consistent with the offline embed script.
+ * Reads recipe + household.profile; writes nothing. Only imaged recipes are
+ * loaded as candidates so a swap never surfaces a broken card. Cheap at this
+ * catalogue size (a few hundred imaged rows scored in-process per request).
  */
 export async function similarRecipes(
   recipeId: string,
@@ -215,11 +216,10 @@ export async function similarRecipes(
   const { getDb } = await import('../../db/client')
   const { recipe } = await import('../../db/schema')
   const { hasImage } = await import('../../db/recipe-filters')
-  const { eq, inArray, and } = await import('drizzle-orm')
-  const { embed, similar } = await import('./index')
+  const { eq } = await import('drizzle-orm')
   const db = await getDb()
 
-  // 1. Load the query recipe so we embed the same text the catalogue used.
+  // 1. Load the query recipe (the text fields the scorer compares against).
   const queryRows = await db
     .select({
       id: recipe.id,
@@ -233,49 +233,47 @@ export async function similarRecipes(
   const query = queryRows[0]
   if (!query) throw new Error('Recipe not found')
 
-  // 2. Embed + query Vectorize for the nearest neighbours.
-  const vector = await embed(
-    recipeText({
+  // 2. Load the imaged catalogue as candidates (full rows: we need every field
+  //    the hard filter + re-rank read, and the same rows back the score lookup).
+  const rows = await db
+    .select({
+      id: recipe.id,
+      title: recipe.title,
+      cuisine: recipe.cuisine,
+      category: recipe.category,
+      dietaryTags: recipe.dietaryTags,
+      ingredients: recipe.ingredients,
+      prepMinutes: recipe.prepMinutes,
+      calories: recipe.calories,
+    })
+    .from(recipe)
+    // Only suggest imaged recipes as swaps (no broken cards).
+    .where(hasImage)
+
+  const candidates: Array<SimilarRecipe> = rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    cuisine: r.cuisine,
+    category: r.category,
+    dietaryTags: r.dietaryTags,
+    ingredients: r.ingredients.map((i) => ({ name: i.name })),
+    prepMinutes: r.prepMinutes,
+    calories: r.calories,
+  }))
+  const recipesById = new Map<string, SimilarRecipe>(
+    candidates.map((c) => [c.id, c]),
+  )
+
+  // 3. Score every candidate against the query (set-maths, nearest first).
+  const neighbours = rankBySimilarity(
+    {
+      id: query.id,
       title: query.title,
       cuisine: query.cuisine,
       ingredients: query.ingredients.map((i) => ({ name: i.name })),
-    }),
-  )
-  const neighbours = await similar(vector, topKFor(limit))
-
-  // 3. Load the full rows for every neighbour so we can hard-filter + re-rank.
-  const ids = neighbours.map((n) => n.id)
-  const rows = ids.length
-    ? await db
-        .select({
-          id: recipe.id,
-          title: recipe.title,
-          cuisine: recipe.cuisine,
-          category: recipe.category,
-          dietaryTags: recipe.dietaryTags,
-          ingredients: recipe.ingredients,
-          prepMinutes: recipe.prepMinutes,
-          calories: recipe.calories,
-        })
-        .from(recipe)
-        // Only suggest imaged recipes as swaps (no broken cards).
-        .where(and(inArray(recipe.id, ids), hasImage))
-    : []
-
-  const recipesById = new Map<string, SimilarRecipe>(
-    rows.map((r) => [
-      r.id,
-      {
-        id: r.id,
-        title: r.title,
-        cuisine: r.cuisine,
-        category: r.category,
-        dietaryTags: r.dietaryTags,
-        ingredients: r.ingredients.map((i) => ({ name: i.name })),
-        prepMinutes: r.prepMinutes,
-        calories: r.calories,
-      },
-    ]),
+    },
+    candidates,
+    topKFor(limit),
   )
 
   // 4. Pure post-processing: drop self, hard filter, re-rank, truncate.

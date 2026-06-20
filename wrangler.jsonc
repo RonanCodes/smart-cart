@@ -19,15 +19,6 @@
       "migrations_dir": "drizzle/migrations",
     },
   ],
-  "ai": {
-    "binding": "AI",
-  },
-  "vectorize": [
-    {
-      "binding": "RECIPES_VECTORS",
-      "index_name": "smart-cart-recipes",
-    },
-  ],
   "routes": [
     { "pattern": "smartcart.ronanconnolly.dev", "custom_domain": true },
     { "pattern": "souso.app", "custom_domain": true },

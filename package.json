@@ -25,7 +25,6 @@
     "benchmark": "tsx scripts/benchmark.ts",
     "reseed:d1": "tsx scripts/reseed-d1.ts",
     "seed:recipes": "tsx scripts/seed-recipes.ts",
-    "embed:recipes": "tsx scripts/embed-recipes.ts",
     "cf-typegen": "wrangler types",
     "quality": "pnpm run format && pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
     "prepare": "husky"
