@@ -41,10 +41,12 @@ export const applySimilarSwapToPlan = createServerFn({ method: 'POST' })
     if (!user) throw new Error('Not signed in')
 
     const { getDb } = await import('../db/client')
-    const { household, recipe, mealPlan } = await import('../db/schema')
+    const { household, recipe, mealPlan, recipeSwipe } =
+      await import('../db/schema')
     const { eq, and } = await import('drizzle-orm')
     const { applySimilarSwap, planHasDay } =
       await import('./swap/apply-similar-swap')
+    const { recordPickDataPoint } = await import('./swap/pick-to-data-point')
     const db = await getDb()
 
     const householdRows = await db
@@ -99,6 +101,48 @@ export const applySimilarSwapToPlan = createServerFn({ method: 'POST' })
       },
       status: 'draft',
     })
+
+    // Record the pick as a recommender data point: a 'like' recipe_swipe row for
+    // the chosen recipe, scoped to the household, so future plans lean toward what
+    // this household actually picks. Best-effort and idempotent: it must never
+    // break the swap itself, and picking the same recipe twice must not
+    // double-count. The recommender reads these rows by `direction` only (see
+    // planner-core / replan-server / week-server), so no migration is needed.
+    try {
+      await recordPickDataPoint(
+        {
+          hasSwipe: async (r) => {
+            const existing = await db
+              .select({ id: recipeSwipe.id })
+              .from(recipeSwipe)
+              .where(
+                and(
+                  eq(recipeSwipe.householdId, r.householdId),
+                  eq(recipeSwipe.recipeId, r.recipeId),
+                  eq(recipeSwipe.direction, r.direction),
+                ),
+              )
+              .limit(1)
+            return Boolean(existing[0])
+          },
+          insertSwipe: async (r) => {
+            await db.insert(recipeSwipe).values({
+              id: r.id,
+              householdId: r.householdId,
+              recipeId: r.recipeId,
+              direction: r.direction,
+              round: r.round,
+            })
+          },
+        },
+        { householdId: hh.id, chosenRecipeId: chosen.id },
+        () => crypto.randomUUID(),
+      )
+    } catch (err) {
+      // Never let taste-recording break the swap; the new plan revision is the
+      // load-bearing result and is already persisted above.
+      console.error('failed to record swap data point', err)
+    }
 
     return { planId: newId }
   })
