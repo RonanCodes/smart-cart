@@ -92,6 +92,14 @@ export interface SoftScoreWeights {
   protein: number
   /** Max lift for a quick dinner (<=15 min). Default 0.2. */
   prep: number
+  /**
+   * Magnitude of the explicit-cuisine bias from onboarding: + for a recipe whose
+   * cuisine the household marked LIKE, - for a marked HATE, 0 when neutral or the
+   * lists are empty. Sized to dominate the calorie/protein/prep nudges (so a
+   * loved cuisine reliably out-ranks a neutral one at similar preference) without
+   * overwhelming the recommender's own preference order. Default 0.6.
+   */
+  cuisine: number
 }
 
 /** A recommender consumes swipes and produces (a) the next deck and (b) a ranking. */

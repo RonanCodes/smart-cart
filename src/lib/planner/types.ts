@@ -47,6 +47,18 @@ export interface PlannerProfile {
   diet?: string
   caloriesPerDay?: number
   /**
+   * Cuisines the household explicitly LIKES (from onboarding, lowercased). A
+   * recipe whose cuisine is in this list gets a soft up-weight. Empty/absent =
+   * no cuisine bias, ranking unchanged.
+   */
+  cuisinesLiked?: Array<string>
+  /**
+   * Cuisines the household explicitly HATES. A matching recipe is soft
+   * down-weighted (not hard-filtered, so the week never empties). Empty/absent =
+   * no cuisine bias.
+   */
+  cuisinesDisliked?: Array<string>
+  /**
    * Days the household usually cooks (0=Mon..6=Sun). Drives the default day-type
    * rhythm: cook-days default to 'home', non-cook-days default to 'out'. Empty
    * or absent means all days are 'home' (cook every day).

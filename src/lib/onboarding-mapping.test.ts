@@ -63,6 +63,32 @@ describe('draftToHousehold mapping', () => {
     ).toBeUndefined()
   })
 
+  it('maps cuisine likes/hates onto the profile (normalised, deduped)', () => {
+    const m = draftToHousehold(
+      draft({
+        cuisinesLiked: ['Italian', 'italian', 'Thai'],
+        cuisinesDisliked: ['Mexican'],
+      }),
+    )
+    expect(m.profile.cuisinesLiked).toEqual(['italian', 'thai'])
+    expect(m.profile.cuisinesDisliked).toEqual(['mexican'])
+  })
+
+  it('never keeps a cuisine in both like and hate (like wins)', () => {
+    const m = draftToHousehold(
+      draft({ cuisinesLiked: ['Thai'], cuisinesDisliked: ['Thai', 'Indian'] }),
+    )
+    expect(m.profile.cuisinesLiked).toContain('thai')
+    expect(m.profile.cuisinesDisliked).not.toContain('thai')
+    expect(m.profile.cuisinesDisliked).toEqual(['indian'])
+  })
+
+  it('empty cuisine selections map to empty lists', () => {
+    const m = draftToHousehold(EMPTY_DRAFT)
+    expect(m.profile.cuisinesLiked).toEqual([])
+    expect(m.profile.cuisinesDisliked).toEqual([])
+  })
+
   it('carries pets, childrenAges, equipment and goals onto the profile', () => {
     const m = draftToHousehold(
       draft({

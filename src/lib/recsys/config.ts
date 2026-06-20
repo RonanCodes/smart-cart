@@ -36,5 +36,6 @@ export const DEFAULT_ADAPTIVE_WEIGHTS: AdaptiveWeights = {
     calorie: 0.3,
     protein: 0.2,
     prep: 0.2,
+    cuisine: 0.6,
   },
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { DayType, PlannerProfile, PlannerRecipe } from './types'
 import { BUSY_PREP_CAP_MINUTES } from './types'
-import { generateWeek, hardFilter, resolveDayTypes } from './planner'
+import { generateWeek, hardFilter, resolveDayTypes, softScore } from './planner'
 
 /**
  * A synthetic catalogue with enough breadth to fill a week several times over:
@@ -304,5 +304,126 @@ describe('planner', () => {
       'out',
       'out',
     ])
+  })
+})
+
+/**
+ * Explicit cuisine like/hate (#122) replaces the swipe taste signal. It rides
+ * the planner's soft nudge: a liked cuisine is lifted, a hated one pushed down,
+ * everything else neutral. The load-bearing guarantee is that EMPTY lists leave
+ * the score (and therefore the recsys regression fixture, which carries no
+ * explicit cuisine prefs) completely unchanged.
+ */
+describe('cuisine bias (explicit like/hate, #122)', () => {
+  /** One bare recipe of a given cuisine with no soft-scoring fields, so the only
+   * non-zero softScore term can be the cuisine bias. */
+  function recipeOf(cuisine: string): PlannerRecipe {
+    return {
+      id: `c-${cuisine}`,
+      title: `${cuisine} dish`,
+      cuisine,
+      category: 'Main',
+      mealType: 'dinner',
+      dietaryTags: [],
+      ingredients: [{ name: 'onion' }],
+      calories: null,
+      protein: null,
+      prepMinutes: null,
+    }
+  }
+
+  it('empty cuisine lists leave softScore unchanged (regression-guard invariant)', () => {
+    const r = recipeOf('Italian')
+    // No cuisine prefs at all, and no other soft fields -> exactly 0.
+    expect(softScore(r, {})).toBe(0)
+    expect(softScore(r, { cuisinesLiked: [], cuisinesDisliked: [] })).toBe(0)
+  })
+
+  it('a liked cuisine scores above neutral, a hated one below', () => {
+    const italian = recipeOf('Italian')
+    const profile: PlannerProfile = {
+      cuisinesLiked: ['italian'],
+      cuisinesDisliked: ['thai'],
+    }
+    const liked = softScore(italian, profile)
+    const neutral = softScore(recipeOf('Mexican'), profile)
+    const hated = softScore(recipeOf('Thai'), profile)
+    expect(liked).toBeGreaterThan(neutral)
+    expect(neutral).toBeGreaterThan(hated)
+    expect(neutral).toBe(0)
+  })
+
+  it('matches cuisine case-insensitively', () => {
+    const r = recipeOf('ITALIAN')
+    expect(softScore(r, { cuisinesLiked: ['italian'] })).toBeGreaterThan(0)
+    expect(softScore(r, { cuisinesDisliked: ['italian'] })).toBeLessThan(0)
+  })
+
+  it('a liked cuisine ranks UP in the generated week', () => {
+    // A flat catalogue: equal numbers across four cuisines, no swipe signal, no
+    // soft fields, so without a cuisine pref the cuisines are interchangeable.
+    const flat: Array<PlannerRecipe> = []
+    let id = 0
+    for (const cuisine of ['Italian', 'Thai', 'Mexican', 'Japanese']) {
+      for (let i = 0; i < 5; i++) {
+        flat.push({
+          id: `f${id++}`,
+          title: `${cuisine} ${i}`,
+          cuisine,
+          category: 'Main',
+          mealType: 'dinner',
+          dietaryTags: [],
+          ingredients: [{ name: 'onion' }],
+          calories: null,
+          protein: null,
+          prepMinutes: null,
+        })
+      }
+    }
+    const byId = new Map(flat.map((r) => [r.id, r]))
+
+    const liked = generateWeek(flat, { cuisinesLiked: ['Italian'] }, [])
+    const italianCount = liked.days.filter(
+      (d) => byId.get(d.recipeRef)?.cuisine === 'Italian',
+    ).length
+    // Five Italian recipes exist; with the bias all five should land in the
+    // 7-day week ahead of the neutral cuisines.
+    expect(italianCount).toBe(5)
+  })
+
+  it('a hated cuisine never appears MORE than with no preference', () => {
+    // The dislike rides the soft nudge, which only reorders recipes the
+    // recommender already rated close together (the rank-position score is the
+    // dominant axis, by design). So the guarantee at the week level is
+    // directional: down-weighting a cuisine never increases how often it lands in
+    // the week. The strict ordering (liked > neutral > hated) is asserted at the
+    // softScore unit level above.
+    const flat: Array<PlannerRecipe> = []
+    let id = 0
+    for (const cuisine of ['Italian', 'Thai', 'Mexican', 'Japanese']) {
+      for (let i = 0; i < 5; i++) {
+        flat.push({
+          id: `h${id++}`,
+          title: `${cuisine} ${i}`,
+          cuisine,
+          category: 'Main',
+          mealType: 'dinner',
+          dietaryTags: [],
+          ingredients: [{ name: 'onion' }],
+          calories: null,
+          protein: null,
+          prepMinutes: null,
+        })
+      }
+    }
+    const byId = new Map(flat.map((r) => [r.id, r]))
+    const countThai = (week: ReturnType<typeof generateWeek>) =>
+      week.days.filter((d) => byId.get(d.recipeRef)?.cuisine === 'Thai').length
+
+    const baseline = countThai(generateWeek(flat, {}, []))
+    const hated = countThai(
+      generateWeek(flat, { cuisinesDisliked: ['Thai'] }, []),
+    )
+    expect(hated).toBeLessThanOrEqual(baseline)
   })
 })
