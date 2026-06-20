@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { planFeedbackWrite, ratingToFeedbackRow } from './meal-feedback'
-import type { MealRating } from './meal-feedback'
+import type { FeedbackWriteAction, MealRating } from './meal-feedback'
 
 export interface SubmitMealFeedbackRequest {
   /** The week (meal_plan) the rated dinner belongs to. */
@@ -15,8 +15,118 @@ export interface SubmitMealFeedbackRequest {
 
 export interface MealFeedbackState {
   recipeId: string
-  rating: 'up' | 'down'
+  /** A thumb, or null for a note-only feedback (a note is feedback on its own). */
+  rating: 'up' | 'down' | null
   note: string | null
+}
+
+/**
+ * The `meal_feedback.rating` column is `NOT NULL` text, so a note-only row (which
+ * has no thumb) stores the empty string as its sentinel. The recommender's
+ * `mealFeedbackToSwipe` already ignores anything that is not 'up'/'down', so an
+ * empty rating contributes no taste signal — exactly right for a note alone.
+ * These two helpers translate at the DB boundary; everything above the boundary
+ * speaks `'up' | 'down' | null`.
+ */
+export function ratingToColumn(rating: 'up' | 'down' | null): string {
+  return rating ?? ''
+}
+export function ratingFromColumn(rating: string | null): 'up' | 'down' | null {
+  return rating === 'up' || rating === 'down' ? rating : null
+}
+
+/**
+ * The slice of the drizzle db / schema table that the write needs. Kept
+ * structural (not the real drizzle types) so this module imports nothing
+ * server-only at the top level and the write stays mockable in tests.
+ */
+type WhereChain = { where: (cond: unknown) => Promise<unknown> }
+export interface MealFeedbackDb {
+  insert: (table: unknown) => { values: (row: unknown) => Promise<unknown> }
+  update: (table: unknown) => { set: (set: unknown) => WhereChain }
+  delete: (table: unknown) => WhereChain
+}
+export interface MealFeedbackTable {
+  id: unknown
+}
+
+/**
+ * Carry out the chosen feedback write against `meal_feedback`, translating the
+ * nullable UI rating to the NOT NULL column at the boundary. Pulled out of the
+ * server-fn handler so the actual insert/update/delete can be unit-tested with a
+ * mock db (the schema table + drizzle `eq` are injected, so this module still
+ * imports nothing server-only at the top level — the client-bundle rule holds).
+ *
+ * A note-only action (rating null) still inserts/updates a row: a note is feedback
+ * on its own. Only an emptied feedback (delete/noop) removes the row.
+ */
+export async function applyFeedbackWrite(args: {
+  db: MealFeedbackDb
+  table: MealFeedbackTable
+  eq: (a: unknown, b: unknown) => unknown
+  householdId: string
+  action: FeedbackWriteAction
+  now?: Date
+}): Promise<void> {
+  const { db, table, eq, householdId, action } = args
+  const now = args.now ?? new Date()
+  switch (action.kind) {
+    case 'delete':
+      await db.delete(table).where(eq(table.id, action.id))
+      return
+    case 'noop':
+      return
+    case 'update':
+      await db
+        .update(table)
+        .set({
+          rating: ratingToColumn(action.row.rating),
+          note: action.row.note,
+          createdAt: now,
+        })
+        .where(eq(table.id, action.id))
+      return
+    case 'insert':
+      await db.insert(table).values({
+        id: crypto.randomUUID(),
+        householdId,
+        mealPlanId: action.row.mealPlanId,
+        recipeId: action.row.recipeId,
+        rating: ratingToColumn(action.row.rating),
+        note: action.row.note,
+        createdAt: now,
+      })
+      return
+  }
+}
+
+/**
+ * Map raw `meal_feedback` rows to the UI feedback states for rehydrate. Keeps
+ * every row scoped to a recipe — including note-only rows (rating '') — so a saved
+ * note shows again on reload even when the household left no thumb.
+ */
+export function mapFeedbackRows(
+  rows: Array<{
+    recipeId: string | null
+    rating: string | null
+    note: string | null
+  }>,
+): Array<MealFeedbackState> {
+  return rows
+    .filter(
+      (
+        r,
+      ): r is {
+        recipeId: string
+        rating: string | null
+        note: string | null
+      } => Boolean(r.recipeId),
+    )
+    .map((r) => ({
+      recipeId: r.recipeId,
+      rating: ratingFromColumn(r.rating),
+      note: r.note,
+    }))
 }
 
 export interface SubmitMealFeedbackResponse {
@@ -93,41 +203,28 @@ export const submitMealFeedback = createServerFn({ method: 'POST' })
       .limit(1)
     const existingId = existing[0]?.id ?? null
 
-    const action = planFeedbackWrite(existingId, row)
-    switch (action.kind) {
-      case 'delete':
-        await db.delete(mealFeedback).where(eq(mealFeedback.id, action.id))
-        return { feedback: null }
-      case 'noop':
-        return { feedback: null }
-      case 'update':
-        await db
-          .update(mealFeedback)
-          .set({
-            rating: action.row.rating,
-            note: action.row.note,
-            createdAt: new Date(),
-          })
-          .where(eq(mealFeedback.id, action.id))
-        break
-      case 'insert':
-        await db.insert(mealFeedback).values({
-          id: crypto.randomUUID(),
-          householdId: hh.id,
-          mealPlanId: action.row.mealPlanId,
-          recipeId: action.row.recipeId,
-          rating: action.row.rating,
-          note: action.row.note,
-          createdAt: new Date(),
-        })
-        break
-    }
+    const action: FeedbackWriteAction = planFeedbackWrite(existingId, row)
+    // The structural MealFeedbackDb/Table interfaces describe just the verbs the
+    // write uses; the concrete drizzle/D1 types are wider, so cast at the boundary.
+    await applyFeedbackWrite({
+      db: db as unknown as MealFeedbackDb,
+      table: mealFeedback,
+      eq,
+      householdId: hh.id,
+      action,
+    })
 
-    // Reached only on insert/update, so `row` is non-null here.
+    // delete/noop carried no row; insert/update have `row` non-null. The stored
+    // state echoes the nullable rating (a note-only save returns rating null).
     return {
-      feedback: row
-        ? { recipeId: row.recipeId, rating: row.rating, note: row.note }
-        : null,
+      feedback:
+        action.kind === 'insert' || action.kind === 'update'
+          ? {
+              recipeId: action.row.recipeId,
+              rating: action.row.rating,
+              note: action.row.note,
+            }
+          : null,
     }
   })
 
@@ -179,15 +276,7 @@ export const listMealFeedback = createServerFn({ method: 'GET' })
         ),
       )
 
-    return rows
-      .filter(
-        (
-          r,
-        ): r is {
-          recipeId: string
-          rating: 'up' | 'down'
-          note: string | null
-        } => !!r.recipeId && (r.rating === 'up' || r.rating === 'down'),
-      )
-      .map((r) => ({ recipeId: r.recipeId, rating: r.rating, note: r.note }))
+    // Keep every row scoped to a recipe — including note-only rows (rating ''),
+    // so a saved note rehydrates on reload even when the household left no thumb.
+    return mapFeedbackRows(rows)
   })
