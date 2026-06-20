@@ -68,6 +68,34 @@ describe('DislikesStep', () => {
     const pill = screen.getByRole('button', { name: /Soy/ })
     expect(pill.getAttribute('aria-pressed')).toBe('true')
   })
+
+  it('suggests catalogue matches as the user types', () => {
+    withForm(<DislikesStep />)
+    const input = screen.getByPlaceholderText('Search an ingredient')
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.change(input, { target: { value: 'brocc' } })
+    expect(screen.getByRole('listbox')).toBeTruthy()
+    expect(screen.getByRole('option', { name: /Broccoli/ })).toBeTruthy()
+  })
+
+  it('adds a suggestion as a chip when tapped and clears the box', () => {
+    const latest = withForm(<DislikesStep />)
+    const input = screen.getByPlaceholderText('Search an ingredient')
+    fireEvent.change(input, { target: { value: 'brocc' } })
+    fireEvent.click(screen.getByRole('option', { name: /Broccoli/ }))
+    expect(latest.draft.dislikes).toContain('Broccoli')
+    expect(input).toHaveProperty('value', '')
+    // Dropdown collapses once the query is cleared.
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('never suggests a preset chip that is already on screen', () => {
+    withForm(<DislikesStep />)
+    const input = screen.getByPlaceholderText('Search an ingredient')
+    fireEvent.change(input, { target: { value: 'onion' } })
+    // 'Onion' is a preset chip, so it must not appear as a suggestion option.
+    expect(screen.queryByRole('option', { name: 'Onion' })).toBeNull()
+  })
 })
 
 describe('DietStep', () => {
