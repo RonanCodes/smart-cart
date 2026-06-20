@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { rankBySimilarity, tokenize } from './similar-score'
-import type { ScorableRecipe } from './similar-score'
+import { rankBySimilarity } from './similar-score'
+import type { ScorableRecipe, VectorIndex } from './similar-score'
+
+/**
+ * The scorer now ranks by cosine over a precomputed vector index (ADR-0004), so the
+ * tests hand it synthetic vectors and assert the cosine ordering. No DB, no embed
+ * call. The same-cuisine boost only breaks near-ties, so the vectors carry the real
+ * signal.
+ */
 
 const r = (
   id: string,
@@ -14,22 +21,12 @@ const r = (
   ingredients: ingredients.map((name) => ({ name })),
 })
 
-describe('tokenize', () => {
-  it('lowercases, splits on non-alphanumeric, drops short tokens', () => {
-    const t = tokenize('Spaghetti Bolognese, al dente!')
-    expect(t.has('spaghetti')).toBe(true)
-    expect(t.has('bolognese')).toBe(true)
-    expect(t.has('dente')).toBe(true)
-    expect(t.has('al')).toBe(false) // < 3 chars
-  })
-  it('keeps accented / non-ASCII letters (Dutch)', () => {
-    expect(tokenize('Boerenkool stamppot met rookworst').has('rookworst')).toBe(
-      true,
-    )
-  })
-})
+/** Build a vector index from id -> vector pairs. */
+function index(...pairs: Array<[string, Array<number>]>): VectorIndex {
+  return new Map(pairs)
+}
 
-describe('rankBySimilarity', () => {
+describe('rankBySimilarity (cosine)', () => {
   const query = r('q', 'Chicken Tikka Masala', 'indian', [
     'chicken',
     'tikka paste',
@@ -47,42 +44,95 @@ describe('rankBySimilarity', () => {
     r('far', 'Pancakes', 'american', ['flour', 'egg', 'milk', 'syrup']),
   ]
 
-  it('ranks the most ingredient-overlapping recipe first', () => {
-    const out = rankBySimilarity(query, candidates, 3)
+  // Synthetic 3-d vectors. 'near' points almost exactly at the query, 'cuisine-only'
+  // is roughly orthogonal but slightly aligned, 'far' is nearly opposite.
+  const vectors = index(
+    ['q', [1, 0, 0]],
+    ['near', [0.98, 0.2, 0]],
+    ['cuisine-only', [0.2, 0.97, 0]],
+    ['far', [-0.9, 0.1, 0.4]],
+  )
+
+  it('ranks the most cosine-similar recipe first', () => {
+    const out = rankBySimilarity(query, candidates, vectors, 3)
     expect(out[0]!.id).toBe('near')
   })
 
   it('ranks an unrelated recipe last with a low score', () => {
-    const out = rankBySimilarity(query, candidates, 3)
+    const out = rankBySimilarity(query, candidates, vectors, 3)
     expect(out[out.length - 1]!.id).toBe('far')
     expect(out[out.length - 1]!.score).toBeLessThan(out[0]!.score)
   })
 
-  it('gives a same-cuisine recipe a boost over a no-overlap other-cuisine one', () => {
-    const out = rankBySimilarity(query, candidates, 3)
+  it('a same-cuisine recipe outranks a no-overlap other-cuisine one', () => {
+    const out = rankBySimilarity(query, candidates, vectors, 3)
     const cuisineOnly = out.find((n) => n.id === 'cuisine-only')!
     const far = out.find((n) => n.id === 'far')!
     expect(cuisineOnly.score).toBeGreaterThan(far.score)
   })
 
-  it('scores an identical recipe at the top (~1)', () => {
+  it('scores an identical-vector recipe at the top (~1)', () => {
+    const self = r('self', 'Chicken Tikka Masala', 'indian', [
+      'chicken',
+      'tikka paste',
+      'tomato',
+      'cream',
+    ])
     const out = rankBySimilarity(
       query,
-      [
-        r('self', 'Chicken Tikka Masala', 'indian', [
-          'chicken',
-          'tikka paste',
-          'tomato',
-          'cream',
-        ]),
-      ],
+      [self],
+      index(['q', [1, 0, 0]], ['self', [1, 0, 0]]),
       1,
     )
     expect(out[0]!.id).toBe('self')
     expect(out[0]!.score).toBeGreaterThan(0.9)
   })
 
+  it('ranks a cross-language neighbour that shares no tokens', () => {
+    // English query, Dutch candidate. Token overlap would be ~0; the embedding
+    // vectors are near each other, so cosine ranks it top. This is the pivot's
+    // whole point: semantic, not lexical, similarity.
+    const en = r('en', 'Mushroom risotto', 'italian', ['mushroom', 'rice'])
+    const nlNear = r('nl-near', 'Champignonrisotto', 'italiaans', [
+      'champignon',
+      'rijst',
+    ])
+    const unrelated = r('nl-far', 'Appeltaart', 'hollands', ['appel', 'deeg'])
+    const out = rankBySimilarity(
+      en,
+      [nlNear, unrelated],
+      index(
+        ['en', [1, 0.1, 0]],
+        ['nl-near', [0.95, 0.2, 0.05]],
+        ['nl-far', [-0.3, 0.9, 0.2]],
+      ),
+      2,
+    )
+    expect(out[0]!.id).toBe('nl-near')
+  })
+
+  it('skips a candidate with no vector', () => {
+    const out = rankBySimilarity(
+      query,
+      candidates,
+      index(['q', [1, 0, 0]], ['near', [0.98, 0.2, 0]]),
+      3,
+    )
+    // Only 'near' has a vector; 'cuisine-only' and 'far' are unscoreable.
+    expect(out.map((n) => n.id)).toEqual(['near'])
+  })
+
+  it('returns nothing when the query has no vector', () => {
+    const out = rankBySimilarity(
+      query,
+      candidates,
+      index(['near', [1, 0, 0]]),
+      3,
+    )
+    expect(out).toEqual([])
+  })
+
   it('honours topK', () => {
-    expect(rankBySimilarity(query, candidates, 2)).toHaveLength(2)
+    expect(rankBySimilarity(query, candidates, vectors, 2)).toHaveLength(2)
   })
 })

@@ -67,6 +67,16 @@ export interface ReplanEdit {
   reason: string
 }
 
+/**
+ * A semantic term matcher: true when a recipe matches a free term ("mushroom",
+ * "fish") by embedding cosine over the term and the recipe's precomputed vector
+ * (ADR-0004). Built once upstream (the term is embedded once, every recipe scored),
+ * so the predicate is pure and synchronous here. Absent means the embedding path is
+ * not available (no OPENAI_API_KEY), and the term-driven intents (exclude / more-of)
+ * decline cleanly rather than fall back to substring matching.
+ */
+export type TermMatcher = (recipe: PlannerRecipe) => boolean
+
 /** Everything `applyReplan` needs to produce the new week. */
 export interface ReplanContext {
   /** The current week being edited. */
@@ -79,6 +89,12 @@ export interface ReplanContext {
   swipes: Array<PlannerSwipe>
   /** Optional planner seed so a replan is deterministic in tests. */
   seed?: number
+  /**
+   * Semantic term matcher for exclude / more-of, built upstream from embeddings
+   * (the term embedded once, cosine vs each recipe's precomputed vector). Absent
+   * when no embedding key is wired, in which case those intents decline cleanly.
+   */
+  matchTerm?: TermMatcher
 }
 
 /** The result of a replan: the new week plus a read of what changed. */

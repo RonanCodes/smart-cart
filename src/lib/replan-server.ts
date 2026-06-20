@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import type { LanguageModel } from 'ai'
 import type { PlannedWeek } from './planner/types'
 import type { ReplanResult } from './replan/types'
+import type { TermMatchDeps } from './replan/replan'
 
 export interface ReplanRequest {
   /** The plan id to edit (the current week). */
@@ -135,10 +136,17 @@ export const replanWeek = createServerFn({ method: 'POST' })
     // instruction was declined (no key) vs the model simply not understanding it.
     const { deps: aiDeps, aiAvailable } = await buildAiDeps()
 
+    // Wire the embedding term-matcher for exclude / more-of (ADR-0004). It embeds
+    // the typed term live (needs the OpenAI key) and scores it against the
+    // precomputed recipe vectors. With no key, `termMatch` carries nothing and the
+    // term intents decline cleanly (no substring fallback).
+    const termMatch = await buildTermMatchDeps()
+
     const result = await replan(
       decorateInstruction(data.instruction, data.focusedDay, week),
       { week, recipes, profile: hh.profile, swipes },
       aiDeps,
+      termMatch,
     )
 
     // Graceful degrade: an `unknown` edit from the AI fallback with no model wired
@@ -222,5 +230,31 @@ async function buildAiDeps(): Promise<{
     return { deps: { model: models.fast }, aiAvailable: true }
   } catch {
     return { deps: {}, aiAvailable: false }
+  }
+}
+
+/**
+ * Build the embedding term-match deps for exclude / more-of (ADR-0004).
+ *
+ * The typed term ("mushroom", "fish") must be embedded live, which needs the
+ * OPENAI_API_KEY. With no key we return empty deps, so the engine declines the term
+ * intents cleanly (no substring fallback). With a key we load the precomputed recipe
+ * vector index from D1 and hand the engine `embedQuery`; the term is embedded once
+ * per replan and scored against every recipe's vector.
+ *
+ * Server-only: the embed module is server-only (it throws with no key) and the
+ * store reads D1, so both are dynamically imported behind the createServerFn.
+ */
+async function buildTermMatchDeps(): Promise<TermMatchDeps> {
+  const { embeddingKeyPresent, embedQuery } = await import('./embeddings/embed')
+  if (!embeddingKeyPresent()) return {}
+  try {
+    const { getRecipeVectorMap } = await import('./embeddings/store')
+    const recipeVectors = await getRecipeVectorMap()
+    return { embedTerm: embedQuery, recipeVectors }
+  } catch {
+    // A vector load / decode failure must never crash a replan; degrade to the
+    // no-matcher path (the term intent declines cleanly).
+    return {}
   }
 }

@@ -13,10 +13,24 @@ export const models = {
   // OpenAI is the active provider (Ronan + Nicolas both use it). Anthropic is kept
   // wired as a one-line switch. Needs the OPENAI_API_KEY Worker secret.
   /** Weekly menu planning + agent: careful constraint reasoning. */
-  primary: openai('gpt-5'),
+  primary: openai('gpt-5.2'),
   /** Cheap/fast: classification, swaps, replan parsing. */
-  fast: openai('gpt-5'),
+  fast: openai('gpt-5.2-mini'),
+  /**
+   * Low-latency rerank for ingredient->SKU matching (ADR-0004). Picking one of ~10
+   * retrieved candidates is a simple classification, not reasoning, so it runs on
+   * the same mini model as `fast`: a reasoning model would make the match panel +
+   * cart build wait seconds on reasoning tokens for no quality gain.
+   */
+  rerank: openai('gpt-5.2-mini'),
   /** Kept available for a quick provider switch. */
   alternate: anthropic('claude-opus-4-8'),
   cheap: google('gemini-2.5-flash'),
+  /**
+   * Semantic matching embeddings (ADR-0004): ingredient->SKU, dish similarity,
+   * replan term-match. Multilingual (NL/EN). Dimension reduction (256) is passed
+   * at call time via providerOptions (see src/lib/embeddings/embed.ts), since
+   * `openai.embedding(id)` takes no settings object.
+   */
+  embedding: openai.embedding('text-embedding-3-small'),
 } as const

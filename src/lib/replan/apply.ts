@@ -8,8 +8,12 @@ import type {
   PlannerRecipe,
   PlannerSwipe,
 } from '../planner/types'
-import { expandTerm } from './term-synonyms'
-import type { ReplanContext, ReplanEdit, ReplanResult } from './types'
+import type {
+  ReplanContext,
+  ReplanEdit,
+  ReplanResult,
+  TermMatcher,
+} from './types'
 
 /**
  * Apply a structured edit to a week, reusing the planner core for the re-pick.
@@ -35,31 +39,17 @@ const WEEK_DAYS = [
   'Sunday',
 ]
 
-function normalise(s: string): string {
-  return s.toLowerCase().trim()
-}
-
-/** Every word of a recipe we can match a term against: title + ingredients + cuisine. */
-function recipeText(r: PlannerRecipe): string {
-  return [r.title, r.cuisine ?? '', ...r.ingredients.map((i) => i.name)]
-    .map(normalise)
-    .join(' ')
-}
-
 /**
- * True when a recipe matches a free term (cuisine or ingredient), loosely.
- *
- * The term is expanded through the EN/NL synonym map first, so a user typing
- * "rice" matches the catalogue's Dutch "rijst"/"risotto" text, "pasta" matches
- * "spaghetti"/"penne", and so on. An unmapped term still matches its literal
- * substring. We match across title + ingredients + cuisine.
+ * The semantic term matcher for an edit. When the context carries a `matchTerm`
+ * (built upstream by embedding the term once and scoring it against every recipe's
+ * precomputed vector, ADR-0004), we use it: a recipe "matches" a term like
+ * "mushroom" when its cosine to the term vector clears the threshold, so a Dutch
+ * "champignonrisotto" matches with no synonym table. With no matcher (no embedding
+ * key wired) nothing matches, and the exclude / more-of branches decline cleanly
+ * instead of falling back to substring matching.
  */
-function recipeMatchesTerm(r: PlannerRecipe, term: string): boolean {
-  const variants = expandTerm(term)
-  if (variants.length === 0) return false
-  const cuisine = r.cuisine ? normalise(r.cuisine) : ''
-  const text = recipeText(r)
-  return variants.some((v) => cuisine.includes(v) || text.includes(v))
+function matcherFor(ctx: ReplanContext): TermMatcher {
+  return ctx.matchTerm ?? (() => false)
 }
 
 /**
@@ -287,10 +277,23 @@ export function applyReplan(
 
     case 'exclude': {
       const term = edit.term ?? ''
+      // The semantic match needs the embedding term-matcher (term embedded once,
+      // cosine vs recipe vectors). With no matcher (no key) decline honestly rather
+      // than fall back to substring matching, which is the slop this pivot removes.
+      if (!ctx.matchTerm) {
+        return {
+          edit,
+          week,
+          changed: false,
+          message: `I couldn't adjust "${term}" right now (semantic matching is off). Try 'eating out Wednesday' or 'swap Friday'.`,
+          source,
+        }
+      }
+      const matches = matcherFor(ctx)
       // Temporary filter: drop every recipe matching the term from the pool, then
       // re-rank with the planner over the reduced catalogue. Affected days (those
       // whose current pick matches the term) get the next-best non-matching pick.
-      const filtered = recipes.filter((r) => !recipeMatchesTerm(r, term))
+      const filtered = recipes.filter((r) => !matches(r))
       const pool = rankedPool(filtered, profile, swipes, seed)
       // Affected days = currently-filled days whose pick matches the term.
       const byRef = new Map(recipes.map((r) => [r.id, r]))
@@ -298,7 +301,7 @@ export function applyReplan(
         week.days
           .filter((d) => {
             const r = d.recipeRef ? byRef.get(d.recipeRef) : null
-            return r ? recipeMatchesTerm(r, term) : false
+            return r ? matches(r) : false
           })
           .map((d) => d.day),
       )
@@ -325,12 +328,24 @@ export function applyReplan(
 
     case 'more-of': {
       const term = edit.term ?? ''
+      // Same gate as exclude: the lean needs the embedding term-matcher. No matcher
+      // (no key) => decline cleanly, no substring fallback.
+      if (!ctx.matchTerm) {
+        return {
+          edit,
+          week,
+          changed: false,
+          message: `I couldn't lean toward "${term}" right now (semantic matching is off). Try 'eating out Wednesday' or 'swap Friday'.`,
+          source,
+        }
+      }
+      const matches = matcherFor(ctx)
       const byRef = new Map(recipes.map((r) => [r.id, r]))
 
       // How many filled dinners already match the term, before we touch anything.
       const matchesBefore = week.days.filter((d) => {
         const r = d.recipeRef ? byRef.get(d.recipeRef) : null
-        return r ? recipeMatchesTerm(r, term) : false
+        return r ? matches(r) : false
       }).length
 
       // Hard-filtered, planner-ranked pool (allergies + diet + dinners only).
@@ -341,7 +356,7 @@ export function applyReplan(
       // touches the ranking maths or the hard filters: a matching recipe that is
       // hard-filtered out (allergy/diet) is simply absent from the pool.
       const ranked = rankRecipes(recipes, profile, swipes, { seed })
-      const matchingPool = ranked.filter((r) => recipeMatchesTerm(r, term))
+      const matchingPool = ranked.filter((r) => matches(r))
 
       // Honest "none found": the catalogue (after hard filters) has nothing that
       // matches the term, so we can not lean toward it. Leave the week unchanged
@@ -356,7 +371,7 @@ export function applyReplan(
         }
       }
 
-      const rest = ranked.filter((r) => !recipeMatchesTerm(r, term))
+      const rest = ranked.filter((r) => !matches(r))
       const biasedPool = [...matchingPool, ...rest]
 
       const next = fillFromPool(week, biasedPool, profile, seed)
@@ -366,7 +381,7 @@ export function applyReplan(
 
       const matchesAfter = next.days.filter((d) => {
         const r = d.recipeRef ? byRef.get(d.recipeRef) : null
-        return r ? recipeMatchesTerm(r, term) : false
+        return r ? matches(r) : false
       }).length
       const gained = matchesAfter - matchesBefore
 

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig, configDefaults } from 'vitest/config'
 import viteReact from '@vitejs/plugin-react'
 
 /**
@@ -13,6 +13,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     passWithNoTests: true,
+    // Never pick up tests inside isolated agent worktrees (.claude/worktrees/*).
+    exclude: [...configDefaults.exclude, '.claude/**'],
   },
   resolve: {
     alias: {

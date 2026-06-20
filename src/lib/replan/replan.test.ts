@@ -53,6 +53,24 @@ const swipes: Array<PlannerSwipe> = [
   { recipeId: 'r25', like: false },
 ]
 
+/**
+ * A synthetic semantic term matcher for the tests. Production builds this from
+ * embeddings (term embedded once, cosine vs each recipe's precomputed vector); the
+ * tests stand in a deterministic substring matcher over title + ingredients +
+ * cuisine, so the engine's exclude / more-of branches have something to bite
+ * without a live embed call. This is ONLY a test stand-in; the engine itself never
+ * substring-matches.
+ */
+function termMatcher(term: string) {
+  const t = term.toLowerCase().trim()
+  return (r: PlannerRecipe): boolean => {
+    const text = [r.title, r.cuisine ?? '', ...r.ingredients.map((i) => i.name)]
+      .join(' ')
+      .toLowerCase()
+    return text.includes(t)
+  }
+}
+
 function ctx(recipes = catalogue()): ReplanContext {
   return {
     week: generateWeek(recipes, {}, swipes, { seed: 7 }),
@@ -157,6 +175,7 @@ describe('applyReplan — deterministic intents visibly replan', () => {
       profile: {},
       swipes: fishLikes,
       seed: 7,
+      matchTerm: termMatcher('fish'),
     })
     expect(res.changed).toBe(true)
     for (const d of res.week.days) {
@@ -171,6 +190,16 @@ describe('applyReplan — deterministic intents visibly replan', () => {
     }
   })
 
+  it('exclude declines cleanly with no term matcher (no embedding key)', () => {
+    const c = ctx()
+    const before = c.week.days.map((d) => d.recipeRef)
+    // No matchTerm on the context => the embedding path is unavailable.
+    const res = applyReplan(parseIntent('no fish')!, c)
+    expect(res.changed).toBe(false)
+    expect(res.week.days.map((d) => d.recipeRef)).toEqual(before)
+    expect(res.message.toLowerCase()).toContain('semantic matching is off')
+  })
+
   it('more-of biases the week toward the term', () => {
     const recipes = catalogue()
     const m = byRef(recipes)
@@ -180,6 +209,7 @@ describe('applyReplan — deterministic intents visibly replan', () => {
       profile: {},
       swipes,
       seed: 7,
+      matchTerm: termMatcher('mexican'),
     }
     const mexBefore = c.week.days.filter(
       (d) => m.get(d.recipeRef)?.cuisine === 'Mexican',
@@ -198,6 +228,31 @@ describe('applyReplan — deterministic intents visibly replan', () => {
       (d) => m.get(d.recipeRef)?.cuisine === 'Mexican',
     ).length
     expect(mexAfter).toBeGreaterThan(mexBefore)
+  })
+
+  it('more-of declines cleanly with no term matcher (no embedding key)', () => {
+    const recipes = catalogue()
+    const c = {
+      week: generateWeek(recipes, {}, swipes, { seed: 7 }),
+      recipes,
+      profile: {},
+      swipes,
+      seed: 7,
+    }
+    const before = c.week.days.map((d) => d.recipeRef)
+    const res = applyReplan(
+      {
+        type: 'more-of',
+        days: [],
+        term: 'mexican',
+        termKind: 'cuisine',
+        reason: '',
+      },
+      c,
+    )
+    expect(res.changed).toBe(false)
+    expect(res.week.days.map((d) => d.recipeRef)).toEqual(before)
+    expect(res.message.toLowerCase()).toContain('semantic matching is off')
   })
 
   /**
@@ -281,6 +336,10 @@ describe('applyReplan — deterministic intents visibly replan', () => {
       profile: {},
       swipes: noRiceSwipes,
       seed: 7,
+      // The embedding matcher matches the Dutch "rijst"/"risotto" for the English
+      // term "rice" with no synonym table. The test stands in `isRice` (which keys
+      // on the Dutch words) as that semantic match.
+      matchTerm: (r: PlannerRecipe) => isRice(r),
     }
     const riceBefore = c.week.days.filter((d) =>
       isRice(m.get(d.recipeRef)),
@@ -317,6 +376,7 @@ describe('applyReplan — deterministic intents visibly replan', () => {
       profile: {},
       swipes: [],
       seed: 7,
+      matchTerm: (r: PlannerRecipe) => isRice(r),
     }
     const before = c.week.days.map((d) => d.recipeRef)
     const res = applyReplan(
@@ -383,6 +443,7 @@ describe('applyReplan — deterministic intents visibly replan', () => {
       profile: { diet: 'vegetarian' },
       swipes: [] as Array<PlannerSwipe>,
       seed: 7,
+      matchTerm: (r: PlannerRecipe) => isRice(r),
     }
     const res = applyReplan(
       {
@@ -459,10 +520,22 @@ describe('AI fallback (mocked, no network)', () => {
     const mexBefore = c.week.days.filter(
       (d) => m.get(d.recipeRef)?.cuisine === 'Mexican',
     ).length
-    const res = await replan(phrase, c, {
-      model: stubModel,
-      generateObject: stub,
-    })
+    // Exercise the live term-matcher build through replan(): embed the term to a
+    // vector, score it against synthetic recipe vectors. Mexican recipes sit on the
+    // same axis as the term (cosine 1); everything else is orthogonal (cosine 0).
+    const recipeVectors = new Map<string, ReadonlyArray<number>>(
+      recipes.map((r) => [r.id, r.cuisine === 'Mexican' ? [1, 0] : [0, 1]]),
+    )
+    const embedTerm = async () => [1, 0]
+    const res = await replan(
+      phrase,
+      c,
+      {
+        model: stubModel,
+        generateObject: stub,
+      },
+      { embedTerm, recipeVectors },
+    )
     expect(res.source).toBe('ai-fallback')
     const mexAfter = res.week.days.filter(
       (d) => m.get(d.recipeRef)?.cuisine === 'Mexican',

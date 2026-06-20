@@ -22,18 +22,17 @@ describe('vendored catalogue smoke', () => {
     expect(storeSlugs().length).toBeGreaterThan(0)
   })
 
-  it('covers AH, Jumbo, Dirk and Lidl with priced products', () => {
+  it('covers AH and Jumbo with priced products (supported stores only)', () => {
     const covered = coveredStoreSlugs()
-    for (const slug of ['ah', 'jumbo', 'dirk', 'lidl']) {
-      expect(covered).toContain(slug)
+    expect(covered).toEqual(['ah', 'jumbo'])
+    for (const slug of ['ah', 'jumbo']) {
       expect(getCatalogue(slug)!.products.length).toBeGreaterThan(0)
     }
   })
 
-  it('represents Aldi as present-but-empty (no products upstream)', () => {
-    // Aldi is in the snapshot but ships zero products: honest coverage gap.
-    const aldi = getCatalogue('aldi')
-    if (aldi) expect(aldi.products.length).toBe(0)
+  it('does not vendor comparison-only stores in the trimmed snapshot', () => {
+    expect(getCatalogue('dirk')).toBeUndefined()
+    expect(getCatalogue('lidl')).toBeUndefined()
     expect(coveredStoreSlugs()).not.toContain('aldi')
   })
 
@@ -53,14 +52,14 @@ describe('vendored catalogue smoke', () => {
     expect(m.priceCents).not.toBeNull()
   })
 
-  it('prices a small basket across the demo stores', () => {
-    const stores = getCataloguesFor(['ah', 'jumbo', 'dirk', 'lidl'])
-    expect(stores.length).toBe(4)
+  it('prices a small basket across the supported stores', () => {
+    const stores = getCataloguesFor(['ah', 'jumbo'])
+    expect(stores.length).toBe(2)
     const cmp = priceListAcrossStores(
       [{ name: 'melk' }, { name: 'pasta' }, { name: 'kaas' }],
       stores,
     )
-    expect(cmp.perStore).toHaveLength(4)
+    expect(cmp.perStore).toHaveLength(2)
     // at least one store should match at least one line on real data
     expect(cmp.cheapestOverall).not.toBeNull()
   })
