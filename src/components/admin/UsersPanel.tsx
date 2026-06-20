@@ -1,6 +1,19 @@
 import { useState } from 'react'
-import { ThumbsUp, ThumbsDown, Bell, ShieldOff } from 'lucide-react'
-import { getUserDatapoints, revokeAdmin } from '#/lib/admin-server'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  ThumbsUp,
+  ThumbsDown,
+  Bell,
+  ShieldOff,
+  RotateCcw,
+  AlertTriangle,
+} from 'lucide-react'
+import {
+  getUserDatapoints,
+  revokeAdmin,
+  resetUserData,
+  resetAllUsersData,
+} from '#/lib/admin-server'
 import type { AdminUserRow, UserDatapoints } from '#/lib/admin-server'
 import { sendRateMealPush } from '#/lib/push-server'
 import { Badge } from '#/components/ui/badge'
@@ -28,7 +41,15 @@ function accessTag(u: AdminUserRow): string | null {
  * the exact same view (the benchmark tab embeds it for the "view synthetic users +
  * data points" requirement) without rebuilding it.
  */
-export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
+export function UsersPanel({
+  users,
+  viewerIsSuperAdmin = false,
+}: {
+  users: Array<AdminUserRow>
+  /** Super-admins (server-decided) see the destructive 'Reset ALL users' button. */
+  viewerIsSuperAdmin?: boolean
+}) {
+  const queryClient = useQueryClient()
   const [detail, setDetail] = useState<UserDatapoints | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   // Mobile-only: tapping a user opens the detail in a bottom sheet (there is no
@@ -53,6 +74,57 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
       // leave the row as-is; the server rejected it.
     } finally {
       setRevokingEmail(null)
+    }
+  }
+
+  // Reset-to-fresh state. `confirmResetId` is the userId whose row is showing the
+  // inline "Reset?" confirm; `resettingId` is the one mid-request (disables it).
+  const [confirmResetId, setConfirmResetId] = useState<string | null>(null)
+  const [resettingId, setResettingId] = useState<string | null>(null)
+  // Reset-ALL is a two-step strong confirm (super-admin only): first click arms
+  // it, second click within the armed window fires. `resetAllBusy` disables it.
+  const [resetAllArmed, setResetAllArmed] = useState(false)
+  const [resetAllBusy, setResetAllBusy] = useState(false)
+  const [resetAllMsg, setResetAllMsg] = useState<string | null>(null)
+
+  // Re-read the users + super-admin flag after any reset so badges/swipes/access
+  // tags reflect the now-wiped state without a full page reload.
+  async function refreshUsers() {
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+  }
+
+  async function resetUser(userId: string) {
+    if (resettingId) return
+    setResettingId(userId)
+    try {
+      await resetUserData({ data: { userId } })
+      await refreshUsers()
+    } catch {
+      // leave the row as-is; the server rejected it.
+    } finally {
+      setResettingId(null)
+      setConfirmResetId(null)
+    }
+  }
+
+  async function resetAll() {
+    if (resetAllBusy) return
+    // First click arms the confirm; only the second (armed) click fires.
+    if (!resetAllArmed) {
+      setResetAllArmed(true)
+      return
+    }
+    setResetAllBusy(true)
+    setResetAllMsg(null)
+    try {
+      const res = await resetAllUsersData()
+      setResetAllMsg(`Reset ${res.householdsCleared} household(s) to fresh.`)
+      await refreshUsers()
+    } catch {
+      setResetAllMsg('Could not reset all users, try again.')
+    } finally {
+      setResetAllBusy(false)
+      setResetAllArmed(false)
     }
   }
 
@@ -85,7 +157,7 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
     <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
       {/* Users */}
       <div className="min-w-0 space-y-2">
-        <div className="flex items-center justify-between gap-3 pb-1">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
           <Button
             size="sm"
             variant="outline"
@@ -95,7 +167,42 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
             <Bell className="h-4 w-4" aria-hidden />
             {pushBusy === 'all' ? 'Sending…' : 'Send rate-meal push to all'}
           </Button>
+          {/* Reset ALL users: super-admin only, destructive, two-step confirm.
+              First tap arms (turns red + says "Tap again"), second tap fires. */}
+          {viewerIsSuperAdmin && (
+            <Button
+              size="sm"
+              variant={resetAllArmed ? 'destructive' : 'outline'}
+              disabled={resetAllBusy}
+              onClick={() => void resetAll()}
+            >
+              <AlertTriangle className="h-4 w-4" aria-hidden />
+              {resetAllBusy
+                ? 'Resetting all…'
+                : resetAllArmed
+                  ? 'Tap again to reset ALL users'
+                  : 'Reset ALL users to fresh'}
+            </Button>
+          )}
         </div>
+        {viewerIsSuperAdmin && resetAllArmed && !resetAllBusy && (
+          <p
+            role="alert"
+            className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950 dark:text-red-300"
+          >
+            This wipes EVERY user&apos;s household data (swipes, plans, shopping
+            lists, staples, push) and forces them all to re-onboard. Accounts
+            stay signed in. Tap again to confirm.
+          </p>
+        )}
+        {resetAllMsg && (
+          <p
+            role="status"
+            className="text-muted-foreground bg-secondary rounded-lg px-3 py-2 text-xs"
+          >
+            {resetAllMsg}
+          </p>
+        )}
         {pushMsg && (
           <p
             role="status"
@@ -193,6 +300,42 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
                   <ShieldOff className="h-4 w-4" aria-hidden />
                 </button>
               )}
+              {/* Reset this user to fresh: admin action with an inline confirm.
+                  First tap arms (shows a red "Reset?" + cancel), second fires.
+                  Only on real user rows (a userId to reset). */}
+              {interactive &&
+                (confirmResetId === u.userId ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      aria-label={`Confirm reset ${u.email} to fresh`}
+                      disabled={resettingId !== null}
+                      onClick={() => void resetUser(u.userId!)}
+                      className="inline-flex h-full items-center justify-center rounded-lg border border-red-300 px-2 text-xs font-semibold text-red-600 transition enabled:hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:enabled:hover:bg-red-950"
+                    >
+                      {resettingId === u.userId ? 'Resetting…' : 'Reset?'}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Cancel reset ${u.email}`}
+                      disabled={resettingId !== null}
+                      onClick={() => setConfirmResetId(null)}
+                      className="border-border text-muted-foreground enabled:hover:bg-secondary inline-flex h-full items-center justify-center rounded-lg border px-2 text-xs transition disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`Reset ${u.email} to fresh`}
+                    disabled={resettingId !== null}
+                    onClick={() => setConfirmResetId(u.userId)}
+                    className="border-border text-muted-foreground enabled:hover:bg-secondary inline-flex w-11 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-50"
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden />
+                  </button>
+                ))}
             </div>
           )
         })}
