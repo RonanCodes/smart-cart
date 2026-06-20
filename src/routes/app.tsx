@@ -48,12 +48,17 @@ function AppHome() {
   const [planning, setPlanning] = useState(false)
 
   async function signOut() {
-    await authClient.signOut()
-    // Hard redirect (not router.navigate): forces a full server round-trip so the
-    // route guards re-run with the cleared session cookie. A client navigate reused
-    // cached session state and left you on the app. (In local dev the open-access
-    // getSessionUser override keeps you signed in, so this only takes effect in prod.)
-    window.location.href = '/'
+    // Best-effort client sign-out, then ALWAYS hard-navigate to the server-side
+    // /sign-out route. The server route is what actually clears the session
+    // cookie (and redirects to '/'), so it works even if this client call hangs
+    // or throws on mobile. try/finally guarantees the nav fires either way.
+    // (In local dev the open-access getSessionUser override keeps you signed in,
+    // so this only takes visible effect in prod.)
+    try {
+      await authClient.signOut()
+    } finally {
+      window.location.href = '/sign-out'
+    }
   }
 
   async function planWeek() {
@@ -134,8 +139,8 @@ function AppHome() {
               Here's what we learned about you
             </h2>
             <p className="text-muted-foreground mt-0.5 text-sm">
-              Built from your swipes. It sharpens every week as you cook and
-              rate.
+              Built from what you told us in onboarding. It sharpens every week
+              as you cook and rate.
             </p>
           </div>
 
@@ -159,7 +164,7 @@ function AppHome() {
             <CardHeader>
               <CardTitle>You gravitate to</CardTitle>
               <CardDescription>
-                The flavours you swiped right on.
+                The cuisines and tastes you told us.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
@@ -171,7 +176,7 @@ function AppHome() {
                 ))
               ) : (
                 <span className="text-muted-foreground text-sm">
-                  Swipe a few more to sharpen this.
+                  Tell us a few cuisines you love to sharpen this.
                 </span>
               )}
               {summary?.dislikes.map((t) => (

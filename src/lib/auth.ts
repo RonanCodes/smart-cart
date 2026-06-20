@@ -33,6 +33,12 @@ async function buildAuth() {
           // never complete sign-in via the normal flow or the demo skip path.
           const { isApproved, NOT_APPROVED_MESSAGE } = await import('./access')
           if (!(await isApproved(email))) {
+            // Make the "you're on the waitlist" message TRUE: idempotently add
+            // the email so an admin sees them at /admin/waitlist. Best-effort,
+            // already swallows its own errors, so the gate still throws below.
+            const { addUnapprovedEmailToWaitlist } =
+              await import('./waitlist-gate')
+            await addUnapprovedEmailToWaitlist(email)
             throw new Error(NOT_APPROVED_MESSAGE)
           }
           // Stash first so the demo skip-login path can read it back even if the

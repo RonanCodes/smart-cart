@@ -1,22 +1,6 @@
-import { useEffect, useState } from 'react'
 import { Bell, BellOff, Check } from 'lucide-react'
 import { Button } from '#/components/ui/button'
-import {
-  pushSupported,
-  registerServiceWorker,
-  urlBase64ToUint8Array,
-} from '#/lib/push-client'
-import { getPushConfig, subscribePush } from '#/lib/push-server'
-
-type State =
-  | 'checking'
-  | 'unsupported'
-  | 'unconfigured'
-  | 'idle'
-  | 'subscribing'
-  | 'subscribed'
-  | 'denied'
-  | 'error'
+import { usePushSubscription } from '#/components/push/use-push-subscription'
 
 /**
  * Opt-in control for post-meal rating reminders (#149). Asks the browser for
@@ -25,73 +9,15 @@ type State =
  * meal" push. Fully guarded: renders nothing on browsers without push, and shows
  * a clear "not set up yet" line when VAPID secrets are unset on the server.
  *
- * Mobile-first: a single 44px tap target, no hover-only affordance, plain status
- * text underneath so the user always knows where they stand.
+ * The subscribe flow lives in the shared `usePushSubscription` hook (#204), so the
+ * onboarding opt-in and this Week control share one implementation. This component
+ * is just the Week-page presentation: a single 44px tap target, plain status text.
+ *
+ * Mobile-first: no hover-only affordance, status text underneath so the user always
+ * knows where they stand.
  */
 export function RatingReminders() {
-  const [state, setState] = useState<State>('checking')
-  const [publicKey, setPublicKey] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    async function init() {
-      if (!pushSupported()) {
-        if (!cancelled) setState('unsupported')
-        return
-      }
-      // If already subscribed, reflect that without re-prompting.
-      try {
-        const reg = await navigator.serviceWorker.getRegistration('/sw.js')
-        const existing = await reg?.pushManager.getSubscription()
-        if (existing) {
-          if (!cancelled) setState('subscribed')
-          return
-        }
-      } catch {
-        // fall through to config check
-      }
-      const cfg = await getPushConfig()
-      if (cancelled) return
-      if (!cfg.publicKey) {
-        setState('unconfigured')
-        return
-      }
-      setPublicKey(cfg.publicKey)
-      setState(Notification.permission === 'denied' ? 'denied' : 'idle')
-    }
-    void init()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  async function enable() {
-    if (!publicKey) return
-    setState('subscribing')
-    try {
-      const permission = await Notification.requestPermission()
-      if (permission !== 'granted') {
-        setState(permission === 'denied' ? 'denied' : 'idle')
-        return
-      }
-      const reg = await registerServiceWorker()
-      if (!reg) {
-        setState('error')
-        return
-      }
-      await navigator.serviceWorker.ready
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        // Cast bridges the Uint8Array<ArrayBufferLike> vs BufferSource mismatch;
-        // a Uint8Array is a valid applicationServerKey at runtime.
-        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
-      })
-      await subscribePush({ data: { subscription: sub.toJSON() } })
-      setState('subscribed')
-    } catch {
-      setState('error')
-    }
-  }
+  const { state, enable } = usePushSubscription()
 
   // Nothing to show where push can't work or isn't set up: keep the week clean.
   if (

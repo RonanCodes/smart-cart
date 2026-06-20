@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { draftToHousehold } from './onboarding-mapping'
+import { deriveBadges } from './badges'
 import { hardFilter } from './planner/planner'
 import { EMPTY_DRAFT } from '#/components/onboarding/form-state'
 import type { OnboardingDraft } from '#/components/onboarding/form-state'
@@ -164,5 +165,28 @@ describe('mapping -> planner hardFilter glue', () => {
     const { profile } = draftToHousehold(EMPTY_DRAFT)
     const kept = hardFilter([beefStew, veganCurry, anchovyPizza], profile)
     expect(kept).toHaveLength(3)
+  })
+})
+
+describe('mapping -> deriveBadges glue (#208)', () => {
+  it('a fresh form onboarding yields cuisine + diet + goal badges', () => {
+    const { profile } = draftToHousehold(
+      draft({
+        cuisinesLiked: ['Italian', 'Thai'],
+        diet: ['Vegetarian'],
+        goals: ['Pay less for my groceries'],
+      }),
+    )
+    // The mapped profile is exactly what getHouseholdSummary passes through.
+    const labels = deriveBadges(profile).map((b) => b.label)
+    expect(labels).toContain('Pasta person') // Italian, despite lowercasing
+    expect(labels).toContain('Thai spice seeker')
+    expect(labels).toContain('Veggie-first') // vegetarian diet
+    expect(labels).toContain('Budget cook') // goal
+  })
+
+  it('an empty form draft yields no badges (no swipe leftovers)', () => {
+    const { profile } = draftToHousehold(EMPTY_DRAFT)
+    expect(deriveBadges(profile)).toEqual([])
   })
 })

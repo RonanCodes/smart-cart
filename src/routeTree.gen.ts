@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WeekRouteImport } from './routes/week'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
+import { Route as SignOutRouteImport } from './routes/sign-out'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as ShoppingRouteImport } from './routes/shopping'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -30,6 +31,8 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminMatchingRouteImport } from './routes/admin/matching'
 import { Route as AdminFeedbackRouteImport } from './routes/admin/feedback'
 import { Route as AdminBenchmarkRouteImport } from './routes/admin/benchmark'
+import { Route as TipIdReturnRouteImport } from './routes/tip.$id.return'
+import { Route as RatePlanIdDayRouteImport } from './routes/rate.$planId.$day'
 import { Route as ApiVapiToolRouteImport } from './routes/api/vapi/tool'
 import { Route as ApiVapiTokenRouteImport } from './routes/api/vapi/token'
 import { Route as ApiMollieWebhookRouteImport } from './routes/api/mollie/webhook'
@@ -43,6 +46,11 @@ const WeekRoute = WeekRouteImport.update({
 const StyleguideRoute = StyleguideRouteImport.update({
   id: '/styleguide',
   path: '/styleguide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignOutRoute = SignOutRouteImport.update({
+  id: '/sign-out',
+  path: '/sign-out',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -140,6 +148,16 @@ const AdminBenchmarkRoute = AdminBenchmarkRouteImport.update({
   path: '/benchmark',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const TipIdReturnRoute = TipIdReturnRouteImport.update({
+  id: '/tip/$id/return',
+  path: '/tip/$id/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RatePlanIdDayRoute = RatePlanIdDayRouteImport.update({
+  id: '/rate/$planId/$day',
+  path: '/rate/$planId/$day',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiVapiToolRoute = ApiVapiToolRouteImport.update({
   id: '/api/vapi/tool',
   path: '/api/vapi/tool',
@@ -171,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
+  '/sign-out': typeof SignOutRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
@@ -187,6 +206,8 @@ export interface FileRoutesByFullPath {
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
+  '/rate/$planId/$day': typeof RatePlanIdDayRoute
+  '/tip/$id/return': typeof TipIdReturnRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -197,6 +218,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
+  '/sign-out': typeof SignOutRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
@@ -213,6 +235,8 @@ export interface FileRoutesByTo {
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
+  '/rate/$planId/$day': typeof RatePlanIdDayRoute
+  '/tip/$id/return': typeof TipIdReturnRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -225,6 +249,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
+  '/sign-out': typeof SignOutRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
@@ -241,6 +266,8 @@ export interface FileRoutesById {
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
+  '/rate/$planId/$day': typeof RatePlanIdDayRoute
+  '/tip/$id/return': typeof TipIdReturnRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -254,6 +281,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shopping'
     | '/sign-in'
+    | '/sign-out'
     | '/styleguide'
     | '/week'
     | '/admin/benchmark'
@@ -270,6 +298,8 @@ export interface FileRouteTypes {
     | '/api/mollie/webhook'
     | '/api/vapi/token'
     | '/api/vapi/tool'
+    | '/rate/$planId/$day'
+    | '/tip/$id/return'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -280,6 +310,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shopping'
     | '/sign-in'
+    | '/sign-out'
     | '/styleguide'
     | '/week'
     | '/admin/benchmark'
@@ -296,6 +327,8 @@ export interface FileRouteTypes {
     | '/api/mollie/webhook'
     | '/api/vapi/token'
     | '/api/vapi/tool'
+    | '/rate/$planId/$day'
+    | '/tip/$id/return'
   id:
     | '__root__'
     | '/'
@@ -307,6 +340,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shopping'
     | '/sign-in'
+    | '/sign-out'
     | '/styleguide'
     | '/week'
     | '/admin/benchmark'
@@ -323,6 +357,8 @@ export interface FileRouteTypes {
     | '/api/mollie/webhook'
     | '/api/vapi/token'
     | '/api/vapi/tool'
+    | '/rate/$planId/$day'
+    | '/tip/$id/return'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -335,6 +371,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ShoppingRoute: typeof ShoppingRoute
   SignInRoute: typeof SignInRoute
+  SignOutRoute: typeof SignOutRoute
   StyleguideRoute: typeof StyleguideRoute
   WeekRoute: typeof WeekRoute
   ApiHealthRoute: typeof ApiHealthRoute
@@ -344,6 +381,8 @@ export interface RootRouteChildren {
   ApiMollieWebhookRoute: typeof ApiMollieWebhookRoute
   ApiVapiTokenRoute: typeof ApiVapiTokenRoute
   ApiVapiToolRoute: typeof ApiVapiToolRoute
+  RatePlanIdDayRoute: typeof RatePlanIdDayRoute
+  TipIdReturnRoute: typeof TipIdReturnRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -360,6 +399,13 @@ declare module '@tanstack/react-router' {
       path: '/styleguide'
       fullPath: '/styleguide'
       preLoaderRoute: typeof StyleguideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-out': {
+      id: '/sign-out'
+      path: '/sign-out'
+      fullPath: '/sign-out'
+      preLoaderRoute: typeof SignOutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -495,6 +541,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBenchmarkRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/tip/$id/return': {
+      id: '/tip/$id/return'
+      path: '/tip/$id/return'
+      fullPath: '/tip/$id/return'
+      preLoaderRoute: typeof TipIdReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rate/$planId/$day': {
+      id: '/rate/$planId/$day'
+      path: '/rate/$planId/$day'
+      fullPath: '/rate/$planId/$day'
+      preLoaderRoute: typeof RatePlanIdDayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/vapi/tool': {
       id: '/api/vapi/tool'
       path: '/api/vapi/tool'
@@ -560,6 +620,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ShoppingRoute: ShoppingRoute,
   SignInRoute: SignInRoute,
+  SignOutRoute: SignOutRoute,
   StyleguideRoute: StyleguideRoute,
   WeekRoute: WeekRoute,
   ApiHealthRoute: ApiHealthRoute,
@@ -569,6 +630,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMollieWebhookRoute: ApiMollieWebhookRoute,
   ApiVapiTokenRoute: ApiVapiTokenRoute,
   ApiVapiToolRoute: ApiVapiToolRoute,
+  RatePlanIdDayRoute: RatePlanIdDayRoute,
+  TipIdReturnRoute: TipIdReturnRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

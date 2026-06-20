@@ -20,7 +20,7 @@ export function normalizeWaitlistEmail(raw: string): string {
  * onConflictDoNothing returns the inserted rows, so an empty array means the
  * email was already on the list.
  */
-type WaitlistDb = {
+export type WaitlistDb = {
   insert: (table: typeof waitlist) => {
     values: (row: { id: string; email: string }) => {
       onConflictDoNothing: (args: { target: typeof waitlist.email }) => {

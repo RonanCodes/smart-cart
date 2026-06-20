@@ -5,6 +5,7 @@ import { CuisineStep } from './steps/cuisine-step'
 import { StoreStep } from './steps/store-step'
 import { KitchenStep } from './steps/kitchen-step'
 import { GoalsStep } from './steps/goals-step'
+import { NotificationsStep } from './steps/notifications-step'
 
 /**
  * Step registry — the ordered list of screens the stepped flow renders after the
@@ -73,5 +74,11 @@ export const STEPS: Array<OnboardingStep> = [
     title: 'Where do you shop?',
     subtitle: 'We build a ready-to-order basket here.',
     Component: StoreStep,
+  },
+  {
+    id: 'notifications',
+    title: 'Stay in the loop',
+    subtitle: 'One last optional thing before we build your week.',
+    Component: NotificationsStep,
   },
 ]

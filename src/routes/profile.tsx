@@ -15,12 +15,20 @@ import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { List, ListRow } from '#/components/ui/list'
 import { Sheet } from '#/components/ui/sheet'
 import { Button } from '#/components/ui/button'
+import { NotificationsSheet } from '#/components/profile/notifications-sheet'
+import { StoreSheet } from '#/components/profile/store-sheet'
+import { getStore, storeLabel } from '#/lib/store-pref-server'
+import type { StoreSlug } from '#/lib/store-pref-server'
 
 export const Route = createFileRoute('/profile')({
   // Server-decide admin status so the 'Admin console' row only renders for true
-  // admins. The isAdmin server fn reuses the same adminUser gate the /admin
-  // route guards on, so the client never guesses.
-  loader: async () => ({ isAdmin: await isAdmin() }),
+  // admins, and read the current preferred store so its row shows the real
+  // value. isAdmin reuses the /admin gate; getStore reads the household's
+  // preferredStore (defaults to 'ah' for guests / pre-onboard).
+  loader: async () => ({
+    isAdmin: await isAdmin(),
+    store: await getStore(),
+  }),
   component: Profile,
 })
 
@@ -31,15 +39,23 @@ export const Route = createFileRoute('/profile')({
  */
 function Profile() {
   const { data: session } = authClient.useSession()
-  const { isAdmin } = Route.useLoaderData()
+  const { isAdmin, store: initialStore } = Route.useLoaderData()
   const [helpOpen, setHelpOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [storeOpen, setStoreOpen] = useState(false)
+  const [store, setStore] = useState<StoreSlug>(initialStore)
 
   async function signOut() {
-    await authClient.signOut()
-    // Hard redirect so the server re-renders with the cleared session cookie
-    // (a client navigate left stale session state and did nothing). Local dev
-    // open-access keeps you signed in, so this only takes effect in prod.
-    window.location.href = '/'
+    // Best-effort client sign-out, then ALWAYS hard-navigate to the server-side
+    // /sign-out route, which clears the session cookie server-side and redirects
+    // to '/'. The finally guarantees the nav fires even if the client call hangs
+    // or throws on mobile. Local dev open-access keeps you signed in, so this
+    // only takes visible effect in prod.
+    try {
+      await authClient.signOut()
+    } finally {
+      window.location.href = '/sign-out'
+    }
   }
 
   if (!session?.user) {
@@ -69,16 +85,15 @@ function Profile() {
           <ListRow
             leading={<Store aria-hidden />}
             title="Preferred store"
-            value="Albert Heijn"
+            value={storeLabel(store)}
             chevron
-            onClick={() => {}}
+            onClick={() => setStoreOpen(true)}
           />
           <ListRow
             leading={<Bell aria-hidden />}
             title="Notifications"
-            value="On"
             chevron
-            onClick={() => {}}
+            onClick={() => setNotificationsOpen(true)}
           />
           <ListRow
             leading={<CircleHelp aria-hidden />}
@@ -136,6 +151,18 @@ function Profile() {
           </Button>
         </div>
       </Sheet>
+
+      <NotificationsSheet
+        open={notificationsOpen}
+        onOpenChange={setNotificationsOpen}
+      />
+
+      <StoreSheet
+        open={storeOpen}
+        onOpenChange={setStoreOpen}
+        current={store}
+        onChange={setStore}
+      />
     </AppShell>
   )
 }
