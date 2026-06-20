@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Vapi from '@vapi-ai/web'
 import { Mic, Square, Loader2 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
+import { VAPI_PUBLIC_KEY, VAPI_ASSISTANT_ID } from '#/config/vapi'
 /** Mint a short-lived signed session token via the server route (keeps all
  * server-only modules out of the client bundle). */
 async function mintToken(): Promise<string> {
@@ -36,10 +37,9 @@ export function VoiceButton() {
   const [state, setState] = useState<CallState>('idle')
 
   useEffect(() => {
-    const publicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY as string | undefined
-    if (!publicKey) return
+    if (!VAPI_PUBLIC_KEY) return
 
-    const v = new Vapi(publicKey)
+    const v = new Vapi(VAPI_PUBLIC_KEY)
     vapi.current = v
     v.on('call-start', () => setState('live'))
     v.on('call-end', () => setState('idle'))
@@ -57,17 +57,14 @@ export function VoiceButton() {
   }, [])
 
   async function start() {
-    const assistantId = import.meta.env.VITE_VAPI_ASSISTANT_ID as
-      | string
-      | undefined
-    if (!assistantId || !vapi.current) {
+    if (!VAPI_ASSISTANT_ID || !vapi.current) {
       setState('error')
       return
     }
     setState('connecting')
     try {
       const token = await mintToken()
-      await vapi.current.start(assistantId, { metadata: { token } })
+      await vapi.current.start(VAPI_ASSISTANT_ID, { metadata: { token } })
     } catch (err) {
       console.error('[vapi] start failed', err)
       setState('error')

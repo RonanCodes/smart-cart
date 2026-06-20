@@ -30,6 +30,7 @@ import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminFeedbackRouteImport } from './routes/admin/feedback'
 import { Route as AdminBenchmarkRouteImport } from './routes/admin/benchmark'
+import { Route as TipIdReturnRouteImport } from './routes/tip.$id.return'
 import { Route as ApiVapiToolRouteImport } from './routes/api/vapi/tool'
 import { Route as ApiVapiTokenRouteImport } from './routes/api/vapi/token'
 import { Route as ApiMollieWebhookRouteImport } from './routes/api/mollie/webhook'
@@ -140,6 +141,11 @@ const AdminBenchmarkRoute = AdminBenchmarkRouteImport.update({
   path: '/benchmark',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const TipIdReturnRoute = TipIdReturnRouteImport.update({
+  id: '/tip/$id/return',
+  path: '/tip/$id/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiVapiToolRoute = ApiVapiToolRouteImport.update({
   id: '/api/vapi/tool',
   path: '/api/vapi/tool',
@@ -187,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
+  '/tip/$id/return': typeof TipIdReturnRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -213,6 +220,7 @@ export interface FileRoutesByTo {
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
+  '/tip/$id/return': typeof TipIdReturnRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
+  '/tip/$id/return': typeof TipIdReturnRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/api/mollie/webhook'
     | '/api/vapi/token'
     | '/api/vapi/tool'
+    | '/tip/$id/return'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -296,6 +306,7 @@ export interface FileRouteTypes {
     | '/api/mollie/webhook'
     | '/api/vapi/token'
     | '/api/vapi/tool'
+    | '/tip/$id/return'
   id:
     | '__root__'
     | '/'
@@ -323,6 +334,7 @@ export interface FileRouteTypes {
     | '/api/mollie/webhook'
     | '/api/vapi/token'
     | '/api/vapi/tool'
+    | '/tip/$id/return'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -345,6 +357,7 @@ export interface RootRouteChildren {
   ApiMollieWebhookRoute: typeof ApiMollieWebhookRoute
   ApiVapiTokenRoute: typeof ApiVapiTokenRoute
   ApiVapiToolRoute: typeof ApiVapiToolRoute
+  TipIdReturnRoute: typeof TipIdReturnRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -496,6 +509,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBenchmarkRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/tip/$id/return': {
+      id: '/tip/$id/return'
+      path: '/tip/$id/return'
+      fullPath: '/tip/$id/return'
+      preLoaderRoute: typeof TipIdReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/vapi/tool': {
       id: '/api/vapi/tool'
       path: '/api/vapi/tool'
@@ -569,6 +589,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMollieWebhookRoute: ApiMollieWebhookRoute,
   ApiVapiTokenRoute: ApiVapiTokenRoute,
   ApiVapiToolRoute: ApiVapiToolRoute,
+  TipIdReturnRoute: TipIdReturnRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
