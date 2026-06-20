@@ -1,11 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { listUsers } from '#/lib/admin-server'
+import { listUsers, isSuperAdmin } from '#/lib/admin-server'
 import { UsersPanel } from '#/components/admin/UsersPanel'
 import { UsersSkeleton } from '#/components/admin/AdminSkeletons'
 
 async function loadUsers() {
-  return { users: await listUsers() }
+  // Server-decide the super-admin flag here so the panel can gate the
+  // destructive 'Reset ALL users' button without trusting the client.
+  const [users, viewerIsSuperAdmin] = await Promise.all([
+    listUsers(),
+    isSuperAdmin(),
+  ])
+  return { users, viewerIsSuperAdmin }
 }
 
 export const Route = createFileRoute('/admin/users')({
@@ -28,5 +34,10 @@ function UsersTab() {
     queryFn: loadUsers,
     initialData: loaderData,
   })
-  return <UsersPanel users={data.users} />
+  return (
+    <UsersPanel
+      users={data.users}
+      viewerIsSuperAdmin={data.viewerIsSuperAdmin}
+    />
+  )
 }
