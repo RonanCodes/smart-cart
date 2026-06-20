@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Bell, BellOff, Check, Shield } from 'lucide-react'
-import type { WaitlistView, GrantState } from '#/lib/admin-server'
-import { grantUser, grantAdmin } from '#/lib/admin-server'
+import { Bell, BellOff, Check, Shield, ShieldOff } from 'lucide-react'
+import type {
+  WaitlistView,
+  WaitlistRowView,
+  GrantState,
+} from '#/lib/admin-server'
+import { grantUser, grantAdmin, revokeAdmin } from '#/lib/admin-server'
 import { setMyWaitlistNotify } from '#/lib/admin-prefs-server'
 import { cn } from '#/lib/utils'
 
@@ -36,12 +40,7 @@ export function WaitlistPanel({
 
       <div className="border-border divide-border divide-y rounded-xl border">
         {waitlist.rows.map((r) => (
-          <WaitlistRow
-            key={r.email}
-            email={r.email}
-            createdAt={r.createdAt}
-            initialGrant={r.grant}
-          />
+          <WaitlistRow key={r.email} row={r} />
         ))}
         {waitlist.rows.length === 0 && (
           <p className="text-muted-foreground px-4 py-3 text-sm">
@@ -72,17 +71,15 @@ function fmtDateTime(iso: string): string {
  * Optimistic: the grant state flips immediately and reverts if the server write
  * fails. "Approve as user" is hidden once the email is already a user OR admin;
  * "Make admin" relabels to "Admin" and disables once the email is an admin.
+ *
+ * Super-admin only: a DB-granted admin row (`row.revocable`) gets a "Remove
+ * admin" action. An env/owner admin (`row.configAdmin`) shows a static "config
+ * admin" tag and no revoke (it is config, not a runtime grant). Non-super-admins
+ * never receive a revocable row, so the action never renders for them.
  */
-function WaitlistRow({
-  email,
-  createdAt,
-  initialGrant,
-}: {
-  email: string
-  createdAt: string
-  initialGrant: GrantState
-}) {
-  const [grant, setGrant] = useState<GrantState>(initialGrant)
+function WaitlistRow({ row }: { row: WaitlistRowView }) {
+  const { email, createdAt, configAdmin, revocable } = row
+  const [grant, setGrant] = useState<GrantState>(row.grant)
   const [saving, setSaving] = useState(false)
 
   async function run(
@@ -125,7 +122,7 @@ function WaitlistRow({
         </span>
       </div>
 
-      <div className="flex shrink-0 gap-2">
+      <div className="flex shrink-0 flex-wrap gap-2">
         {/* Approve as user: shown only when not yet granted. Admin already
             implies login access, so a granted/admin email needs no user button. */}
         {grant === 'none' ? (
@@ -155,6 +152,25 @@ function WaitlistRow({
             onClick={() => run('admin', grantAdmin)}
           />
         )}
+
+        {/* config admin: env/owner admin, not a DB grant -> no revoke. */}
+        {configAdmin && grant !== 'admin' && (
+          <span className="text-muted-foreground border-border inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium">
+            <Shield className="h-4 w-4" /> config admin
+          </span>
+        )}
+
+        {/* Remove admin: super-admin only, DB-granted admins only. Hides once
+            the grant drops below admin (after a successful revoke). */}
+        {revocable && grant === 'admin' && (
+          <GrantButton
+            label="Remove admin"
+            icon={<ShieldOff className="h-4 w-4" />}
+            destructive
+            saving={saving}
+            onClick={() => run('none', revokeAdmin)}
+          />
+        )}
       </div>
     </div>
   )
@@ -165,12 +181,14 @@ function GrantButton({
   label,
   icon,
   primary,
+  destructive,
   saving,
   onClick,
 }: {
   label: string
   icon: ReactNode
   primary?: boolean
+  destructive?: boolean
   saving: boolean
   onClick: () => void
 }) {
@@ -181,9 +199,11 @@ function GrantButton({
       onClick={onClick}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-        primary
-          ? 'bg-primary text-primary-foreground hover:opacity-90'
-          : 'border-border bg-card text-foreground hover:bg-muted border',
+        destructive
+          ? 'bg-card border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950'
+          : primary
+            ? 'bg-primary text-primary-foreground hover:opacity-90'
+            : 'border-border bg-card text-foreground hover:bg-muted border',
         saving && 'opacity-60',
       )}
     >
