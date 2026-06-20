@@ -30,5 +30,7 @@
   ],
   "routes": [
     { "pattern": "smartcart.ronanconnolly.dev", "custom_domain": true },
+    { "pattern": "souso.app", "custom_domain": true },
+    { "pattern": "www.souso.app", "custom_domain": true },
   ],
 }
