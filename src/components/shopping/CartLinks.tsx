@@ -5,6 +5,7 @@ import { buildCartLinks } from '#/lib/cart-links-server'
 import type { CartLinksResult, StoreCartLink } from '#/lib/cart-links-server'
 import { TipSheet } from '#/components/shopping/TipSheet'
 import { startTip } from '#/lib/tip-server'
+import { log } from '#/lib/log'
 
 /** Rough basket € total for the tip math: we don't price the list yet, so
  * estimate from the matched item count. The fee floor (€0.50) bounds the low end. */
@@ -74,11 +75,17 @@ export function CartLinks() {
       const res = await startTip({
         data: { percent, basketTotal: Math.max(items * EUR_PER_ITEM, 1) },
       })
+      log.info('tip.confirmed', {
+        percent,
+        store: which,
+        tipped: !!res.checkoutUrl,
+      })
       openCart(which) // cart lands in a new tab
       setTipOpen(false)
       if (res.checkoutUrl) window.location.href = res.checkoutUrl // tip in this tab
-    } catch {
+    } catch (err) {
       // Never block the cart on a tip failure (#18): just open it.
+      log.error('tip.start_failed', err, { percent, store: which })
       openCart(which)
       setTipOpen(false)
     } finally {

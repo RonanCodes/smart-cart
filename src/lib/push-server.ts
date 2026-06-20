@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { subscriptionToRow, buildRateMealPayload } from './push'
 import type { PushSubscriptionJson } from './push'
+import { log } from './log'
 
 /**
  * Server fns for PWA Web Push (#149): expose the VAPID public key to the client,
@@ -58,7 +59,10 @@ export const subscribePush = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<{ ok: true }> => {
     const { getSessionUser } = await import('./server-auth')
     const user = await getSessionUser()
-    if (!user) throw new Error('Not signed in')
+    if (!user) {
+      log.warn('push.subscribe_not_signed_in')
+      throw new Error('Not signed in')
+    }
 
     const { getDb } = await import('../db/client')
     const { household } = await import('../db/schema')
@@ -73,30 +77,42 @@ export const subscribePush = createServerFn({ method: 'POST' })
         .where(eq(household.ownerId, user.id))
         .limit(1)
     )[0]
-    if (!hh) throw new Error('No household, onboard first')
+    if (!hh) {
+      log.warn('push.subscribe_no_household', { userId: user.id })
+      throw new Error('No household, onboard first')
+    }
 
     const row = subscriptionToRow(hh.id, data.subscription)
-    if (!row) throw new Error('Invalid push subscription')
+    if (!row) {
+      log.warn('push.subscribe_invalid_subscription', { householdId: hh.id })
+      throw new Error('Invalid push subscription')
+    }
 
-    await db
-      .insert(pushSubscription)
-      .values({
-        id: crypto.randomUUID(),
-        householdId: row.householdId,
-        endpoint: row.endpoint,
-        p256dh: row.p256dh,
-        auth: row.auth,
-        createdAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: pushSubscription.endpoint,
-        set: {
+    try {
+      await db
+        .insert(pushSubscription)
+        .values({
+          id: crypto.randomUUID(),
           householdId: row.householdId,
+          endpoint: row.endpoint,
           p256dh: row.p256dh,
           auth: row.auth,
           createdAt: new Date(),
-        },
-      })
+        })
+        .onConflictDoUpdate({
+          target: pushSubscription.endpoint,
+          set: {
+            householdId: row.householdId,
+            p256dh: row.p256dh,
+            auth: row.auth,
+            createdAt: new Date(),
+          },
+        })
+    } catch (err) {
+      log.error('push.subscribe_store_failed', err, { householdId: hh.id })
+      throw err
+    }
+    log.info('push.subscribe_stored', { householdId: hh.id })
     return { ok: true }
   })
 
