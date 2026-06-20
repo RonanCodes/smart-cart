@@ -11,8 +11,7 @@ import { Input } from '#/components/ui/input'
  * mascot agent, not here). A prominent waitlist email capture is the single CTA;
  * there is NO login button (login is hidden, approved users use /login directly).
  *
- * Mounted at the temporary /welcome route for review. The final swap of / to
- * this Landing is a separate follow-up after #105.
+ * Mounted at the public entry route / (the swipe-deck opener is retired).
  */
 
 const HERO_IMAGE = '/brand/souso-hero.png'

@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as WeekRouteImport } from './routes/week'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as SignInRouteImport } from './routes/sign-in'
@@ -26,11 +25,6 @@ import { Route as ApiPlanRouteImport } from './routes/api/plan'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
-const WelcomeRoute = WelcomeRouteImport.update({
-  id: '/welcome',
-  path: '/welcome',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const WeekRoute = WeekRouteImport.update({
   id: '/week',
   path: '/week',
@@ -119,7 +113,6 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
-  '/welcome': typeof WelcomeRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
@@ -137,7 +130,6 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
-  '/welcome': typeof WelcomeRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
@@ -156,7 +148,6 @@ export interface FileRoutesById {
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
-  '/welcome': typeof WelcomeRoute
   '/api/health': typeof ApiHealthRoute
   '/api/plan': typeof ApiPlanRoute
   '/api/similar': typeof ApiSimilarRoute
@@ -176,7 +167,6 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/styleguide'
     | '/week'
-    | '/welcome'
     | '/api/health'
     | '/api/plan'
     | '/api/similar'
@@ -194,7 +184,6 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/styleguide'
     | '/week'
-    | '/welcome'
     | '/api/health'
     | '/api/plan'
     | '/api/similar'
@@ -212,7 +201,6 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/styleguide'
     | '/week'
-    | '/welcome'
     | '/api/health'
     | '/api/plan'
     | '/api/similar'
@@ -231,7 +219,6 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRoute
   StyleguideRoute: typeof StyleguideRoute
   WeekRoute: typeof WeekRoute
-  WelcomeRoute: typeof WelcomeRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiPlanRoute: typeof ApiPlanRoute
   ApiSimilarRoute: typeof ApiSimilarRoute
@@ -240,13 +227,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/welcome': {
-      id: '/welcome'
-      path: '/welcome'
-      fullPath: '/welcome'
-      preLoaderRoute: typeof WelcomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/week': {
       id: '/week'
       path: '/week'
@@ -367,7 +347,6 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRoute,
   StyleguideRoute: StyleguideRoute,
   WeekRoute: WeekRoute,
-  WelcomeRoute: WelcomeRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiPlanRoute: ApiPlanRoute,
   ApiSimilarRoute: ApiSimilarRoute,
