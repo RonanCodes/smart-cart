@@ -1,4 +1,9 @@
-import { createFileRoute, Link, redirect } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+} from '@tanstack/react-router'
 import { ShoppingBag } from 'lucide-react'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { Button } from '#/components/ui/button'
@@ -22,18 +27,25 @@ import { WasteLine } from '#/components/shopping/WasteLine'
 interface ShoppingSearch {
   /** Optional plan id, set when arriving from the week view's "Shopping list". */
   plan?: string
+  /**
+   * Set after the user taps "Clear all": the empty list is a deliberate choice,
+   * so the loader must NOT re-seed it from the week on this visit. Survives a
+   * reload because it lives in the URL.
+   */
+  cleared?: boolean
 }
 
 export const Route = createFileRoute('/shopping')({
   validateSearch: (search: Record<string, unknown>): ShoppingSearch => ({
     plan: typeof search.plan === 'string' ? search.plan : undefined,
+    cleared: search.cleared === true || search.cleared === '1',
   }),
   beforeLoad: async () => {
     const ctx = await requireUserBeforeLoad()
     if (!(await hasHousehold())) throw redirect({ to: '/onboarding' })
     return ctx
   },
-  loaderDeps: ({ search }) => ({ plan: search.plan }),
+  loaderDeps: ({ search }) => ({ plan: search.plan, cleared: search.cleared }),
   loader: async ({
     deps,
   }): Promise<{
@@ -56,7 +68,13 @@ export const Route = createFileRoute('/shopping')({
     // dedupes), and only fired when the list is genuinely empty so a user who
     // cleared their list is not fought by the page re-filling it.
     let items = itemsRes.items
-    if (shouldAutoSeed({ planId: view.planId, savedItemCount: items.length })) {
+    if (
+      shouldAutoSeed({
+        planId: view.planId,
+        savedItemCount: items.length,
+        clearedByUser: deps.cleared,
+      })
+    ) {
       const seeded = await addWeekToShoppingList({
         data: deps.plan ? { planId: deps.plan } : {},
       })
@@ -86,7 +104,19 @@ export const Route = createFileRoute('/shopping')({
  */
 function Shopping() {
   const { view, staples, frequentlyBought, items } = Route.useLoaderData()
+  const { plan } = Route.useSearch()
+  const navigate = useNavigate()
   const hasSavedItems = items.length > 0
+
+  // Record a deliberate clear in the URL so a reload does not re-seed the list
+  // from the week. `replace` keeps it out of the back-stack.
+  function markCleared() {
+    void navigate({
+      to: '/shopping',
+      search: { plan, cleared: true },
+      replace: true,
+    })
+  }
 
   // Nothing to shop for yet: no saved rows and no staples. The bare empty
   // state, but still let the user start a list from staples alone (a top-up
@@ -135,7 +165,7 @@ function Shopping() {
           add, and remove all survive a reload. */}
       {hasSavedItems && (
         <div className="px-5 pt-3 pb-2">
-          <EditableShoppingList initialItems={items} />
+          <EditableShoppingList initialItems={items} onCleared={markCleared} />
         </div>
       )}
 

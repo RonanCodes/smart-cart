@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Plus, Trash2 } from 'lucide-react'
 import { Input } from '#/components/ui/input'
 import { Button } from '#/components/ui/button'
@@ -8,6 +8,7 @@ import {
   updateShoppingItem,
   removeShoppingItem,
   setAllChecked,
+  clearShoppingList,
 } from '#/lib/shopping-list-server'
 import type { ShoppingItem } from '#/lib/shopping'
 
@@ -30,14 +31,23 @@ import type { ShoppingItem } from '#/lib/shopping'
  */
 export function EditableShoppingList({
   initialItems,
+  onCleared,
 }: {
   initialItems: Array<ShoppingItem>
+  /**
+   * Fired after the list is wiped via "Clear all". The route uses it to mark the
+   * empty list as a deliberate choice (so the loader does not re-seed it from
+   * the week on the next visit / reload).
+   */
+  onCleared?: () => void
 }) {
   const [items, setItems] = useState<Array<ShoppingItem>>(initialItems)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [adding, setAdding] = useState(false)
+  /** Two-tap guard for "Clear all": first tap arms it, second confirms. */
+  const [confirmingClear, setConfirmingClear] = useState(false)
 
   const remaining = items.filter((i) => !i.checked).length
   const allChecked = items.length > 0 && remaining === 0
@@ -122,6 +132,33 @@ export function EditableShoppingList({
     }
   }
 
+  // First tap on "Clear all" arms a confirm; if the user does not confirm within
+  // 2s the button reverts, so the list is never wiped on a single stray tap.
+  useEffect(() => {
+    if (!confirmingClear) return
+    const t = setTimeout(() => setConfirmingClear(false), 2000)
+    return () => clearTimeout(t)
+  }, [confirmingClear])
+
+  async function clearAll() {
+    if (!confirmingClear) {
+      setConfirmingClear(true)
+      return
+    }
+    setConfirmingClear(false)
+    setBusyId('__clear__')
+    try {
+      const { items: next } = await clearShoppingList()
+      setItems(next)
+      // Tell the route the empty list is deliberate, so it does not re-seed.
+      onCleared?.()
+    } catch {
+      // no-op; the list simply stays as it was.
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <section aria-labelledby="list-heading" className="space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -137,14 +174,30 @@ export function EditableShoppingList({
           )}
         </div>
         {items.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={busyId === '__all__'}
-            onClick={toggleAll}
-          >
-            {allChecked ? 'Uncheck all' : 'Check all'}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busyId === '__all__'}
+              onClick={toggleAll}
+            >
+              {allChecked ? 'Uncheck all' : 'Check all'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busyId === '__clear__'}
+              aria-label={
+                confirmingClear ? 'Confirm clear all items' : 'Clear all items'
+              }
+              onClick={() => void clearAll()}
+              className={
+                confirmingClear ? 'text-destructive' : 'text-muted-foreground'
+              }
+            >
+              {confirmingClear ? 'Clear all?' : 'Clear all'}
+            </Button>
+          </div>
         )}
       </div>
 

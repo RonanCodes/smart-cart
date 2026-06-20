@@ -7,6 +7,8 @@ import {
   mergeAmount,
   planMerge,
   shouldAutoSeed,
+  countMissing,
+  addToListCta,
 } from './persist'
 import type { ShoppingItem } from './persist'
 import type { ShoppingLine } from './types'
@@ -76,6 +78,87 @@ describe('shouldAutoSeed', () => {
   it('does not re-seed a list the user cleared back down to one row', () => {
     // A single staple still counts as "has rows"; the page must not refill.
     expect(shouldAutoSeed({ planId: 'plan-1', savedItemCount: 1 })).toBe(false)
+  })
+
+  it('does not re-seed an empty list the user deliberately cleared', () => {
+    expect(
+      shouldAutoSeed({
+        planId: 'plan-1',
+        savedItemCount: 0,
+        clearedByUser: true,
+      }),
+    ).toBe(false)
+  })
+
+  it('still seeds an empty list when the empty is not user-cleared', () => {
+    expect(
+      shouldAutoSeed({
+        planId: 'plan-1',
+        savedItemCount: 0,
+        clearedByUser: false,
+      }),
+    ).toBe(true)
+  })
+})
+
+describe('countMissing', () => {
+  it('counts only the lines that are new to the list', () => {
+    const existing = [item({ name: 'Onion' }), item({ name: 'Garlic' })]
+    const incoming = [
+      lineToNewItem(line({ name: 'Onion' })), // already present
+      lineToNewItem(line({ name: 'Carrot' })), // new
+      lineToNewItem(line({ name: 'Leek' })), // new
+    ]
+    expect(countMissing(existing, incoming)).toBe(2)
+  })
+
+  it('is zero when every week ingredient is already on the list', () => {
+    const existing = [item({ name: 'Onion' }), item({ name: 'Garlic' })]
+    const incoming = [
+      lineToNewItem(line({ name: 'onion' })), // case-insensitive match
+      lineToNewItem(line({ name: 'Garlic' })),
+    ]
+    expect(countMissing(existing, incoming)).toBe(0)
+  })
+
+  it('counts every line when the saved list is empty', () => {
+    const incoming = [
+      lineToNewItem(line({ name: 'Onion' })),
+      lineToNewItem(line({ name: 'Garlic' })),
+    ]
+    expect(countMissing([], incoming)).toBe(2)
+  })
+
+  it('de-dupes repeated incoming lines so they count once', () => {
+    const incoming = [
+      lineToNewItem(line({ name: 'Onion' })),
+      lineToNewItem(line({ name: 'onion' })),
+    ]
+    expect(countMissing([], incoming)).toBe(1)
+  })
+})
+
+describe('addToListCta', () => {
+  it('greys out with "All added" when nothing is missing', () => {
+    expect(addToListCta(0)).toEqual({ label: 'All added', disabled: true })
+  })
+
+  it('uses the singular noun for exactly one missing item', () => {
+    expect(addToListCta(1)).toEqual({
+      label: 'Add 1 item to shopping list',
+      disabled: false,
+    })
+  })
+
+  it('uses the plural noun for several missing items', () => {
+    expect(addToListCta(4)).toEqual({
+      label: 'Add 4 items to shopping list',
+      disabled: false,
+    })
+  })
+
+  it('treats a negative count as nothing-to-add', () => {
+    expect(addToListCta(-2).disabled).toBe(true)
   })
 })
 
