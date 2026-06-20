@@ -1,13 +1,28 @@
 import { useState } from 'react'
-import { createFileRoute, useRouter, Link } from '@tanstack/react-router'
-import { User, LogOut, RefreshCw, Store, Bell, CircleHelp } from 'lucide-react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import {
+  User,
+  LogOut,
+  RefreshCw,
+  Store,
+  Bell,
+  CircleHelp,
+  Shield,
+} from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
+import { isAdmin } from '#/lib/admin-server'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { List, ListRow } from '#/components/ui/list'
 import { Sheet } from '#/components/ui/sheet'
 import { Button } from '#/components/ui/button'
 
-export const Route = createFileRoute('/profile')({ component: Profile })
+export const Route = createFileRoute('/profile')({
+  // Server-decide admin status so the 'Admin console' row only renders for true
+  // admins. The isAdmin server fn reuses the same adminUser gate the /admin
+  // route guards on, so the client never guesses.
+  loader: async () => ({ isAdmin: await isAdmin() }),
+  component: Profile,
+})
 
 /**
  * Profile tab — account + settings. Signed-out visitors get a sign-in CTA;
@@ -16,12 +31,15 @@ export const Route = createFileRoute('/profile')({ component: Profile })
  */
 function Profile() {
   const { data: session } = authClient.useSession()
-  const router = useRouter()
+  const { isAdmin } = Route.useLoaderData()
   const [helpOpen, setHelpOpen] = useState(false)
 
   async function signOut() {
     await authClient.signOut()
-    await router.navigate({ to: '/' })
+    // Hard redirect so the server re-renders with the cleared session cookie
+    // (a client navigate left stale session state and did nothing). Local dev
+    // open-access keeps you signed in, so this only takes effect in prod.
+    window.location.href = '/'
   }
 
   if (!session?.user) {
@@ -69,6 +87,19 @@ function Profile() {
             onClick={() => setHelpOpen(true)}
           />
         </List>
+
+        {isAdmin && (
+          <List>
+            <ListRow
+              leading={<Shield aria-hidden />}
+              title="Admin console"
+              chevron
+              onClick={() => {
+                window.location.href = '/admin/users'
+              }}
+            />
+          </List>
+        )}
 
         <List>
           <ListRow

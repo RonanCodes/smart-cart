@@ -1,7 +1,15 @@
 # ADR-0001: Cloudflare Vectorize + Workers AI for recipe similarity
 
-- **Status**: accepted
+- **Status**: superseded by ADR-0003
 - **Date**: 2026-06-19
+
+> **Superseded by [ADR-0003](./0003-single-d1-store-no-libsql-vectors-in-d1.md).** The
+> Vectorize + Workers AI path described below has been removed from the code: dish
+> similarity now runs as set-maths token overlap (`src/lib/vectors/similar-score.ts`,
+> Jaccard over `recipeText` + a same-cuisine boost), so the app needs no vector index,
+> no embed job, and no Cloudflare account in local dev. Kept for the history of why
+> embeddings were tried first. The `RECIPES_VECTORS` and `AI` bindings have since been
+> removed from `wrangler.jsonc`.
 
 ## Context
 

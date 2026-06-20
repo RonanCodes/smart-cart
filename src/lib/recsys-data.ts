@@ -51,7 +51,8 @@ function keyIngredients(
 /**
  * Load the recipe catalogue from D1 in the shape the recommender needs, plus a
  * lookup of render cards. Cheap enough to do per request at this catalogue size;
- * for a much larger catalogue this would move behind Vectorize + a cache.
+ * for a much larger catalogue this would move behind a cache or an index (see
+ * ADR-0003 for the escape hatch).
  */
 export async function loadCatalogue(): Promise<{
   recipes: Array<RecipeLite>

@@ -200,6 +200,207 @@ describe('applyReplan — deterministic intents visibly replan', () => {
     expect(mexAfter).toBeGreaterThan(mexBefore)
   })
 
+  /**
+   * Regression for #177: "more rice" must genuinely lean a DUTCH catalogue ricey
+   * (the real AH/Jumbo menu says "rijst", not "rice") AND the reply must reflect
+   * the actual diff, never an optimistic "Leaned the week toward rice." when the
+   * week did not move.
+   *
+   * The catalogue below mirrors the live one: a handful of Dutch rice dishes
+   * ("... met rijst", risotto) buried under a pile of non-rice dishes, and the
+   * onboarding swipes seed a non-rice-heavy starting week so the lean has work to
+   * do. We match in the user's language ("rice"), which must reach the Dutch text.
+   */
+  function dutchCatalogue(withRice: boolean): Array<PlannerRecipe> {
+    const out: Array<PlannerRecipe> = []
+    let id = 0
+    const nonRice = [
+      { title: 'Vegan banh mi', ing: 'tofu' },
+      { title: 'Pasta pesto', ing: 'spaghetti' },
+      { title: 'Groentesoep', ing: 'wortel' },
+      { title: 'Caprese salade', ing: 'mozzarella' },
+    ]
+    for (let i = 0; i < 16; i++) {
+      const base = nonRice[i % nonRice.length]!
+      out.push({
+        id: `n${id++}`,
+        title: `${base.title} ${i}`,
+        cuisine: 'Hollands',
+        category: 'Main',
+        mealType: 'dinner',
+        dietaryTags: [],
+        ingredients: [{ name: base.ing }, { name: 'ui' }],
+        calories: 500,
+        protein: 20,
+        prepMinutes: 20,
+      })
+    }
+    if (withRice) {
+      for (let i = 0; i < 8; i++) {
+        out.push({
+          id: `rijst${id++}`,
+          title:
+            i % 2 === 0
+              ? `Sticky kip met gewokte groenten en rijst ${i}`
+              : `Risotto met pompoen ${i}`,
+          cuisine: 'Aziatisch',
+          category: 'Main',
+          mealType: 'dinner',
+          dietaryTags: [],
+          ingredients:
+            i % 2 === 0
+              ? [{ name: 'rijst' }, { name: 'kip' }]
+              : [{ name: 'risottorijst' }, { name: 'pompoen' }],
+          calories: 600,
+          protein: 25,
+          prepMinutes: 30,
+        })
+      }
+    }
+    return out
+  }
+
+  const isRice = (r: PlannerRecipe | undefined) => {
+    if (!r) return false
+    const text = [r.title, ...r.ingredients.map((i) => i.name)]
+      .join(' ')
+      .toLowerCase()
+    return text.includes('rijst') || text.includes('risotto')
+  }
+
+  it('"more rice" leans a Dutch catalogue ricey and reports the real diff (#177)', () => {
+    const recipes = dutchCatalogue(true)
+    const m = byRef(recipes)
+    const noRiceSwipes: Array<PlannerSwipe> = recipes
+      .filter((r) => !isRice(r))
+      .slice(0, 6)
+      .map((r) => ({ recipeId: r.id, like: true }))
+    const c = {
+      week: generateWeek(recipes, {}, noRiceSwipes, { seed: 7 }),
+      recipes,
+      profile: {},
+      swipes: noRiceSwipes,
+      seed: 7,
+    }
+    const riceBefore = c.week.days.filter((d) =>
+      isRice(m.get(d.recipeRef)),
+    ).length
+    expect(riceBefore).toBe(0)
+
+    const res = applyReplan(
+      {
+        type: 'more-of',
+        days: [],
+        term: 'rice',
+        termKind: 'ingredient',
+        reason: '',
+      },
+      c,
+    )
+    const riceAfter = res.week.days.filter((d) =>
+      isRice(m.get(d.recipeRef)),
+    ).length
+
+    expect(riceAfter).toBeGreaterThan(riceBefore)
+    expect(res.changed).toBe(true)
+    expect(res.message.toLowerCase()).toContain('rice')
+    expect(res.message.toLowerCase()).toMatch(/swapped \d+ dinner/)
+    const refs = res.week.days.map((d) => d.recipeRef).filter(Boolean)
+    expect(new Set(refs).size).toBe(refs.length)
+  })
+
+  it('"more rice" says so honestly when the menu has no rice dishes (#177)', () => {
+    const recipes = dutchCatalogue(false)
+    const c = {
+      week: generateWeek(recipes, {}, [], { seed: 7 }),
+      recipes,
+      profile: {},
+      swipes: [],
+      seed: 7,
+    }
+    const before = c.week.days.map((d) => d.recipeRef)
+    const res = applyReplan(
+      {
+        type: 'more-of',
+        days: [],
+        term: 'rice',
+        termKind: 'ingredient',
+        reason: '',
+      },
+      c,
+    )
+    expect(res.changed).toBe(false)
+    expect(res.week.days.map((d) => d.recipeRef)).toEqual(before)
+    expect(res.message.toLowerCase()).toContain("couldn't find")
+    expect(res.message.toLowerCase()).toContain('rice')
+  })
+
+  it('respects hard filters while leaning (a veg household never gets a meat rice dish)', () => {
+    const recipes: Array<PlannerRecipe> = [
+      {
+        id: 'meaty-rice',
+        title: 'Kip met rijst',
+        cuisine: 'Aziatisch',
+        category: 'Main',
+        mealType: 'dinner',
+        dietaryTags: [],
+        ingredients: [{ name: 'rijst' }, { name: 'kip' }],
+        calories: 600,
+        protein: 30,
+        prepMinutes: 25,
+      },
+      {
+        id: 'veg-rice',
+        title: 'Groenterisotto',
+        cuisine: 'Italiaans',
+        category: 'Main',
+        mealType: 'dinner',
+        dietaryTags: ['vegetarian'],
+        ingredients: [{ name: 'risottorijst' }, { name: 'courgette' }],
+        calories: 500,
+        protein: 15,
+        prepMinutes: 30,
+      },
+      {
+        id: 'veg-salad',
+        title: 'Salade',
+        cuisine: 'Hollands',
+        category: 'Main',
+        mealType: 'dinner',
+        dietaryTags: ['vegetarian'],
+        ingredients: [{ name: 'sla' }],
+        calories: 300,
+        protein: 8,
+        prepMinutes: 10,
+      },
+    ]
+    const m = byRef(recipes)
+    const c = {
+      week: {
+        days: [{ day: 'Monday', meal: 'Salade', recipeRef: 'veg-salad' }],
+      },
+      recipes,
+      profile: { diet: 'vegetarian' },
+      swipes: [] as Array<PlannerSwipe>,
+      seed: 7,
+    }
+    const res = applyReplan(
+      {
+        type: 'more-of',
+        days: [],
+        term: 'rice',
+        termKind: 'ingredient',
+        reason: '',
+      },
+      c,
+    )
+    for (const d of res.week.days) {
+      expect(d.recipeRef).not.toBe('meaty-rice')
+    }
+    const picked = res.week.days.map((d) => m.get(d.recipeRef)?.title)
+    expect(picked).toContain('Groenterisotto')
+  })
+
   it('needs-pricing returns a clear blocked message, week unchanged', () => {
     const c = ctx()
     const res = applyReplan(parseIntent('make it cheaper')!, c)
@@ -294,5 +495,115 @@ describe('replan orchestrator prefers the deterministic path', () => {
     const res = await replan('eating out Wednesday', c)
     expect(res.source).toBe('deterministic')
     expect(res.changed).toBe(true)
+  })
+})
+
+describe('buildFallbackPrompt grounding', () => {
+  it('is the bare instruction with no context (back-compat)', () => {
+    const { prompt } = buildFallbackPrompt('do something')
+    expect(prompt).toBe('Instruction: do something')
+    expect(prompt).not.toContain('Household context')
+  })
+
+  it('folds in the hard filters and the catalogue cuisines', () => {
+    const { prompt } = buildFallbackPrompt('lighter meals please', {
+      profile: {
+        diet: 'vegetarian',
+        allergies: ['peanuts', 'shellfish'],
+        cuisinesDisliked: ['thai'],
+      },
+      recipes: catalogue(),
+    })
+    expect(prompt).toContain('Household context')
+    expect(prompt).toContain('Diet: vegetarian.')
+    expect(prompt).toContain('peanuts, shellfish')
+    expect(prompt).toContain('Dislikes: thai.')
+    // Catalogue cuisines are derived, distinct, sorted, lowercased.
+    expect(prompt).toContain('italian, japanese, mexican, thai')
+    expect(prompt).toContain('Instruction: lighter meals please')
+  })
+
+  it('omits an empty section but keeps others', () => {
+    const { prompt } = buildFallbackPrompt('x', {
+      profile: { diet: 'pescatarian' },
+    })
+    expect(prompt).toContain('Diet: pescatarian.')
+    expect(prompt).not.toContain('Allergies')
+    expect(prompt).not.toContain('Cuisines available')
+  })
+})
+
+describe('structured model response maps to a real week change', () => {
+  /**
+   * The full server-shaped path: an unrecognised instruction, no day named, the
+   * model returns ONLY a constraint ('swap-day' + a day), and the engine turns
+   * that into a single-meal swap grounded in the real catalogue. Proves the
+   * structured-response -> week-change mapping the issue asked for, with the
+   * model mocked (no network).
+   */
+  it('maps a mocked swap-day constraint into a single different meal', async () => {
+    const recipes = catalogue()
+    const phrase = "I'm bored of Friday, give me literally anything else"
+    expect(parseIntent(phrase)).toBeNull()
+
+    const c = ctx(recipes)
+    const fridayBefore = c.week.days.find((d) => d.day === 'Friday')!.recipeRef
+
+    const stub: GenerateObjectFn = async (args) => {
+      // The prompt the engine built is grounded in the household + catalogue.
+      expect(args.prompt).toContain('Household context')
+      expect(args.prompt).toContain('Cuisines available')
+      return {
+        object: replanEditSchema.parse({
+          type: 'swap-day',
+          days: ['Friday'],
+          term: null,
+          termKind: null,
+        }),
+      }
+    }
+
+    const res = await replan(phrase, c, {
+      model: stubModel,
+      generateObject: stub,
+    })
+    expect(res.source).toBe('ai-fallback')
+    expect(res.changed).toBe(true)
+
+    const fridayAfter = res.week.days.find((d) => d.day === 'Friday')!.recipeRef
+    expect(fridayAfter).not.toBe(fridayBefore)
+    // Only Friday moved; every other day is untouched.
+    for (const d of res.week.days) {
+      if (d.day === 'Friday') continue
+      const before = c.week.days.find((x) => x.day === d.day)!.recipeRef
+      expect(d.recipeRef).toBe(before)
+    }
+    // No repeats introduced.
+    const refs = res.week.days.map((d) => d.recipeRef).filter(Boolean)
+    expect(new Set(refs).size).toBe(refs.length)
+  })
+
+  it('an explicit promptContext on aiDeps is not overwritten by the engine', async () => {
+    const c = ctx()
+    let seenPrompt = ''
+    const stub: GenerateObjectFn = async (args) => {
+      seenPrompt = args.prompt
+      return {
+        object: replanEditSchema.parse({
+          type: 'unknown',
+          days: [],
+          term: null,
+          termKind: null,
+        }),
+      }
+    }
+    await replan('something the parser cannot read at all here', c, {
+      model: stubModel,
+      generateObject: stub,
+      promptContext: { profile: { diet: 'keto' } },
+    })
+    expect(seenPrompt).toContain('Diet: keto.')
+    // The caller-supplied context wins: catalogue cuisines are NOT injected.
+    expect(seenPrompt).not.toContain('Cuisines available')
   })
 })

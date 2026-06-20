@@ -1,10 +1,10 @@
 /**
- * Pure (runtime-free) embedding-text construction for recipes.
+ * Pure (runtime-free) canonical text representation of a recipe.
  *
- * Lives in its own module so the build-time embed script (scripts/embed-recipes.ts)
- * and unit tests can import it without pulling in the `cloudflare:workers` runtime
- * binding that src/lib/vectors/index.ts needs. Per ADR-0001 the embedding text is
- * `title + cuisine + ingredients` (recipe steps are deliberately excluded: noisy).
+ * The text is `title + cuisine + ingredients` (recipe steps are deliberately
+ * excluded as noisy). Used by the set-maths similarity scorer (similar-score.ts)
+ * to tokenise both the query and candidate recipes, so "similar recipes" compares
+ * like for like. No `cloudflare:workers` binding, so tests import it freely.
  */
 
 export interface RecipeForEmbedding {

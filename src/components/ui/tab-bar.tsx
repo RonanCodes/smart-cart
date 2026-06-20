@@ -42,7 +42,7 @@ export function TabBar() {
     <nav
       aria-label="Primary"
       className={cn(
-        'fixed inset-x-0 bottom-0 z-40',
+        'app-tabbar fixed inset-x-0 bottom-0 z-40',
         'border-hairline border-t',
         'bg-material backdrop-blur-xl backdrop-saturate-150',
       )}

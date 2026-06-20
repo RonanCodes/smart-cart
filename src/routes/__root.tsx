@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import {
   Outlet,
@@ -6,6 +7,8 @@ import {
   Scripts,
 } from '@tanstack/react-router'
 import appCss from '../styles.css?url'
+import { DevBanner } from '../components/DevBanner'
+import { registerServiceWorker } from '../lib/push-client'
 
 const SITE_URL = 'https://smartcart.ronanconnolly.dev'
 const SITE_TITLE = 'Souso: your sous chef for recipes and the weekly shop'
@@ -63,6 +66,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <DevBanner />
         <Scripts />
       </body>
     </html>
@@ -70,6 +74,13 @@ function RootDocument({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  // Register the PWA service worker once on the client (guarded; no-op in SSR or
+  // browsers without service workers). It powers Web Push rating reminders (#149)
+  // and makes the manifest-declared app installable.
+  useEffect(() => {
+    void registerServiceWorker()
+  }, [])
+
   return (
     <RootDocument>
       <Outlet />

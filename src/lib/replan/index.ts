@@ -15,6 +15,7 @@ export {
 } from './fallback'
 export type {
   AiFallbackDeps,
+  FallbackPromptContext,
   GenerateObjectFn,
   ReplanEditSchema,
 } from './fallback'

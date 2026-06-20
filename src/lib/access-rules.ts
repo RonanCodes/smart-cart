@@ -41,3 +41,177 @@ export function isApprovedIn(email: string, approved: Set<string>): boolean {
   if (e === ADMIN_EMAIL) return true
   return approved.has(e)
 }
+
+/** Re-export the normaliser so callers (server fns) share one definition. */
+export function normalizeEmail(email: string): string {
+  return normalize(email)
+}
+
+/**
+ * A DB-backed access grant role. 'admin' implies 'user' (admin can both log in
+ * and see the console); 'user' is login access only. The always-included
+ * ADMIN_EMAIL and the env lists sit OUTSIDE this type, layered on in access.ts /
+ * admin-server.ts.
+ */
+export type GrantRole = 'user' | 'admin'
+
+/**
+ * Build a normalised email -> role map from raw access_grant rows. Later rows
+ * win on a duplicate email (callers upsert, so duplicates are not expected, but
+ * the map is order-stable for tests). Empty / whitespace emails are dropped.
+ */
+export function grantMapFrom(
+  rows: Array<{ email: string; role: GrantRole }>,
+): Map<string, GrantRole> {
+  const m = new Map<string, GrantRole>()
+  for (const r of rows) {
+    const e = normalize(r.email)
+    if (e) m.set(e, r.role)
+  }
+  return m
+}
+
+/**
+ * Pure "is this email approved to log in" against BOTH the env allow-list and a
+ * DB grant map. Approved if: the admin email, OR in the env approved set, OR has
+ * any grant row (role 'user' OR 'admin' — admin implies approved). The single
+ * rule the env-bound `isApproved` builds on.
+ */
+export function isApprovedWith(
+  email: string,
+  approved: Set<string>,
+  grants: Map<string, GrantRole>,
+): boolean {
+  const e = normalize(email)
+  if (!e) return false
+  if (isApprovedIn(e, approved)) return true
+  return grants.has(e)
+}
+
+/**
+ * Pure "is this email an admin" against BOTH the env admin list and a DB grant
+ * map. Admin if: in the env admin set (the ADMIN_EMAIL is added to that set by
+ * the caller, matching admin-emails.ts), OR has a grant row with role 'admin'.
+ */
+export function isAdminWith(
+  email: string,
+  envAdmins: Set<string>,
+  grants: Map<string, GrantRole>,
+): boolean {
+  const e = normalize(email)
+  if (!e) return false
+  if (envAdmins.has(e)) return true
+  return grants.get(e) === 'admin'
+}
+
+/**
+ * The grant state to surface for ONE email in the admin UI: 'admin' if an admin
+ * grant exists, else 'user' if a user grant exists, else 'none'. Pure so the
+ * panel's button labels can be tested without a DB.
+ */
+export function grantStateFor(
+  email: string,
+  grants: Map<string, GrantRole>,
+): GrantRole | 'none' {
+  const e = normalize(email)
+  if (!e) return 'none'
+  return grants.get(e) ?? 'none'
+}
+
+/**
+ * A real `user`-table row, with everything the people-merge needs. `householdId`
+ * is null when the user signed in but never finished onboarding (no household),
+ * so it doubles as the onboarded flag.
+ */
+export interface PersonUserRow<TBadge = unknown> {
+  userId: string
+  email: string
+  householdId: string | null
+  swipes: number
+  badges: Array<TBadge>
+}
+
+/**
+ * One person in the merged admin Users view. A person can exist with NO user row
+ * (granted/approved/admin-by-env but never signed in) — then userId/householdId
+ * are null, swipes is 0, badges is empty, and onboarded is false.
+ */
+export interface MergedPerson<TBadge = unknown> {
+  email: string
+  userId: string | null
+  householdId: string | null
+  swipes: number
+  badges: Array<TBadge>
+  /** True iff this email is an admin (env admin set OR access_grant role='admin'). */
+  isAdmin: boolean
+  /** Login-access state: 'admin' grant, else 'user' (env-approved OR user grant), else 'none'. */
+  access: 'admin' | 'user' | 'none'
+  /** Has a real user row AND a household (finished onboarding). */
+  onboarded: boolean
+}
+
+/**
+ * Pure merge of every "person" the admin should see, de-duped by normalised
+ * email. Sources: the real `user` table rows, the env admin set (already
+ * including the default owner), the env approved set, and the DB access-grant
+ * map. People present only in the env/grant sets (never signed in) appear with
+ * null ids, 0 swipes, no badges, onboarded=false.
+ *
+ * Access is the strongest claim found: an admin (env-admin OR admin grant) is
+ * 'admin'; otherwise env-approved OR a user grant is 'user'; otherwise (a bare
+ * user row with no grant/env entry) 'none'. `onboarded` requires both a user row
+ * and a household. No env / DB imports so it is unit-testable.
+ *
+ * Result is sorted: admins first, then onboarded users, then the rest, each
+ * group alphabetised by email, so the operator reads top-down.
+ */
+export function mergePeople<TBadge = unknown>(args: {
+  userRows: Array<PersonUserRow<TBadge>>
+  envAdmins: Set<string>
+  envApproved: Set<string>
+  grants: Map<string, GrantRole>
+}): Array<MergedPerson<TBadge>> {
+  const { userRows, envAdmins, envApproved, grants } = args
+
+  // Start from the union of every email we know about, normalised.
+  const emails = new Set<string>()
+  const byEmail = new Map<string, PersonUserRow<TBadge>>()
+  for (const r of userRows) {
+    const e = normalize(r.email)
+    if (!e) continue
+    emails.add(e)
+    // First user row wins on a duplicate email (the table enforces unique email,
+    // so duplicates are not expected; this is just deterministic).
+    if (!byEmail.has(e)) byEmail.set(e, r)
+  }
+  for (const e of envAdmins) if (e) emails.add(e)
+  for (const e of envApproved) if (e) emails.add(e)
+  for (const e of grants.keys()) if (e) emails.add(e)
+
+  const people: Array<MergedPerson<TBadge>> = [...emails].map((email) => {
+    const row = byEmail.get(email)
+    const isAdmin = isAdminWith(email, envAdmins, grants)
+    const access: 'admin' | 'user' | 'none' = isAdmin
+      ? 'admin'
+      : isApprovedWith(email, envApproved, grants)
+        ? 'user'
+        : 'none'
+    return {
+      email,
+      userId: row?.userId ?? null,
+      householdId: row?.householdId ?? null,
+      swipes: row?.swipes ?? 0,
+      badges: row?.badges ?? [],
+      isAdmin,
+      access,
+      onboarded: Boolean(row?.userId && row.householdId),
+    }
+  })
+
+  // Admins first, then onboarded users, then everyone else; alphabetical within.
+  const rank = (p: MergedPerson<TBadge>): number =>
+    p.isAdmin ? 0 : p.onboarded ? 1 : 2
+  return people.sort(
+    (a, b) => rank(a) - rank(b) || a.email.localeCompare(b.email),
+  )
+}

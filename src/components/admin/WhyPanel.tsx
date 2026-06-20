@@ -38,25 +38,32 @@ export function WhyPanel({ users }: { users: Array<AdminUserRow> }) {
         <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
           Pick a user
         </p>
-        {users.map((u) => (
-          <button
-            key={u.userId}
-            onClick={() => open(u.userId)}
-            className={cn(
-              'border-border flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition',
-              selectedId === u.userId
-                ? 'border-primary bg-secondary'
-                : 'hover:bg-secondary',
-            )}
-          >
-            <span className="min-w-0 truncate text-sm font-medium">
-              {u.email}
-            </span>
-            <span className="text-muted-foreground ml-3 shrink-0 text-xs">
-              {u.swipes} swipes
-            </span>
-          </button>
-        ))}
+        {/*
+          Only real user rows have swipes to explain; people who are merely
+          admin/approved-by-env with no `user` row (userId null) have nothing to
+          graph, so they are filtered out of the Why picker.
+        */}
+        {users
+          .filter((u): u is typeof u & { userId: string } => u.userId !== null)
+          .map((u) => (
+            <button
+              key={u.userId}
+              onClick={() => open(u.userId)}
+              className={cn(
+                'border-border flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition',
+                selectedId === u.userId
+                  ? 'border-primary bg-secondary'
+                  : 'hover:bg-secondary',
+              )}
+            >
+              <span className="min-w-0 truncate text-sm font-medium">
+                {u.email}
+              </span>
+              <span className="text-muted-foreground ml-3 shrink-0 text-xs">
+                {u.swipes} swipes
+              </span>
+            </button>
+          ))}
         {users.length === 0 && (
           <p className="text-muted-foreground text-sm">No users yet.</p>
         )}

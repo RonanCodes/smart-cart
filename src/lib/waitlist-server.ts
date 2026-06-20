@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { waitlist } from '../db/waitlist-schema'
+import type { getDb } from '../db/client'
 
 /** Normalise + validate a submitted email. Throws on an obviously bad value. */
 export function normalizeWaitlistEmail(raw: string): string {
@@ -59,28 +60,15 @@ export const joinWaitlist = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<{ ok: boolean }> => {
     const email = normalizeWaitlistEmail(data.email)
     const { getDb } = await import('../db/client')
-    const db = (await getDb()) as unknown as WaitlistDb
+    const realDb = await getDb()
+    const db = realDb as unknown as WaitlistDb
     const { inserted } = await upsertWaitlistEmail(db, email)
 
-    // Notify the admin only on a genuinely new signup. Best-effort: a failed
-    // count or send must never break the signup, so swallow any error.
+    // Notify admins only on a genuinely new signup. Best-effort: a failed
+    // count, prefs read, or send must never break the signup, so swallow any error.
     if (inserted) {
       try {
-        const { sendWaitlistSignupNotice } = await import('./email')
-        const { count } = await import('drizzle-orm')
-        const total =
-          (
-            await (
-              db as unknown as {
-                select: (s: { n: ReturnType<typeof count> }) => {
-                  from: (t: typeof waitlist) => Promise<Array<{ n: number }>>
-                }
-              }
-            )
-              .select({ n: count() })
-              .from(waitlist)
-          )[0]?.n ?? 0
-        await sendWaitlistSignupNotice(email, total)
+        await notifyAdminsOfSignup(realDb, email)
       } catch {
         // swallow: signup already succeeded, admin notify is non-fatal
       }
@@ -88,3 +76,42 @@ export const joinWaitlist = createServerFn({ method: 'POST' })
 
     return { ok: true }
   })
+
+/** The drizzle handle getDb() returns (D1, main schema). */
+type DrizzleDb = Awaited<ReturnType<typeof getDb>>
+
+/**
+ * Email every admin who has waitlist notifications enabled (default-on) that a
+ * new email just joined, with the running total. Each recipient is sent
+ * individually so admins never see each other's addresses, and one recipient's
+ * send failure must not stop the rest. Caller wraps this so the signup itself is
+ * never affected.
+ */
+async function notifyAdminsOfSignup(
+  db: DrizzleDb,
+  newEmail: string,
+): Promise<void> {
+  const { count } = await import('drizzle-orm')
+  const total = (await db.select({ n: count() }).from(waitlist))[0]?.n ?? 0
+
+  const { adminNotificationPref } = await import('../db/admin-prefs-schema')
+  const prefs = await db
+    .select({
+      email: adminNotificationPref.email,
+      waitlistNotify: adminNotificationPref.waitlistNotify,
+    })
+    .from(adminNotificationPref)
+
+  const { resolveAdminEmails } = await import('./admin-emails')
+  const { recipientsForWaitlist } = await import('./admin-prefs')
+  const recipients = recipientsForWaitlist(await resolveAdminEmails(), prefs)
+
+  const { sendWaitlistSignupNotice } = await import('./email')
+  for (const to of recipients) {
+    try {
+      await sendWaitlistSignupNotice(newEmail, total, to)
+    } catch {
+      // one admin's send failing must not block the others
+    }
+  }
+}
