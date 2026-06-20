@@ -32,6 +32,7 @@ import type { MealRating } from '#/lib/meal-feedback'
 import { Button } from '#/components/ui/button'
 import { DayCard } from '#/components/week/DayCard'
 import { ChatReplan } from '#/components/week/ChatReplan'
+import { VoiceButton } from '#/components/week/VoiceButton'
 import { EditDaySheet } from '#/components/week/EditDaySheet'
 import { RatingReminders } from '#/components/week/RatingReminders'
 
@@ -344,6 +345,7 @@ function WeekPage() {
 
       <div className="space-y-6 px-5 pt-2">
         <ChatReplan busy={replanning} onSubmit={replan} />
+        <VoiceButton />
 
         <RatingReminders />
 

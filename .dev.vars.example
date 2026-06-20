@@ -36,3 +36,15 @@ MOLLIE_API_KEY="<mollie test_ or live_ key>"
 MOLLIE_PROFILE_ID="<pfl_ profile id>"
 # Public base URL, used to build Mollie redirect + webhook URLs.
 APP_URL="http://localhost:3000"
+
+# VAPI in-app voice (issue #17). The X-Vapi-Secret you set on the assistant's
+# server webhook; the /api/vapi/tool route verifies inbound calls against it.
+VAPI_SERVER_SECRET="<x-vapi-secret you set on the assistant>"
+# Signs the short-lived session tokens that bind a voice call to a household.
+# Generate with: openssl rand -base64 32. Server-only, never shipped to browser.
+VAPI_TOOL_TOKEN_SECRET="<openssl rand -base64 32>"
+# Browser-safe (VITE_ prefix = the only vars allowed in the client bundle). The
+# VAPI PUBLIC key starts in-app voice calls; it cannot call the REST API.
+VITE_VAPI_PUBLIC_KEY="<vapi public key>"
+# Browser-safe (VITE_ prefix). The provisioned assistant id.
+VITE_VAPI_ASSISTANT_ID="<vapi assistant id>"

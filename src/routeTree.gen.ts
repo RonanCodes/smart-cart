@@ -29,6 +29,8 @@ import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminFeedbackRouteImport } from './routes/admin/feedback'
 import { Route as AdminBenchmarkRouteImport } from './routes/admin/benchmark'
+import { Route as ApiVapiToolRouteImport } from './routes/api/vapi/tool'
+import { Route as ApiVapiTokenRouteImport } from './routes/api/vapi/token'
 import { Route as ApiMollieWebhookRouteImport } from './routes/api/mollie/webhook'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
@@ -132,6 +134,16 @@ const AdminBenchmarkRoute = AdminBenchmarkRouteImport.update({
   path: '/benchmark',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const ApiVapiToolRoute = ApiVapiToolRouteImport.update({
+  id: '/api/vapi/tool',
+  path: '/api/vapi/tool',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVapiTokenRoute = ApiVapiTokenRouteImport.update({
+  id: '/api/vapi/token',
+  path: '/api/vapi/token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMollieWebhookRoute = ApiMollieWebhookRouteImport.update({
   id: '/api/mollie/webhook',
   path: '/api/mollie/webhook',
@@ -166,6 +178,8 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
+  '/api/vapi/token': typeof ApiVapiTokenRoute
+  '/api/vapi/tool': typeof ApiVapiToolRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -189,6 +203,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
+  '/api/vapi/token': typeof ApiVapiTokenRoute
+  '/api/vapi/tool': typeof ApiVapiToolRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -214,6 +230,8 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
+  '/api/vapi/token': typeof ApiVapiTokenRoute
+  '/api/vapi/tool': typeof ApiVapiToolRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -240,6 +258,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/auth/$'
     | '/api/mollie/webhook'
+    | '/api/vapi/token'
+    | '/api/vapi/tool'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -263,6 +283,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/auth/$'
     | '/api/mollie/webhook'
+    | '/api/vapi/token'
+    | '/api/vapi/tool'
   id:
     | '__root__'
     | '/'
@@ -287,6 +309,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/auth/$'
     | '/api/mollie/webhook'
+    | '/api/vapi/token'
+    | '/api/vapi/tool'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -306,6 +330,8 @@ export interface RootRouteChildren {
   ApiSimilarRoute: typeof ApiSimilarRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiMollieWebhookRoute: typeof ApiMollieWebhookRoute
+  ApiVapiTokenRoute: typeof ApiVapiTokenRoute
+  ApiVapiToolRoute: typeof ApiVapiToolRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -450,6 +476,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBenchmarkRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/api/vapi/tool': {
+      id: '/api/vapi/tool'
+      path: '/api/vapi/tool'
+      fullPath: '/api/vapi/tool'
+      preLoaderRoute: typeof ApiVapiToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/vapi/token': {
+      id: '/api/vapi/token'
+      path: '/api/vapi/token'
+      fullPath: '/api/vapi/token'
+      preLoaderRoute: typeof ApiVapiTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mollie/webhook': {
       id: '/api/mollie/webhook'
       path: '/api/mollie/webhook'
@@ -506,6 +546,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSimilarRoute: ApiSimilarRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiMollieWebhookRoute: ApiMollieWebhookRoute,
+  ApiVapiTokenRoute: ApiVapiTokenRoute,
+  ApiVapiToolRoute: ApiVapiToolRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
