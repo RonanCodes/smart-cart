@@ -35,7 +35,7 @@ basket; you check out. No autonomous purchasing, by design.
 | --------- | -------------------------------------------------- |
 | Framework | TanStack Start (SSR + server routes) on React 19   |
 | Styling   | Tailwind v4 + shadcn-style components (cva)        |
-| Database  | Neon Postgres via Drizzle (`neon-http` driver)     |
+| Database  | Cloudflare D1 (SQLite) via Drizzle                 |
 | Auth      | Better Auth: passwordless email OTP (Resend)       |
 | Email     | Resend                                             |
 | AI        | Vercel AI SDK (Anthropic primary, OpenAI / Google) |
@@ -44,23 +44,33 @@ basket; you check out. No autonomous purchasing, by design.
 ## Run it locally
 
 ```bash
-pnpm install
-cp .dev.vars.example .dev.vars   # then fill in the values
-pnpm dev                         # http://localhost:3000
+npm run init     # install, scaffold .dev.vars, migrate + seed the local D1
+npm run start    # http://localhost:3000
 ```
 
-`.dev.vars` needs: `NEON_DATABASE_URL`, `BETTER_AUTH_SECRET`
-(`openssl rand -base64 32`), `RESEND_API_KEY`, and an LLM key.
+`init` is idempotent (safe to re-run) and needs [pnpm](https://pnpm.io)
+installed (`corepack enable && corepack prepare pnpm@latest --activate`). It
+generates a local `BETTER_AUTH_SECRET` for you and leaves the optional keys
+blank, so the app runs out of the box: meal planning is set-maths and sign-in
+needs no email provider. To sign in, enter any email and click **"Skip email"**
+on the sign-in page (it returns the one-time code directly). To enable real OTP
+emails and AI replan, fill in `RESEND_API_KEY` and an LLM key (e.g.
+`ANTHROPIC_API_KEY`) in `.dev.vars`.
+
+Vectorize (similar-meal swaps) has no local emulation, so that one feature is
+inert locally; everything else works against the seeded D1.
 
 ## Scripts
 
-| Command            | Does                                                          |
-| ------------------ | ------------------------------------------------------------- |
-| `pnpm dev`         | Local dev server                                              |
-| `pnpm quality`     | The full local gate: format + lint + typecheck + build + test |
-| `pnpm db:generate` | Generate a Drizzle migration from `src/db/schema.ts`          |
-| `pnpm db:migrate`  | Apply pending migrations to Neon                              |
-| `pnpm deploy`      | Build + deploy the Worker                                     |
+| Command                  | Does                                                          |
+| ------------------------ | ------------------------------------------------------------- |
+| `npm run init`           | One-shot local setup (install, `.dev.vars`, migrate + seed)   |
+| `npm run start`          | Local dev server (alias of `pnpm dev`)                        |
+| `pnpm quality`           | The full local gate: format + lint + typecheck + build + test |
+| `pnpm db:generate`       | Generate a Drizzle migration from `src/db/schema.ts`          |
+| `pnpm db:migrate:local`  | Apply pending migrations to the local D1                      |
+| `pnpm reseed:d1 --local` | Seed the local D1 recipe catalogue                            |
+| `pnpm deploy`            | Build + deploy the Worker                                     |
 
 ## Conventions
 
@@ -77,10 +87,10 @@ pnpm dev                         # http://localhost:3000
 src/
   routes/            file-based routes (pages + /api/* server routes)
   components/ui/      shadcn-style primitives (button, card, input, badge)
-  db/                neon client + drizzle schema (household, meal_plan, auth)
+  db/                d1 client + drizzle schema (household, meal_plan, auth)
   lib/               auth (Better Auth), email (Resend), models (AI SDK), env
   styles.css         design tokens (the brand palette)
-drizzle/neon/        generated SQL migrations
+drizzle/migrations/  generated D1 SQL migrations
 ```
 
 The product knowledge (vision, features, pitch, moat) lives in the
