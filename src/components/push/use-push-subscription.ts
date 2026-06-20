@@ -4,7 +4,11 @@ import {
   registerServiceWorker,
   urlBase64ToUint8Array,
 } from '#/lib/push-client'
-import { getPushConfig, subscribePush } from '#/lib/push-server'
+import {
+  getPushConfig,
+  subscribePush,
+  unsubscribePush,
+} from '#/lib/push-server'
 import { log } from '#/lib/log'
 
 /**
@@ -43,6 +47,11 @@ export interface UsePushSubscription {
    * 'idle' or 'error'; a no-op otherwise. Never throws — failures land in `state`.
    */
   enable: () => Promise<void>
+  /**
+   * Turn reminders off: browser `unsubscribe()` + server-side delete. Safe from
+   * 'subscribed'; settles back to 'idle' on success. Never throws.
+   */
+  disable: () => Promise<void>
 }
 
 /**
@@ -127,5 +136,25 @@ export function usePushSubscription(): UsePushSubscription {
     }
   }, [publicKey])
 
-  return { state, enable }
+  const disable = useCallback(async () => {
+    setState('subscribing')
+    log.info('push.disable_start')
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+      const sub = await reg?.pushManager.getSubscription()
+      const endpoint = sub?.endpoint ?? ''
+      // Browser-side unsubscribe + server-side delete (both halves).
+      if (sub) await sub.unsubscribe()
+      if (endpoint) await unsubscribePush({ data: { endpoint } })
+      log.info('push.disable_ok')
+      setState('idle')
+    } catch (err) {
+      log.error('push.disable_failed', err)
+      // Couldn't tear it down cleanly: keep showing 'subscribed' so the user can
+      // retry, rather than a misleading 'off'.
+      setState('subscribed')
+    }
+  }, [])
+
+  return { state, enable, disable }
 }
