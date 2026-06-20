@@ -63,6 +63,56 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
   },
 )
 
+// ---------------------------------------------------------------------------
+// Waitlist console: list the marketing-landing signups (newest first) so the
+// admin can see who joined and how many. Read-only; the waitlist table lives
+// outside the main profile schema (src/db/waitlist-schema.ts).
+// ---------------------------------------------------------------------------
+
+/** One waitlist signup, shaped for the admin list. */
+export interface WaitlistRowView {
+  email: string
+  /** ISO-8601 signup timestamp. */
+  createdAt: string
+}
+
+export interface WaitlistView {
+  count: number
+  rows: Array<WaitlistRowView>
+}
+
+/**
+ * Shape raw waitlist rows into the admin view: newest first, dates as ISO
+ * strings, plus the total count. Pure so it can be unit-tested with a fixture.
+ */
+export function shapeWaitlist(
+  rows: Array<{ email: string; createdAt: Date | string | number }>,
+): WaitlistView {
+  const view = rows
+    .map((r) => ({
+      email: r.email,
+      createdAt:
+        r.createdAt instanceof Date
+          ? r.createdAt.toISOString()
+          : new Date(r.createdAt).toISOString(),
+    }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  return { count: view.length, rows: view }
+}
+
+export const listWaitlist = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<WaitlistView> => {
+    if (!(await adminUser())) throw new Error('forbidden')
+    const { getDb } = await import('../db/client')
+    const { waitlist } = await import('../db/waitlist-schema')
+    const db = await getDb()
+    const rows = await db
+      .select({ email: waitlist.email, createdAt: waitlist.createdAt })
+      .from(waitlist)
+    return shapeWaitlist(rows)
+  },
+)
+
 export interface Datapoint {
   recipeTitle: string
   cuisine: string | null

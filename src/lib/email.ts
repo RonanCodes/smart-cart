@@ -4,6 +4,8 @@ import { readEnv } from './env'
 // Sends from the verified ronanconnolly.dev Resend account (the RESEND_API_KEY
 // secret holds that key).
 const FROM = 'Souso <hello@ronanconnolly.dev>'
+// Where waitlist-signup pings land.
+const ADMIN_NOTIFY_TO = 'tech@discopenguin.com'
 const MASCOT = 'https://smartcart.ronanconnolly.dev/brand/souso-v3-hello.png'
 const GREEN = '#43A047'
 const CANVAS = '#FBFDF9'
@@ -49,4 +51,25 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
   if (error) {
     throw new Error(`Resend failed to send the sign-in code: ${error.message}`)
   }
+}
+
+/**
+ * Tell the admin a NEW email just joined the waitlist. Best-effort: callers wrap
+ * this in try/catch so a Resend outage can never break the signup itself. Returns
+ * { sent } so a caller can log the outcome without inspecting Resend internals.
+ */
+export async function sendWaitlistSignupNotice(
+  newEmail: string,
+  totalCount: number,
+): Promise<{ sent: boolean }> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) return { sent: false }
+  const resend = new Resend(apiKey)
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: ADMIN_NOTIFY_TO,
+    subject: `New Souso waitlist signup: ${newEmail}`,
+    text: `${newEmail} just joined the Souso waitlist. Total signups: ${totalCount}.`,
+  })
+  return { sent: !error }
 }
