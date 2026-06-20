@@ -83,6 +83,7 @@ export const loadWeek = createServerFn({ method: 'GET' })
     const { eq, and, inArray } = await import('drizzle-orm')
     const { hasImage } = await import('../db/recipe-filters')
     const { topNForDay } = await import('./planner/planner')
+    const { healWeekPlan } = await import('./heal/heal-week-plan')
     const db = await getDb()
 
     const householdRows = await db
@@ -104,26 +105,6 @@ export const loadWeek = createServerFn({ method: 'GET' })
       .limit(1)
     const current = planRows[0]
     if (!current) throw new Error('Plan not found')
-
-    const ids = current.plan.days
-      .map((d) => d.recipeRef)
-      .filter((r): r is string => !!r)
-
-    const detailRows = ids.length
-      ? await db
-          .select({
-            id: recipe.id,
-            cuisine: recipe.cuisine,
-            prepMinutes: recipe.prepMinutes,
-            calories: recipe.calories,
-            protein: recipe.protein,
-            raw: recipe.raw,
-          })
-          .from(recipe)
-          .where(inArray(recipe.id, ids))
-      : []
-
-    const detail = new Map(detailRows.map((r) => [r.id, r]))
 
     // Load the full candidate catalogue + the household's swipes once, then rank
     // the top-N alternatives per day in-process. The ranking is fast (it is the
@@ -180,11 +161,76 @@ export const loadWeek = createServerFn({ method: 'GET' })
       .filter((s) => s.direction === 'like' || s.direction === 'dislike')
       .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
 
+    // Auto-heal stale days. A plan built before the #161 AH/Jumbo + image filter
+    // can reference an old foodcom / themealdb recipe that no longer surfaces as a
+    // card (e.g. it renders with no image). The servable set is exactly the
+    // catalogue we just loaded with `hasImage`. For any day pointing at a recipe
+    // outside that set, swap in the top servable alternative (same hard filter +
+    // no-repeat logic the week + the edit sheet use), then persist the healed week
+    // as a NEW revision so the repair sticks. An all-servable plan is untouched
+    // (no write, no behaviour change). One healed write max per load.
+    const servableIds = new Set(catalogueRows.map((r) => r.id))
+    const { days: healedDays, changed: planChanged } = healWeekPlan(
+      current.plan.days,
+      servableIds,
+      (day, excludeIds) => {
+        // The single best servable alternative for this day, honouring the same
+        // hard filters + no-repeat exclusions as the per-day alternatives below.
+        const pick = topNForDay(catalogue, hh.profile, swipes, {
+          excludeRecipeId: day.recipeRef || null,
+          weekRecipeIds: Array.from(excludeIds),
+          dayType: day.type ?? 'home',
+          n: 1,
+        })[0]
+        return pick ? { id: pick.id, title: pick.title } : null
+      },
+    )
+
+    // The plan the view renders from. When nothing was stale this is the stored
+    // plan unchanged; when something was healed it is the repaired week, persisted
+    // below as a fresh revision (mirroring swap-server / replan-server: never an
+    // overwrite, so the old week stays in history).
+    let planId = current.id
+    if (planChanged) {
+      const newId = crypto.randomUUID()
+      await db.insert(mealPlan).values({
+        id: newId,
+        householdId: hh.id,
+        weekStart: current.weekStart,
+        plan: {
+          days: healedDays,
+          shoppingList: current.plan.shoppingList,
+        },
+        status: 'draft',
+      })
+      planId = newId
+    }
+
+    const ids = healedDays
+      .map((d) => d.recipeRef)
+      .filter((r): r is string => !!r)
+
+    const detailRows = ids.length
+      ? await db
+          .select({
+            id: recipe.id,
+            cuisine: recipe.cuisine,
+            prepMinutes: recipe.prepMinutes,
+            calories: recipe.calories,
+            protein: recipe.protein,
+            raw: recipe.raw,
+          })
+          .from(recipe)
+          .where(inArray(recipe.id, ids))
+      : []
+
+    const detail = new Map(detailRows.map((r) => [r.id, r]))
+
     // Every recipe placed in the week is off-limits as an alternative, so picking
     // one can never create a duplicate. Includes each day's current pick.
     const weekRecipeIds = ids
 
-    const days: Array<WeekDayView> = current.plan.days.map((d) => {
+    const days: Array<WeekDayView> = healedDays.map((d) => {
       const r = d.recipeRef ? detail.get(d.recipeRef) : undefined
       const raw = (r?.raw as { imageUrl?: string | null } | null) ?? null
 
@@ -218,5 +264,5 @@ export const loadWeek = createServerFn({ method: 'GET' })
       }
     })
 
-    return { planId: current.id, weekStart: current.weekStart, days }
+    return { planId, weekStart: current.weekStart, days }
   })
