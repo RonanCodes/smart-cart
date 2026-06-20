@@ -276,6 +276,68 @@ export function shapeWaitlist(
   }
 }
 
+/**
+ * Which controls a single waitlist row should show, derived purely from its
+ * grant state + config-admin + revocable flags. Centralised here (not inline in
+ * the component) so the per-state matrix is unit-testable and the row JSX stays
+ * declarative. The four states, in priority order:
+ *
+ *  - config/owner admin (env config, never a DB grant) -> Admin badge + a
+ *    'config admin' tag, NO action buttons. This takes precedence: an env admin
+ *    must never be offered Approve / Make admin even if they also sit on the
+ *    waitlist with no DB grant.
+ *  - DB-granted admin -> Admin badge + (super-admin only) Remove admin.
+ *  - approved user (not admin) -> 'Approved' tag + Make admin.
+ *  - not approved, not admin -> Approve as user + Make admin.
+ */
+export interface WaitlistRowActions {
+  /** Show the green "Approve as user" grant button. */
+  approveAsUser: boolean
+  /** Show the "Make admin" promote button. */
+  makeAdmin: boolean
+  /** Show the static "Approved" user tag (already a plain user, can't re-approve). */
+  approvedTag: boolean
+  /** Show the "Admin" badge (DB-granted OR config admin). */
+  adminBadge: boolean
+  /** Show the static "config admin" tag (env/owner admin, not a DB grant). */
+  configAdminTag: boolean
+  /** Show the destructive "Remove admin" button (super-admin, DB-granted only). */
+  removeAdmin: boolean
+}
+
+export function waitlistRowActions(row: {
+  grant: GrantState
+  configAdmin: boolean
+  revocable: boolean
+}): WaitlistRowActions {
+  const none: WaitlistRowActions = {
+    approveAsUser: false,
+    makeAdmin: false,
+    approvedTag: false,
+    adminBadge: false,
+    configAdminTag: false,
+    removeAdmin: false,
+  }
+
+  // Config/owner admin wins outright: badge + tag, never approve/make-admin.
+  if (row.configAdmin) {
+    return { ...none, adminBadge: true, configAdminTag: true }
+  }
+
+  // DB-granted admin: badge, and Remove admin only when the viewer may revoke.
+  if (row.grant === 'admin') {
+    return { ...none, adminBadge: true, removeAdmin: row.revocable }
+  }
+
+  // Approved plain user: a tag instead of the approve button, still promotable.
+  if (row.grant === 'user') {
+    return { ...none, approvedTag: true, makeAdmin: true }
+  }
+
+  // Not approved, not admin: both grant actions.
+  return { ...none, approveAsUser: true, makeAdmin: true }
+}
+
 export const listWaitlist = createServerFn({ method: 'GET' }).handler(
   async (): Promise<WaitlistView> => {
     const viewer = await adminViewer()
