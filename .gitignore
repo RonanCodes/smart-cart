@@ -21,3 +21,9 @@ data/recipes/*.json
 
 # generated d1 seed sql (regenerate via pnpm seed:recipes)
 drizzle/seed/*.sql
+
+# ro agent coordination state
+.ro/
+
+# generated autonomous-run completion reports
+.completion-reports/
