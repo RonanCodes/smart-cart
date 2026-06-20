@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { CHECKPOINTS, runSingleAlgorithm } from './benchmark-core'
 import { loadBenchmarkFixture } from './fixture'
 import { registeredKeys } from './registry'
 import { DEFAULT_ADAPTIVE_WEIGHTS } from './config'
+
+// These tests run the benchmark over the frozen fixture; the bayesian strategy makes
+// them slow on CI runners, well past vitest's default 5s (the 'idf gate' case timed
+// out at 20s and failed a deploy). Give the whole file generous headroom.
+vi.setConfig({ testTimeout: 45000 })
 
 /**
  * Unit coverage for the fast single-algorithm runner that the admin Benchmark tab
