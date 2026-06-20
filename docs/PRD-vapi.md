@@ -107,14 +107,14 @@ phone channel.
 Each is a VAPI custom tool with server URL `/api/vapi/tool`. Arguments are
 model-filled; identity is always from the signed token.
 
-| Tool | Wraps | Args (model-filled) | Spoken result |
-| --- | --- | --- | --- |
-| `start_onboarding` | `onboarding-server` | `household_size`, `diet`, `dislikes[]`, `store` | confirms profile captured |
-| `get_week` | `week-server` | `week` (this/next) | reads back the N dinners |
-| `replan_week` | `replanWeek` (`replan-server`) | `instruction`, optional `focusedDay`, `week` | what changed, or "can't do that yet" |
-| `add_items` | `staples-server` search + add | `items[]` (e.g. milk, bananas) | what was added / not found |
-| `generate_cart` | `shopping-server` (basket build) | `store` (ah/jumbo) | "your basket is ready, N items" |
-| `open_cart` | `buildCartLink` | `store` | "your AH cart link is ready in the app" |
+| Tool               | Wraps                            | Args (model-filled)                             | Spoken result                           |
+| ------------------ | -------------------------------- | ----------------------------------------------- | --------------------------------------- |
+| `start_onboarding` | `onboarding-server`              | `household_size`, `diet`, `dislikes[]`, `store` | confirms profile captured               |
+| `get_week`         | `week-server`                    | `week` (this/next)                              | reads back the N dinners                |
+| `replan_week`      | `replanWeek` (`replan-server`)   | `instruction`, optional `focusedDay`, `week`    | what changed, or "can't do that yet"    |
+| `add_items`        | `staples-server` search + add    | `items[]` (e.g. milk, bananas)                  | what was added / not found              |
+| `generate_cart`    | `shopping-server` (basket build) | `store` (ah/jumbo)                              | "your basket is ready, N items"         |
+| `open_cart`        | `buildCartLink`                  | `store`                                         | "your AH cart link is ready in the app" |
 
 Notes:
 
