@@ -81,6 +81,10 @@ function RootComponent() {
   // browsers without service workers). It powers Web Push rating reminders (#149)
   // and makes the manifest-declared app installable.
   useEffect(() => {
+    // Sentry + PostHog (prod only); linked so an error pivots to a session replay.
+    void import('../lib/observability-client').then(({ initObservability }) =>
+      initObservability(),
+    )
     void registerServiceWorker()
     // Global client error catchers -> logger -> /api/log -> Workers Logs.
     const onError = (e: ErrorEvent) =>
