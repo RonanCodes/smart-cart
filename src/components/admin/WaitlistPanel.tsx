@@ -1,13 +1,17 @@
 import { useState } from 'react'
-import { Bell, BellOff } from 'lucide-react'
-import type { WaitlistView } from '#/lib/admin-server'
+import type { ReactNode } from 'react'
+import { Bell, BellOff, Check, Shield } from 'lucide-react'
+import type { WaitlistView, GrantState } from '#/lib/admin-server'
+import { grantUser, grantAdmin } from '#/lib/admin-server'
 import { setMyWaitlistNotify } from '#/lib/admin-prefs-server'
 import { cn } from '#/lib/utils'
 
 /**
  * The marketing-landing waitlist: a per-admin email-notification toggle, a total
- * count, and the signups newest first. Read-only list; the toggle writes the
- * signed-in admin's own preference. Admin-gated upstream by the /admin guard.
+ * count, and the signups newest first. Each row shows the signup date AND time,
+ * plus two actions, "Approve as user" and "Make admin", that grant DB-backed
+ * access with no redeploy and reflect the current grant state. Admin-gated
+ * upstream by the /admin guard.
  */
 export function WaitlistPanel({
   waitlist,
@@ -16,13 +20,6 @@ export function WaitlistPanel({
   waitlist: WaitlistView
   notifyEnabled: boolean
 }) {
-  const fmt = (iso: string) =>
-    new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-
   return (
     <div className="max-w-2xl space-y-4">
       <NotifyToggle initial={notifyEnabled} />
@@ -32,21 +29,19 @@ export function WaitlistPanel({
           {waitlist.count} {waitlist.count === 1 ? 'signup' : 'signups'}
         </h2>
         <p className="text-muted-foreground text-sm">
-          Emails captured by the marketing landing, newest first.
+          Emails captured by the marketing landing, newest first. Approve to
+          grant login access, or make someone an admin, no redeploy needed.
         </p>
       </div>
 
       <div className="border-border divide-border divide-y rounded-xl border">
         {waitlist.rows.map((r) => (
-          <div
+          <WaitlistRow
             key={r.email}
-            className="flex items-center justify-between px-4 py-3"
-          >
-            <span className="truncate text-sm font-medium">{r.email}</span>
-            <span className="text-muted-foreground ml-3 shrink-0 text-xs">
-              {fmt(r.createdAt)}
-            </span>
-          </div>
+            email={r.email}
+            createdAt={r.createdAt}
+            initialGrant={r.grant}
+          />
         ))}
         {waitlist.rows.length === 0 && (
           <p className="text-muted-foreground px-4 py-3 text-sm">
@@ -55,6 +50,136 @@ export function WaitlistPanel({
         )}
       </div>
     </div>
+  )
+}
+
+/** Date + time, e.g. "20 Jun 2026, 14:32". */
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
+/**
+ * One waitlist signup with its grant actions. Mobile-first: email + timestamp
+ * stack above the action buttons on narrow screens, sit inline from `sm` up.
+ * Optimistic: the grant state flips immediately and reverts if the server write
+ * fails. "Approve as user" is hidden once the email is already a user OR admin;
+ * "Make admin" relabels to "Admin" and disables once the email is an admin.
+ */
+function WaitlistRow({
+  email,
+  createdAt,
+  initialGrant,
+}: {
+  email: string
+  createdAt: string
+  initialGrant: GrantState
+}) {
+  const [grant, setGrant] = useState<GrantState>(initialGrant)
+  const [saving, setSaving] = useState(false)
+
+  async function run(
+    next: GrantState,
+    fn: (args: { data: { email: string } }) => Promise<{ grant: GrantState }>,
+  ) {
+    if (saving) return
+    const prev = grant
+    setGrant(next)
+    setSaving(true)
+    try {
+      const res = await fn({ data: { email } })
+      setGrant(res.grant)
+    } catch {
+      setGrant(prev) // revert on failure
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isUser = grant === 'user'
+  const isAdmin = grant === 'admin'
+
+  return (
+    <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <span className="block truncate text-sm font-medium">{email}</span>
+        <span className="text-muted-foreground text-xs">
+          {fmtDateTime(createdAt)}
+        </span>
+      </div>
+
+      <div className="flex shrink-0 gap-2">
+        {/* Approve as user: shown only when not yet granted. Admin already
+            implies login access, so a granted/admin email needs no user button. */}
+        {grant === 'none' ? (
+          <GrantButton
+            label="Approve as user"
+            icon={<Check className="h-4 w-4" />}
+            saving={saving}
+            onClick={() => run('user', grantUser)}
+          />
+        ) : isUser ? (
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium">
+            <Check className="h-4 w-4" /> User
+          </span>
+        ) : null}
+
+        {/* Make admin: relabels + disables once the email is an admin. */}
+        {isAdmin ? (
+          <span className="text-primary inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium">
+            <Shield className="h-4 w-4" /> Admin
+          </span>
+        ) : (
+          <GrantButton
+            label="Make admin"
+            icon={<Shield className="h-4 w-4" />}
+            primary
+            saving={saving}
+            onClick={() => run('admin', grantAdmin)}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** A single grant action button. Touch-friendly (min 44px tall via py-2 + text). */
+function GrantButton({
+  label,
+  icon,
+  primary,
+  saving,
+  onClick,
+}: {
+  label: string
+  icon: ReactNode
+  primary?: boolean
+  saving: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      disabled={saving}
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+        primary
+          ? 'bg-primary text-primary-foreground hover:opacity-90'
+          : 'border-border bg-card text-foreground hover:bg-muted border',
+        saving && 'opacity-60',
+      )}
+    >
+      {icon}
+      {label}
+    </button>
   )
 }
 
