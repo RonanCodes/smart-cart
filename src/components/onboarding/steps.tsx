@@ -1,4 +1,5 @@
 import { useOnboardingForm } from './form-state'
+import { HouseholdStep } from './steps/household-step'
 import { DislikesStep } from './steps/dislikes-step'
 import { DietStep } from './steps/diet-step'
 
@@ -50,10 +51,8 @@ export const STEPS: Array<OnboardingStep> = [
   {
     id: 'household',
     title: 'Who is eating?',
-    subtitle: 'Adults, children and any pets — this sizes your portions.',
-    Component: () => (
-      <StepStub note="Household: adults / children (+ ages) / cats + dogs steppers. Slice #106." />
-    ),
+    subtitle: 'Adults, children and any pets, so we can size your portions.',
+    Component: HouseholdStep,
   },
   {
     id: 'dislikes',
