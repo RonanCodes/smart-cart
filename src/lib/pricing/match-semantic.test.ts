@@ -47,11 +47,13 @@ function stubGen(object: {
 }
 
 describe('confidenceFromCosine', () => {
-  it('bands the cosine score', () => {
+  it('bands the cosine score (256-dim calibrated thresholds)', () => {
     expect(confidenceFromCosine(0.7)).toBe('high')
-    expect(confidenceFromCosine(0.6)).toBe('high')
-    expect(confidenceFromCosine(0.5)).toBe('medium')
-    expect(confidenceFromCosine(0.3)).toBe('low')
+    expect(confidenceFromCosine(0.62)).toBe('high')
+    expect(confidenceFromCosine(0.6)).toBe('medium')
+    expect(confidenceFromCosine(0.55)).toBe('medium')
+    expect(confidenceFromCosine(0.5)).toBe('low')
+    expect(confidenceFromCosine(0.49)).toBe('none')
     expect(confidenceFromCosine(0)).toBe('none')
   })
 })
