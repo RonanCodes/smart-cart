@@ -34,6 +34,16 @@ export const household = sqliteTable('household', {
       /** Days they usually cook (0=Mon..6=Sun). Drives the default weekly
        * rhythm: only these days get a planned dinner. Empty/absent = all 7. */
       cookDays?: Array<number>
+      /** Kitchen appliances the household has (Oven, Microwave, Stovetop,
+       * Blender, Multi cooker, Air fryer). Gates recipe feasibility. */
+      equipment?: Array<string>
+      /** Soft goals (Eat balanced, Pay less, Lighten mental load, etc.). Used
+       * as a soft weighting in the planner, never a hard filter. */
+      goals?: Array<string>
+      /** Pets in the household, captured to size portions / leftovers. */
+      pets?: { cats: number; dogs: number }
+      /** Ages of the children (years). Sizes child portions. */
+      childrenAges?: Array<number>
     }>()
     .notNull()
     .$defaultFn(() => ({})),
