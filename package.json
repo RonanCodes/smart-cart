@@ -34,6 +34,7 @@
     "@ai-sdk/anthropic": "^3.0.85",
     "@ai-sdk/google": "^3.0.83",
     "@ai-sdk/openai": "^3.0.72",
+    "@block65/webcrypto-web-push": "^1.0.2",
     "@cloudflare/vite-plugin": "^1.41.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-router": "1.170.16",
