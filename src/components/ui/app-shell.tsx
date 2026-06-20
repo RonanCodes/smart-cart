@@ -16,6 +16,13 @@ import { TabBar } from '#/components/ui/tab-bar'
  *
  * Content scrolls under a translucent header and clears the tab bar via the
  * `--tab-bar-space` bottom padding.
+ *
+ * Desktop framing: the app is mobile-first, so on a phone (<= 480px) this is a
+ * plain full-width column. From 481px up the `app-backdrop` + `app-frame`
+ * classes (defined in styles.css behind a min-width media query) centre the
+ * screen in a phone-width column over a warm backdrop, and the TabBar's
+ * `app-tabbar` class pins it to that same column. Mobile is byte-for-byte
+ * unchanged because every desktop rule is gated behind the media query.
  */
 export function AppShell({
   children,
@@ -27,14 +34,19 @@ export function AppShell({
   return (
     <SafeArea
       edges={['top', 'left', 'right']}
-      className={cn('bg-background ios-scroll flex flex-col', className)}
+      className={cn(
+        'app-backdrop bg-background ios-scroll flex flex-col',
+        className,
+      )}
     >
-      <main
-        className="mx-auto w-full max-w-md flex-1"
-        style={{ paddingBottom: 'calc(var(--tab-bar-space) + 1rem)' }}
-      >
-        {children}
-      </main>
+      <div className="app-frame flex flex-1 flex-col">
+        <main
+          className="mx-auto w-full max-w-md flex-1"
+          style={{ paddingBottom: 'calc(var(--tab-bar-space) + 1rem)' }}
+        >
+          {children}
+        </main>
+      </div>
       <TabBar />
     </SafeArea>
   )
