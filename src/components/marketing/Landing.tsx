@@ -14,7 +14,6 @@ import { Input } from '#/components/ui/input'
  * Mounted at the public entry route / (the swipe-deck opener is retired).
  */
 
-const HERO_IMAGE = '/brand/souso-hero.png'
 const MASCOT_IMAGE = '/brand/souso-v3-hello.png'
 
 interface Benefit {
@@ -84,13 +83,6 @@ export function Landing() {
             Souso turns real recipes into a done-for-you meal plan and shopping
             list. Save time, save money, waste less food.
           </p>
-          <div className="mt-6 w-full overflow-hidden rounded-[var(--radius-ios)] shadow-[0_8px_24px_-12px_rgba(0,0,0,0.25)]">
-            <img
-              src={HERO_IMAGE}
-              alt="Souso plans your week of dinners"
-              className="aspect-[4/3] w-full object-cover"
-            />
-          </div>
         </section>
 
         {/* Primary CTA: waitlist */}
