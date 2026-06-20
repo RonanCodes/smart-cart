@@ -80,6 +80,11 @@ export function hardFilter(
  *  - protein: a mild lift for higher-protein dinners.
  *  - prep time: a mild lift for quicker dinners (the household saves time, that
  *    is the whole job, see CONTEXT.md).
+ *  - cuisine: the explicit onboarding like/hate signal (replaces the swipe
+ *    taste). A liked cuisine is lifted, a hated one is pushed down. Neutral
+ *    cuisines and empty lists contribute 0, so the default behaviour and the
+ *    frozen recsys regression fixture (which carries no explicit cuisine prefs)
+ *    are unchanged.
  * Recipes missing a field get a neutral 0 for that term, never a penalty.
  */
 export function softScore(
@@ -89,6 +94,17 @@ export function softScore(
   soft: SoftScoreWeights = DEFAULT_ADAPTIVE_WEIGHTS.soft,
 ): number {
   let s = 0
+
+  // Explicit cuisine bias from onboarding. A liked cuisine lifts the recipe, a
+  // hated one pushes it down; everything else is neutral. Both lists are matched
+  // case-insensitively against the recipe's own cuisine. Empty lists -> 0.
+  if (r.cuisine) {
+    const cuisine = normalise(r.cuisine)
+    const liked = (profile.cuisinesLiked ?? []).map(normalise)
+    const disliked = (profile.cuisinesDisliked ?? []).map(normalise)
+    if (liked.includes(cuisine)) s += soft.cuisine
+    else if (disliked.includes(cuisine)) s -= soft.cuisine
+  }
 
   if (profile.caloriesPerDay && r.calories != null) {
     // Assume dinner is roughly 40% of the day's calories.

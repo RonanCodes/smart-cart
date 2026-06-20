@@ -25,6 +25,10 @@ export interface MappedProfile {
   equipment: Array<string>
   /** Soft goals — soft weighting in the planner, never a hard filter. */
   goals: Array<string>
+  /** Cuisines the household likes — a soft planner up-weight, never a filter. */
+  cuisinesLiked: Array<string>
+  /** Cuisines the household hates — a soft planner down-weight, never a filter. */
+  cuisinesDisliked: Array<string>
   /** Pets, captured for portion / leftover sizing. */
   pets: { cats: number; dogs: number }
   /** Children ages (years) — sizes child portions. */
@@ -95,6 +99,17 @@ export function draftToHousehold(draft: OnboardingDraft): MappedHousehold {
     new Set([...dislikeExclusions, ...dietExclusions]),
   )
 
+  // Cuisine preferences: normalised, deduped, and never overlapping (a like
+  // wins over a hate for the same cuisine). The planner reads these as a soft
+  // up/down weight; empty lists leave ranking unchanged.
+  const cuisinesLiked = Array.from(
+    new Set(draft.cuisinesLiked.map(normalise).filter(Boolean)),
+  )
+  const likedSet = new Set(cuisinesLiked)
+  const cuisinesDisliked = Array.from(
+    new Set(draft.cuisinesDisliked.map(normalise).filter(Boolean)),
+  ).filter((c) => !likedSet.has(c))
+
   return {
     adults,
     children,
@@ -107,6 +122,8 @@ export function draftToHousehold(draft: OnboardingDraft): MappedHousehold {
       diet,
       equipment: [...draft.equipment],
       goals: [...draft.goals],
+      cuisinesLiked,
+      cuisinesDisliked,
       pets: { cats: draft.pets.cats, dogs: draft.pets.dogs },
       childrenAges: [...draft.childrenAges],
     },

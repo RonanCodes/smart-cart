@@ -34,6 +34,10 @@ export interface OnboardingDraft {
   equipment: Array<string>
   /** Soft goals (Eat balanced, Pay less, ...) — a soft weighting. */
   goals: Array<string>
+  /** Cuisines the household likes (Italian, Thai, ...) — biases the planner UP. */
+  cuisinesLiked: Array<string>
+  /** Cuisines the household hates — down-weighted (or filtered) by the planner. */
+  cuisinesDisliked: Array<string>
   /** Preferred store: 'ah' | 'jumbo' | 'picnic'. */
   store: string | null
 }
@@ -47,6 +51,8 @@ export const EMPTY_DRAFT: OnboardingDraft = {
   diet: [],
   equipment: [],
   goals: [],
+  cuisinesLiked: [],
+  cuisinesDisliked: [],
   store: null,
 }
 

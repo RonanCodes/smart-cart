@@ -1,6 +1,7 @@
 import { HouseholdStep } from './steps/household-step'
 import { DislikesStep } from './steps/dislikes-step'
 import { DietStep } from './steps/diet-step'
+import { CuisineStep } from './steps/cuisine-step'
 import { StoreStep } from './steps/store-step'
 import { KitchenStep } from './steps/kitchen-step'
 import { GoalsStep } from './steps/goals-step'
@@ -48,6 +49,12 @@ export const STEPS: Array<OnboardingStep> = [
     title: 'Your tastes',
     subtitle: 'Any dietary restrictions?',
     Component: DietStep,
+  },
+  {
+    id: 'cuisine',
+    title: 'Cuisines you love',
+    subtitle: 'Tap to love a cuisine, tap again to rule it out.',
+    Component: CuisineStep,
   },
   {
     id: 'kitchen',

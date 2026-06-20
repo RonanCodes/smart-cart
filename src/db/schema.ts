@@ -28,6 +28,12 @@ export const household = sqliteTable('household', {
       allergies?: Array<string>
       dislikes?: Array<string>
       dislikedCuisines?: Array<string>
+      /** Cuisines the household explicitly LIKES (from onboarding). Biases the
+       * planner up; empty/absent leaves ranking unchanged. */
+      cuisinesLiked?: Array<string>
+      /** Cuisines the household explicitly HATES (from onboarding). Down-weights
+       * those recipes; empty/absent leaves ranking unchanged. */
+      cuisinesDisliked?: Array<string>
       diet?: string
       caloriesPerDay?: number
       lovedTastes?: Array<string>
