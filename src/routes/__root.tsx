@@ -9,6 +9,7 @@ import {
 import appCss from '../styles.css?url'
 import { DevBanner } from '../components/DevBanner'
 import { registerServiceWorker } from '../lib/push-client'
+import { QueryClientProvider } from '../lib/query-client'
 
 const SITE_URL = 'https://smartcart.ronanconnolly.dev'
 const SITE_TITLE = 'Souso: your sous chef for recipes and the weekly shop'
@@ -83,7 +84,9 @@ function RootComponent() {
 
   return (
     <RootDocument>
-      <Outlet />
+      <QueryClientProvider>
+        <Outlet />
+      </QueryClientProvider>
     </RootDocument>
   )
 }
