@@ -50,13 +50,36 @@ describe('ratingToFeedbackRow', () => {
     })
   })
 
-  it('returns null for a cleared rating (no row to write)', () => {
+  it('returns null for empty feedback: no thumb AND no note', () => {
     expect(
       ratingToFeedbackRow({ recipeId: 'r3', mealPlanId: 'p1', rating: null }),
     ).toBeNull()
+    expect(
+      ratingToFeedbackRow({
+        recipeId: 'r3',
+        mealPlanId: 'p1',
+        rating: null,
+        note: '   ',
+      }),
+    ).toBeNull()
   })
 
-  it('returns null for an unknown rating value', () => {
+  it('writes a note-only row (note is feedback on its own) with rating null', () => {
+    const row = ratingToFeedbackRow({
+      recipeId: 'r3',
+      mealPlanId: 'p1',
+      rating: null,
+      note: '  not pizza every week  ',
+    })
+    expect(row).toEqual({
+      recipeId: 'r3',
+      mealPlanId: 'p1',
+      rating: null,
+      note: 'not pizza every week',
+    })
+  })
+
+  it('treats an unknown rating value as no thumb (note still wins)', () => {
     expect(
       ratingToFeedbackRow({
         recipeId: 'r4',
@@ -65,6 +88,19 @@ describe('ratingToFeedbackRow', () => {
         rating: 'meh',
       }),
     ).toBeNull()
+    const withNote = ratingToFeedbackRow({
+      recipeId: 'r4',
+      mealPlanId: 'p1',
+      // @ts-expect-error guarding the runtime against a bad value
+      rating: 'meh',
+      note: 'kept the note',
+    })
+    expect(withNote).toEqual({
+      recipeId: 'r4',
+      mealPlanId: 'p1',
+      rating: null,
+      note: 'kept the note',
+    })
   })
 
   it('rating is exactly the literal recsys folds in', () => {

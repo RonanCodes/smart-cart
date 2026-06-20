@@ -2,11 +2,14 @@
  * Pure shaping for post-meal feedback (#126).
  *
  * The week view lets a household rate a dinner they actually cooked: thumbs up,
- * thumbs down, or clear (no opinion). That UI rating maps to a `meal_feedback`
- * row whose `rating` column is exactly the string the recommender folds in
- * (`'up'` | `'down'`, see recsys/feedback-fold.ts `mealFeedbackToSwipe`). A
- * cleared rating carries no signal, so it produces no row (the caller deletes
- * any existing one instead).
+ * thumbs down, or just a free note ("not pizza every week"). A thumb maps to a
+ * `meal_feedback` row whose `rating` column is exactly the string the recommender
+ * folds in (`'up'` | `'down'`, see recsys/feedback-fold.ts `mealFeedbackToSwipe`).
+ *
+ * A note is its own signal: a household can leave a note with no thumb at all, so
+ * a row is written whenever there is a thumb OR a note. Only when both are empty
+ * does the feedback carry nothing, in which case it produces no row (the caller
+ * deletes any existing one instead). A note-only row stores `rating` as null.
  *
  * This module is pure (no DB, no Worker deps) so the mapping runs identically in
  * the unit tests and inside the server fn.
@@ -23,7 +26,8 @@ export type MealRating = 'up' | 'down' | null
 export interface MealFeedbackRowInput {
   recipeId: string
   mealPlanId: string
-  rating: 'up' | 'down'
+  /** A thumb, or null for a note-only row (a note is feedback on its own). */
+  rating: 'up' | 'down' | null
   /** Trimmed free note, or null when the user left it blank. */
   note: string | null
 }
@@ -37,10 +41,13 @@ export function normaliseNote(note: string | null | undefined): string | null {
 
 /**
  * Map a UI rating + note to the row the server should write, or `null` when the
- * rating is cleared (no row, the existing one is removed instead).
+ * feedback is empty (no thumb AND no note), in which case no row is written and
+ * any existing one is removed instead.
  *
- * The `rating` it returns is the literal the recommender expects, so a written
- * row folds straight into next week's taste with no extra translation.
+ * A note is feedback on its own: a note with no thumb still writes a row (rating
+ * null). When a thumb is present, the `rating` it returns is the literal the
+ * recommender expects, so the row folds straight into next week's taste with no
+ * extra translation.
  */
 export function ratingToFeedbackRow(input: {
   recipeId: string
@@ -48,12 +55,16 @@ export function ratingToFeedbackRow(input: {
   rating: MealRating
   note?: string | null
 }): MealFeedbackRowInput | null {
-  if (input.rating !== 'up' && input.rating !== 'down') return null
+  const rating =
+    input.rating === 'up' || input.rating === 'down' ? input.rating : null
+  const note = normaliseNote(input.note)
+  // Empty feedback (no thumb and no note) carries no signal: no row.
+  if (rating === null && note === null) return null
   return {
     recipeId: input.recipeId,
     mealPlanId: input.mealPlanId,
-    rating: input.rating,
-    note: normaliseNote(input.note),
+    rating,
+    note,
   }
 }
 
@@ -63,10 +74,10 @@ export function ratingToFeedbackRow(input: {
  * plan). Pulled out so the upsert/clear branching is unit-testable without the
  * Start server runtime.
  *
- *   - `insert`  : a fresh rating, no prior row.
- *   - `update`  : re-rating an existing dinner (idempotent — one row per key).
- *   - `delete`  : cleared rating with a prior row to remove.
- *   - `noop`    : cleared rating and nothing was there.
+ *   - `insert`  : fresh feedback (a thumb and/or a note), no prior row.
+ *   - `update`  : re-rating or re-noting an existing dinner (one row per key).
+ *   - `delete`  : emptied feedback (no thumb, no note) with a prior row to remove.
+ *   - `noop`    : emptied feedback and nothing was there.
  */
 export type FeedbackWriteAction =
   | { kind: 'insert'; row: MealFeedbackRowInput }
