@@ -53,10 +53,17 @@ export const mealPlan = sqliteTable('meal_plan', {
     .references(() => household.id, { onDelete: 'cascade' }),
   /** Monday of the planned week, ISO date string. */
   weekStart: text('week_start').notNull(),
-  /** The plan itself: days to meals, plus the derived shopping list. */
+  /** The plan itself: days to meals, plus the derived shopping list. Each day
+   * carries a type: 'home' (any recipe length), 'busy' (quick, prep <= 25 min),
+   * 'out' (no dinner). Absent type reads as 'home' for older plans. */
   plan: text('plan', { mode: 'json' })
     .$type<{
-      days: Array<{ day: string; meal: string; recipeRef?: string }>
+      days: Array<{
+        day: string
+        meal: string
+        recipeRef?: string
+        type?: 'home' | 'busy' | 'out'
+      }>
       shoppingList: Array<{ item: string; qty: string }>
     }>()
     .notNull(),

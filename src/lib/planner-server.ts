@@ -107,6 +107,7 @@ export const generatePlan = createServerFn({ method: 'POST' }).handler(
           day: d.day,
           meal: d.meal,
           recipeRef: d.recipeRef,
+          type: d.type ?? 'home',
         })),
         shoppingList: [],
       },
