@@ -119,6 +119,69 @@ export function grantStateFor(
 }
 
 /**
+ * Pure "is this email a super-admin" check against an explicit super-admin set.
+ * Super-admins are the tier above admin: they can revoke other admins. The set
+ * is sourced from the SUPER_ADMIN_EMAILS env var by the env-bound `isSuperAdmin`
+ * in admin-server.ts; this pure form is unit-testable with a fixed set.
+ *
+ * A super-admin is ALWAYS an admin too, but that implication is applied where
+ * the env admin set is built (admin-server.ts folds the super-admin set into the
+ * admin set), not here, so this stays a single-responsibility membership test.
+ */
+export function isSuperAdminWith(
+  email: string,
+  superAdmins: Set<string>,
+): boolean {
+  const e = normalize(email)
+  if (!e) return false
+  return superAdmins.has(e)
+}
+
+/**
+ * Pure eligibility check for revoking an admin grant. A super-admin may revoke
+ * admin from `target` ONLY when EVERY guard rail passes:
+ *
+ *  1. The actor is a super-admin (the caller already gates the server fn on
+ *     this, but the rule is encoded here so it is unit-tested in one place).
+ *  2. The target is a DB-granted admin (access_grant role 'admin'). Env-config
+ *     admins (ADMIN_EMAILS / SUPER_ADMIN_EMAILS) and the default owner are
+ *     config, not runtime grants, so they are NOT revocable here.
+ *  3. The target is NOT the default owner (ADMIN_EMAIL), which can never be
+ *     locked out.
+ *  4. The target is NOT in the env admin set (covers ADMIN_EMAILS + the folded
+ *     super-admin set) — same "config, not a grant" reason.
+ *  5. A super-admin can NOT revoke themselves.
+ *
+ * Pure (no env / DB), so the UI's "show the Remove-admin action?" decision and
+ * the server fn's guard share one tested rule. Pass the SAME normalised actor
+ * and target the server resolves.
+ */
+export function canRevokeAdmin(args: {
+  actorEmail: string
+  targetEmail: string
+  /** The target's current DB grant role, if any (from grantStateFor / the map). */
+  targetGrant: GrantRole | 'none'
+  /** Whether the actor is a super-admin. */
+  actorIsSuperAdmin: boolean
+  /** Env admin set (ADMIN_EMAILS + the folded super-admin set), normalised. */
+  envAdmins: Set<string>
+}): boolean {
+  const actor = normalize(args.actorEmail)
+  const target = normalize(args.targetEmail)
+  if (!actor || !target) return false
+  if (!args.actorIsSuperAdmin) return false
+  // Only DB-granted admins are revocable.
+  if (args.targetGrant !== 'admin') return false
+  // The default owner can never be revoked.
+  if (target === ADMIN_EMAIL) return false
+  // Env-config admins (incl. super-admins) are config, not runtime grants.
+  if (args.envAdmins.has(target)) return false
+  // A super-admin can not revoke themselves.
+  if (target === actor) return false
+  return true
+}
+
+/**
  * A real `user`-table row, with everything the people-merge needs. `householdId`
  * is null when the user signed in but never finished onboarding (no household),
  * so it doubles as the onboarded flag.
@@ -148,6 +211,19 @@ export interface MergedPerson<TBadge = unknown> {
   access: 'admin' | 'user' | 'none'
   /** Has a real user row AND a household (finished onboarding). */
   onboarded: boolean
+  /**
+   * True iff this row is an admin held purely by env config (ADMIN_EMAILS /
+   * SUPER_ADMIN_EMAILS / the default owner) rather than a DB grant. The UI shows
+   * a 'config admin' tag and no revoke control for these.
+   */
+  configAdmin: boolean
+  /**
+   * True iff the VIEWING super-admin may revoke admin from this row (it is a
+   * DB-granted admin, not config, not the owner, not the viewer themselves).
+   * Always false when the viewer is not a super-admin. Drives the
+   * 'Remove admin' action.
+   */
+  revocable: boolean
 }
 
 /**
@@ -170,8 +246,18 @@ export function mergePeople<TBadge = unknown>(args: {
   envAdmins: Set<string>
   envApproved: Set<string>
   grants: Map<string, GrantRole>
+  /**
+   * The signed-in viewer's normalised email. When omitted (or `viewerIsSuperAdmin`
+   * is false) every `revocable` is false, so non-super-admins never get the
+   * action.
+   */
+  viewerEmail?: string
+  /** Whether the viewer is a super-admin. Defaults to false. */
+  viewerIsSuperAdmin?: boolean
 }): Array<MergedPerson<TBadge>> {
   const { userRows, envAdmins, envApproved, grants } = args
+  const viewerEmail = args.viewerEmail ?? ''
+  const viewerIsSuperAdmin = args.viewerIsSuperAdmin ?? false
 
   // Start from the union of every email we know about, normalised.
   const emails = new Set<string>()
@@ -196,6 +282,16 @@ export function mergePeople<TBadge = unknown>(args: {
       : isApprovedWith(email, envApproved, grants)
         ? 'user'
         : 'none'
+    const targetGrant = grantStateFor(email, grants)
+    // An admin held purely by env config (not a DB grant) is a 'config admin'.
+    const configAdmin = isAdmin && targetGrant !== 'admin'
+    const revocable = canRevokeAdmin({
+      actorEmail: viewerEmail,
+      targetEmail: email,
+      targetGrant,
+      actorIsSuperAdmin: viewerIsSuperAdmin,
+      envAdmins,
+    })
     return {
       email,
       userId: row?.userId ?? null,
@@ -205,6 +301,8 @@ export function mergePeople<TBadge = unknown>(args: {
       isAdmin,
       access,
       onboarded: Boolean(row?.userId && row.householdId),
+      configAdmin,
+      revocable,
     }
   })
 

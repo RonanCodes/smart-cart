@@ -9,6 +9,8 @@ import {
   grantStateFor,
   normalizeEmail,
   mergePeople,
+  isSuperAdminWith,
+  canRevokeAdmin,
 } from './access-rules'
 
 describe('parseApprovedList', () => {
@@ -145,6 +147,127 @@ describe('normalizeEmail', () => {
   })
 })
 
+describe('isSuperAdminWith', () => {
+  const supers = parseApprovedList('ronan@ronanconnolly.dev')
+
+  it('admits an email in the super-admin set (case / space insensitive)', () => {
+    expect(isSuperAdminWith('ronan@ronanconnolly.dev', supers)).toBe(true)
+    expect(isSuperAdminWith('RONAN@RONANCONNOLLY.DEV', supers)).toBe(true)
+    expect(isSuperAdminWith('  ronan@ronanconnolly.dev ', supers)).toBe(true)
+  })
+
+  it('rejects an email not in the set, and blanks', () => {
+    expect(isSuperAdminWith('boss@x.com', supers)).toBe(false)
+    expect(isSuperAdminWith('', supers)).toBe(false)
+    expect(isSuperAdminWith('x@y.com', new Set())).toBe(false)
+  })
+})
+
+describe('canRevokeAdmin (super-admin revoke guard rails)', () => {
+  const superEmail = 'ronan@ronanconnolly.dev'
+  // Env admin set as admin-server builds it: ADMIN_EMAILS + owner + super-admins.
+  const envAdmins = parseApprovedList(`boss@x.com, ${superEmail}`)
+  envAdmins.add(ADMIN_EMAIL)
+
+  const base = {
+    actorEmail: superEmail,
+    actorIsSuperAdmin: true,
+    envAdmins,
+  }
+
+  it('allows a super-admin to revoke a DB-granted admin', () => {
+    expect(
+      canRevokeAdmin({
+        ...base,
+        targetEmail: 'granted-admin@x.com',
+        targetGrant: 'admin',
+      }),
+    ).toBe(true)
+    // case-insensitive on the target
+    expect(
+      canRevokeAdmin({
+        ...base,
+        targetEmail: 'GRANTED-ADMIN@X.COM',
+        targetGrant: 'admin',
+      }),
+    ).toBe(true)
+  })
+
+  it('a non-super-admin can never revoke', () => {
+    expect(
+      canRevokeAdmin({
+        ...base,
+        actorIsSuperAdmin: false,
+        targetEmail: 'granted-admin@x.com',
+        targetGrant: 'admin',
+      }),
+    ).toBe(false)
+  })
+
+  it('a super-admin can NOT revoke themselves', () => {
+    // Self would normally be an env config admin too, but assert the self-rule
+    // even if they were somehow a DB grant.
+    expect(
+      canRevokeAdmin({
+        ...base,
+        targetEmail: superEmail,
+        targetGrant: 'admin',
+      }),
+    ).toBe(false)
+  })
+
+  it('can NOT revoke the default owner', () => {
+    expect(
+      canRevokeAdmin({
+        ...base,
+        targetEmail: ADMIN_EMAIL,
+        targetGrant: 'admin',
+      }),
+    ).toBe(false)
+  })
+
+  it('can NOT revoke an env/config admin (in ADMIN_EMAILS)', () => {
+    expect(
+      canRevokeAdmin({
+        ...base,
+        targetEmail: 'boss@x.com',
+        targetGrant: 'admin',
+      }),
+    ).toBe(false)
+  })
+
+  it('can NOT revoke a non-admin (no admin grant)', () => {
+    expect(
+      canRevokeAdmin({
+        ...base,
+        targetEmail: 'someone@x.com',
+        targetGrant: 'user',
+      }),
+    ).toBe(false)
+    expect(
+      canRevokeAdmin({
+        ...base,
+        targetEmail: 'someone@x.com',
+        targetGrant: 'none',
+      }),
+    ).toBe(false)
+  })
+
+  it('rejects blank actor / target', () => {
+    expect(
+      canRevokeAdmin({
+        ...base,
+        actorEmail: '',
+        targetEmail: 'a@x.com',
+        targetGrant: 'admin',
+      }),
+    ).toBe(false)
+    expect(
+      canRevokeAdmin({ ...base, targetEmail: '', targetGrant: 'admin' }),
+    ).toBe(false)
+  })
+})
+
 describe('mergePeople (union user rows + env admins + env approved + grants)', () => {
   type B = { emoji: string; label: string }
   const userRow = (
@@ -250,6 +373,47 @@ describe('mergePeople (union user rows + env admins + env approved + grants)', (
     expect(matches[0]!.userId).toBe('u9') // user row carried through
     expect(matches[0]!.isAdmin).toBe(true) // env admin claim applied
     expect(matches[0]!.email).toBe('boss@x.com') // normalised
+  })
+
+  it('marks DB-granted admins revocable for a super-admin, and config admins not', () => {
+    const superEmail = 'ronan@ronanconnolly.dev'
+    const envAdmins = parseApprovedList(`${superEmail}`)
+    envAdmins.add(ADMIN_EMAIL)
+    const out = mergePeople<B>({
+      userRows: [],
+      envAdmins,
+      envApproved: new Set(),
+      grants: grantMapFrom([{ email: 'granted-admin@x.com', role: 'admin' }]),
+      viewerEmail: superEmail,
+      viewerIsSuperAdmin: true,
+    })
+    const granted = out.find((p) => p.email === 'granted-admin@x.com')!
+    expect(granted.isAdmin).toBe(true)
+    expect(granted.configAdmin).toBe(false)
+    expect(granted.revocable).toBe(true)
+
+    const owner = out.find((p) => p.email === ADMIN_EMAIL)!
+    expect(owner.isAdmin).toBe(true)
+    expect(owner.configAdmin).toBe(true) // env/owner, no DB grant
+    expect(owner.revocable).toBe(false)
+
+    const self = out.find((p) => p.email === superEmail)!
+    expect(self.configAdmin).toBe(true)
+    expect(self.revocable).toBe(false) // never self
+  })
+
+  it('never marks rows revocable when the viewer is not a super-admin', () => {
+    const out = mergePeople<B>({
+      userRows: [],
+      envAdmins: new Set(),
+      envApproved: new Set(),
+      grants: grantMapFrom([{ email: 'granted-admin@x.com', role: 'admin' }]),
+      viewerEmail: 'boss@x.com',
+      viewerIsSuperAdmin: false,
+    })
+    expect(out.find((p) => p.email === 'granted-admin@x.com')!.revocable).toBe(
+      false,
+    )
   })
 
   it('sorts admins first, then onboarded users, then the rest (alpha within)', () => {

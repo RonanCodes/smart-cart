@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ThumbsUp, ThumbsDown, Bell } from 'lucide-react'
-import { getUserDatapoints } from '#/lib/admin-server'
+import { ThumbsUp, ThumbsDown, Bell, ShieldOff } from 'lucide-react'
+import { getUserDatapoints, revokeAdmin } from '#/lib/admin-server'
 import type { AdminUserRow, UserDatapoints } from '#/lib/admin-server'
 import { sendRateMealPush } from '#/lib/push-server'
 import { Badge } from '#/components/ui/badge'
@@ -30,6 +30,23 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [pushBusy, setPushBusy] = useState<string | null>(null)
   const [pushMsg, setPushMsg] = useState<string | null>(null)
+  // Emails revoked this session (drop the Admin badge + the Remove action without
+  // a reload) and the email mid-revoke (disable its button).
+  const [revoked, setRevoked] = useState<Set<string>>(() => new Set())
+  const [revokingEmail, setRevokingEmail] = useState<string | null>(null)
+
+  async function revoke(email: string) {
+    if (revokingEmail) return
+    setRevokingEmail(email)
+    try {
+      await revokeAdmin({ data: { email } })
+      setRevoked((s) => new Set(s).add(email))
+    } catch {
+      // leave the row as-is; the server rejected it.
+    } finally {
+      setRevokingEmail(null)
+    }
+  }
 
   async function open(userId: string) {
     setLoadingId(userId)
@@ -82,6 +99,9 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
           // No user row -> nothing to drill into; render a static card so the
           // operator still sees the person, their admin badge + access tag.
           const interactive = u.userId !== null
+          const isRevoked = revoked.has(u.email)
+          // Hide the Admin badge + revoke action once revoked this session.
+          const showAdmin = u.isAdmin && !isRevoked
           return (
             <div key={u.email} className="flex items-stretch gap-2">
               <button
@@ -94,9 +114,14 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
                     <span className="truncate text-sm font-medium">
                       {u.email}
                     </span>
-                    {u.isAdmin && (
+                    {showAdmin && (
                       <Badge variant="primary" className="shrink-0">
                         Admin
+                      </Badge>
+                    )}
+                    {u.configAdmin && !isRevoked && (
+                      <Badge variant="outline" className="shrink-0">
+                        config admin
                       </Badge>
                     )}
                     <Badge variant="outline" className="shrink-0">
@@ -129,6 +154,19 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
                   className="border-border text-muted-foreground enabled:hover:bg-secondary inline-flex w-11 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-50"
                 >
                   <Bell className="h-4 w-4" aria-hidden />
+                </button>
+              )}
+              {/* Remove admin: super-admin only (server sets revocable), on
+                  DB-granted admins only. Hidden once revoked this session. */}
+              {u.revocable && !isRevoked && (
+                <button
+                  type="button"
+                  aria-label={`Remove admin from ${u.email}`}
+                  disabled={revokingEmail !== null}
+                  onClick={() => void revoke(u.email)}
+                  className="inline-flex w-11 shrink-0 items-center justify-center rounded-lg border border-red-300 text-red-600 transition enabled:hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:enabled:hover:bg-red-950"
+                >
+                  <ShieldOff className="h-4 w-4" aria-hidden />
                 </button>
               )}
             </div>

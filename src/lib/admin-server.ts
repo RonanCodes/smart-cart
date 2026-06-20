@@ -1,5 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
 import { redirect } from '@tanstack/react-router'
+// Pure helpers are import-safe (no cloudflare:workers / DB), so shapeWaitlist —
+// a synchronous pure fn used directly by the unit test — can use them at module
+// scope. The env/DB-bound work still goes through dynamic import() below.
+import { canRevokeAdmin, ADMIN_EMAIL } from './access-rules'
 // Bundled at build time, NOT read from disk: Cloudflare Workers has no filesystem,
 // so a runtime readFileSync threw "[unenv] fs.readFileSync is not implemented" and
 // 500'd the whole /admin loader in prod. The baseline is tiny (~1KB), so importing
@@ -30,19 +34,65 @@ async function adminUser() {
   // Local dev open-access: any (dev) session is an admin so /admin opens with no
   // setup. Dead code in the deployed build (import.meta.env.DEV is false there).
   if (import.meta.env.DEV) return u
-  const { readEnv } = await import('./env')
-  const { parseApprovedList, isAdminWith, ADMIN_EMAIL } =
-    await import('./access-rules')
-  // Env admins + the always-included default owner (mirrors admin-emails.ts),
-  // so the console can never be locked out.
-  const admins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
-  admins.add(ADMIN_EMAIL)
+  const { isAdminWith } = await import('./access-rules')
+  // Env admins + the always-included default owner + super-admins (mirrors
+  // admin-emails.ts), so the console can never be locked out.
+  const { envAdmins } = await loadEnvAdmins()
   // DB-backed admin grants (role='admin') let the console promote admins with no
   // redeploy. A missing grant table degrades to env-only (loadAdminGrantMap
   // returns an empty map) rather than locking everyone out.
   const grants = await loadAdminGrantMap()
-  return isAdminWith(u.email, admins, grants) ? u : null
+  return isAdminWith(u.email, envAdmins, grants) ? u : null
 }
+
+/**
+ * Resolve the env admin set the gate uses: the comma-separated ADMIN_EMAILS,
+ * PLUS the default owner, PLUS the super-admin set (super-admins are always
+ * admins). Shared by the admin gate and the revoke logic so "env config admin"
+ * means the same thing everywhere. Returns the set and the super-admin sub-set
+ * (the caller needs both to classify config-vs-grant + super-admin status).
+ */
+async function loadEnvAdmins(): Promise<{
+  envAdmins: Set<string>
+  superAdmins: Set<string>
+}> {
+  const { readEnv } = await import('./env')
+  const { parseApprovedList, ADMIN_EMAIL } = await import('./access-rules')
+  const envAdmins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
+  envAdmins.add(ADMIN_EMAIL)
+  const superAdmins = parseApprovedList(await readEnv('SUPER_ADMIN_EMAILS'))
+  // Super-admins are always admins too.
+  for (const e of superAdmins) envAdmins.add(e)
+  return { envAdmins, superAdmins }
+}
+
+/**
+ * The signed-in viewer as the admin gate sees them, plus whether they are a
+ * super-admin. Returns null when there is no admin session. Used by the loaders
+ * so they can server-decide the super-admin flag + revoke eligibility instead of
+ * trusting the client.
+ */
+async function adminViewer(): Promise<{
+  email: string
+  isSuperAdmin: boolean
+} | null> {
+  const u = await adminUser()
+  if (!u) return null
+  const { isSuperAdminWith } = await import('./access-rules')
+  const { superAdmins } = await loadEnvAdmins()
+  return {
+    email: u.email,
+    isSuperAdmin: isSuperAdminWith(u.email, superAdmins),
+  }
+}
+
+/** Server fn: is the signed-in user a super-admin? Server-decided, never client. */
+export const isSuperAdmin = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<boolean> => {
+    const v = await adminViewer()
+    return Boolean(v?.isSuperAdmin)
+  },
+)
 
 /**
  * Load the DB-backed grant map (normalised email -> role) for the admin gate +
@@ -89,17 +139,21 @@ export interface AdminUserRow {
   isAdmin: boolean
   access: 'admin' | 'user' | 'none'
   onboarded: boolean
+  /** Admin held purely by env config (no DB grant) — shown with a 'config admin' tag, no revoke. */
+  configAdmin: boolean
+  /** Viewing super-admin may revoke admin from this DB-granted admin row. */
+  revocable: boolean
 }
 
 export const listUsers = createServerFn({ method: 'GET' }).handler(
   async (): Promise<Array<AdminUserRow>> => {
-    if (!(await adminUser())) throw new Error('forbidden')
+    const viewer = await adminViewer()
+    if (!viewer) throw new Error('forbidden')
     const { getDb } = await import('../db/client')
     const { user, household, recipeSwipe } = await import('../db/schema')
     const { eq, count } = await import('drizzle-orm')
     const { readEnv } = await import('./env')
-    const { parseApprovedList, mergePeople, ADMIN_EMAIL } =
-      await import('./access-rules')
+    const { parseApprovedList, mergePeople } = await import('./access-rules')
     const db = await getDb()
     const rows = await db
       .select({
@@ -117,10 +171,9 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
     const byHid = new Map(counts.map((c) => [c.hid, c.n]))
 
     // Resolve the env + DB access sets so people who never signed in still show.
-    // Env admins always include the default owner (mirrors admin-emails.ts), so
-    // the console can never present as locked out.
-    const envAdmins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
-    envAdmins.add(ADMIN_EMAIL)
+    // Env admins always include the default owner + super-admins (mirrors
+    // admin-emails.ts), so the console can never present as locked out.
+    const { envAdmins } = await loadEnvAdmins()
     const envApproved = parseApprovedList(await readEnv('APPROVED_EMAILS'))
     const grants = await loadAdminGrantMap()
 
@@ -135,6 +188,8 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
       envAdmins,
       envApproved,
       grants,
+      viewerEmail: viewer.email,
+      viewerIsSuperAdmin: viewer.isSuperAdmin,
     })
   },
 )
@@ -155,41 +210,76 @@ export interface WaitlistRowView {
   createdAt: string
   /** Current DB-backed grant for this email, so buttons reflect state. */
   grant: GrantState
+  /** Admin held purely by env config (no DB grant) — 'config admin' tag, no revoke. */
+  configAdmin: boolean
+  /** Viewing super-admin may revoke admin from this DB-granted admin row. */
+  revocable: boolean
 }
 
 export interface WaitlistView {
   count: number
   rows: Array<WaitlistRowView>
+  /** True iff the viewer is a super-admin (server-decided). Gates the revoke UI. */
+  viewerIsSuperAdmin: boolean
 }
 
 /**
  * Shape raw waitlist rows into the admin view: newest first, dates as ISO
- * strings, each tagged with its current grant state, plus the total count. Pure
- * so it can be unit-tested with a fixture (pass the grant map the rows resolve
- * against; default empty = nobody granted).
+ * strings, each tagged with its current grant state + whether the viewing
+ * super-admin may revoke it, plus the total count. Pure so it can be unit-tested
+ * with a fixture (pass the grant map the rows resolve against; default empty =
+ * nobody granted). The optional `viewer` block carries the server-decided
+ * super-admin context; omit it and every row is non-revocable.
  */
 export function shapeWaitlist(
   rows: Array<{ email: string; createdAt: Date | string | number }>,
   grants: ReadonlyMap<string, 'user' | 'admin'> = new Map(),
+  viewer: {
+    email: string
+    isSuperAdmin: boolean
+    envAdmins: ReadonlySet<string>
+  } = { email: '', isSuperAdmin: false, envAdmins: new Set() },
 ): WaitlistView {
+  const grantMap = new Map(grants)
+  const envAdmins = new Set(viewer.envAdmins)
   const view = rows
-    .map(
-      (r): WaitlistRowView => ({
-        email: r.email,
+    .map((r): WaitlistRowView => {
+      const email = r.email
+      const norm = email.trim().toLowerCase()
+      const grant = grantMap.get(norm) ?? 'none'
+      const isEnvAdmin = envAdmins.has(norm) || norm === ADMIN_EMAIL
+      // A config admin is an env/owner admin that has no DB admin grant.
+      const configAdmin = isEnvAdmin && grant !== 'admin'
+      const revocable = canRevokeAdmin({
+        actorEmail: viewer.email,
+        targetEmail: email,
+        targetGrant: grant,
+        actorIsSuperAdmin: viewer.isSuperAdmin,
+        envAdmins,
+      })
+      return {
+        email,
         createdAt:
           r.createdAt instanceof Date
             ? r.createdAt.toISOString()
             : new Date(r.createdAt).toISOString(),
-        grant: grants.get(r.email.trim().toLowerCase()) ?? 'none',
-      }),
-    )
+        grant,
+        configAdmin,
+        revocable,
+      }
+    })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  return { count: view.length, rows: view }
+  return {
+    count: view.length,
+    rows: view,
+    viewerIsSuperAdmin: viewer.isSuperAdmin,
+  }
 }
 
 export const listWaitlist = createServerFn({ method: 'GET' }).handler(
   async (): Promise<WaitlistView> => {
-    if (!(await adminUser())) throw new Error('forbidden')
+    const viewer = await adminViewer()
+    if (!viewer) throw new Error('forbidden')
     const { getDb } = await import('../db/client')
     const { waitlist } = await import('../db/waitlist-schema')
     const db = await getDb()
@@ -197,9 +287,51 @@ export const listWaitlist = createServerFn({ method: 'GET' }).handler(
       .select({ email: waitlist.email, createdAt: waitlist.createdAt })
       .from(waitlist)
     const grants = await loadAdminGrantMap()
-    return shapeWaitlist(rows, grants)
+    const { envAdmins } = await loadEnvAdmins()
+    return shapeWaitlist(rows, grants, {
+      email: viewer.email,
+      isSuperAdmin: viewer.isSuperAdmin,
+      envAdmins,
+    })
   },
 )
+
+/**
+ * Revoke admin from `email`: super-admin-gated, deletes the access_grant row so
+ * the person drops to no DB grant (re-grant via "Make admin" re-creates it). All
+ * guard rails (DB-granted-admin only, never the owner, never an env/config admin,
+ * never self) are enforced by the pure `canRevokeAdmin` rule. Returns the email
+ * and its resulting grant state ('none').
+ */
+export const revokeAdmin = createServerFn({ method: 'POST' })
+  .inputValidator((d: { email: string }) => d)
+  .handler(async ({ data }): Promise<{ email: string; grant: GrantState }> => {
+    const viewer = await adminViewer()
+    if (!viewer || !viewer.isSuperAdmin) throw new Error('forbidden')
+    const { normalizeEmail, grantStateFor } = await import('./access-rules')
+    const email = normalizeEmail(data.email)
+    if (!email) throw new Error('email required')
+    const grants = await loadAdminGrantMap()
+    const { envAdmins } = await loadEnvAdmins()
+    // Re-check every guard rail server-side; the UI flag is advisory only.
+    if (
+      !canRevokeAdmin({
+        actorEmail: viewer.email,
+        targetEmail: email,
+        targetGrant: grantStateFor(email, grants),
+        actorIsSuperAdmin: viewer.isSuperAdmin,
+        envAdmins,
+      })
+    ) {
+      throw new Error('not revocable')
+    }
+    const { getDb } = await import('../db/client')
+    const { accessGrant } = await import('../db/access-grant-schema')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+    await db.delete(accessGrant).where(eq(accessGrant.email, email))
+    return { email, grant: 'none' }
+  })
 
 // ---------------------------------------------------------------------------
 // Access grants: approve a waitlisted person (role 'user') or promote them to

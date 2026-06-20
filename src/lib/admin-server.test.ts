@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { shapeWaitlist } from './admin-server'
+import { ADMIN_EMAIL } from './access-rules'
 
 describe('shapeWaitlist', () => {
   it('returns count + newest-first rows, dates as ISO strings', () => {
@@ -26,7 +27,11 @@ describe('shapeWaitlist', () => {
   })
 
   it('handles an empty waitlist', () => {
-    expect(shapeWaitlist([])).toEqual({ count: 0, rows: [] })
+    expect(shapeWaitlist([])).toEqual({
+      count: 0,
+      rows: [],
+      viewerIsSuperAdmin: false,
+    })
   })
 
   it("defaults every row's grant to 'none' when no grant map is given", () => {
@@ -51,5 +56,61 @@ describe('shapeWaitlist', () => {
     expect(byEmail.get('Dave@X.com')).toBe('user')
     expect(byEmail.get('eve@x.com')).toBe('admin')
     expect(byEmail.get('frank@x.com')).toBe('none')
+  })
+
+  it('defaults to non-revocable rows + viewerIsSuperAdmin false when no viewer', () => {
+    const view = shapeWaitlist(
+      [{ email: 'admin-grant@x.com', createdAt: 0 }],
+      new Map<string, 'user' | 'admin'>([['admin-grant@x.com', 'admin']]),
+    )
+    expect(view.viewerIsSuperAdmin).toBe(false)
+    expect(view.rows[0]!.revocable).toBe(false)
+    expect(view.rows[0]!.configAdmin).toBe(false)
+  })
+
+  it('a super-admin viewer can revoke a DB-granted admin row', () => {
+    const superEmail = 'ronan@ronanconnolly.dev'
+    const envAdmins = new Set([superEmail, ADMIN_EMAIL])
+    const view = shapeWaitlist(
+      [
+        { email: 'admin-grant@x.com', createdAt: 3 },
+        { email: 'plain-user@x.com', createdAt: 2 },
+      ],
+      new Map<string, 'user' | 'admin'>([
+        ['admin-grant@x.com', 'admin'],
+        ['plain-user@x.com', 'user'],
+      ]),
+      { email: superEmail, isSuperAdmin: true, envAdmins },
+    )
+    expect(view.viewerIsSuperAdmin).toBe(true)
+    const byEmail = new Map(view.rows.map((r) => [r.email, r]))
+    expect(byEmail.get('admin-grant@x.com')!.revocable).toBe(true)
+    expect(byEmail.get('admin-grant@x.com')!.configAdmin).toBe(false)
+    // A plain user is not an admin -> not revocable, not a config admin.
+    expect(byEmail.get('plain-user@x.com')!.revocable).toBe(false)
+    expect(byEmail.get('plain-user@x.com')!.configAdmin).toBe(false)
+  })
+
+  it('tags an env/config admin row (no DB grant) as configAdmin, never revocable', () => {
+    const superEmail = 'ronan@ronanconnolly.dev'
+    const envAdmins = new Set(['boss@x.com', superEmail, ADMIN_EMAIL])
+    const view = shapeWaitlist(
+      [{ email: 'boss@x.com', createdAt: 1 }],
+      new Map<string, 'user' | 'admin'>(), // no DB grant
+      { email: superEmail, isSuperAdmin: true, envAdmins },
+    )
+    expect(view.rows[0]!.configAdmin).toBe(true)
+    expect(view.rows[0]!.revocable).toBe(false)
+  })
+
+  it('hides revoke from a non-super-admin viewer', () => {
+    const envAdmins = new Set([ADMIN_EMAIL])
+    const view = shapeWaitlist(
+      [{ email: 'admin-grant@x.com', createdAt: 1 }],
+      new Map<string, 'user' | 'admin'>([['admin-grant@x.com', 'admin']]),
+      { email: 'boss@x.com', isSuperAdmin: false, envAdmins },
+    )
+    expect(view.viewerIsSuperAdmin).toBe(false)
+    expect(view.rows[0]!.revocable).toBe(false)
   })
 })
