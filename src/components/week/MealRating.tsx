@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { cn } from '#/lib/utils'
-import { Button } from '#/components/ui/button'
 import type { MealRating as Rating } from '#/lib/meal-feedback'
 
 interface MealRatingProps {
@@ -20,13 +19,21 @@ interface MealRatingProps {
   onSubmit: (next: { rating: Rating; note: string | null }) => Promise<void>
 }
 
+/** ms to wait after the last keystroke before auto-saving the note. */
+const AUTOSAVE_DELAY = 800
+
 /**
- * Post-meal rating affordance for a cooked dinner (#126). Thumbs up / thumbs down
+ * Post-meal rating affordance for a cooked dinner (#126, #254). Thumbs up / down
  * plus a clear, with an optional short note ("not pizza every week"). The chosen
  * rating stays reflected (filled thumb), and tapping the active thumb again clears
- * it WITHOUT dropping the note. The note box is always available (a household can
- * jot "not pizza every week" with no thumb at all); the note saves on blur or when
- * the user taps Save.
+ * it WITHOUT dropping the note.
+ *
+ * The note box only appears once the dinner is thumbed (saves real estate on the
+ * card), or when a note was already saved so an existing note is never orphaned.
+ * The note AUTO-SAVES: there is no Save button. A debounce persists it ~800ms
+ * after typing stops, blur flushes it immediately, and a quiet "Saved" hint
+ * confirms the write. (#254 dropped the Save button + the auto-save-yet-still-
+ * showing-a-button inconsistency.)
  *
  * Mobile-first at 390px, iOS styling: big tap targets (44px min), no hover-only
  * affordance (every control is a real button), rounded fills, the brand accent for
@@ -37,6 +44,7 @@ interface MealRatingProps {
 export function MealRating({ rating, note, busy, onSubmit }: MealRatingProps) {
   const [draftNote, setDraftNote] = useState(note ?? '')
   const lastSavedNote = useRef(note ?? '')
+  const [saved, setSaved] = useState(false)
 
   // Keep local draft in sync when the saved state changes underneath us (e.g. a
   // fresh load or a clear), without clobbering an in-progress edit.
@@ -57,9 +65,31 @@ export function MealRating({ rating, note, busy, onSubmit }: MealRatingProps) {
     const trimmed = draftNote.trim() || null
     // Nothing changed since the last save -> no write.
     if (trimmed === (lastSavedNote.current.trim() || null)) return
+    // Mark saved optimistically so a pending debounce timer no-ops behind us.
+    lastSavedNote.current = draftNote
     // A note saves on its own; the current thumb (if any) rides along unchanged.
     await onSubmit({ rating, note: trimmed })
+    setSaved(true)
   }
+
+  // Debounced auto-save: persist the note a beat after typing stops, so there is
+  // no Save button to tap. The guard makes this a no-op when nothing changed
+  // (incl. right after a blur flush set lastSavedNote), so it is cheap.
+  useEffect(() => {
+    if (draftNote === lastSavedNote.current) return
+    setSaved(false)
+    const trimmed = draftNote.trim() || null
+    const snapshot = draftNote
+    const t = setTimeout(() => {
+      lastSavedNote.current = snapshot
+      void onSubmit({ rating, note: trimmed }).then(() => setSaved(true))
+    }, AUTOSAVE_DELAY)
+    return () => clearTimeout(t)
+  }, [draftNote, rating, onSubmit])
+
+  // Only surface the note box once the dinner is rated (saves real estate), or
+  // when a note already exists so it is never hidden/orphaned.
+  const showNote = rating !== null || (note ?? '') !== ''
 
   return (
     <div className="border-border/60 mt-1 border-t pt-3">
@@ -101,28 +131,26 @@ export function MealRating({ rating, note, busy, onSubmit }: MealRatingProps) {
         </div>
       </div>
 
-      <div className="mt-3 flex flex-col gap-2">
-        <textarea
-          value={draftNote}
-          disabled={busy}
-          onChange={(e) => setDraftNote(e.target.value)}
-          onBlur={() => void saveNote()}
-          rows={2}
-          maxLength={280}
-          placeholder="Add a note (optional), e.g. not pizza every week"
-          className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring w-full resize-none rounded-lg border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
-        />
-        <div className="flex items-center justify-end">
-          <Button
-            variant="outline"
-            size="sm"
+      {showNote && (
+        <div className="mt-3 flex flex-col gap-1">
+          <textarea
+            value={draftNote}
             disabled={busy}
-            onClick={() => void saveNote()}
+            onChange={(e) => setDraftNote(e.target.value)}
+            onBlur={() => void saveNote()}
+            rows={2}
+            maxLength={280}
+            placeholder="Add a note (optional), e.g. not pizza every week"
+            className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring w-full resize-none rounded-lg border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
+          />
+          <span
+            aria-live="polite"
+            className="text-muted-foreground h-4 text-right text-xs"
           >
-            {busy ? 'Saving…' : 'Save note'}
-          </Button>
+            {busy ? 'Saving…' : saved ? 'Saved' : ''}
+          </span>
         </div>
-      </div>
+      )}
     </div>
   )
 }
