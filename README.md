@@ -51,9 +51,11 @@ npm run start    # http://localhost:3000
 `init` is idempotent (safe to re-run) and needs [pnpm](https://pnpm.io)
 installed (`corepack enable && corepack prepare pnpm@latest --activate`). It
 generates a local `BETTER_AUTH_SECRET` for you and leaves the optional keys
-blank, so the app runs out of the box: sign-in uses the demo skip-login and meal
-planning is set-maths. To enable real email and AI replan, fill in `RESEND_API_KEY`
-and an LLM key (e.g. `ANTHROPIC_API_KEY`) in `.dev.vars`.
+blank, so the app runs out of the box: meal planning is set-maths and sign-in
+needs no email provider. To sign in, enter any email and click **"Skip email"**
+on the sign-in page (it returns the one-time code directly). To enable real OTP
+emails and AI replan, fill in `RESEND_API_KEY` and an LLM key (e.g.
+`ANTHROPIC_API_KEY`) in `.dev.vars`.
 
 Vectorize (similar-meal swaps) has no local emulation, so that one feature is
 inert locally; everything else works against the seeded D1.
