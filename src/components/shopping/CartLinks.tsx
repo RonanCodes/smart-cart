@@ -72,17 +72,34 @@ export function CartLinks() {
     const which = pending
     const items = links?.[which].matched ?? 0
     try {
+      // No tip: nothing to pay, just open the cart.
+      if (percent <= 0) {
+        log.info('tip.confirmed', { percent, store: which, tipped: false })
+        openCart(which)
+        setTipOpen(false)
+        return
+      }
+      // Tip: PAY FIRST. Redirect to Mollie's hosted checkout; the cart opens
+      // on the /tip/:id/return page after payment (store passed through).
       const res = await startTip({
-        data: { percent, basketTotal: Math.max(items * EUR_PER_ITEM, 1) },
+        data: {
+          percent,
+          basketTotal: Math.max(items * EUR_PER_ITEM, 1),
+          store: which,
+        },
       })
       log.info('tip.confirmed', {
         percent,
         store: which,
         tipped: !!res.checkoutUrl,
       })
-      openCart(which) // cart lands in a new tab
-      setTipOpen(false)
-      if (res.checkoutUrl) window.location.href = res.checkoutUrl // tip in this tab
+      if (res.checkoutUrl) {
+        window.location.href = res.checkoutUrl
+      } else {
+        // No checkout URL came back: don't strand the user, open the cart.
+        openCart(which)
+        setTipOpen(false)
+      }
     } catch (err) {
       // Never block the cart on a tip failure (#18): just open it.
       log.error('tip.start_failed', err, { percent, store: which })

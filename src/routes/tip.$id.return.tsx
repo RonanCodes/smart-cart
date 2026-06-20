@@ -1,19 +1,43 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { Button } from '#/components/ui/button'
+import { buildCartLinks } from '#/lib/cart-links-server'
+import { log } from '#/lib/log'
 
 /**
  * Landing page after the Mollie hosted-checkout redirect for a tip
- * (redirectUrl = /tip/{id}/return). The actual paid/failed status is settled by
- * the Mollie webhook (re-fetched from the API), so this page is just a warm
- * acknowledgement, never a status source. Reward-not-guilt (#18): thank, don't
- * dwell on outcome.
+ * (redirectUrl = /tip/{id}/return?store=ah). The paid/failed status is settled by
+ * the Mollie webhook (re-fetched from the API), so this page never reads status,
+ * it just thanks the user and opens their store cart. Pay-first flow: the cart
+ * opens HERE, after payment, on a tap (a user gesture, so no popup block).
  */
 export const Route = createFileRoute('/tip/$id/return')({
+  validateSearch: (s: Record<string, unknown>): { store?: 'ah' | 'jumbo' } => ({
+    store: s.store === 'ah' || s.store === 'jumbo' ? s.store : undefined,
+  }),
   component: TipReturn,
 })
 
 function TipReturn() {
+  const { store } = Route.useSearch()
+  const [busy, setBusy] = useState(false)
+  const label = store === 'jumbo' ? 'Jumbo' : 'Albert Heijn'
+
+  async function openCart() {
+    if (!store) return
+    setBusy(true)
+    try {
+      const links = await buildCartLinks()
+      const url = links[store].url
+      if (url) window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      log.error('tip.return_open_cart_failed', err, { store })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <AppShell>
       <ScreenHeader title="Thanks!" />
@@ -23,10 +47,19 @@ function TipReturn() {
         </div>
         <p className="text-sm font-medium">Thanks for supporting Souso!</p>
         <p className="text-muted-foreground text-xs">
-          Your cart is ready in your store. Happy cooking.
+          {store
+            ? `Tap to open your basket in ${label}.`
+            : 'Your basket is ready in your store. Happy cooking.'}
         </p>
+        {store && (
+          <Button size="pill" disabled={busy} onClick={() => void openCart()}>
+            {busy ? 'Opening…' : `Open my ${label} cart`}
+          </Button>
+        )}
         <Link to="/shopping">
-          <Button size="pill">Back to shopping</Button>
+          <Button variant="outline" size="pill">
+            Back to shopping
+          </Button>
         </Link>
       </div>
     </AppShell>

@@ -72,6 +72,8 @@ function ship(line: string): void {
       body: line,
       keepalive: true,
       headers: { 'content-type': 'application/json' },
+    }).catch(() => {
+      // ignore — best-effort; also avoids an unhandled rejection in tests/SSR
     })
   } catch {
     // Logging must never throw into the app (diagnose canon).
