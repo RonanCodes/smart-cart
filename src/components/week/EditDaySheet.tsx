@@ -1,0 +1,110 @@
+import { UtensilsCrossed, Clock, Flame, Beef } from 'lucide-react'
+import type { WeekDayView } from '#/lib/week-server'
+import { Sheet } from '#/components/ui/sheet'
+
+interface EditDaySheetProps {
+  /** The day being edited; null closes the sheet. */
+  day: WeekDayView | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** True while a pick is being persisted (locks the cards). */
+  picking: boolean
+  /** The user tapped an alternative: swap it into this day. */
+  onPick: (recipeId: string) => void
+}
+
+/**
+ * The "edit the week" picker. Tapping a day on the week view opens this bottom
+ * sheet (the iOS Sheet primitive, #88) showing ~5 ready alternatives that are
+ * already pre-ranked for the household and shipped with the week, so the sheet
+ * opens instantly with no spinner. Tapping an alternative swaps it into that day.
+ *
+ * This is THE edit method: one tap to open, one tap to swap. The alternatives are
+ * appetizing cards (image, title, prep, calories, protein), full-width tappable so
+ * there is no hover-only affordance and it works on touch at 390px.
+ */
+export function EditDaySheet({
+  day,
+  open,
+  onOpenChange,
+  picking,
+  onPick,
+}: EditDaySheetProps) {
+  const alts = day?.alternatives ?? []
+
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={day ? `Swap ${day.day}` : undefined}
+    >
+      <div className="pb-2">
+        {day && (
+          <p className="text-muted-foreground mb-3 text-center text-sm">
+            Pick a dinner to replace{' '}
+            <span className="text-foreground font-medium">{day.meal}</span>.
+          </p>
+        )}
+
+        {alts.length === 0 ? (
+          <p className="text-muted-foreground py-6 text-center text-sm">
+            No other dinners left to swap in this week.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {alts.map((a) => (
+              <li key={a.recipeRef}>
+                <button
+                  type="button"
+                  disabled={picking}
+                  onClick={() => onPick(a.recipeRef)}
+                  className="border-border bg-card hover:bg-secondary/60 active:bg-secondary flex w-full items-center gap-3 overflow-hidden rounded-xl border p-2 text-left transition-colors disabled:opacity-60"
+                >
+                  <div className="bg-secondary h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg">
+                    {a.imageUrl ? (
+                      <img
+                        src={a.imageUrl}
+                        alt={a.meal}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-muted-foreground flex h-full items-center justify-center">
+                        <UtensilsCrossed className="h-7 w-7" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="line-clamp-2 text-sm leading-snug font-semibold">
+                      {a.meal}
+                    </span>
+                    <span className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+                      {a.cuisine && <span>{a.cuisine}</span>}
+                      {a.prepMinutes != null && (
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {a.prepMinutes} min
+                        </span>
+                      )}
+                      {a.calories != null && (
+                        <span className="inline-flex items-center gap-1">
+                          <Flame className="h-3 w-3" />
+                          {a.calories} kcal
+                        </span>
+                      )}
+                      {a.protein != null && (
+                        <span className="inline-flex items-center gap-1">
+                          <Beef className="h-3 w-3" />
+                          {a.protein}g
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Sheet>
+  )
+}
