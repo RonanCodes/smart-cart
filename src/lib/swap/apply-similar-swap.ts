@@ -2,8 +2,8 @@
  * Pure plan edit for a "swap for similar" pick.
  *
  * The week view (#12) lets the user swap a day for the next-best by preference.
- * This is the sibling edit: the user picked a SPECIFIC similar recipe (a Vectorize
- * neighbour, #31) and we drop it into one day. The replacement keeps the rest of
+ * This is the sibling edit: the user picked a SPECIFIC similar recipe (a
+ * similarity neighbour) and we drop it into one day. The replacement keeps the rest of
  * the week untouched, so the edit is local and reversible (the server writes it as
  * a new meal_plan revision, never an overwrite).
  *
