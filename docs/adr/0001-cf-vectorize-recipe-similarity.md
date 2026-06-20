@@ -8,8 +8,8 @@
 > similarity now runs as set-maths token overlap (`src/lib/vectors/similar-score.ts`,
 > Jaccard over `recipeText` + a same-cuisine boost), so the app needs no vector index,
 > no embed job, and no Cloudflare account in local dev. Kept for the history of why
-> embeddings were tried first. The `RECIPES_VECTORS` binding still lingering in
-> `wrangler.jsonc` is dead and should be removed.
+> embeddings were tried first. The `RECIPES_VECTORS` and `AI` bindings have since been
+> removed from `wrangler.jsonc`.
 
 ## Context
 

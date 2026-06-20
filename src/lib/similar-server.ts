@@ -19,12 +19,12 @@ export interface SimilarResponse {
 
 /**
  * Nearest-neighbour swaps for a recipe, scoped to the signed-in household so the
- * results respect that household's allergies + diet hard filters. Reads Vectorize
- * + recipe + household.profile; writes nothing.
+ * results respect that household's allergies + diet hard filters. Reads recipe +
+ * household.profile; writes nothing. Similarity is set-maths (similar-score.ts).
  *
- * Server-only: every server-only module (auth, db, the Vectorize binding via the
- * vectors modules) is dynamically imported inside the handler so none of it leaks
- * into the client bundle. Mirrors the planner-server / onboarding-server pattern.
+ * Server-only: every server-only module (auth, db, the vectors modules) is
+ * dynamically imported inside the handler so none of it leaks into the client
+ * bundle. Mirrors the planner-server / onboarding-server pattern.
  */
 export const getSimilarRecipes = createServerFn({ method: 'POST' })
   .inputValidator((d: SimilarInput) => d)

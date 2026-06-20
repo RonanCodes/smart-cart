@@ -2,9 +2,10 @@ import type { RecipeLite } from './types'
 
 /**
  * A small, dependency-free TF-IDF embedding over recipe attributes (cuisine,
- * category, dietary tags, ingredient tokens). Used by the vector strategy for
- * diverse-deck selection and similarity ranking. Cheap enough to run in the Worker
- * over the catalogue; the heavier cross-catalogue similarity uses Vectorize.
+ * category, dietary tags, ingredient tokens). Used by the recsys vector strategy
+ * for diverse-deck selection and similarity ranking. Runs entirely in the Worker
+ * over the catalogue (this is local set-maths, not Cloudflare Vectorize; dish-swap
+ * similarity is a separate token-overlap scorer in vectors/similar-score.ts).
  */
 
 export type SparseVec = Map<string, number>

@@ -38,7 +38,7 @@ export interface SimilarProfile {
   diet?: string
 }
 
-/** One raw Vectorize neighbour: a recipe id and its cosine similarity score. */
+/** One raw scored neighbour: a recipe id and its similarity score. */
 export interface Neighbour {
   id: string
   score: number
@@ -52,7 +52,7 @@ export interface SimilarOptions {
   limit?: number
   /**
    * Re-rank surviving neighbours:
-   *  - 'similarity' (default): keep Vectorize's nearest-first order.
+   *  - 'similarity' (default): keep the scorer's nearest-first order.
    *  - 'faster': lowest prep time first (unknown prep sorted last).
    *  - 'lighter': lowest calories first (unknown calories sorted last).
    */
@@ -66,7 +66,7 @@ export interface SimilarResult {
   cuisine: string | null
   prepMinutes: number | null
   calories: number | null
-  /** Cosine similarity to the query recipe (higher = more similar). */
+  /** Similarity score to the query recipe (higher = more similar). */
   score: number
 }
 
@@ -121,7 +121,7 @@ function nullsLast(v: number | null): number {
 }
 
 /**
- * Pure neighbour post-processing. Given the raw Vectorize neighbours, a lookup
+ * Pure neighbour post-processing. Given the raw scored neighbours, a lookup
  * from recipe id to the full recipe row, the query recipe id, and the household
  * profile + options, return the valid swaps in the requested order.
  *
@@ -136,8 +136,8 @@ function nullsLast(v: number | null): number {
  *     the more-similar recipe first.
  *  5. Truncate to `limit` (default 5).
  *
- * Pure: no Vectorize, no DB, no `cloudflare:workers`. The orchestrator below does
- * the I/O and hands this function a stub-friendly shape.
+ * Pure: no DB, no `cloudflare:workers`. The orchestrator below does the I/O and
+ * hands this function a stub-friendly shape.
  */
 export function postProcessNeighbours(
   neighbours: Array<Neighbour>,
@@ -158,7 +158,7 @@ export function postProcessNeighbours(
     candidates.push({ recipe, score: n.score })
   }
 
-  // 4. Re-rank. Vectorize already returns nearest-first, so 'similarity' keeps
+  // 4. Re-rank. The scorer already returns nearest-first, so 'similarity' keeps
   // the incoming order; the alternatives sort by prep / calories with a
   // similarity tie-break (and nulls last so a recipe missing the field never
   // claims the top of a "faster"/"lighter" list).
@@ -199,8 +199,8 @@ function topKFor(limit: number): number {
  * Orchestrate a similar-recipes query end to end (the I/O path; not unit-tested,
  * the scoring + post-processing are). Loads the query recipe and the imaged
  * catalogue from D1, scores every candidate against the query with the set-maths
- * `rankBySimilarity` (no embeddings, no Vectorize, no token), then hands the top
- * neighbours to the pure `postProcessNeighbours`.
+ * `rankBySimilarity` (no embeddings, no network, no Cloudflare binding), then hands
+ * the top neighbours to the pure `postProcessNeighbours`.
  *
  * Reads recipe + household.profile; writes nothing. Only imaged recipes are
  * loaded as candidates so a swap never surfaces a broken card. Cheap at this

@@ -61,7 +61,7 @@ vector query to set-maths.
   stops being enough: reintroduce a vector index behind `similar-score.ts`, either
   Cloudflare Vectorize (still CF-native, ADR-0001 wired it once) or libSQL/Turso for its
   native index (accepting the external hop). Neither is needed now.
-- Loose end: the `RECIPES_VECTORS` binding still in `wrangler.jsonc` is dead (nothing in
-  `src` references it) and should be removed.
+- The `RECIPES_VECTORS` and `AI` bindings have been removed from `wrangler.jsonc` (nothing
+  in `src` references them), so the deployed Worker carries no vector/AI binding.
 - `decisions.md` item 5 ("Neon Postgres") was stale: the running code is D1/SQLite. It has
   been annotated rather than rewritten, and locked item 15 records the actual DB.

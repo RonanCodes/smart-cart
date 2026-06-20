@@ -2,13 +2,14 @@ import { createFileRoute } from '@tanstack/react-router'
 import type { SimilarSort } from '../../lib/vectors/similar'
 
 /**
- * POST /api/similar, nearest-neighbour swaps for a recipe via Vectorize.
+ * POST /api/similar, nearest-neighbour swaps for a recipe (set-maths similarity,
+ * see src/lib/vectors/similar-score.ts).
  *
  * Body: { recipeId: string, sort?: 'similarity' | 'faster' | 'lighter', limit?: number }
  * Returns: { ok: true, recipeId, neighbours: [...] } scoped to the signed-in
  * household so its allergy/diet hard filters apply. The real work lives in the
- * server-only similar-server module (dynamically imported so none of it, nor the
- * Vectorize binding it pulls in, leaks into the client bundle).
+ * server-only similar-server module (dynamically imported so none of its
+ * server-only deps leak into the client bundle).
  */
 export const Route = createFileRoute('/api/similar')({
   server: {
