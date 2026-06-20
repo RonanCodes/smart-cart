@@ -1,20 +1,22 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Users, FlaskConical, ThumbsUp, Network } from 'lucide-react'
+import { Users, FlaskConical, ThumbsUp, Network, Mail } from 'lucide-react'
 import {
   requireAdminBeforeLoad,
   listUsers,
   getBenchmarkMeta,
   listRealFeedbackHouseholds,
+  listWaitlist,
 } from '#/lib/admin-server'
 import { cn } from '#/lib/utils'
 import { UsersPanel } from '#/components/admin/UsersPanel'
 import { BenchmarkConsole } from '#/components/admin/benchmark/BenchmarkConsole'
 import { RealFeedbackPanel } from '#/components/admin/RealFeedbackPanel'
 import { WhyPanel } from '#/components/admin/WhyPanel'
+import { WaitlistPanel } from '#/components/admin/WaitlistPanel'
 
-type Tab = 'users' | 'why' | 'benchmark' | 'feedback'
+type Tab = 'users' | 'why' | 'benchmark' | 'feedback' | 'waitlist'
 
 export const Route = createFileRoute('/admin')({
   beforeLoad: requireAdminBeforeLoad,
@@ -22,12 +24,14 @@ export const Route = createFileRoute('/admin')({
     users: await listUsers(),
     benchmarkMeta: await getBenchmarkMeta(),
     realFeedbackHouseholds: await listRealFeedbackHouseholds(),
+    waitlist: await listWaitlist(),
   }),
   component: Admin,
 })
 
 function Admin() {
-  const { users, benchmarkMeta, realFeedbackHouseholds } = Route.useLoaderData()
+  const { users, benchmarkMeta, realFeedbackHouseholds, waitlist } =
+    Route.useLoaderData()
   const [tab, setTab] = useState<Tab>('users')
 
   return (
@@ -64,6 +68,12 @@ function Admin() {
           icon={<ThumbsUp className="h-4 w-4" />}
           label="Real feedback"
         />
+        <TabButton
+          active={tab === 'waitlist'}
+          onClick={() => setTab('waitlist')}
+          icon={<Mail className="h-4 w-4" />}
+          label="Waitlist"
+        />
       </div>
 
       {tab === 'users' && <UsersPanel users={users} />}
@@ -72,6 +82,7 @@ function Admin() {
       {tab === 'feedback' && (
         <RealFeedbackPanel households={realFeedbackHouseholds} />
       )}
+      {tab === 'waitlist' && <WaitlistPanel waitlist={waitlist} />}
     </main>
   )
 }
