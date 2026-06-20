@@ -10,8 +10,12 @@ interface ChatReplanProps {
   onSubmit: (instruction: string) => void
 }
 
-/** Demo prompts that map onto the deterministic replan parser. */
-const SUGGESTIONS = ['eating out Wednesday', 'no fish', 'make it cheaper']
+/**
+ * Demo prompts that all produce a visible week change through the deterministic
+ * replan parser (no API key needed). "make it cheaper" was dropped: it maps to a
+ * not-built-yet pricing intent, so it only ever returned a dead-end message.
+ */
+const SUGGESTIONS = ['eating out Wednesday', 'no fish', 'more pasta']
 
 /**
  * The chat box that drives a replan. Type a plain instruction ("eating out

@@ -41,8 +41,9 @@ export interface ReplanResponse {
  * Server-only: every server-only module is dynamically imported inside the
  * handler so none of it leaks into the client bundle (the onboarding-server /
  * planner-server pattern). The AI model is likewise loaded lazily and only when
- * the ANTHROPIC_API_KEY binding is present; with no key the fallback declines
- * cleanly and the engine returns a clear "can't do that yet".
+ * the OPENAI_API_KEY secret is present; with no key the fallback declines
+ * cleanly and the engine returns a clear "AI adjustments are off" message,
+ * degrading to the deterministic set-maths planner.
  */
 export const replanWeek = createServerFn({ method: 'POST' })
   .validator((data: ReplanRequest) => data)
@@ -128,15 +129,28 @@ export const replanWeek = createServerFn({ method: 'POST' })
       })),
     }
 
-    // Wire the AI model only when the key is present (gated, offline-safe). The
-    // provider import is lazy so it never reaches the client bundle.
-    const aiDeps = await buildAiDeps()
+    // Wire the AI model only when the OPENAI_API_KEY is present (gated,
+    // offline-safe). The provider import is lazy so it never reaches the client
+    // bundle. `aiAvailable` lets us tell the user WHY a non-deterministic
+    // instruction was declined (no key) vs the model simply not understanding it.
+    const { deps: aiDeps, aiAvailable } = await buildAiDeps()
 
     const result = await replan(
       decorateInstruction(data.instruction, data.focusedDay, week),
       { week, recipes, profile: hh.profile, swipes },
       aiDeps,
     )
+
+    // Graceful degrade: an `unknown` edit from the AI fallback with no model wired
+    // means we fell back to the set-maths planner and it could not read the
+    // free-form instruction. Surface that honestly instead of a generic shrug, so
+    // a dev with no key (or prod with the secret unset) sees the real reason.
+    const message =
+      !aiAvailable &&
+      result.source === 'ai-fallback' &&
+      result.edit.type === 'unknown'
+        ? "AI adjustments are off (no API key set), so I can only handle the built-in changes. Try 'eating out Wednesday', 'no fish', 'swap Friday', or 'more pasta'."
+        : result.message
 
     // Persist a new revision. We keep the old row so a replan is reversible.
     const newId = crypto.randomUUID()
@@ -160,7 +174,7 @@ export const replanWeek = createServerFn({ method: 'POST' })
       weekStart: current.weekStart,
       week: result.week,
       changed: result.changed,
-      message: result.message,
+      message,
       source: result.source,
     }
   })
@@ -184,21 +198,29 @@ function decorateInstruction(
 }
 
 /**
- * Build the AI fallback deps. Returns an empty object (no model) unless an
- * ANTHROPIC_API_KEY is wired, in which case the model is loaded lazily. Kept here
- * (server-only) so the provider never enters the client bundle.
+ * Build the AI fallback deps.
+ *
+ * The active provider is OpenAI (`models.fast` = `openai('gpt-5')`), so the gate
+ * is the OPENAI_API_KEY secret read via `readEnv` (covers both vite dev's
+ * process.env from .dev.vars AND the deployed Worker's `cloudflare:workers` env
+ * binding). With no key, `aiAvailable` is false and `deps` carries no model, so
+ * the engine degrades to the deterministic set-maths planner and declines
+ * free-form instructions cleanly instead of crashing.
+ *
+ * Kept here (server-only, behind createServerFn + dynamic import) so the provider
+ * never enters the client bundle.
  */
 async function buildAiDeps(): Promise<{
-  model?: LanguageModel | null
+  deps: { model?: LanguageModel | null }
+  aiAvailable: boolean
 }> {
-  // The key lives as a Worker secret. With no key the fallback declines cleanly.
-  const env = typeof process !== 'undefined' ? process.env : undefined
-  const key = env ? env.ANTHROPIC_API_KEY : undefined
-  if (!key) return {}
+  const { readEnv } = await import('./env')
+  const key = await readEnv('OPENAI_API_KEY')
+  if (!key) return { deps: {}, aiAvailable: false }
   try {
     const { models } = await import('./models')
-    return { model: models.fast }
+    return { deps: { model: models.fast }, aiAvailable: true }
   } catch {
-    return {}
+    return { deps: {}, aiAvailable: false }
   }
 }
