@@ -1,0 +1,7 @@
+# Optional — the notebook runs on Python stdlib only.
+# Install jupyter to run the .ipynb interactively:
+jupyter>=1.0
+
+# Optional extras if you prefer pandas charts in your own cells:
+# pandas>=2.0
+# matplotlib>=3.8
