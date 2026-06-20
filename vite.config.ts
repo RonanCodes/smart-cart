@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -12,15 +11,13 @@ export default defineConfig({
     // Cloudflare account and no remote proxy session.
     cloudflare({ viteEnvironment: { name: 'ssr' } }),
     tailwindcss(),
-    // autoCodeSplitting is OFF deliberately. With it on, `pnpm dev` 500s on every
-    // route with "ReferenceError: TSRSplitComponent is not defined" (the per-route
-    // virtual split modules the router plugin emits in dev reference a symbol that is
-    // never defined). It is NOT a version or plugin-order issue: the same versions and
-    // plugin order work in our sibling app. Until the offending route pattern is found
-    // (tracked as a follow-up), we disable dev auto-splitting so `pnpm dev` boots and
-    // mobile Playwright verification works. Production build is unaffected (small app,
-    // a few routes; vendor chunks still split).
-    tanstackRouter({ target: 'react', autoCodeSplitting: false }),
+    // TanStack Start already includes the router code-splitter internally. Do
+    // NOT also add the standalone `tanstackRouter()` plugin: with both present,
+    // every route file is run through `compile-reference-file` twice and the
+    // injected HMR `hot` binding is declared twice, so dev 500s on every route
+    // with "Duplicate declaration hot". The earlier "TSRSplitComponent is not
+    // defined" 500s were the same double-splitter conflict, not code splitting
+    // itself, so Start's built-in splitter runs with its defaults here.
     tanstackStart(),
     viteReact(),
   ],
