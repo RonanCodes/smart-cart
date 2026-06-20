@@ -29,7 +29,18 @@ export async function addUnapprovedEmailToWaitlist(
     const email = normalizeWaitlistEmail(rawEmail)
     const { getDb } = await import('../db/client')
     const db = (await getDb()) as unknown as WaitlistDb
-    return await upsertWaitlistEmail(db, email)
+    const result = await upsertWaitlistEmail(db, email)
+
+    // On a genuinely new row, also notify admins , the same best-effort path the
+    // public join flow uses. Without this, signups arriving via a gated login
+    // attempt (most of them) emailed no one. notifyAdminsOfSignup swallows its
+    // own errors, so this cannot change the gate's behaviour.
+    if (result.inserted) {
+      const { notifyAdminsOfSignup } = await import('./waitlist-notify')
+      await notifyAdminsOfSignup(email)
+    }
+
+    return result
   } catch {
     // swallow: the sign-in gate must still throw NOT_APPROVED unchanged.
     return { ok: false, inserted: false }

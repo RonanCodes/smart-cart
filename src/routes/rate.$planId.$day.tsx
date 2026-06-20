@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   createFileRoute,
   useNavigate,
@@ -15,6 +16,7 @@ import type { RateMealResult } from '#/lib/rate-meal-server'
 import { submitMealFeedback } from '#/lib/meal-feedback-server'
 import type { MealRating as Rating } from '#/lib/meal-feedback'
 import { MealRating } from '#/components/week/MealRating'
+import { RateSkeleton } from '#/components/week/RateSkeleton'
 
 /**
  * Focused rate-this-meal view (#214). The rate-meal push deep-links here
@@ -31,12 +33,27 @@ export const Route = createFileRoute('/rate/$planId/$day')({
   beforeLoad: async () => requireUserBeforeLoad(),
   loader: async ({ params }): Promise<RateMealResult> =>
     loadRateMeal({ data: { planId: params.planId, day: params.day } }),
+  // Skeleton while loadRateMeal resolves (#229). A cold push tap deep-links here
+  // with no cached meal, so the modal frame shows immediately instead of a blank
+  // screen. The loader still hydrates first paint on a warm in-app navigation
+  // (SSR untouched); this only shows on the cold / slow load.
+  pendingComponent: RateSkeleton,
   component: RatePage,
 })
 
 function RatePage() {
-  const data = Route.useLoaderData()
-  const { planId } = Route.useParams()
+  const { planId, day } = Route.useParams()
+  const loaderData = Route.useLoaderData()
+  // Cache this meal under the shared QueryClient (#229), keyed by plan+day, so
+  // returning to the same rate link (or re-opening from a push) is instant with
+  // no refetch. The loader's server-rendered result seeds the cache as
+  // initialData, so first paint stays SSR and the query only refetches in the
+  // background once stale (30s).
+  const { data } = useQuery({
+    queryKey: ['rate-meal', planId, day],
+    queryFn: () => loadRateMeal({ data: { planId, day } }),
+    initialData: loaderData,
+  })
   const navigate = useNavigate()
   const router = useRouter()
 

@@ -35,6 +35,7 @@ import { ChatReplan } from '#/components/week/ChatReplan'
 import { VoiceButton } from '#/components/week/VoiceButton'
 import { EditDaySheet } from '#/components/week/EditDaySheet'
 import { RatingReminders } from '#/components/week/RatingReminders'
+import { WeekSkeleton } from '#/components/week/WeekSkeleton'
 
 interface WeekSearch {
   plan?: string
@@ -70,6 +71,11 @@ export const Route = createFileRoute('/week')({
     ])
     return { week, feedback, missingFromList: missing.missing }
   },
+  // Skeleton while the loader resolves (#226). The loader still runs on the
+  // server and hydrates first paint (SSR untouched); this only shows on
+  // client-side navigations and slow loads, holding the page's shape so the
+  // jump to real content is seamless.
+  pendingComponent: WeekSkeleton,
   component: WeekPage,
 })
 

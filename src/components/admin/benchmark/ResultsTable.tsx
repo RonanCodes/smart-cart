@@ -81,42 +81,44 @@ export function ResultsTable({
           <CardTitle className="text-base">Recall by checkpoint</CardTitle>
         </CardHeader>
         <CardContent>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-muted-foreground border-b text-left">
-                <th className="py-2 font-medium">swipes</th>
-                <th className="py-2 font-medium">this run</th>
-                <th className="py-2 font-medium">baseline</th>
-                <th className="py-2 font-medium">delta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.checkpoints.map((cp) => {
-                const run = result.recallByCheckpoint[cp] ?? 0
-                const base = baselineForRun?.recallByCheckpoint[String(cp)]
-                const d = base != null ? run - base : null
-                return (
-                  <tr key={cp} className="border-b last:border-0">
-                    <td className="py-2">{cp}</td>
-                    <td className="py-2 font-medium">{pct(run)}</td>
-                    <td className="text-muted-foreground py-2">
-                      {base != null ? pct(base) : 'n/a'}
-                    </td>
-                    <td className="py-2">
-                      {d != null ? (
-                        <span className={cn(deltaColor(d))}>
-                          {d >= 0 ? '+' : ''}
-                          {(d * 100).toFixed(1)} pts
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">n/a</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="ios-scroll -mx-1 overflow-x-auto px-1">
+            <table className="w-full min-w-[20rem] text-sm">
+              <thead>
+                <tr className="text-muted-foreground border-b text-left">
+                  <th className="py-2 font-medium">swipes</th>
+                  <th className="py-2 font-medium">this run</th>
+                  <th className="py-2 font-medium">baseline</th>
+                  <th className="py-2 font-medium">delta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.checkpoints.map((cp) => {
+                  const run = result.recallByCheckpoint[cp] ?? 0
+                  const base = baselineForRun?.recallByCheckpoint[String(cp)]
+                  const d = base != null ? run - base : null
+                  return (
+                    <tr key={cp} className="border-b last:border-0">
+                      <td className="py-2">{cp}</td>
+                      <td className="py-2 font-medium">{pct(run)}</td>
+                      <td className="text-muted-foreground py-2">
+                        {base != null ? pct(base) : 'n/a'}
+                      </td>
+                      <td className="py-2">
+                        {d != null ? (
+                          <span className={cn(deltaColor(d))}>
+                            {d >= 0 ? '+' : ''}
+                            {(d * 100).toFixed(1)} pts
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">n/a</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
           <p className="text-muted-foreground mt-3 text-xs">
             Median swipes to 60% recall:{' '}
             <span className="text-foreground font-medium">

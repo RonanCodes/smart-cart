@@ -23,6 +23,7 @@ import { EditableShoppingList } from '#/components/shopping/EditableShoppingList
 import { CartLinks } from '#/components/shopping/CartLinks'
 import { StaplesSection } from '#/components/shopping/StaplesSection'
 import { WasteLine } from '#/components/shopping/WasteLine'
+import { ShoppingSkeleton } from '#/components/shopping/ShoppingSkeleton'
 
 interface ShoppingSearch {
   /** Optional plan id, set when arriving from the week view's "Shopping list". */
@@ -88,6 +89,11 @@ export const Route = createFileRoute('/shopping')({
       items,
     }
   },
+  // Skeleton while the loader resolves (#226). The loader can auto-seed the list
+  // from the week, so this is the slice's most visible loading win. SSR is
+  // untouched: the loader runs server-side and hydrates first paint; the
+  // skeleton only shows on client navigations and slow loads.
+  pendingComponent: ShoppingSkeleton,
   component: Shopping,
 })
 

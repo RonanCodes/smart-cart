@@ -16,15 +16,28 @@ describe('normalizeWaitlistEmail', () => {
 })
 
 describe('upsertWaitlistEmail', () => {
-  // `returned` is what .returning() resolves to: a non-empty array means a row
-  // was actually inserted; an empty array means onConflictDoNothing no-op'd.
-  function mockDb(returned: Array<{ id: string }> = [{ id: 'new-row' }]) {
-    const returning = vi.fn().mockResolvedValue(returned)
+  // `existing` is what the SELECT-before-insert resolves to: a non-empty array
+  // means the email is already on the list (a duplicate), an empty array means
+  // it's genuinely new. This is the deterministic signal we use instead of
+  // .returning() (unreliable on D1). `.returning()` is still wired so the insert
+  // chain type-checks, but its result is ignored for the new flag.
+  function mockDb(existing: Array<{ id: string }> = []) {
+    const returning = vi.fn().mockResolvedValue([])
     const onConflictDoNothing = vi.fn().mockReturnValue({ returning })
     const values = vi.fn().mockReturnValue({ onConflictDoNothing })
     const insert = vi.fn().mockReturnValue({ values })
+
+    const limit = vi.fn().mockResolvedValue(existing)
+    const where = vi.fn().mockReturnValue({ limit })
+    const from = vi.fn().mockReturnValue({ where })
+    const select = vi.fn().mockReturnValue({ from })
+
     return {
-      db: { insert } as never,
+      db: { select, insert } as never,
+      select,
+      from,
+      where,
+      limit,
       insert,
       values,
       onConflictDoNothing,
@@ -32,8 +45,8 @@ describe('upsertWaitlistEmail', () => {
     }
   }
 
-  it('inserts the email with a generated id and reports a new insert', async () => {
-    const m = mockDb([{ id: 'new-row' }])
+  it('inserts the email with a generated id and reports a new insert (email not yet present)', async () => {
+    const m = mockDb([]) // SELECT finds nothing => new
     const result = await upsertWaitlistEmail(m.db, 'a@b.com')
 
     expect(result).toEqual({ ok: true, inserted: true })
@@ -44,14 +57,22 @@ describe('upsertWaitlistEmail', () => {
     expect(row.id.length).toBeGreaterThan(0)
   })
 
-  it('reports inserted:false when the email is a duplicate (returning is empty)', async () => {
-    const m = mockDb([])
+  it('reports inserted:false when the email already exists (SELECT finds a row)', async () => {
+    const m = mockDb([{ id: 'existing-row' }])
     const result = await upsertWaitlistEmail(m.db, 'a@b.com')
     expect(result).toEqual({ ok: true, inserted: false })
   })
 
+  it('does not depend on .returning() for the new flag: empty returning still reports inserted:true on a new email', async () => {
+    // Mirrors the D1 bug: a genuine insert whose RETURNING yields no rows.
+    const m = mockDb([]) // SELECT: not present => new
+    m.returning.mockResolvedValue([]) // RETURNING: empty even though it inserted
+    const result = await upsertWaitlistEmail(m.db, 'a@b.com')
+    expect(result).toEqual({ ok: true, inserted: true })
+  })
+
   it('is idempotent: uses onConflictDoNothing so a repeat submit never throws', async () => {
-    const m = mockDb()
+    const m = mockDb([])
     await upsertWaitlistEmail(m.db, 'a@b.com')
     await upsertWaitlistEmail(m.db, 'a@b.com')
     expect(m.onConflictDoNothing).toHaveBeenCalledTimes(2)
