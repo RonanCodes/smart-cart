@@ -19,9 +19,10 @@ pick up cold. One line each; expand only when it bit us.
    the edge; we are not owned by one chain.
 4. **The wedge is mental load + time, not money.** Price comparison is a feature, not
    the headline. ~20 NL price-compare apps already exist and are free; that race is lost.
-5. **Stack:** TanStack Start + Neon Postgres + Better Auth + Resend + Vercel AI SDK on
-   Cloudflare Workers. Repo is the single source of truth for context + decisions +
-   PRD (not the FigJam).
+5. **Stack:** TanStack Start + Better Auth + Resend + Vercel AI SDK on Cloudflare
+   Workers. Repo is the single source of truth for context + decisions + PRD (not the
+   FigJam). _(This line originally said "Neon Postgres"; the running code is Cloudflare
+   D1 / SQLite. See locked item 15 + ADR-0003.)_
 6. **Data/legal stance:** recipe ingredients + steps are not copyrightable (only the
    surrounding story/images are); we use the recipe data, not verbatim copy, public
    info only. Have a "how we'd license this at scale" answer ready for VC questions.
@@ -44,6 +45,15 @@ pick up cold. One line each; expand only when it bit us.
 13. **Swipe algorithm:** find intersections across rejected recipes, fewest
     swipes to the user's top 20%, AI only at decision points.
 14. **Name: still open** (Smart Cart is provisional, Mega42 / Eurobuild also live).
+
+## Locked on the data layer (2026-06-20)
+
+15. **One Cloudflare D1 (SQLite) database holds everything. No libSQL/Turso, no separate
+    vector DB.** Why: the build runs on a small curated catalogue, so exact set-maths
+    beats any managed ANN index; libSQL cannot run inside a Worker (Turso would be an
+    external hop for nothing); and all matching is set-maths (no vectors), so there is
+    nothing to put in a vector store. Full reasoning: ADR-0003. Matching architecture:
+    `docs/matching.md`.
 
 ## Still open
 
