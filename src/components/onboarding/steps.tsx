@@ -1,4 +1,6 @@
 import { useOnboardingForm } from './form-state'
+import { DislikesStep } from './steps/dislikes-step'
+import { DietStep } from './steps/diet-step'
 
 /**
  * Step registry — the ordered list of screens the stepped flow renders after the
@@ -55,19 +57,15 @@ export const STEPS: Array<OnboardingStep> = [
   },
   {
     id: 'dislikes',
-    title: 'Anything to avoid?',
-    subtitle: 'Ingredients you would rather never see. A hard filter.',
-    Component: () => (
-      <StepStub note="Dislikes: ingredient pills + 'search an ingredient'. Slice #107." />
-    ),
+    title: 'Dislikes',
+    subtitle: 'Choose the ingredients you would like to avoid.',
+    Component: DislikesStep,
   },
   {
     id: 'diet',
     title: 'Your tastes',
-    subtitle: 'Dietary restrictions we should always honour.',
-    Component: () => (
-      <StepStub note="Diet: Dairy free / Gluten free / Porkless / Vegan / Vegetarian / Pescatarian. Slice #107." />
-    ),
+    subtitle: 'Any dietary restrictions?',
+    Component: DietStep,
   },
   {
     id: 'kitchen',
