@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
+import { eq } from 'drizzle-orm'
 import { waitlist } from '../db/waitlist-schema'
-import type { getDb } from '../db/client'
 
 /** Normalise + validate a submitted email. Throws on an obviously bad value. */
 export function normalizeWaitlistEmail(raw: string): string {
@@ -13,14 +13,23 @@ export function normalizeWaitlistEmail(raw: string): string {
 }
 
 /**
- * The drizzle insert chain we need from a db handle. Kept as a structural type
- * so the unit test can pass a mock without dragging in a real D1 binding.
+ * The drizzle chain we need from a db handle. Kept as a structural type so the
+ * unit test can pass a mock without dragging in a real D1 binding.
  *
- * `.returning()` lets us tell a genuine insert apart from a conflict no-op:
- * onConflictDoNothing returns the inserted rows, so an empty array means the
- * email was already on the list.
+ * We SELECT-before-insert to decide new-vs-existing: on Cloudflare D1,
+ * `INSERT ... ON CONFLICT DO NOTHING RETURNING` frequently returns NO rows even
+ * on a genuine insert, so `.returning()` is unreliable for the new flag. A
+ * SELECT on the unique email is deterministic. The insert still uses
+ * onConflictDoNothing so it stays idempotent under a race.
  */
 export type WaitlistDb = {
+  select: (cols: { id: typeof waitlist.id }) => {
+    from: (table: typeof waitlist) => {
+      where: (cond: ReturnType<typeof eq>) => {
+        limit: (n: number) => Promise<Array<{ id: string }>>
+      }
+    }
+  }
   insert: (table: typeof waitlist) => {
     values: (row: { id: string; email: string }) => {
       onConflictDoNothing: (args: { target: typeof waitlist.email }) => {
@@ -35,19 +44,31 @@ export type WaitlistDb = {
  * unique email, so a repeat submit is a no-op that keeps the original createdAt.
  * Extracted from the server fn so it can be unit-tested with a mock db.
  *
- * Returns `inserted: true` only when a genuinely new row was written (the
- * `.returning()` rows are non-empty); a duplicate submit returns `inserted: false`.
+ * The new-vs-existing decision comes from a SELECT-before-insert, NOT from
+ * `.returning()` after onConflictDoNothing: that RETURNING is unreliable on D1
+ * (often empty on a real insert), which is why admin notifications never fired.
+ * We look the email up first; absent => new => insert => `inserted: true`.
  */
 export async function upsertWaitlistEmail(
   db: WaitlistDb,
   email: string,
 ): Promise<{ ok: boolean; inserted: boolean }> {
-  const rows = await db
+  const existing = await db
+    .select({ id: waitlist.id })
+    .from(waitlist)
+    .where(eq(waitlist.email, email))
+    .limit(1)
+  const isNew = existing.length === 0
+
+  // Always insert (onConflictDoNothing keeps it a safe no-op if a concurrent
+  // request inserted the same email between our SELECT and this write).
+  await db
     .insert(waitlist)
     .values({ id: crypto.randomUUID(), email })
     .onConflictDoNothing({ target: waitlist.email })
     .returning()
-  return { ok: true, inserted: rows.length > 0 }
+
+  return { ok: true, inserted: isNew }
 }
 
 /**
@@ -65,53 +86,15 @@ export const joinWaitlist = createServerFn({ method: 'POST' })
     const { inserted } = await upsertWaitlistEmail(db, email)
 
     // Notify admins only on a genuinely new signup. Best-effort: a failed
-    // count, prefs read, or send must never break the signup, so swallow any error.
+    // count, prefs read, or send must never break the signup, so the notify
+    // helper (and its server-only db/email imports) lives in waitlist-notify.ts
+    // and swallows its own errors. Importing it dynamically here keeps
+    // cloudflare:workers out of the client bundle (this module is client-imported
+    // by the landing via joinWaitlist).
     if (inserted) {
-      try {
-        await notifyAdminsOfSignup(realDb, email)
-      } catch {
-        // swallow: signup already succeeded, admin notify is non-fatal
-      }
+      const { notifyAdminsOfSignup } = await import('./waitlist-notify')
+      await notifyAdminsOfSignup(email)
     }
 
     return { ok: true }
   })
-
-/** The drizzle handle getDb() returns (D1, main schema). */
-type DrizzleDb = Awaited<ReturnType<typeof getDb>>
-
-/**
- * Email every admin who has waitlist notifications enabled (default-on) that a
- * new email just joined, with the running total. Each recipient is sent
- * individually so admins never see each other's addresses, and one recipient's
- * send failure must not stop the rest. Caller wraps this so the signup itself is
- * never affected.
- */
-async function notifyAdminsOfSignup(
-  db: DrizzleDb,
-  newEmail: string,
-): Promise<void> {
-  const { count } = await import('drizzle-orm')
-  const total = (await db.select({ n: count() }).from(waitlist))[0]?.n ?? 0
-
-  const { adminNotificationPref } = await import('../db/admin-prefs-schema')
-  const prefs = await db
-    .select({
-      email: adminNotificationPref.email,
-      waitlistNotify: adminNotificationPref.waitlistNotify,
-    })
-    .from(adminNotificationPref)
-
-  const { resolveAdminEmails } = await import('./admin-emails')
-  const { recipientsForWaitlist } = await import('./admin-prefs')
-  const recipients = recipientsForWaitlist(await resolveAdminEmails(), prefs)
-
-  const { sendWaitlistSignupNotice } = await import('./email')
-  for (const to of recipients) {
-    try {
-      await sendWaitlistSignupNotice(newEmail, total, to)
-    } catch {
-      // one admin's send failing must not block the others
-    }
-  }
-}
