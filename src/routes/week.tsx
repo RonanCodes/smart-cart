@@ -10,6 +10,7 @@ import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import { hasHousehold } from '#/lib/onboarding-server'
 import { loadWeek } from '#/lib/week-server'
+import { weekPlanUrl } from '#/lib/week-url'
 import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { replanWeek } from '#/lib/replan-server'
 import { getSimilarRecipes } from '#/lib/similar-server'
@@ -154,20 +155,22 @@ function WeekPage() {
    * Move to a new plan revision: update local state and reflect it in the URL.
    *
    * The week data updates in place via `setWeek` (optimistic, no refetch), so the
-   * navigation here only rewrites the `plan` search param for shareability and the
-   * back button. The router runs with `scrollRestoration: true` (see router.tsx),
-   * which treats a new `plan` value as a fresh location and would reset scroll to
-   * the top after every swap/similar/alternative pick (#145). `resetScroll: false`
-   * keeps the user exactly where they were so the day they just edited stays in view.
+   * URL only needs the `plan` search param rewritten for shareability and the back
+   * button. We do this with a SHALLOW `history.replaceState` rather than a router
+   * `navigate` (#236): a router navigation to a new `plan` value re-runs the route
+   * loader, which fires the route's full-page WeekSkeleton pendingComponent (added
+   * in #226) and jumps scroll to the top, so every swap/similar/alternative pick
+   * flashed the whole page even though the new week was already in hand. A
+   * `replaceState` updates the address bar without touching the loader, the
+   * pendingComponent, or scroll, so only the affected day's card changes in place
+   * (preserving the #145 keep-scroll intent). A genuine cold /week load still runs
+   * the loader and shows the skeleton.
    */
   function adopt(planId: string, next: WeekView) {
     setWeek(next)
-    void navigate({
-      to: '/week',
-      search: { plan: planId },
-      replace: true,
-      resetScroll: false,
-    })
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(window.history.state, '', weekPlanUrl(planId))
+    }
   }
 
   async function swap(day: string) {

@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { consolidate, sharedAcrossMeals, summariseWaste } from './shopping'
+import { splitQtyAndUnit } from './shopping/parse'
 import type {
   HouseholdPortions,
   ShoppingLine,
@@ -78,11 +79,18 @@ export function deriveShoppingView(
       id: r.id,
       title: r.title,
       servings: r.servings ?? null,
-      ingredients: r.ingredients.map((i) => ({
-        name: i.name,
-        qty: i.qty,
-        unit: i.unit,
-      })),
+      ingredients: r.ingredients.map((i) => {
+        // Scraped / seeded recipes pack the amount and the unit into a single
+        // `qty` field ("350 g", "2 el") with no separate `unit`. Split them so
+        // the engine can parse the number AND normalise the unit, instead of
+        // treating "350 g" as an unparsable note and dropping the amount (#238).
+        // When the source already gave a separate unit we trust it untouched.
+        if (i.unit && i.unit.trim() !== '') {
+          return { name: i.name, qty: i.qty, unit: i.unit }
+        }
+        const split = splitQtyAndUnit(i.qty)
+        return { name: i.name, qty: split.qty, unit: split.unit }
+      }),
     })
   }
 

@@ -130,6 +130,44 @@ describe('deriveShoppingView', () => {
     expect(shared[0]?.usedInMeals).toEqual(['Pasta', 'Pizza'])
   })
 
+  it('carries a packed "350 g" qty through (the #238 quantity-blank bug)', () => {
+    // The seeded AH / Jumbo recipes pack the value AND unit into one `qty`
+    // string with no separate `unit`. Before the fix these parsed as unparsable
+    // notes and the amount vanished from the saved list; now the derivation
+    // splits them so the scaled amount survives.
+    const recipes = mapOf(
+      recipe({
+        id: 'r1',
+        title: 'Curry',
+        servings: 2,
+        ingredients: [
+          { name: 'kikkererwten', qty: '400 g' },
+          { name: 'kokosmelk', qty: '200 ml' },
+          { name: 'olijfolie', qty: '2 el' },
+          { name: 'naan', qty: '4' },
+        ],
+      }),
+    )
+    const days: Array<PlanDayRef> = [{ recipeRef: 'r1' }]
+    const { list } = deriveShoppingView(days, recipes, { adults: 2 })
+
+    const chick = list.lines.find((l) => l.name === 'kikkererwten')
+    expect(chick?.totalQty).toBe(400)
+    expect(chick?.unit).toBe('g')
+    expect(chick?.displayAmount).toBe('400 g')
+
+    const coco = list.lines.find((l) => l.name === 'kokosmelk')
+    expect(coco?.totalQty).toBe(200)
+    expect(coco?.unit).toBe('ml')
+
+    // '2 el' (Dutch eetlepel) normalises into the spoon dimension.
+    const oil = list.lines.find((l) => l.name === 'olijfolie')
+    expect(oil?.displayAmount).not.toBe('(unspecified amount)')
+
+    const naan = list.lines.find((l) => l.name === 'naan')
+    expect(naan?.totalQty).toBe(4)
+  })
+
   it('treats a recipe cooked on two days as two contributions', () => {
     const recipes = mapOf(
       recipe({

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ThumbsUp, ThumbsDown, X } from 'lucide-react'
+import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { cn } from '#/lib/utils'
 import { Button } from '#/components/ui/button'
 import type { MealRating as Rating } from '#/lib/meal-feedback'
@@ -12,9 +12,10 @@ interface MealRatingProps {
   /** Whether a write is in flight (buttons go busy). */
   busy: boolean
   /**
-   * Submit a rating + note. `null` clears the rating. The note only matters for a
-   * thumbs up/down; clearing drops it. Returns a promise so the control can show a
-   * pending state until the write lands.
+   * Submit a rating + note. A note is feedback on its own, so it saves with OR
+   * without a thumb. Clearing the thumb keeps any note; emptying both drops the
+   * row. Returns a promise so the control can show a pending state until the write
+   * lands.
    */
   onSubmit: (next: { rating: Rating; note: string | null }) => Promise<void>
 }
@@ -23,18 +24,18 @@ interface MealRatingProps {
  * Post-meal rating affordance for a cooked dinner (#126). Thumbs up / thumbs down
  * plus a clear, with an optional short note ("not pizza every week"). The chosen
  * rating stays reflected (filled thumb), and tapping the active thumb again clears
- * it. Picking a thumb reveals the note box; the note saves on blur or when the user
- * taps Save.
+ * it WITHOUT dropping the note. The note box is always available (a household can
+ * jot "not pizza every week" with no thumb at all); the note saves on blur or when
+ * the user taps Save.
  *
  * Mobile-first at 390px, iOS styling: big tap targets (44px min), no hover-only
  * affordance (every control is a real button), rounded fills, the brand accent for
- * the active state. The written `rating` is exactly `'up' | 'down'`, the literal the
- * recommender folds into next week (recsys/feedback-fold), so a thumbs-down visibly
- * shifts future suggestions.
+ * the active state. A thumb writes `'up' | 'down'`, the literal the recommender
+ * folds into next week (recsys/feedback-fold), so a thumbs-down visibly shifts
+ * future suggestions; a note-only feedback adds context without moving the recsys.
  */
 export function MealRating({ rating, note, busy, onSubmit }: MealRatingProps) {
   const [draftNote, setDraftNote] = useState(note ?? '')
-  const [open, setOpen] = useState(rating !== null)
   const lastSavedNote = useRef(note ?? '')
 
   // Keep local draft in sync when the saved state changes underneath us (e.g. a
@@ -42,25 +43,21 @@ export function MealRating({ rating, note, busy, onSubmit }: MealRatingProps) {
   useEffect(() => {
     setDraftNote(note ?? '')
     lastSavedNote.current = note ?? ''
-    setOpen(rating !== null)
   }, [note, rating])
 
   async function choose(next: 'up' | 'down') {
-    // Tapping the already-active thumb clears the rating.
+    // Tapping the already-active thumb clears the thumb, but keeps any note: the
+    // note is its own signal, so clearing a thumb must not silently wipe it.
     const value: Rating = rating === next ? null : next
-    const noteToSend = value === null ? null : draftNote.trim() || null
+    const noteToSend = draftNote.trim() || null
     await onSubmit({ rating: value, note: noteToSend })
   }
 
   async function saveNote() {
-    if (rating === null) return
     const trimmed = draftNote.trim() || null
-    if (
-      trimmed === lastSavedNote.current.trim() ||
-      (trimmed === null && lastSavedNote.current === '')
-    ) {
-      return
-    }
+    // Nothing changed since the last save -> no write.
+    if (trimmed === (lastSavedNote.current.trim() || null)) return
+    // A note saves on its own; the current thumb (if any) rides along unchanged.
     await onSubmit({ rating, note: trimmed })
   }
 
@@ -104,39 +101,28 @@ export function MealRating({ rating, note, busy, onSubmit }: MealRatingProps) {
         </div>
       </div>
 
-      {open && rating !== null && (
-        <div className="mt-3 flex flex-col gap-2">
-          <textarea
-            value={draftNote}
+      <div className="mt-3 flex flex-col gap-2">
+        <textarea
+          value={draftNote}
+          disabled={busy}
+          onChange={(e) => setDraftNote(e.target.value)}
+          onBlur={() => void saveNote()}
+          rows={2}
+          maxLength={280}
+          placeholder="Add a note (optional), e.g. not pizza every week"
+          className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring w-full resize-none rounded-lg border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
+        />
+        <div className="flex items-center justify-end">
+          <Button
+            variant="outline"
+            size="sm"
             disabled={busy}
-            onChange={(e) => setDraftNote(e.target.value)}
-            onBlur={() => void saveNote()}
-            rows={2}
-            maxLength={280}
-            placeholder="Add a note (optional), e.g. not pizza every week"
-            className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring w-full resize-none rounded-lg border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
-          />
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => void choose(rating)}
-            >
-              <X className="h-4 w-4" />
-              Clear
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={() => void saveNote()}
-            >
-              {busy ? 'Saving…' : 'Save note'}
-            </Button>
-          </div>
+            onClick={() => void saveNote()}
+          >
+            {busy ? 'Saving…' : 'Save note'}
+          </Button>
         </div>
-      )}
+      </div>
     </div>
   )
 }

@@ -19,6 +19,8 @@ import {
 } from '#/lib/shopping-list-server'
 import type { ShoppingItem } from '#/lib/shopping'
 import { shouldAutoSeed } from '#/lib/shopping'
+import { getStore } from '#/lib/store-pref-server'
+import type { StoreSlug } from '#/lib/store-pref-server'
 import { EditableShoppingList } from '#/components/shopping/EditableShoppingList'
 import { CartLinks } from '#/components/shopping/CartLinks'
 import { StaplesSection } from '#/components/shopping/StaplesSection'
@@ -54,13 +56,16 @@ export const Route = createFileRoute('/shopping')({
     staples: Array<StapleLine>
     frequentlyBought: Array<FrequentStaple>
     items: Array<ShoppingItem>
+    preferredStore: StoreSlug
   }> => {
-    const [view, staplesRes, frequentRes, itemsRes] = await Promise.all([
-      loadShoppingList({ data: deps.plan ? { planId: deps.plan } : {} }),
-      loadStaples(),
-      frequentlyBoughtStaples(),
-      listShoppingItems(),
-    ])
+    const [view, staplesRes, frequentRes, itemsRes, preferredStore] =
+      await Promise.all([
+        loadShoppingList({ data: deps.plan ? { planId: deps.plan } : {} }),
+        loadStaples(),
+        frequentlyBoughtStaples(),
+        listShoppingItems(),
+        getStore(),
+      ])
 
     // Auto-seed: if the household has a planned week but no saved rows yet,
     // build the editable list from that week now, so the page IS the clean
@@ -87,6 +92,7 @@ export const Route = createFileRoute('/shopping')({
       staples: staplesRes.staples,
       frequentlyBought: frequentRes.items,
       items,
+      preferredStore,
     }
   },
   // Skeleton while the loader resolves (#226). The loader can auto-seed the list
@@ -109,7 +115,8 @@ export const Route = createFileRoute('/shopping')({
  * "Add all to Albert Heijn / Jumbo" deep-links stay prominent at the top.
  */
 function Shopping() {
-  const { view, staples, frequentlyBought, items } = Route.useLoaderData()
+  const { view, staples, frequentlyBought, items, preferredStore } =
+    Route.useLoaderData()
   const { plan } = Route.useSearch()
   const navigate = useNavigate()
   const hasSavedItems = items.length > 0
@@ -175,21 +182,23 @@ function Shopping() {
         </div>
       )}
 
-      {/* One-click "Add all to Albert Heijn / Jumbo" deep-links (#147), kept
-          prominent right under the list. */}
-      {hasSavedItems && (
-        <div className="px-5 pt-2 pb-2">
-          <CartLinks />
-        </div>
-      )}
-
-      {/* Staples search, secondary, below the list. */}
-      <div className="px-5 pt-2 pb-4">
+      {/* Staples / extras search, below the list. These are part of the cart
+          action too, so they sit ABOVE the bottom button (#238). */}
+      <div className="px-5 pt-2 pb-2">
         <StaplesSection
           initialStaples={staples}
           frequentlyBought={frequentlyBought}
         />
       </div>
+
+      {/* The store selector + single "Send to <store>" action, at the VERY
+          bottom so it reads as "everything above goes in the cart" (#238).
+          Covers the week list AND the extras. */}
+      {hasSavedItems && (
+        <div className="border-border/60 mt-2 border-t px-5 pt-4 pb-6">
+          <CartLinks preferredStore={preferredStore} />
+        </div>
+      )}
     </AppShell>
   )
 }

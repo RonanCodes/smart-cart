@@ -28,9 +28,8 @@ function TipReturn() {
     if (!store) return
     setBusy(true)
     try {
-      const links = await buildCartLinks()
-      const url = links[store].url
-      if (url) window.open(url, '_blank', 'noopener,noreferrer')
+      const link = await buildCartLinks({ data: { store } })
+      if (link.url) window.open(link.url, '_blank', 'noopener,noreferrer')
     } catch (err) {
       log.error('tip.return_open_cart_failed', err, { store })
     } finally {
