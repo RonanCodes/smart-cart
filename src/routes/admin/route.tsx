@@ -6,6 +6,7 @@ import {
   ThumbsUp,
   Network,
   Mail,
+  Sparkles,
   ChevronLeft,
 } from 'lucide-react'
 import { requireAdminBeforeLoad } from '#/lib/admin-server'
@@ -70,6 +71,11 @@ function AdminLayout() {
           to="/admin/benchmark"
           icon={<FlaskConical className="h-4 w-4" />}
           label="Benchmark"
+        />
+        <TabLink
+          to="/admin/matching"
+          icon={<Sparkles className="h-4 w-4" />}
+          label="Matching"
         />
         <TabLink
           to="/admin/feedback"

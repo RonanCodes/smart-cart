@@ -27,3 +27,6 @@ drizzle/seed/*.sql
 
 # generated autonomous-run completion reports
 .completion-reports/
+
+# agent git worktrees (isolated subagent checkouts; never part of the parent repo)
+.claude/worktrees/

@@ -1,5 +1,6 @@
 dist
 .completion-reports
+.claude/worktrees
 pnpm-lock.yaml
 # vendored upstream price snapshot — kept compact, refreshed via scripts/sync-checkjebon.ts
 src/lib/pricing/data/supermarkets.json
