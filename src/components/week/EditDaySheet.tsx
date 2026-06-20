@@ -1,5 +1,5 @@
-import { UtensilsCrossed, Clock, Flame, Beef } from 'lucide-react'
-import type { WeekDayView } from '#/lib/week-server'
+import { UtensilsCrossed, Clock, Flame, Beef, Loader2 } from 'lucide-react'
+import type { WeekDayView, DayAlternative } from '#/lib/week-server'
 import { Sheet } from '#/components/ui/sheet'
 
 interface EditDaySheetProps {
@@ -11,6 +11,15 @@ interface EditDaySheetProps {
   picking: boolean
   /** The user tapped an alternative: swap it into this day. */
   onPick: (recipeId: string) => void
+  /**
+   * "Add a meal" to an eating-out / empty day (#175) rather than swap a planned
+   * one. Changes the copy ("pick a dinner for X" instead of "replace X") and, when
+   * `addAlternatives` is provided, renders those (fetched for the empty day) in
+   * place of the day's own shipped alternatives, which are empty for an 'out' day.
+   */
+  adding?: boolean
+  /** Alternatives to show when adding to an empty day; null while still loading. */
+  addAlternatives?: Array<DayAlternative> | null
 }
 
 /**
@@ -22,6 +31,10 @@ interface EditDaySheetProps {
  * This is THE edit method: one tap to open, one tap to swap. The alternatives are
  * appetizing cards (image, title, prep, calories, protein), full-width tappable so
  * there is no hover-only affordance and it works on touch at 390px.
+ *
+ * The same sheet doubles as the "Add a meal" picker for an eating-out / empty day
+ * (#175): when `adding` is set the copy reframes to "pick a dinner" and the cards
+ * come from `addAlternatives` (fetched on demand, since an 'out' day ships none).
  */
 export function EditDaySheet({
   day,
@@ -29,26 +42,50 @@ export function EditDaySheet({
   onOpenChange,
   picking,
   onPick,
+  adding = false,
+  addAlternatives = null,
 }: EditDaySheetProps) {
-  const alts = day?.alternatives ?? []
+  // When adding to an empty day, the day's own `alternatives` are empty (an 'out'
+  // day ships none), so use the on-demand list once it has loaded.
+  const alts = adding ? (addAlternatives ?? []) : (day?.alternatives ?? [])
+  const loadingAdd = adding && addAlternatives === null
 
   return (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title={day ? `Swap ${day.day}` : undefined}
+      title={
+        day
+          ? adding
+            ? `Add a meal: ${day.day}`
+            : `Swap ${day.day}`
+          : undefined
+      }
     >
       <div className="pb-2">
         {day && (
           <p className="text-muted-foreground mb-3 text-center text-sm">
-            Pick a dinner to replace{' '}
-            <span className="text-foreground font-medium">{day.meal}</span>.
+            {adding ? (
+              <>Pick a dinner for {day.day}.</>
+            ) : (
+              <>
+                Pick a dinner to replace{' '}
+                <span className="text-foreground font-medium">{day.meal}</span>.
+              </>
+            )}
           </p>
         )}
 
-        {alts.length === 0 ? (
+        {loadingAdd ? (
+          <p className="text-muted-foreground flex items-center justify-center gap-2 py-6 text-center text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Finding dinners you'll like...
+          </p>
+        ) : alts.length === 0 ? (
           <p className="text-muted-foreground py-6 text-center text-sm">
-            No other dinners left to swap in this week.
+            {adding
+              ? 'No dinners left to add this week.'
+              : 'No other dinners left to swap in this week.'}
           </p>
         ) : (
           <ul className="space-y-3">

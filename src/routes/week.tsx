@@ -10,10 +10,11 @@ import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import { hasHousehold } from '#/lib/onboarding-server'
 import { loadWeek } from '#/lib/week-server'
-import type { WeekView } from '#/lib/week-server'
+import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { replanWeek } from '#/lib/replan-server'
 import { getSimilarRecipes } from '#/lib/similar-server'
 import { applySimilarSwapToPlan } from '#/lib/swap-server'
+import { addMealAlternatives } from '#/lib/add-meal-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
 import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
 import { generatePlan } from '#/lib/planner-server'
@@ -84,6 +85,14 @@ function WeekPage() {
   const [message, setMessage] = useState<string | null>(null)
   /** The day whose edit sheet is open (tap-a-day -> ~5 alternatives). */
   const [editDay, setEditDay] = useState<string | null>(null)
+  /**
+   * Whether the open sheet is in "add a meal" mode (#175): the day was eating-out
+   * / empty, so its alternatives are fetched on demand into `addAlternatives`
+   * instead of read from the day (an 'out' day ships none). null while loading.
+   */
+  const [adding, setAdding] = useState(false)
+  const [addAlternatives, setAddAlternatives] =
+    useState<Array<DayAlternative> | null>(null)
   /** Busy state for the "Add to shopping list" CTA. */
   const [addingToList, setAddingToList] = useState(false)
   /** Saved post-meal ratings, keyed by recipe id (#126). */
@@ -230,11 +239,47 @@ function WeekPage() {
       })
       const next = await loadWeek({ data: { planId: res.planId } })
       adopt(res.planId, next)
-      setEditDay(null)
+      closeSheet()
     } catch {
-      setMessage('Could not swap that day, try again.')
+      setMessage(
+        adding
+          ? 'Could not add a meal to that day, try again.'
+          : 'Could not swap that day, try again.',
+      )
     } finally {
       setBusyDay(null)
+    }
+  }
+
+  /** Reset the edit/add sheet to closed and clear any fetched add alternatives. */
+  function closeSheet() {
+    setEditDay(null)
+    setAdding(false)
+    setAddAlternatives(null)
+  }
+
+  /**
+   * Open the picker in "add a meal" mode for an eating-out / empty day (#175). The
+   * day ships no alternatives (topNForDay returns none for an 'out' day), so fetch
+   * a fresh household-ranked set on demand, then render it in the same sheet the
+   * edit flow uses. Picking persists through the same revision write path
+   * (pickAlternative -> applySimilarSwapToPlan), so the day becomes a normal
+   * planned day afterwards.
+   */
+  async function startAdd(day: string) {
+    if (locked) return
+    setAdding(true)
+    setAddAlternatives(null)
+    setEditDay(day)
+    setMessage(null)
+    try {
+      const res = await addMealAlternatives({
+        data: { planId: week.planId, day },
+      })
+      setAddAlternatives(res.alternatives)
+    } catch {
+      setAddAlternatives([])
+      setMessage('Could not load dinners to add, try again.')
     }
   }
 
@@ -319,6 +364,7 @@ function WeekPage() {
               busy={busyDay === d.day}
               locked={locked}
               onEdit={() => setEditDay(d.day)}
+              onAdd={() => void startAdd(d.day)}
               onSwap={() => swap(d.day)}
               onLoadSimilar={(sort) => loadSimilar(d.day, sort)}
               onPickSimilar={(recipeId) => pickSimilar(d.day, recipeId)}
@@ -351,9 +397,11 @@ function WeekPage() {
         day={editing}
         open={editDay !== null}
         onOpenChange={(open) => {
-          if (!open) setEditDay(null)
+          if (!open) closeSheet()
         }}
         picking={busyDay !== null}
+        adding={adding}
+        addAlternatives={addAlternatives}
         onPick={(recipeId) => {
           if (editDay) void pickAlternative(editDay, recipeId)
         }}
