@@ -31,6 +31,9 @@ export const household = sqliteTable('household', {
       diet?: string
       caloriesPerDay?: number
       lovedTastes?: Array<string>
+      /** Days they usually cook (0=Mon..6=Sun). Drives the default weekly
+       * rhythm: only these days get a planned dinner. Empty/absent = all 7. */
+      cookDays?: Array<number>
     }>()
     .notNull()
     .$defaultFn(() => ({})),

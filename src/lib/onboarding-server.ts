@@ -36,8 +36,19 @@ export interface OnboardingResult {
  * household (creating one if needed). Returns the inferred taste so the app can
  * show "this is what we learned" immediately.
  */
+interface HouseholdSizeInput {
+  adults: number
+  children: number
+}
+
 export const finishOnboarding = createServerFn({ method: 'POST' })
-  .inputValidator((d: { swipes: Array<SwipeInput> }) => d)
+  .inputValidator(
+    (d: {
+      swipes: Array<SwipeInput>
+      householdSize?: HouseholdSizeInput
+      cookDays?: Array<number>
+    }) => d,
+  )
   .handler(async ({ data }): Promise<OnboardingResult> => {
     const { getSessionUser } = await import('./server-auth')
     const user = await getSessionUser()
@@ -48,6 +59,8 @@ export const finishOnboarding = createServerFn({ method: 'POST' })
     const { loadCatalogue } = await import('./recsys-data')
     const { makeRecommender } = await import('./recsys/registry')
     const { DEFAULT_ALGORITHM } = await import('./recsys/config')
+    const { normalizeCookDays, clampHouseholdCount } =
+      await import('./onboarding-rhythm')
     const { eq } = await import('drizzle-orm')
     const db = await getDb()
 
@@ -55,6 +68,9 @@ export const finishOnboarding = createServerFn({ method: 'POST' })
     const taste = makeRecommender(DEFAULT_ALGORITHM, recipes).explain(
       data.swipes.map((s) => ({ recipeId: s.recipeId, like: s.like })),
     )
+    // cookDays drives the default weekly rhythm; empty selection = cook every
+    // day. Merge into profile alongside the taste fields, never clobbering them.
+    const cookDays = normalizeCookDays(data.cookDays ?? [])
     const profile = {
       dislikedCuisines: taste.dislikedCuisines,
       dislikes: taste.dislikedIngredients,
@@ -62,7 +78,12 @@ export const finishOnboarding = createServerFn({ method: 'POST' })
         ...taste.lovedCuisines.map((c) => c.cuisine),
         ...taste.lovedIngredients,
       ],
+      cookDays,
     }
+
+    // Household size lands on the dedicated columns, not the profile json.
+    const adults = clampHouseholdCount(data.householdSize?.adults ?? 1, 1)
+    const children = clampHouseholdCount(data.householdSize?.children ?? 0, 0)
 
     const existing = await db
       .select({ id: household.id })
@@ -73,7 +94,7 @@ export const finishOnboarding = createServerFn({ method: 'POST' })
     if (householdId) {
       await db
         .update(household)
-        .set({ profile, updatedAt: new Date() })
+        .set({ profile, adults, children, updatedAt: new Date() })
         .where(eq(household.id, householdId))
     } else {
       householdId = crypto.randomUUID()
@@ -81,6 +102,8 @@ export const finishOnboarding = createServerFn({ method: 'POST' })
         id: householdId,
         ownerId: user.id,
         profile,
+        adults,
+        children,
         updatedAt: new Date(),
       })
     }
