@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { subscriptionToRow, buildRateMealPayload, weekUrl } from './push'
+import {
+  subscriptionToRow,
+  buildRateMealPayload,
+  weekUrl,
+  rateMealUrl,
+} from './push'
 
 describe('subscriptionToRow', () => {
   const good = {
@@ -62,20 +67,45 @@ describe('weekUrl', () => {
   })
 })
 
+describe('rateMealUrl', () => {
+  it('deep-links to the focused rate view for a plan + day', () => {
+    expect(rateMealUrl('p 1', 'Monday')).toBe('/rate/p%201/Monday')
+  })
+  it('falls back to the week when the day is missing', () => {
+    expect(rateMealUrl('p1')).toBe('/week?plan=p1')
+    expect(rateMealUrl('p1', null)).toBe('/week?plan=p1')
+  })
+  it('falls back to the bare week when there is no plan', () => {
+    expect(rateMealUrl()).toBe('/week')
+    expect(rateMealUrl(null, 'Monday')).toBe('/week')
+  })
+})
+
 describe('buildRateMealPayload', () => {
-  it('weaves the meal name into the body and deep-links to the plan', () => {
+  it('uses a hook title, weaves the meal into the body, and deep-links to the focused view', () => {
     expect(
-      buildRateMealPayload({ mealName: 'Thai green curry', planId: 'p1' }),
+      buildRateMealPayload({
+        mealName: 'Thai green curry',
+        planId: 'p1',
+        day: 'Monday',
+      }),
     ).toEqual({
-      title: 'Souso',
+      title: 'How was dinner?',
       body: 'How was Thai green curry? Tap to rate.',
-      url: '/week?plan=p1',
+      url: '/rate/p1/Monday',
     })
   })
 
-  it('degrades to a generic prompt when the meal name is blank', () => {
+  it('never repeats the app name in the title (#214: iOS shows Souso already)', () => {
+    expect(
+      buildRateMealPayload({ mealName: 'Tacos', planId: 'p1', day: 'Tue' })
+        .title,
+    ).not.toContain('Souso')
+  })
+
+  it('degrades to a generic prompt + the week when the meal name is blank', () => {
     expect(buildRateMealPayload({ mealName: '   ' })).toEqual({
-      title: 'Souso',
+      title: 'How was dinner?',
       body: 'How was your dinner? Tap to rate.',
       url: '/week',
     })

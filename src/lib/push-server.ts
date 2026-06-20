@@ -214,9 +214,11 @@ export const sendRateMealPush = createServerFn({ method: 'POST' })
     }
 
     // Name the meal + deep-link per household from its latest plan, when present.
+    // The deep-link is the FOCUSED rate-this-meal view (#214), so we capture the
+    // day label alongside the meal name to build /rate/$planId/$day.
     const planByHousehold = new Map<
       string,
-      { planId: string; meal: string | null }
+      { planId: string; meal: string | null; day: string | null }
     >()
     for (const hid of householdIds) {
       const plan = (
@@ -232,6 +234,7 @@ export const sendRateMealPush = createServerFn({ method: 'POST' })
         planByHousehold.set(hid, {
           planId: plan.id,
           meal: firstHome?.meal ?? null,
+          day: firstHome?.day ?? null,
         })
       }
     }
@@ -246,6 +249,7 @@ export const sendRateMealPush = createServerFn({ method: 'POST' })
       const payload = buildRateMealPayload({
         mealName: ctx?.meal,
         planId: ctx?.planId,
+        day: ctx?.day,
       })
       const result = await sendOne(sub, payload, vapid)
       if (result.status === 'sent') sent += 1

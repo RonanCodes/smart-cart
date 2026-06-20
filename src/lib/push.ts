@@ -62,18 +62,38 @@ export function weekUrl(planId?: string | null): string {
 }
 
 /**
- * Build the "rate the meal" notification payload. The meal name is woven into the
- * body ("How was Thai green curry? Tap to rate."); a missing/blank name degrades
- * to a generic "your dinner" so the prompt still reads naturally.
+ * The focused rate-this-meal URL a notification deep-links to: a full-screen
+ * view scoped to one day of one plan (/rate/$planId/$day). Falls back to the bare
+ * week when the plan or day is unknown (no plan yet), so the tap always lands
+ * somewhere sensible.
+ */
+export function rateMealUrl(
+  planId?: string | null,
+  day?: string | null,
+): string {
+  if (!planId || !day) return weekUrl(planId)
+  return `/rate/${encodeURIComponent(planId)}/${encodeURIComponent(day)}`
+}
+
+/**
+ * Build the "rate the meal" notification payload, deep-linked to the FOCUSED
+ * rate-this-meal view for the specific plan + day (not the whole week).
+ *
+ * Notification copy (#214): iOS already renders the app name "Souso" as the bold
+ * header, so a title of "Souso" reads as a duplicate. The title is a hook
+ * ("How was dinner?") and the meal name is woven into the body ("How was Thai
+ * green curry? Tap to rate."). A missing/blank meal name degrades to a generic
+ * "your dinner" so the prompt still reads naturally.
  */
 export function buildRateMealPayload(input: {
   mealName?: string | null
   planId?: string | null
+  day?: string | null
 }): PushPayload {
   const meal = input.mealName?.trim() || 'your dinner'
   return {
-    title: 'Souso',
+    title: 'How was dinner?',
     body: `How was ${meal}? Tap to rate.`,
-    url: weekUrl(input.planId),
+    url: rateMealUrl(input.planId, input.day),
   }
 }
