@@ -1,8 +1,14 @@
 import { useState } from 'react'
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { LogOut, RefreshCw } from 'lucide-react'
+import {
+  createFileRoute,
+  redirect,
+  useNavigate,
+  Link,
+} from '@tanstack/react-router'
+import { LogOut, RefreshCw, Shield } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { authClient } from '#/lib/auth-client'
+import { isAdmin } from '#/lib/admin-server'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import {
   hasHousehold,
@@ -10,7 +16,7 @@ import {
   resetOnboarding,
 } from '#/lib/onboarding-server'
 import { generatePlan } from '#/lib/planner-server'
-import { Button } from '#/components/ui/button'
+import { Button, buttonVariants } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
 import {
   Card,
@@ -26,13 +32,18 @@ export const Route = createFileRoute('/app')({
     if (!(await hasHousehold())) throw redirect({ to: '/onboarding' })
     return ctx
   },
-  loader: async () => ({ summary: await getHouseholdSummary() }),
+  loader: async () => ({
+    summary: await getHouseholdSummary(),
+    // Server-decide admin status so the header 'Admin' button only renders for
+    // true admins (same gate as the /admin route).
+    isAdmin: await isAdmin(),
+  }),
   component: AppHome,
 })
 
 function AppHome() {
   const { user } = Route.useRouteContext()
-  const { summary } = Route.useLoaderData()
+  const { summary, isAdmin } = Route.useLoaderData()
   const navigate = useNavigate()
   const [planning, setPlanning] = useState(false)
 
@@ -73,10 +84,21 @@ function AppHome() {
         title="Your week"
         subtitle="No plan yet. Plan your week and Souso turns it into one Albert Heijn or Jumbo basket."
         action={
-          <Button variant="outline" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Sign out</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link
+                to="/admin/users"
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                <Shield className="h-4 w-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </Link>
+            )}
+            <Button variant="outline" size="sm" onClick={signOut}>
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Sign out</span>
+            </Button>
+          </div>
         }
       />
 
