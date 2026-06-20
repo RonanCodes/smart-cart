@@ -6,13 +6,21 @@ import type { AdaptiveWeights, InferredTaste } from './recsys/types'
 import type { FoldStats } from './recsys/feedback-fold'
 import type { UserExplanation } from './recsys/explain-why'
 
-/** Who can see the admin console. */
-const ADMIN_EMAILS = ['tech@discopenguin.com']
-
+/**
+ * Who can see the admin console. The list is env-driven (comma-separated
+ * ADMIN_EMAILS), so admins can be added/removed by setting a Worker secret
+ * with no redeploy. The default owner (ADMIN_EMAIL) is always included, so the
+ * console can never be locked out, and email matching is trim+lowercase
+ * normalised (reusing the pure access-rules helpers).
+ */
 async function adminUser() {
   const { getSessionUser } = await import('./server-auth')
   const u = await getSessionUser()
-  return u && ADMIN_EMAILS.includes(u.email) ? u : null
+  if (!u) return null
+  const { readEnv } = await import('./env')
+  const { parseApprovedList, isApprovedIn } = await import('./access-rules')
+  const admins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
+  return isApprovedIn(u.email, admins) ? u : null
 }
 
 export const isAdmin = createServerFn({ method: 'GET' }).handler(
