@@ -7,7 +7,18 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [
-    cloudflare({ viteEnvironment: { name: 'ssr' } }),
+    cloudflare({
+      viteEnvironment: { name: 'ssr' },
+      // Workers AI + Vectorize have no local simulator, so the plugin would open
+      // a REMOTE proxy session for them, which needs the developer's Cloudflare
+      // account to have a workers.dev subdomain registered. That makes a fresh
+      // clone fail to boot for any collaborator who hasn't onboarded Workers.
+      // So remote bindings are OFF by default: dev runs fully local with no CF
+      // account, and the app falls back gracefully (set-maths planning, demo
+      // login) when AI/Vectorize are absent. Opt in with CF_REMOTE_BINDINGS=true
+      // to exercise them against the real account.
+      remoteBindings: process.env.CF_REMOTE_BINDINGS === 'true',
+    }),
     tailwindcss(),
     // autoCodeSplitting is OFF deliberately. With it on, `pnpm dev` 500s on every
     // route with "ReferenceError: TSRSplitComponent is not defined" (the per-route

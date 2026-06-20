@@ -54,20 +54,24 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
 }
 
 /**
- * Tell the admin a NEW email just joined the waitlist. Best-effort: callers wrap
+ * Tell ONE admin a NEW email just joined the waitlist. Best-effort: callers wrap
  * this in try/catch so a Resend outage can never break the signup itself. Returns
  * { sent } so a caller can log the outcome without inspecting Resend internals.
+ *
+ * `to` defaults to the owner address; the waitlist notifier passes each opted-in
+ * admin individually so recipients never see each other's addresses.
  */
 export async function sendWaitlistSignupNotice(
   newEmail: string,
   totalCount: number,
+  to: string = ADMIN_NOTIFY_TO,
 ): Promise<{ sent: boolean }> {
   const apiKey = await readEnv('RESEND_API_KEY')
   if (!apiKey) return { sent: false }
   const resend = new Resend(apiKey)
   const { error } = await resend.emails.send({
     from: FROM,
-    to: ADMIN_NOTIFY_TO,
+    to,
     subject: `New Souso waitlist signup: ${newEmail}`,
     text: `${newEmail} just joined the Souso waitlist. Total signups: ${totalCount}.`,
   })
