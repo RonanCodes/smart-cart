@@ -116,6 +116,39 @@ export const subscribePush = createServerFn({ method: 'POST' })
     return { ok: true }
   })
 
+/**
+ * Delete a browser's push subscription server-side, by endpoint (the unique
+ * dedupe key). Idempotent: removing an already-gone row is a no-op success. The
+ * browser-side `subscription.unsubscribe()` is the other half (the hook does it).
+ * Lets a user turn reminders OFF after enabling them (#149 follow-up).
+ */
+export const unsubscribePush = createServerFn({ method: 'POST' })
+  .inputValidator((d: { endpoint: string }) => d)
+  .handler(async ({ data }): Promise<{ ok: true }> => {
+    const { getSessionUser } = await import('./server-auth')
+    const user = await getSessionUser()
+    if (!user) {
+      log.warn('push.unsubscribe_not_signed_in')
+      throw new Error('Not signed in')
+    }
+    if (!data.endpoint) return { ok: true }
+
+    const { getDb } = await import('../db/client')
+    const { pushSubscription } = await import('../db/push-subscription-schema')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+    try {
+      await db
+        .delete(pushSubscription)
+        .where(eq(pushSubscription.endpoint, data.endpoint))
+    } catch (err) {
+      log.error('push.unsubscribe_store_failed', err)
+      throw err
+    }
+    log.info('push.unsubscribed')
+    return { ok: true }
+  })
+
 /** Input for the admin send: one user (by id) or every subscriber. */
 export interface SendRateMealPushInput {
   /** Target a single user (their household's subscriptions). Omit to send to all. */
