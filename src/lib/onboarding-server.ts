@@ -111,7 +111,7 @@ export const resetOnboarding = createServerFn({ method: 'POST' }).handler(
     if (!user) throw new Error('Not signed in')
     const { getDb } = await import('../db/client')
     const { household, recipeSwipe } = await import('../db/schema')
-    const { eq, sql } = await import('drizzle-orm')
+    const { eq } = await import('drizzle-orm')
     const db = await getDb()
     const rows = await db
       .select({ id: household.id })
@@ -125,7 +125,8 @@ export const resetOnboarding = createServerFn({ method: 'POST' }).handler(
         .where(eq(recipeSwipe.householdId, householdId))
       await db
         .update(household)
-        .set({ profile: sql`null`, updatedAt: new Date() })
+        // profile is NOT NULL (defaults to {}); reset to empty, not null.
+        .set({ profile: {}, updatedAt: new Date() })
         .where(eq(household.id, householdId))
     }
     return { ok: true }
