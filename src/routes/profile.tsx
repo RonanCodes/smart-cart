@@ -64,7 +64,7 @@ function Profile() {
           />
           <ListRow
             leading={<CircleHelp aria-hidden />}
-            title="How Smart Cart works"
+            title="How Souso works"
             chevron
             onClick={() => setHelpOpen(true)}
           />
@@ -88,16 +88,12 @@ function Profile() {
         </List>
       </div>
 
-      <Sheet
-        open={helpOpen}
-        onOpenChange={setHelpOpen}
-        title="How Smart Cart works"
-      >
+      <Sheet open={helpOpen} onOpenChange={setHelpOpen} title="How Souso works">
         <div className="text-muted-foreground space-y-4 pb-4 text-[0.95rem] leading-relaxed">
           <p>
-            Smart Cart learns how your household eats from a few swipes, plans a
-            week of dinners, and fills a ready-to-order basket at Albert Heijn
-            or Jumbo. You just check out.
+            Souso learns how your household eats from a few swipes, plans a week
+            of dinners, and fills a ready-to-order basket at Albert Heijn or
+            Jumbo. You just check out.
           </p>
           <p>
             Swap any meal with one tap, tell it what changed ("we're out

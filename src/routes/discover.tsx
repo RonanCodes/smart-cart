@@ -14,7 +14,7 @@ function Discover() {
     <AppShell>
       <ScreenHeader
         title="Discover"
-        subtitle="Swipe through dinners to teach Smart Cart your taste."
+        subtitle="Swipe through dinners to teach Souso your taste."
       />
       <EmptyState
         icon={<Compass aria-hidden />}

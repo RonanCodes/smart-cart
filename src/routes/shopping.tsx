@@ -19,7 +19,7 @@ function Shopping() {
       <EmptyState
         icon={<ShoppingBag aria-hidden />}
         title="No basket yet"
-        hint="Plan a week and Smart Cart fills a basket at Albert Heijn or Jumbo, ready for you to check out."
+        hint="Plan a week and Souso fills a basket at Albert Heijn or Jumbo, ready for you to check out."
         action={
           <Link to="/week">
             <Button size="pill">Plan my week</Button>

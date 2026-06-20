@@ -74,7 +74,7 @@ function SignIn() {
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
           <ShoppingCart className="text-primary mb-2 h-8 w-8" />
-          <CardTitle>Sign in to Smart Cart</CardTitle>
+          <CardTitle>Sign in to Souso</CardTitle>
           <CardDescription>
             {step === 'email'
               ? 'We email you a 6-digit code. No password.'
