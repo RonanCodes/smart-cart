@@ -64,7 +64,7 @@ function Onboarding() {
   return (
     <SafeArea
       edges={['top', 'bottom', 'left', 'right']}
-      className="bg-background mx-auto flex w-full max-w-md flex-col"
+      className="bg-background mx-auto flex h-[100dvh] w-full max-w-md flex-col overflow-hidden"
     >
       {error && (
         <div
