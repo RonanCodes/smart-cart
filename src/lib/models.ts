@@ -10,10 +10,13 @@ import { google } from '@ai-sdk/google'
  * load /ro:vercel-ai-sdk before adding or modifying any AI feature.
  */
 export const models = {
-  /** Weekly menu planning: needs careful constraint reasoning (diet, budget, allergies). */
-  primary: anthropic('claude-opus-4-8'),
-  /** Cheap/fast: classification, swaps, recipe tagging. */
-  fast: anthropic('claude-haiku-4-5-20251001'),
-  alternate: openai('gpt-5'),
+  // OpenAI is the active provider (Ronan + Nicolas both use it). Anthropic is kept
+  // wired as a one-line switch. Needs the OPENAI_API_KEY Worker secret.
+  /** Weekly menu planning + agent: careful constraint reasoning. */
+  primary: openai('gpt-5'),
+  /** Cheap/fast: classification, swaps, replan parsing. */
+  fast: openai('gpt-5'),
+  /** Kept available for a quick provider switch. */
+  alternate: anthropic('claude-opus-4-8'),
   cheap: google('gemini-2.5-flash'),
 } as const
