@@ -18,6 +18,11 @@ export const requestDemoCode = createServerFn({ method: 'POST' })
     const email = data.email.trim().toLowerCase()
     if (!email) throw new Error('Email is required.')
 
+    // Gated access: the demo skip-login must honour the same approval rule as
+    // the email-OTP flow, so a waitlisted email can't bypass the inbox round-trip.
+    const { isApproved, NOT_APPROVED_MESSAGE } = await import('./access')
+    if (!(await isApproved(email))) throw new Error(NOT_APPROVED_MESSAGE)
+
     const { getAuth, consumeOtp } = await import('./auth')
     const auth = await getAuth()
 

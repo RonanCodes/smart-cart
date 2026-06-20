@@ -28,6 +28,13 @@ async function buildAuth() {
         // Open sign-up: a first-time email creates the account on verify.
         sendVerificationOnSignUp: true,
         async sendVerificationOTP({ email, otp }) {
+          // Gated access: only approved emails (or the admin) may sign in.
+          // Reject BEFORE stashing or sending a code so a waitlisted email can
+          // never complete sign-in via the normal flow or the demo skip path.
+          const { isApproved, NOT_APPROVED_MESSAGE } = await import('./access')
+          if (!(await isApproved(email))) {
+            throw new Error(NOT_APPROVED_MESSAGE)
+          }
           // Stash first so the demo skip-login path can read it back even if the
           // email never goes out (Resend outage). See stashOtp/consumeOtp below.
           stashOtp(email, otp)
