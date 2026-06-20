@@ -4,6 +4,7 @@ import { deriveBadges } from './badges'
 import type { Badge } from './badges'
 import type { AdaptiveWeights, InferredTaste } from './recsys/types'
 import type { FoldStats } from './recsys/feedback-fold'
+import type { UserExplanation } from './recsys/explain-why'
 
 /** Who can see the admin console. */
 const ADMIN_EMAILS = ['tech@discopenguin.com']
@@ -439,5 +440,103 @@ export const compareRealFeedback = createServerFn({ method: 'POST' })
       fold,
       withoutFeedback: view(onboardingSwipes),
       withFeedback: view(foldedSwipes),
+    }
+  })
+
+// ---------------------------------------------------------------------------
+// Explainability: for ONE real user, show WHY recipes were chosen as a
+// data-point graph — their swipes (data points) feed the inferred tastes which
+// drive the top recommendations, and each recommendation carries the signals
+// that placed it. Uses the live default algorithm so the explanation matches
+// what the planner actually does. All recsys + node-only code is dynamically
+// imported so it never leaks into the client bundle.
+// ---------------------------------------------------------------------------
+
+/** Re-export the shaped payload so the route + component import from one place. */
+export type { UserExplanation } from './recsys/explain-why'
+export type {
+  RecipeWhy,
+  WhySignal,
+  WhyDatapoint,
+  InferredPreference,
+} from './recsys/explain-why'
+
+/** Input: which user, and how many top recommendations to explain. */
+export interface ExplainUserInput {
+  userId: string
+  topN?: number
+}
+
+export const explainUser = createServerFn({ method: 'POST' })
+  .inputValidator((d: ExplainUserInput) => d)
+  .handler(async ({ data }): Promise<UserExplanation | null> => {
+    if (!(await adminUser())) throw new Error('forbidden')
+    const { getDb } = await import('../db/client')
+    const { user, household, recipeSwipe } = await import('../db/schema')
+    const { eq, desc } = await import('drizzle-orm')
+    const { loadCatalogue } = await import('./recsys-data')
+    const { makeRecommender } = await import('./recsys/registry')
+    const { DEFAULT_ALGORITHM } = await import('./recsys/config')
+    const { recipeWhys, shapePreferences } =
+      await import('./recsys/explain-why')
+    const db = await getDb()
+
+    const u = (
+      await db
+        .select({ email: user.email })
+        .from(user)
+        .where(eq(user.id, data.userId))
+        .limit(1)
+    )[0]
+    if (!u) return null
+    const hh = (
+      await db
+        .select({ id: household.id })
+        .from(household)
+        .where(eq(household.ownerId, data.userId))
+        .limit(1)
+    )[0]
+
+    const swipeRows = hh
+      ? await db
+          .select({
+            recipeId: recipeSwipe.recipeId,
+            direction: recipeSwipe.direction,
+          })
+          .from(recipeSwipe)
+          .where(eq(recipeSwipe.householdId, hh.id))
+          .orderBy(desc(recipeSwipe.createdAt))
+      : []
+
+    const swipes = swipeRows
+      .filter((s) => s.direction === 'like' || s.direction === 'dislike')
+      .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
+
+    const { recipes } = await loadCatalogue()
+    const byId = new Map(recipes.map((r) => [r.id, r]))
+    const topN = Math.min(20, Math.max(1, data.topN ?? 8))
+    const rec = makeRecommender(DEFAULT_ALGORITHM, recipes)
+
+    const taste = rec.explain(swipes)
+    const likedRecipes = swipes
+      .filter((s) => s.like)
+      .map((s) => byId.get(s.recipeId))
+      .filter((r): r is NonNullable<typeof r> => Boolean(r))
+    const topRecipes = rec.recommend(swipes, topN)
+
+    const datapoints = swipes.map((s) => {
+      const r = byId.get(s.recipeId)
+      return {
+        recipeTitle: r?.title ?? '(unknown recipe)',
+        cuisine: r?.cuisine ?? null,
+        like: s.like,
+      }
+    })
+
+    return {
+      email: u.email,
+      datapoints,
+      preferences: shapePreferences(taste, likedRecipes),
+      recommendations: recipeWhys(topRecipes, taste),
     }
   })

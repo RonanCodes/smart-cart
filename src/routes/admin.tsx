@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Users, FlaskConical, ThumbsUp } from 'lucide-react'
+import { Users, FlaskConical, ThumbsUp, Network } from 'lucide-react'
 import {
   requireAdminBeforeLoad,
   listUsers,
@@ -12,8 +12,9 @@ import { cn } from '#/lib/utils'
 import { UsersPanel } from '#/components/admin/UsersPanel'
 import { BenchmarkConsole } from '#/components/admin/benchmark/BenchmarkConsole'
 import { RealFeedbackPanel } from '#/components/admin/RealFeedbackPanel'
+import { WhyPanel } from '#/components/admin/WhyPanel'
 
-type Tab = 'users' | 'benchmark' | 'feedback'
+type Tab = 'users' | 'why' | 'benchmark' | 'feedback'
 
 export const Route = createFileRoute('/admin')({
   beforeLoad: requireAdminBeforeLoad,
@@ -46,6 +47,12 @@ function Admin() {
           label="Users & data points"
         />
         <TabButton
+          active={tab === 'why'}
+          onClick={() => setTab('why')}
+          icon={<Network className="h-4 w-4" />}
+          label="Why these recipes"
+        />
+        <TabButton
           active={tab === 'benchmark'}
           onClick={() => setTab('benchmark')}
           icon={<FlaskConical className="h-4 w-4" />}
@@ -60,6 +67,7 @@ function Admin() {
       </div>
 
       {tab === 'users' && <UsersPanel users={users} />}
+      {tab === 'why' && <WhyPanel users={users} />}
       {tab === 'benchmark' && <BenchmarkConsole meta={benchmarkMeta} />}
       {tab === 'feedback' && (
         <RealFeedbackPanel households={realFeedbackHouseholds} />
