@@ -110,7 +110,17 @@ function WaitlistRow({
     <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <span className="block truncate text-sm font-medium">{email}</span>
-        <span className="text-muted-foreground text-xs">
+        {/*
+          toLocaleString resolves to the runtime's locale + timezone, which
+          differs between the SSR Worker (UTC) and the browser, so the server and
+          client strings mismatch -> React #418 hydration warning on /admin.
+          The value is cosmetic, so suppress the warning on just this node rather
+          than forcing a fixed timezone (the browser-local time is what we want).
+        */}
+        <span
+          className="text-muted-foreground text-xs"
+          suppressHydrationWarning
+        >
           {fmtDateTime(createdAt)}
         </span>
       </div>

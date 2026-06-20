@@ -117,3 +117,101 @@ export function grantStateFor(
   if (!e) return 'none'
   return grants.get(e) ?? 'none'
 }
+
+/**
+ * A real `user`-table row, with everything the people-merge needs. `householdId`
+ * is null when the user signed in but never finished onboarding (no household),
+ * so it doubles as the onboarded flag.
+ */
+export interface PersonUserRow<TBadge = unknown> {
+  userId: string
+  email: string
+  householdId: string | null
+  swipes: number
+  badges: Array<TBadge>
+}
+
+/**
+ * One person in the merged admin Users view. A person can exist with NO user row
+ * (granted/approved/admin-by-env but never signed in) — then userId/householdId
+ * are null, swipes is 0, badges is empty, and onboarded is false.
+ */
+export interface MergedPerson<TBadge = unknown> {
+  email: string
+  userId: string | null
+  householdId: string | null
+  swipes: number
+  badges: Array<TBadge>
+  /** True iff this email is an admin (env admin set OR access_grant role='admin'). */
+  isAdmin: boolean
+  /** Login-access state: 'admin' grant, else 'user' (env-approved OR user grant), else 'none'. */
+  access: 'admin' | 'user' | 'none'
+  /** Has a real user row AND a household (finished onboarding). */
+  onboarded: boolean
+}
+
+/**
+ * Pure merge of every "person" the admin should see, de-duped by normalised
+ * email. Sources: the real `user` table rows, the env admin set (already
+ * including the default owner), the env approved set, and the DB access-grant
+ * map. People present only in the env/grant sets (never signed in) appear with
+ * null ids, 0 swipes, no badges, onboarded=false.
+ *
+ * Access is the strongest claim found: an admin (env-admin OR admin grant) is
+ * 'admin'; otherwise env-approved OR a user grant is 'user'; otherwise (a bare
+ * user row with no grant/env entry) 'none'. `onboarded` requires both a user row
+ * and a household. No env / DB imports so it is unit-testable.
+ *
+ * Result is sorted: admins first, then onboarded users, then the rest, each
+ * group alphabetised by email, so the operator reads top-down.
+ */
+export function mergePeople<TBadge = unknown>(args: {
+  userRows: Array<PersonUserRow<TBadge>>
+  envAdmins: Set<string>
+  envApproved: Set<string>
+  grants: Map<string, GrantRole>
+}): Array<MergedPerson<TBadge>> {
+  const { userRows, envAdmins, envApproved, grants } = args
+
+  // Start from the union of every email we know about, normalised.
+  const emails = new Set<string>()
+  const byEmail = new Map<string, PersonUserRow<TBadge>>()
+  for (const r of userRows) {
+    const e = normalize(r.email)
+    if (!e) continue
+    emails.add(e)
+    // First user row wins on a duplicate email (the table enforces unique email,
+    // so duplicates are not expected; this is just deterministic).
+    if (!byEmail.has(e)) byEmail.set(e, r)
+  }
+  for (const e of envAdmins) if (e) emails.add(e)
+  for (const e of envApproved) if (e) emails.add(e)
+  for (const e of grants.keys()) if (e) emails.add(e)
+
+  const people: Array<MergedPerson<TBadge>> = [...emails].map((email) => {
+    const row = byEmail.get(email)
+    const isAdmin = isAdminWith(email, envAdmins, grants)
+    const access: 'admin' | 'user' | 'none' = isAdmin
+      ? 'admin'
+      : isApprovedWith(email, envApproved, grants)
+        ? 'user'
+        : 'none'
+    return {
+      email,
+      userId: row?.userId ?? null,
+      householdId: row?.householdId ?? null,
+      swipes: row?.swipes ?? 0,
+      badges: row?.badges ?? [],
+      isAdmin,
+      access,
+      onboarded: Boolean(row?.userId && row.householdId),
+    }
+  })
+
+  // Admins first, then onboarded users, then everyone else; alphabetical within.
+  const rank = (p: MergedPerson<TBadge>): number =>
+    p.isAdmin ? 0 : p.onboarded ? 1 : 2
+  return people.sort(
+    (a, b) => rank(a) - rank(b) || a.email.localeCompare(b.email),
+  )
+}

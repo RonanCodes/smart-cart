@@ -5,6 +5,19 @@ import type { AdminUserRow, UserDatapoints } from '#/lib/admin-server'
 import { Badge } from '#/components/ui/badge'
 
 /**
+ * Short human label for a person's access state, factoring onboarding in: an
+ * onboarded real user reads 'Onboarded', a granted/approved-but-never-onboarded
+ * person reads 'Approved user', and a bare user row with no grant reads 'Not
+ * onboarded'. The separate Admin badge already covers admins.
+ */
+function accessTag(u: AdminUserRow): string {
+  if (u.access === 'admin') return 'Admin'
+  if (u.onboarded) return 'Onboarded'
+  if (u.access === 'user') return 'Approved user'
+  return 'Not onboarded'
+}
+
+/**
  * The synthetic-users list + per-user data-points drill-down. Extracted verbatim
  * from the original /admin route so BOTH the Users tab and the Benchmark tab render
  * the exact same view (the benchmark tab embeds it for the "view synthetic users +
@@ -24,32 +37,50 @@ export function UsersPanel({ users }: { users: Array<AdminUserRow> }) {
     <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
       {/* Users */}
       <div className="space-y-2">
-        {users.map((u) => (
-          <button
-            key={u.userId}
-            onClick={() => open(u.userId)}
-            className="border-border hover:bg-secondary flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition"
-          >
-            <div className="min-w-0">
-              <div className="truncate text-sm font-medium">{u.email}</div>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {u.badges.slice(0, 3).map((b) => (
-                  <span key={b.label} className="text-xs">
-                    {b.emoji} {b.label}
+        {users.map((u) => {
+          // No user row -> nothing to drill into; render a static card so the
+          // operator still sees the person, their admin badge + access tag.
+          const interactive = u.userId !== null
+          return (
+            <button
+              key={u.email}
+              onClick={() => interactive && open(u.userId!)}
+              disabled={!interactive}
+              className="border-border enabled:hover:bg-secondary flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition disabled:cursor-default disabled:opacity-70"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="truncate text-sm font-medium">
+                    {u.email}
                   </span>
-                ))}
-                {u.badges.length === 0 && (
-                  <span className="text-muted-foreground text-xs">
-                    not onboarded
-                  </span>
-                )}
+                  {u.isAdmin && (
+                    <Badge variant="primary" className="shrink-0">
+                      Admin
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="shrink-0">
+                    {accessTag(u)}
+                  </Badge>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {u.badges.slice(0, 3).map((b) => (
+                    <span key={b.label} className="text-xs">
+                      {b.emoji} {b.label}
+                    </span>
+                  ))}
+                  {u.badges.length === 0 && (
+                    <span className="text-muted-foreground text-xs">
+                      {u.onboarded ? 'no badges yet' : 'not onboarded'}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-            <span className="text-muted-foreground ml-3 shrink-0 text-xs">
-              {u.swipes} swipes
-            </span>
-          </button>
-        ))}
+              <span className="text-muted-foreground ml-3 shrink-0 text-xs">
+                {u.swipes} swipes
+              </span>
+            </button>
+          )
+        })}
         {users.length === 0 && (
           <p className="text-muted-foreground text-sm">No users yet.</p>
         )}

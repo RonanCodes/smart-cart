@@ -74,12 +74,21 @@ export async function requireAdminBeforeLoad(): Promise<void> {
   if (!(await isAdmin())) throw redirect({ to: '/' })
 }
 
+/**
+ * One person in the admin Users view. `userId` / `householdId` are null for a
+ * person who is granted / approved / admin-by-env but has never signed in (no
+ * `user` row). The panel disables the data-points drill-down for those (no
+ * userId to look up). `access` + `isAdmin` drive the Admin badge + access tag.
+ */
 export interface AdminUserRow {
-  userId: string
+  userId: string | null
   email: string
   householdId: string | null
   swipes: number
   badges: Array<Badge>
+  isAdmin: boolean
+  access: 'admin' | 'user' | 'none'
+  onboarded: boolean
 }
 
 export const listUsers = createServerFn({ method: 'GET' }).handler(
@@ -88,6 +97,9 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
     const { getDb } = await import('../db/client')
     const { user, household, recipeSwipe } = await import('../db/schema')
     const { eq, count } = await import('drizzle-orm')
+    const { readEnv } = await import('./env')
+    const { parseApprovedList, mergePeople, ADMIN_EMAIL } =
+      await import('./access-rules')
     const db = await getDb()
     const rows = await db
       .select({
@@ -103,13 +115,27 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
       .from(recipeSwipe)
       .groupBy(recipeSwipe.householdId)
     const byHid = new Map(counts.map((c) => [c.hid, c.n]))
-    return rows.map((r) => ({
-      userId: r.userId,
-      email: r.email,
-      householdId: r.householdId,
-      swipes: r.householdId ? (byHid.get(r.householdId) ?? 0) : 0,
-      badges: r.profile ? deriveBadges(r.profile) : [],
-    }))
+
+    // Resolve the env + DB access sets so people who never signed in still show.
+    // Env admins always include the default owner (mirrors admin-emails.ts), so
+    // the console can never present as locked out.
+    const envAdmins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
+    envAdmins.add(ADMIN_EMAIL)
+    const envApproved = parseApprovedList(await readEnv('APPROVED_EMAILS'))
+    const grants = await loadAdminGrantMap()
+
+    return mergePeople<Badge>({
+      userRows: rows.map((r) => ({
+        userId: r.userId,
+        email: r.email,
+        householdId: r.householdId,
+        swipes: r.householdId ? (byHid.get(r.householdId) ?? 0) : 0,
+        badges: r.profile ? deriveBadges(r.profile) : [],
+      })),
+      envAdmins,
+      envApproved,
+      grants,
+    })
   },
 )
 
