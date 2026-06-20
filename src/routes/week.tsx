@@ -1,5 +1,11 @@
 import { useState } from 'react'
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  redirect,
+  useNavigate,
+  Link,
+} from '@tanstack/react-router'
+import { ShoppingBag } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import { hasHousehold } from '#/lib/onboarding-server'
@@ -139,6 +145,16 @@ function WeekPage() {
       <ScreenHeader
         title="Your week"
         subtitle="Seven dinners, one per day. Swap any day or tell us what changed."
+        action={
+          <Link
+            to="/shopping"
+            search={{ plan: week.planId }}
+            className="text-primary inline-flex items-center gap-1.5 text-sm font-medium"
+          >
+            <ShoppingBag className="h-4 w-4" aria-hidden />
+            Shopping list
+          </Link>
+        }
       />
 
       <div className="space-y-6 px-5 pt-2">
