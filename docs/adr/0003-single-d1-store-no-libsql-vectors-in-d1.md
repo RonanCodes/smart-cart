@@ -1,8 +1,16 @@
 # ADR-0003: One D1 database, no libSQL/Turso, no vector store
 
-- **Status**: accepted
+- **Status**: superseded by ADR-0004 (for semantic matching; the single-D1 / no-Turso / no-Vectorize stance still holds, vectors now live IN D1)
 - **Date**: 2026-06-20
 - **Supersedes**: ADR-0001 (Vectorize for recipe similarity)
+
+> **Partly superseded by [ADR-0004](./0004-openai-embeddings-semantic-matching.md).** The
+> three semantic matchers (ingredient-to-product pricing, dish-to-dish similarity, replan
+> term-match) now use OpenAI embeddings + cosine, exercising the escape hatch this ADR
+> named. What still holds: one D1, no Turso, no separate vector store. The vectors now
+> live IN D1 (a base64 Float32 blob on `store_product` plus a `recipe_embedding` table),
+> not in a second engine. The body below is kept as the record of why there is no separate
+> vector store and no Turso.
 
 ## Context
 

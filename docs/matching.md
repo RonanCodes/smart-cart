@@ -1,15 +1,26 @@
 # Matching architecture
 
 How Souso matches things. Written so a fresh agent can pick up cold without
-re-deriving the design from the code. Decisions behind it: ADR-0003 (one D1, no
-libSQL, no vector store), ADR-0002 (benchmark gate), ADR-0001 (the now-removed
-Vectorize path, kept for history).
+re-deriving the design from the code. Decisions behind it: ADR-0004 (OpenAI embeddings
+for the three semantic matchers, vectors in D1), ADR-0003 (one D1, no libSQL, no separate
+vector store), ADR-0002 (benchmark gate), ADR-0001 (the original Vectorize path, kept for
+history).
 
-## There are three different matching jobs
+## There are different matching jobs
 
-They look similar ("match X to Y") but they are different problems. The key fact: **none
-of them use vectors or a vector store.** All three are set-maths, which is why the data
-layer is a single D1 with no Vectorize/libSQL/Turso.
+They look similar ("match X to Y") but they are different problems, and they split two
+ways:
+
+- **Preference (recommendation)** is still set-maths. The benchmarked adaptive
+  recommender ranks recipes for a household and vectors never touch it (ADR-0002 gates it).
+- **The three semantic matchers** (dish similarity, ingredient-to-product pricing, replan
+  term-match) now use **OpenAI embeddings + cosine** over vectors committed to the repo and
+  loaded into D1, with an **LLM rerank only at the one decision point** (the cart path).
+  This replaced the earlier set-maths versions (token overlap, Jaccard, substring) because
+  those gave no cross-language recall: "mushroom" never matched Dutch "champignon" (ADR-0004).
+
+The data layer is still a single D1 with no Vectorize/libSQL/Turso. The vectors live IN
+that D1 (see "Where the data lives").
 
 ### 1. Profile to recipe (preference / recommendation)
 
@@ -27,38 +38,71 @@ layer is a single D1 with no Vectorize/libSQL/Turso.
 - **What:** given a recipe, find valid substitutions ("more like this", "faster",
   "lighter"), respecting the household's allergy/diet hard filters.
 - **Where:** `src/lib/vectors/` (`similar.ts` orchestration, `similar-score.ts` scorer).
-- **Mechanism: set-maths token overlap.** `rankBySimilarity` is Jaccard over the
-  `recipeText` (title + cuisine + ingredients) plus a same-cuisine boost. This **replaced**
-  the original Cloudflare Vectorize + Workers AI embeddings path (ADR-0001) so the app
-  needs no vector index, no embed job, and no Cloudflare account in local dev.
+- **Mechanism: embeddings + cosine.** The scorer ranks recipes by `cosineSimilarity`
+  (AI SDK) against precomputed recipe vectors, loaded once per isolate into a module-global
+  cache. This **replaced** the earlier Jaccard token-overlap scorer, which scored zero
+  whenever two dishes shared no literal token (a cross-language miss the embedding closes).
 - **Pure core:** `postProcessNeighbours` in `similar.ts` (drop self, hard-filter, re-rank,
-  truncate) is storage-agnostic and unit-tested without any backend.
-- **Quality note:** token overlap is less "semantic" than an embedding but deterministic,
-  instant at this scale, and good enough (shared ingredients + same cuisine dominate).
-  `similar-score.ts` is the one function to swap back to a vector index behind if semantic
-  recall ever matters more than setup simplicity (ADR-0003).
+  truncate) is storage-agnostic and unit-tested without any backend. Unchanged: only the
+  scorer underneath swapped.
+- **Keyless:** works with **no `OPENAI_API_KEY`**, because the recipe vectors are
+  precomputed and committed; nothing is embedded live on this path.
 
-### 3. Ingredient to product (pricing)
+### 3. Ingredient to product (pricing / cart)
 
 - **What:** match a recipe's ingredient ("200g spaghetti") to a real supermarket product
   so we can price the basket per store and fill the AH cart.
 - **Where:** `src/lib/pricing/` (`normalise.ts`, `match.ts`, `catalogue.ts`,
   `price-list.ts`).
-- **Mechanism: fuzzy string / token matching, no vectors.** `scoreMatch` +
-  `confidenceFromScore` over a normalised name index, with a **confidence flag on every
-  match** so estimated lines never silently inflate the "save money" claim. Grounded and
-  explainable, as the hard rules require.
+- **Mechanism: embeddings + cosine, LLM rerank at the cart decision point.** The
+  ingredient text is embedded and scored by cosine against committed product vectors.
+  - **Cart path:** cosine top-K, then a `generateObject` rerank (`models.fast`) picks the
+    right SKU and sanity-checks quantity plausibility. This is the one place a wrong pick
+    is expensive, so it gets the LLM.
+  - **Price totals and staples search:** cheap cosine top-1, **no LLM** (a week's list is
+    ~60 lines; a per-line LLM call is too slow and too costly).
+  - A **confidence flag on every match** so estimated lines never silently inflate the
+    "save money" claim. Grounded and explainable, as the hard rules require.
+- **Mechanism replaced:** the earlier token / fuzzy-string matcher in `match.ts`, which
+  could not match across languages ("minced beef" vs "rundergehakt").
+- **Keyless:** **requires `OPENAI_API_KEY`** at runtime, because it embeds the live
+  ingredient text. With no key it returns `confidence: 'none'` and an honest UI note. There
+  is no silent fallback to the old token matcher.
 - **Data:** the vendored checkjebon snapshot (`src/lib/pricing/data/supermarkets.json`),
   bundled at build time, never live-fetched on the request path. Provenance + licence
-  caveat in `src/lib/pricing/data/NOTICE.md`.
+  caveat in `src/lib/pricing/data/NOTICE.md`. Product vectors live on `store_product` in D1
+  (see "Where the data lives").
+
+### 4. Replan term-match (exclude / more-of)
+
+- **What:** a plain-language replan term ("no mushrooms", "more pasta") has to find the
+  recipes it refers to, so the planner can exclude or favour them.
+- **Where:** the replan path (was substring `recipeMatchesTerm` plus the term-synonyms
+  maps from PR #187).
+- **Mechanism: embeddings + cosine.** The term is embedded and scored by cosine against
+  recipe vectors. The hand-maintained synonyms maps are gone: the embedding gives the
+  synonymy ("champignon" / "paddenstoel" for "mushroom") for free.
+- **Keyless:** **requires `OPENAI_API_KEY`** at runtime, because it embeds the live term.
+  With no key it declines with the existing "AI adjustments off" message. No silent fallback
+  to the old substring matcher.
 
 ## Where the data lives
 
-**One D1 database. No separate vector DB, no libSQL/Turso, no second database** (ADR-0003).
+**One D1 database. No separate vector DB, no libSQL/Turso, no second database** (ADR-0003,
+ADR-0004). It is still one D1; the vectors now live IN it.
 
 - `recipe`, `household`, `meal_plan`, etc.: D1 tables (`src/db/schema.ts`).
 - checkjebon catalogue: committed JSON, bundled into the Worker.
-- No embeddings are stored anywhere; all three matchers compute from the rows/snapshot.
+- **Embeddings live in D1**, encoded Float32 to base64: an `embedding` blob column on
+  `store_product` (product vectors) and a `recipe_embedding` table (recipe vectors). The
+  vectors are committed to `data/embeddings/*` (the same pattern as the committed
+  supermarkets snapshot) and loaded into D1 by `scripts/seed.ts`, so a fresh clone plus a
+  CI run reproduces every matcher with zero API calls.
+- At request time the vectors load from D1 into a per-isolate module-global cache and are
+  scored brute-force with `cosineSimilarity` (AI SDK). At ~5k products + ~1.5k recipes a
+  linear scan is fast, so there is no ANN index, no Vectorize, no Turso (ADR-0004).
+- Preference ranking stores no vectors and computes from rows; only the three semantic
+  matchers use embeddings.
 
 The only thing that genuinely goes stale is the checkjebon price snapshot. For now it is a
 committed snapshot; the longer-term shape is a periodic sync job (cron Worker re-seeds it),
