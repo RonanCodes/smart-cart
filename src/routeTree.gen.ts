@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WeekRouteImport } from './routes/week'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
+import { Route as SignOutRouteImport } from './routes/sign-out'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as ShoppingRouteImport } from './routes/shopping'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -42,6 +43,11 @@ const WeekRoute = WeekRouteImport.update({
 const StyleguideRoute = StyleguideRouteImport.update({
   id: '/styleguide',
   path: '/styleguide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignOutRoute = SignOutRouteImport.update({
+  id: '/sign-out',
+  path: '/sign-out',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
+  '/sign-out': typeof SignOutRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
+  '/sign-out': typeof SignOutRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
+  '/sign-out': typeof SignOutRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shopping'
     | '/sign-in'
+    | '/sign-out'
     | '/styleguide'
     | '/week'
     | '/admin/benchmark'
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shopping'
     | '/sign-in'
+    | '/sign-out'
     | '/styleguide'
     | '/week'
     | '/admin/benchmark'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/shopping'
     | '/sign-in'
+    | '/sign-out'
     | '/styleguide'
     | '/week'
     | '/admin/benchmark'
@@ -323,6 +335,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ShoppingRoute: typeof ShoppingRoute
   SignInRoute: typeof SignInRoute
+  SignOutRoute: typeof SignOutRoute
   StyleguideRoute: typeof StyleguideRoute
   WeekRoute: typeof WeekRoute
   ApiHealthRoute: typeof ApiHealthRoute
@@ -348,6 +361,13 @@ declare module '@tanstack/react-router' {
       path: '/styleguide'
       fullPath: '/styleguide'
       preLoaderRoute: typeof StyleguideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-out': {
+      id: '/sign-out'
+      path: '/sign-out'
+      fullPath: '/sign-out'
+      preLoaderRoute: typeof SignOutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -539,6 +559,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ShoppingRoute: ShoppingRoute,
   SignInRoute: SignInRoute,
+  SignOutRoute: SignOutRoute,
   StyleguideRoute: StyleguideRoute,
   WeekRoute: WeekRoute,
   ApiHealthRoute: ApiHealthRoute,

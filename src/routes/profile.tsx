@@ -35,11 +35,16 @@ function Profile() {
   const [helpOpen, setHelpOpen] = useState(false)
 
   async function signOut() {
-    await authClient.signOut()
-    // Hard redirect so the server re-renders with the cleared session cookie
-    // (a client navigate left stale session state and did nothing). Local dev
-    // open-access keeps you signed in, so this only takes effect in prod.
-    window.location.href = '/'
+    // Best-effort client sign-out, then ALWAYS hard-navigate to the server-side
+    // /sign-out route, which clears the session cookie server-side and redirects
+    // to '/'. The finally guarantees the nav fires even if the client call hangs
+    // or throws on mobile. Local dev open-access keeps you signed in, so this
+    // only takes visible effect in prod.
+    try {
+      await authClient.signOut()
+    } finally {
+      window.location.href = '/sign-out'
+    }
   }
 
   if (!session?.user) {
