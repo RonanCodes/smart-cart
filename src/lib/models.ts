@@ -15,14 +15,13 @@ export const models = {
   /** Weekly menu planning + agent: careful constraint reasoning. */
   primary: openai('gpt-5.2'),
   /** Cheap/fast: classification, swaps, replan parsing. */
-  fast: openai('gpt-5.2-mini'),
+  fast: openai('gpt-5-mini'),
   /**
    * Low-latency rerank for ingredient->SKU matching (ADR-0004). Picking one of ~10
-   * retrieved candidates is a simple classification, not reasoning, so it runs on
-   * the same mini model as `fast`: a reasoning model would make the match panel +
-   * cart build wait seconds on reasoning tokens for no quality gain.
+   * retrieved candidates is a simple classification, not reasoning — gpt-5.4-nano
+   * keeps the match panel + cart build fast without reasoning-token latency.
    */
-  rerank: openai('gpt-5.2-mini'),
+  rerank: openai('gpt-5.4-nano'),
   /** Kept available for a quick provider switch. */
   alternate: anthropic('claude-opus-4-8'),
   cheap: google('gemini-2.5-flash'),

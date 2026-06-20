@@ -21,6 +21,13 @@ RESEND_API_KEY="<resend api key>"
 OPENAI_API_KEY="<openai api key>"
 ANTHROPIC_API_KEY="<anthropic api key>"
 
+# Braintrust tracing (optional). Sends Vercel AI SDK call logs to Braintrust when
+# an LLM key above is set. Project name is configured in src/lib/braintrust-ai.ts.
+# Without these, the app runs normally; traces just aren't exported.
+BRAINTRUST_API_KEY="<braintrust api key>"
+# EU orgs (default is US): https://api-eu.braintrust.dev
+BRAINTRUST_API_URL="https://api-eu.braintrust.dev"
+
 # Gated access: comma-separated emails allowed to complete sign-in. The admin
 # (tech@discopenguin.com) is always approved. Everyone else is waitlisted. Add
 # your own email here to sign in for real, or just use the demo skip-login.

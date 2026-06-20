@@ -1,20 +1,9 @@
 import { useState } from 'react'
-import {
-  createFileRoute,
-  redirect,
-  useNavigate,
-  Link,
-} from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { LogOut, RefreshCw, Shield } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { authClient } from '#/lib/auth-client'
-import { isAdmin } from '#/lib/admin-server'
-import { requireUserBeforeLoad } from '#/lib/route-guards'
-import {
-  hasHousehold,
-  getHouseholdSummary,
-  resetOnboarding,
-} from '#/lib/onboarding-server'
+import { loadAppBootstrap, resetOnboarding } from '#/lib/onboarding-server'
 import { generatePlan } from '#/lib/planner-server'
 import { Button, buttonVariants } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
@@ -26,18 +15,15 @@ import {
   CardTitle,
 } from '#/components/ui/card'
 
-export const Route = createFileRoute('/app')({
-  beforeLoad: async () => {
-    const ctx = await requireUserBeforeLoad()
-    if (!(await hasHousehold())) throw redirect({ to: '/onboarding' })
-    return ctx
-  },
-  loader: async () => ({
-    summary: await getHouseholdSummary(),
-    // Server-decide admin status so the header 'Admin' button only renders for
-    // true admins (same gate as the /admin route).
-    isAdmin: await isAdmin(),
-  }),
+export const Route = createFileRoute('/_authed/app')({
+  // Auth + onboarding run ONCE in the shared `_authed` layout (#251); `user`
+  // comes off route context (Route.useRouteContext) instead of a per-route guard.
+  // Reuse the loader result on back-nav within 30s (#251).
+  staleTime: 30_000,
+  // ONE round-trip (#251): loadAppBootstrap composes getHouseholdSummary +
+  // isAdmin server-side, replacing the two separate loader calls. The header
+  // 'Admin' button still only renders for true admins (same /admin gate).
+  loader: () => loadAppBootstrap(),
   component: AppHome,
 })
 

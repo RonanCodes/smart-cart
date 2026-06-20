@@ -5,3 +5,5 @@ allowBuilds:
   lightningcss: true
   '@tailwindcss/oxide': true
   unrs-resolver: true
+  braintrust: false
+  core-js: false
