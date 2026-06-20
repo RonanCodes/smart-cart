@@ -56,3 +56,13 @@ export {
 
 export type { ProductSearchHit, ProductSearchOptions } from './search'
 export { searchProducts } from './search'
+
+// Pure inverse of store-product-rows: rebuild a StoreCatalogue from D1 rows.
+// The SERVER resolver (`ingredient-resolver-server`) is intentionally NOT
+// re-exported here, it must stay server-only and out of the client bundle.
+export type { StoreProductRowLike } from './store-product-catalogue'
+export {
+  rowToStoreProduct,
+  cataloguesFromRows,
+  catalogueFromRows,
+} from './store-product-catalogue'
