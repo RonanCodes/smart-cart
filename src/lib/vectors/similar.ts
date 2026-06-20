@@ -1,9 +1,10 @@
 /**
- * "Similar recipes" via set-maths token overlap (see similar-score.ts). Replaces
- * the original Cloudflare Vectorize + Workers AI embeddings path (ADR-0001) so the
- * app needs no remote bindings, no embed job, and no Cloudflare account in local
- * dev. Scoring is `rankBySimilarity` (Jaccard over recipeText + a same-cuisine
- * boost); everything below this scorer is unchanged.
+ * "Similar recipes" via embedding cosine (see similar-score.ts, ADR-0004). Scoring
+ * is `rankBySimilarity` (cosine over precomputed recipe vectors + a small
+ * same-cuisine boost). Both the query recipe and the candidates have vectors in D1
+ * (recipe_embedding), so this path needs no live embed call: the orchestrator loads
+ * the vector index once and hands it to the pure scorer. Everything below the
+ * scorer (drop-self, hard filter, re-rank, truncate) is unchanged.
  *
  * Given a recipe id, return its nearest neighbours, filtered to be sensible swaps:
  * the query recipe itself is dropped, and the household's HARD filters (allergies,
@@ -197,14 +198,14 @@ function topKFor(limit: number): number {
 
 /**
  * Orchestrate a similar-recipes query end to end (the I/O path; not unit-tested,
- * the scoring + post-processing are). Loads the query recipe and the imaged
- * catalogue from D1, scores every candidate against the query with the set-maths
- * `rankBySimilarity` (no embeddings, no network, no Cloudflare binding), then hands
- * the top neighbours to the pure `postProcessNeighbours`.
+ * the scoring + post-processing are). Loads the query recipe, the imaged catalogue,
+ * and the precomputed recipe vector index from D1, scores every candidate against
+ * the query with the cosine `rankBySimilarity` (no live embed call: every vector is
+ * precomputed), then hands the top neighbours to the pure `postProcessNeighbours`.
  *
- * Reads recipe + household.profile; writes nothing. Only imaged recipes are
- * loaded as candidates so a swap never surfaces a broken card. Cheap at this
- * catalogue size (a few hundred imaged rows scored in-process per request).
+ * Reads recipe + recipe_embedding + household.profile; writes nothing. Only imaged
+ * recipes are loaded as candidates so a swap never surfaces a broken card. Cheap at
+ * this catalogue size (a few hundred imaged rows scored in-process per request).
  */
 export async function similarRecipes(
   recipeId: string,
@@ -216,6 +217,7 @@ export async function similarRecipes(
   const { getDb } = await import('../../db/client')
   const { recipe } = await import('../../db/schema')
   const { hasImage } = await import('../../db/recipe-filters')
+  const { getRecipeVectorMap } = await import('../embeddings/store')
   const { eq } = await import('drizzle-orm')
   const db = await getDb()
 
@@ -264,7 +266,10 @@ export async function similarRecipes(
     candidates.map((c) => [c.id, c]),
   )
 
-  // 3. Score every candidate against the query (set-maths, nearest first).
+  // 3. Load the precomputed recipe vector index (id -> vector) and score every
+  //    candidate against the query by cosine (nearest first). No live embed call:
+  //    the query and the candidates are all precomputed in recipe_embedding.
+  const vectors = await getRecipeVectorMap()
   const neighbours = rankBySimilarity(
     {
       id: query.id,
@@ -273,6 +278,7 @@ export async function similarRecipes(
       ingredients: query.ingredients.map((i) => ({ name: i.name })),
     },
     candidates,
+    vectors,
     topKFor(limit),
   )
 
