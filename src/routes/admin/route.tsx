@@ -62,26 +62,9 @@ function AdminLayout() {
             </Link>
           }
         />
-        <TabLink
-          to="/admin/matching"
-          icon={<Sparkles className="h-4 w-4" />}
-          label="Matching"
-        />
-        <TabLink
-          to="/admin/feedback"
-          icon={<ThumbsUp className="h-4 w-4" />}
-          label="Real feedback"
-        />
-        <TabLink
-          to="/admin/waitlist"
-          icon={<Mail className="h-4 w-4" />}
-          label="Waitlist"
-        />
-      </nav>
-
 
         {/* Sub-nav: each tab is a real route so refresh + deep-link stay on the
-            tab. Horizontally scrollable on narrow widths (no wrap) so all five
+            tab. Horizontally scrollable on narrow widths (no wrap) so all six
             tabs are reachable at 390px. */}
         <nav
           role="tablist"
@@ -102,6 +85,11 @@ function AdminLayout() {
             to="/admin/benchmark"
             icon={<FlaskConical className="h-4 w-4" />}
             label="Benchmark"
+          />
+          <TabLink
+            to="/admin/matching"
+            icon={<Sparkles className="h-4 w-4" />}
+            label="Matching"
           />
           <TabLink
             to="/admin/feedback"
