@@ -268,7 +268,21 @@ export interface HouseholdSummary {
   badges: Array<Badge>
 }
 
-/** The signed-in household's inferred taste + badges (null if not onboarded). */
+/** Title-case a cuisine token for display ('italian' -> 'Italian'). */
+function titleCase(s: string): string {
+  const t = s.trim()
+  if (!t) return t
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()
+}
+
+/**
+ * The signed-in household's taste + badges (null if not onboarded).
+ *
+ * The onboarding FORM is the data source now: the "gravitate toward" list and
+ * badges come from the explicit form answers (`cuisinesLiked`/`cuisinesDisliked`,
+ * title-cased for display). Legacy swipe-derived `lovedTastes`/`dislikedCuisines`
+ * is the fallback so a household onboarded before the form switch still renders.
+ */
 export const getHouseholdSummary = createServerFn({ method: 'GET' }).handler(
   async (): Promise<HouseholdSummary | null> => {
     const { getSessionUser } = await import('./server-auth')
@@ -285,9 +299,16 @@ export const getHouseholdSummary = createServerFn({ method: 'GET' }).handler(
       .limit(1)
     const profile = rows[0]?.profile
     if (!profile) return null
+
+    const formLiked = profile.cuisinesLiked ?? []
+    const formDisliked = profile.cuisinesDisliked ?? []
     return {
-      lovedTastes: profile.lovedTastes ?? [],
-      dislikedCuisines: profile.dislikedCuisines ?? [],
+      lovedTastes: formLiked.length
+        ? formLiked.map(titleCase)
+        : (profile.lovedTastes ?? []),
+      dislikedCuisines: formDisliked.length
+        ? formDisliked.map(titleCase)
+        : (profile.dislikedCuisines ?? []),
       dislikes: profile.dislikes ?? [],
       badges: deriveBadges(profile),
     }

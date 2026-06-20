@@ -139,8 +139,8 @@ function AppHome() {
               Here's what we learned about you
             </h2>
             <p className="text-muted-foreground mt-0.5 text-sm">
-              Built from your swipes. It sharpens every week as you cook and
-              rate.
+              Built from what you told us in onboarding. It sharpens every week
+              as you cook and rate.
             </p>
           </div>
 
@@ -164,7 +164,7 @@ function AppHome() {
             <CardHeader>
               <CardTitle>You gravitate to</CardTitle>
               <CardDescription>
-                The flavours you swiped right on.
+                The cuisines and tastes you told us.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
@@ -176,7 +176,7 @@ function AppHome() {
                 ))
               ) : (
                 <span className="text-muted-foreground text-sm">
-                  Swipe a few more to sharpen this.
+                  Tell us a few cuisines you love to sharpen this.
                 </span>
               )}
               {summary?.dislikes.map((t) => (
