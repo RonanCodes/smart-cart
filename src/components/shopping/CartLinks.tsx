@@ -4,7 +4,7 @@ import { Button } from '#/components/ui/button'
 import { buildCartLinks } from '#/lib/cart-links-server'
 import type { CartLinksResult, StoreCartLink } from '#/lib/cart-links-server'
 import { TipSheet } from '#/components/shopping/TipSheet'
-import { isAddToCartFree, startTip } from '#/lib/tip-server'
+import { startTip } from '#/lib/tip-server'
 
 /** Rough basket € total for the tip math: we don't price the list yet, so
  * estimate from the matched item count. The fee floor (€0.50) bounds the low end. */
@@ -31,7 +31,6 @@ export function CartLinks() {
   const [pending, setPending] = useState<'ah' | 'jumbo' | null>(null)
   const [tipOpen, setTipOpen] = useState(false)
   const [tipBusy, setTipBusy] = useState(false)
-  const [freeRemaining, setFreeRemaining] = useState(0)
 
   async function ensureLinks(): Promise<CartLinksResult | null> {
     if (links) return links
@@ -49,18 +48,12 @@ export function CartLinks() {
     }
   }
 
-  /** Step 1: tap "Add all to <store>" -> resolve links, check the free tier,
-   * open the tip sheet (the tip gates the add-to-cart, decisions #16-#19). */
+  /** Step 1: tap "Add all to <store>" -> resolve links, open the tip sheet. We
+   * always prompt (the free-3-a-month tier is skipped for the demo, #16). */
   async function requestStore(which: 'ah' | 'jumbo') {
     const res = await ensureLinks()
     if (!res?.[which].url) return
     setPending(which)
-    try {
-      const status = await isAddToCartFree()
-      setFreeRemaining(status.remaining)
-    } catch {
-      setFreeRemaining(0)
-    }
     setTipOpen(true)
   }
 
@@ -139,7 +132,6 @@ export function CartLinks() {
           (links?.[pending ?? 'ah'].matched ?? 0) * EUR_PER_ITEM,
           1,
         )}
-        freeRemaining={freeRemaining}
         busy={tipBusy}
         onConfirm={(percent) => void confirmTip(percent)}
       />
