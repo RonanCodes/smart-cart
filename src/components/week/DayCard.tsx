@@ -13,6 +13,8 @@ import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { SimilarSwap } from './SimilarSwap'
 import type { SimilarNeighbour } from './SimilarSwap'
+import { MealRating } from './MealRating'
+import type { MealRating as Rating } from '#/lib/meal-feedback'
 
 interface DayCardProps {
   day: WeekDayView
@@ -28,6 +30,14 @@ interface DayCardProps {
   onLoadSimilar: (sort: SimilarSort) => Promise<Array<SimilarNeighbour>>
   /** The user picked a similar recipe for this day: write it into the plan. */
   onPickSimilar: (recipeId: string) => Promise<void>
+  /** The saved post-meal rating for this day's dinner (null = not rated). */
+  rating: Rating
+  /** The saved post-meal note for this day's dinner, if any. */
+  ratingNote: string | null
+  /** Whether a rating write is in flight for this day. */
+  ratingBusy: boolean
+  /** Submit a post-meal rating + note for this day's dinner (#126). */
+  onRate: (next: { rating: Rating; note: string | null }) => Promise<void>
 }
 
 /**
@@ -53,6 +63,10 @@ export function DayCard({
   onSwap,
   onLoadSimilar,
   onPickSimilar,
+  rating,
+  ratingNote,
+  ratingBusy,
+  onRate,
 }: DayCardProps) {
   const skipped = !day.recipeRef
   const [showSimilar, setShowSimilar] = useState(false)
@@ -168,6 +182,15 @@ export function DayCard({
             onLoad={onLoadSimilar}
             onPick={(recipeId) => void pick(recipeId)}
             picking={picking}
+          />
+        )}
+
+        {!skipped && (
+          <MealRating
+            rating={rating}
+            note={ratingNote}
+            busy={ratingBusy}
+            onSubmit={onRate}
           />
         )}
       </div>

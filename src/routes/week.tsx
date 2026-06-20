@@ -18,6 +18,12 @@ import type { SimilarSort } from '#/lib/vectors/similar'
 import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
 import { generatePlan } from '#/lib/planner-server'
 import { addWeekToShoppingList } from '#/lib/shopping-list-server'
+import {
+  submitMealFeedback,
+  listMealFeedback,
+} from '#/lib/meal-feedback-server'
+import type { MealFeedbackState } from '#/lib/meal-feedback-server'
+import type { MealRating } from '#/lib/meal-feedback'
 import { Button } from '#/components/ui/button'
 import { DayCard } from '#/components/week/DayCard'
 import { ChatReplan } from '#/components/week/ChatReplan'
@@ -37,20 +43,26 @@ export const Route = createFileRoute('/week')({
     return ctx
   },
   loaderDeps: ({ search }) => ({ plan: search.plan }),
-  loader: async ({ deps }): Promise<{ week: WeekView }> => {
+  loader: async ({
+    deps,
+  }): Promise<{ week: WeekView; feedback: Array<MealFeedbackState> }> => {
     // No plan id means "generate one and land on it". A fresh plan keeps the
     // entry point forgiving: /week always shows a week.
     if (!deps.plan) {
       const { planId } = await generatePlan()
       throw redirect({ to: '/week', search: { plan: planId } })
     }
-    return { week: await loadWeek({ data: { planId: deps.plan } }) }
+    const [week, feedback] = await Promise.all([
+      loadWeek({ data: { planId: deps.plan } }),
+      listMealFeedback({ data: { planId: deps.plan } }),
+    ])
+    return { week, feedback }
   },
   component: WeekPage,
 })
 
 function WeekPage() {
-  const { week: initial } = Route.useLoaderData()
+  const { week: initial, feedback: initialFeedback } = Route.useLoaderData()
   const navigate = useNavigate()
   const [week, setWeek] = useState<WeekView>(initial)
   const [busyDay, setBusyDay] = useState<string | null>(null)
@@ -60,6 +72,48 @@ function WeekPage() {
   const [editDay, setEditDay] = useState<string | null>(null)
   /** Busy state for the "Add to shopping list" CTA. */
   const [addingToList, setAddingToList] = useState(false)
+  /** Saved post-meal ratings, keyed by recipe id (#126). */
+  const [feedback, setFeedback] = useState<Map<string, MealFeedbackState>>(
+    () => new Map(initialFeedback.map((f) => [f.recipeId, f])),
+  )
+  /** The recipe id whose rating write is in flight, if any. */
+  const [ratingBusy, setRatingBusy] = useState<string | null>(null)
+
+  /**
+   * Submit a post-meal rating for a day's dinner (#126). Writes meal_feedback via
+   * the household-scoped server fn (idempotent per recipe+plan), then reflects the
+   * stored state locally so the chosen thumbs sticks without a refetch. The
+   * recommender folds this row into next week's taste, so a thumbs-down visibly
+   * shifts future suggestions.
+   */
+  async function rate(
+    recipeId: string,
+    next: { rating: MealRating; note: string | null },
+  ) {
+    if (!recipeId || ratingBusy) return
+    setRatingBusy(recipeId)
+    setMessage(null)
+    try {
+      const res = await submitMealFeedback({
+        data: {
+          planId: week.planId,
+          recipeId,
+          rating: next.rating,
+          note: next.note,
+        },
+      })
+      setFeedback((prev) => {
+        const map = new Map(prev)
+        if (res.feedback) map.set(recipeId, res.feedback)
+        else map.delete(recipeId)
+        return map
+      })
+    } catch {
+      setMessage('Could not save your rating, try again.')
+    } finally {
+      setRatingBusy(null)
+    }
+  }
 
   const locked = busyDay !== null || replanning
   const editing = editDay
@@ -247,6 +301,10 @@ function WeekPage() {
               onSwap={() => swap(d.day)}
               onLoadSimilar={(sort) => loadSimilar(d.day, sort)}
               onPickSimilar={(recipeId) => pickSimilar(d.day, recipeId)}
+              rating={feedback.get(d.recipeRef)?.rating ?? null}
+              ratingNote={feedback.get(d.recipeRef)?.note ?? null}
+              ratingBusy={ratingBusy === d.recipeRef}
+              onRate={(next) => rate(d.recipeRef, next)}
             />
           ))}
         </div>
