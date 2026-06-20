@@ -9,6 +9,7 @@ import {
   listRealFeedbackHouseholds,
   listWaitlist,
 } from '#/lib/admin-server'
+import { getMyWaitlistNotify } from '#/lib/admin-prefs-server'
 import { cn } from '#/lib/utils'
 import { UsersPanel } from '#/components/admin/UsersPanel'
 import { BenchmarkConsole } from '#/components/admin/benchmark/BenchmarkConsole'
@@ -25,13 +26,19 @@ export const Route = createFileRoute('/admin')({
     benchmarkMeta: await getBenchmarkMeta(),
     realFeedbackHouseholds: await listRealFeedbackHouseholds(),
     waitlist: await listWaitlist(),
+    myWaitlistNotify: await getMyWaitlistNotify(),
   }),
   component: Admin,
 })
 
 function Admin() {
-  const { users, benchmarkMeta, realFeedbackHouseholds, waitlist } =
-    Route.useLoaderData()
+  const {
+    users,
+    benchmarkMeta,
+    realFeedbackHouseholds,
+    waitlist,
+    myWaitlistNotify,
+  } = Route.useLoaderData()
   const [tab, setTab] = useState<Tab>('users')
 
   return (
@@ -82,7 +89,9 @@ function Admin() {
       {tab === 'feedback' && (
         <RealFeedbackPanel households={realFeedbackHouseholds} />
       )}
-      {tab === 'waitlist' && <WaitlistPanel waitlist={waitlist} />}
+      {tab === 'waitlist' && (
+        <WaitlistPanel waitlist={waitlist} notifyEnabled={myWaitlistNotify} />
+      )}
     </main>
   )
 }
