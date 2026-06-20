@@ -76,3 +76,55 @@ export function parseQty(raw?: string): ParsedQty {
   // Non-empty but not numeric: keep it as a note ('a pinch', 'to taste').
   return { value: null, unparsed: s }
 }
+
+/**
+ * Split a combined amount string into its numeric-ish head and unit tail.
+ *
+ * Scraped recipes (and the seeded AH / Jumbo catalogue) pack the amount AND the
+ * unit into ONE field: `qty: "350 g"`, `qty: "2 el"`, `qty: "200 ml"`, with no
+ * separate `unit`. The engine expects them separated (`parseQty` is numeric-only,
+ * and `canonicalUnit` reads `unit`), so an unsplit "350 g" parses as an unparsed
+ * note and the amount is effectively dropped from the saved list. This is the fix
+ * for the "quantities often blank" bug (#238): split here, before consolidation.
+ *
+ * The head is everything `parseQty` can read as a number (a plain number, a
+ * fraction '1/2', a mixed '1 1/2', a range '1-2', a European comma '2,5'); the
+ * tail is whatever remains, trimmed, as the unit ('g', 'el', 'tsp', 'cloves').
+ * A purely non-numeric string ('a pinch') yields no qty and no unit, so the
+ * caller leaves it for the unparsed path. Pure and total: never throws.
+ */
+export function splitQtyAndUnit(raw?: string): {
+  qty: string | undefined
+  unit: string | undefined
+} {
+  const s = (raw ?? '').trim()
+  if (s === '') return { qty: undefined, unit: undefined }
+
+  // A mixed number ('1 1/2 cup') or fraction ('1/2 tsp') head, then a unit tail.
+  const mixed = /^(\d+\s+\d+\s*\/\s*\d+)\s*(.*)$/.exec(s)
+  if (mixed) return splitResult(mixed[1], mixed[2])
+  const frac = /^(\d+\s*\/\s*\d+)\s*(.*)$/.exec(s)
+  if (frac) return splitResult(frac[1], frac[2])
+
+  // A range head ('1-2 el', '1 to 2 cloves') keeps the whole range as the qty.
+  const range =
+    /^(\d+(?:[.,]\d+)?\s*(?:-|to|–|—)\s*\d+(?:[.,]\d+)?)\s*(.*)$/i.exec(s)
+  if (range) return splitResult(range[1], range[2])
+
+  // A plain number head ('350 g', '2 el', '200ml', '4'), then a unit tail.
+  const plain = /^(\d+(?:[.,]\d+)?)\s*(.*)$/.exec(s)
+  if (plain) return splitResult(plain[1], plain[2])
+
+  // No numeric head at all ('a pinch'): leave it for the unparsed path.
+  return { qty: undefined, unit: undefined }
+}
+
+/** Trim both sides of a split; an empty head or unit tail becomes undefined. */
+function splitResult(
+  head: string | undefined,
+  tail: string | undefined,
+): { qty: string | undefined; unit: string | undefined } {
+  const qty = (head ?? '').trim()
+  const unit = (tail ?? '').trim()
+  return { qty: qty || undefined, unit: unit || undefined }
+}
