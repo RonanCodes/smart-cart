@@ -222,18 +222,39 @@ body {
   }
 }
 
-/* iOS-style spring: overshoots slightly on the way up. */
+/* iOS-style spring: overshoots slightly on the way up. The panel gets its own
+   compositing layer so its transform animation does not force a repaint of the
+   backdrop sitting behind it (the cause of the backdrop flash on iOS Safari). */
+.sheet-panel {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
 .sheet-panel[data-state='open'] {
   animation: sheet-in 0.42s cubic-bezier(0.32, 1.28, 0.5, 1);
 }
 .sheet-panel[data-state='closed'] {
   animation: sheet-out 0.26s cubic-bezier(0.4, 0, 1, 1);
 }
+/* The dimmed backdrop. It sits behind the panel, which animates its
+   `transform` on open. On iOS Safari (the prod PWA) a transform-animating
+   sibling repaints the layers behind it, so the backdrop flickers ("flashes")
+   the first time you tap into an open sheet. Promoting the backdrop to its own
+   compositing layer (translateZ + backface-visibility) keeps it off that
+   repaint path, and `animation-fill-mode: forwards` pins it at the end opacity
+   instead of snapping back to the element default for a frame. */
+.sheet-backdrop {
+  opacity: 1;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: opacity;
+}
 .sheet-backdrop[data-state='open'] {
-  animation: backdrop-in 0.3s ease-out;
+  animation: backdrop-in 0.3s ease-out forwards;
 }
 .sheet-backdrop[data-state='closed'] {
-  animation: backdrop-out 0.24s ease-in;
+  animation: backdrop-out 0.24s ease-in forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
