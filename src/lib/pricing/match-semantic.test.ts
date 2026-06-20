@@ -4,6 +4,7 @@ import {
   confidenceFromCosine,
   rerankMatch,
   selectCandidates,
+  selectCandidatesFromQueries,
 } from './match-semantic'
 import { rerankSchema } from './rerank-sku'
 import type { GenerateObjectFn, ProductCandidate } from './rerank-sku'
@@ -81,6 +82,33 @@ describe('selectCandidates', () => {
   })
 })
 
+describe('selectCandidatesFromQueries', () => {
+  const entries: Array<ProductVectorEntry> = [
+    { id: 'ah:kipgehakt', store: 'ah', vector: [0, 1, 0] },
+    { id: 'ah:noodles', store: 'ah', vector: [1, 0.1, 0] },
+  ]
+  const lookup = new Map<string, StoreProduct>([
+    ['ah:kipgehakt', product('AH Kipgehakt', 399, 'kipgehakt')],
+    ['ah:noodles', product('Noodles chicken', 209, 'noodles')],
+  ])
+
+  it('merges best score per product across query vectors', () => {
+    const cands = selectCandidatesFromQueries(
+      [
+        [1, 0.1, 0], // English query nearest noodles
+        [0, 1, 0], // Dutch query nearest kipgehakt
+      ],
+      entries,
+      lookup,
+      2,
+    )
+    expect(cands.map((c) => c.product.slug).sort()).toEqual([
+      'kipgehakt',
+      'noodles',
+    ])
+  })
+})
+
 describe('cheapMatch (no LLM)', () => {
   it('takes the top candidate, confidence from cosine', () => {
     const m = cheapMatch('ah', [
@@ -108,7 +136,7 @@ describe('rerankMatch (accurate tier)', () => {
 
   it('falls back to cheap top-1 with no model', async () => {
     const m = await rerankMatch({ name: 'mushroom' }, cands, 'ah', {})
-    expect(m.product?.slug).toBe('tomatenblokjes') // top cosine, no LLM
+    expect(m.match.product?.slug).toBe('tomatenblokjes') // top cosine, no LLM
   })
 
   it('uses the model-chosen product + confidence (cross-lingual)', async () => {
@@ -120,9 +148,10 @@ describe('rerankMatch (accurate tier)', () => {
         reason: 'mushroom = champignon',
       }),
     })
-    expect(m.product?.slug).toBe('champignons')
-    expect(m.confidence).toBe('high')
-    expect(m.estimated).toBe(false)
+    expect(m.match.product?.slug).toBe('champignons')
+    expect(m.match.confidence).toBe('high')
+    expect(m.match.estimated).toBe(false)
+    expect(m.reason).toBe('mushroom = champignon')
   })
 
   it('honours a decline (no match, not the top hit)', async () => {
@@ -131,11 +160,12 @@ describe('rerankMatch (accurate tier)', () => {
       generateObject: stubGen({
         productId: null,
         confidence: 'none',
-        reason: 'no saffron',
+        reason: 'no saffron in list',
       }),
     })
-    expect(m.product).toBeNull()
-    expect(m.confidence).toBe('none')
+    expect(m.match.product).toBeNull()
+    expect(m.declined).toBe(true)
+    expect(m.reason).toBe('no saffron in list')
   })
 
   it('ignores an unknown id (no match)', async () => {
@@ -147,7 +177,24 @@ describe('rerankMatch (accurate tier)', () => {
         reason: 'oops',
       }),
     })
-    expect(m.product).toBeNull()
+    expect(m.match.product).toBeNull()
+  })
+
+  it('resolves when the model returns a display name instead of slug', async () => {
+    const meat = [
+      candidate('AH Mager rundergehakt', 429, 'ah-gehakt', 0.71),
+      candidate('Redefine Meat Beef mince', 399, 'redefine-beef-mince', 0.68),
+    ]
+    const m = await rerankMatch({ name: 'minced beef' }, meat, 'ah', {
+      model: MODEL,
+      generateObject: stubGen({
+        productId: 'AH Mager rundergehakt',
+        confidence: 'high',
+        reason: 'real beef over plant-based',
+      }),
+    })
+    expect(m.match.product?.slug).toBe('ah-gehakt')
+    expect(m.reason).toBe('real beef over plant-based')
   })
 
   it('falls back to cheap top-1 on a model error', async () => {
@@ -158,6 +205,7 @@ describe('rerankMatch (accurate tier)', () => {
       model: MODEL,
       generateObject: failing,
     })
-    expect(m.product?.slug).toBe('tomatenblokjes')
+    expect(m.match.product?.slug).toBe('tomatenblokjes')
+    expect(m.llmFallback).toBe(true)
   })
 })

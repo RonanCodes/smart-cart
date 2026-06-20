@@ -106,6 +106,25 @@ export function MatchingPanel() {
 
       {result && result.keyPresent && (
         <div className="space-y-4">
+          {result.searchTerms.length > 1 && (
+            <p className="text-muted-foreground text-xs">
+              Search terms embedded:{' '}
+              {result.searchTerms.map((t) => (
+                <code
+                  key={t}
+                  className="bg-muted mr-1.5 rounded px-1 py-0.5 font-mono"
+                >
+                  {t}
+                </code>
+              ))}
+            </p>
+          )}
+          {result.expandFallback && (
+            <p className="text-xs text-amber-700">
+              Dutch term expansion fell back to the raw ingredient (LLM error or
+              no model).
+            </p>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Pick title="Cheap tier (cosine top-1)" hit={result.cheap} />
             <Pick title="Accurate tier (LLM rerank)" hit={result.reranked} />
@@ -121,12 +140,16 @@ export function MatchingPanel() {
                   No candidates above the floor.
                 </li>
               )}
-              {result.candidates.map((c, i) => (
+              {result.candidates.map((c) => (
                 <li
-                  key={i}
+                  key={c.productId}
                   className="flex items-center justify-between gap-3 p-2.5"
                 >
                   <span className="min-w-0">
+                    <span className="text-muted-foreground font-mono text-xs">
+                      {c.productId}
+                    </span>
+                    <span className="text-muted-foreground mx-1.5">·</span>
                     {c.name}
                     {c.size ? (
                       <span className="text-muted-foreground ml-1.5 text-xs">
@@ -159,8 +182,21 @@ function Pick({
       <h3 className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
         {title}
       </h3>
-      {!hit || !hit.name ? (
+      {!hit || (!hit.name && !hit.declined) ? (
         <p className="text-muted-foreground text-sm">No match</p>
+      ) : hit.declined ? (
+        <>
+          <p className="text-sm font-medium text-amber-700">Declined</p>
+          {hit.reason ? (
+            <p className="text-muted-foreground mt-1 text-xs leading-snug">
+              {hit.reason}
+            </p>
+          ) : (
+            <p className="text-muted-foreground mt-1 text-xs">
+              No candidate is a reasonable raw ingredient match.
+            </p>
+          )}
+        </>
       ) : (
         <>
           <p className="text-foreground text-sm font-medium">{hit.name}</p>
@@ -169,6 +205,15 @@ function Pick({
             <span className={confColor(hit.confidence)}>{hit.confidence}</span>{' '}
             &middot; {hit.score.toFixed(3)}
           </p>
+          {hit.reason ? (
+            <p className="text-muted-foreground mt-1.5 text-xs leading-snug">
+              {hit.reason}
+            </p>
+          ) : hit.llmFallback ? (
+            <p className="mt-1.5 text-xs leading-snug text-amber-700">
+              Cosine fallback — rerank LLM did not run (model error or no key).
+            </p>
+          ) : null}
         </>
       )}
     </div>

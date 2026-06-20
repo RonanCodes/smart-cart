@@ -9,7 +9,7 @@
  * key the SDK throws and callers degrade honestly (ADR-0004's keyless contract).
  */
 
-import { embed, embedMany } from 'ai'
+import { embed, embedMany } from '../braintrust-ai'
 import { models } from '../models'
 import { EMBEDDING_DIMENSIONS } from './manifest'
 
