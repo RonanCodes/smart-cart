@@ -8,12 +8,16 @@ import { loadShoppingList } from '#/lib/shopping-server'
 import type { ShoppingListView } from '#/lib/shopping-server'
 import { loadStaples, frequentlyBoughtStaples } from '#/lib/staples-server'
 import type { StapleLine, FrequentStaple } from '#/lib/staples-server'
-import { listShoppingItems } from '#/lib/shopping-list-server'
+import {
+  listShoppingItems,
+  addWeekToShoppingList,
+} from '#/lib/shopping-list-server'
 import type { ShoppingItem } from '#/lib/shopping'
-import { ShoppingList } from '#/components/shopping/ShoppingList'
+import { shouldAutoSeed } from '#/lib/shopping'
 import { EditableShoppingList } from '#/components/shopping/EditableShoppingList'
 import { CartLinks } from '#/components/shopping/CartLinks'
 import { StaplesSection } from '#/components/shopping/StaplesSection'
+import { WasteLine } from '#/components/shopping/WasteLine'
 
 interface ShoppingSearch {
   /** Optional plan id, set when arriving from the week view's "Shopping list". */
@@ -44,30 +48,50 @@ export const Route = createFileRoute('/shopping')({
       frequentlyBoughtStaples(),
       listShoppingItems(),
     ])
+
+    // Auto-seed: if the household has a planned week but no saved rows yet,
+    // build the editable list from that week now, so the page IS the clean
+    // editable list on first visit instead of a read-only preview that needs a
+    // dead "Add to shopping list" tap. Idempotent on the server (planMerge
+    // dedupes), and only fired when the list is genuinely empty so a user who
+    // cleared their list is not fought by the page re-filling it.
+    let items = itemsRes.items
+    if (shouldAutoSeed({ planId: view.planId, savedItemCount: items.length })) {
+      const seeded = await addWeekToShoppingList({
+        data: deps.plan ? { planId: deps.plan } : {},
+      })
+      items = seeded.items
+    }
+
     return {
       view,
       staples: staplesRes.staples,
       frequentlyBought: frequentRes.items,
-      items: itemsRes.items,
+      items,
     }
   },
   component: Shopping,
 })
 
 /**
- * Shopping tab — the week's recipes turned into ONE consolidated shopping list
- * with exact amounts and the meals each ingredient serves (slice #79, PRD #77).
- * The filled AH / Jumbo basket (Nicolas's #14) plugs in beneath this later.
+ * Shopping tab — the week's recipes turned into ONE consolidated, editable list
+ * with exact amounts (slice #79, PRD #77; redesign #178).
+ *
+ * The editable, persisted list is the DEFAULT view. The loader auto-seeds it
+ * from the week when the household has a plan but no saved rows yet, so the
+ * first visit lands straight on the real list, not a read-only preview. The
+ * food-waste pitch is collapsed into one quiet line above the list rather than
+ * the old stack of cards; the staples search sits secondary below it; the
+ * "Add all to Albert Heijn / Jumbo" deep-links stay prominent at the top.
  */
 function Shopping() {
   const { view, staples, frequentlyBought, items } = Route.useLoaderData()
-  const noRecipeList = !view.planId || view.list.lines.length === 0
   const hasSavedItems = items.length > 0
 
-  // No week planned, no staples, and nothing saved yet: the bare empty state,
-  // but still let the user start a list from staples alone (a top-up shop
-  // without a meal plan).
-  if (noRecipeList && staples.length === 0 && !hasSavedItems) {
+  // Nothing to shop for yet: no saved rows and no staples. The bare empty
+  // state, but still let the user start a list from staples alone (a top-up
+  // shop without a meal plan).
+  if (!hasSavedItems && staples.length === 0) {
     return (
       <AppShell>
         <ScreenHeader
@@ -101,26 +125,29 @@ function Shopping() {
         subtitle="One list for the week, with the exact amount you need."
       />
 
-      {/* The editable, persisted list once items have been saved. Tick, rename,
-          re-amount, add, and remove all survive a reload. */}
+      {/* One quiet line for the food-waste story, in place of the old card
+          stack. Hidden when there is nothing honest to claim. */}
+      <div className="px-5 pt-1">
+        <WasteLine waste={view.waste} />
+      </div>
+
+      {/* The editable, persisted list: the primary UI. Tick, rename, re-amount,
+          add, and remove all survive a reload. */}
       {hasSavedItems && (
-        <div className="px-5 pt-2 pb-2">
+        <div className="px-5 pt-3 pb-2">
           <EditableShoppingList initialItems={items} />
         </div>
       )}
 
-      {/* One-click "Add all to Albert Heijn / Jumbo" deep-links (#147). Only
-          worth showing once there is a saved list to send to a store. */}
+      {/* One-click "Add all to Albert Heijn / Jumbo" deep-links (#147), kept
+          prominent right under the list. */}
       {hasSavedItems && (
         <div className="px-5 pt-2 pb-2">
           <CartLinks />
         </div>
       )}
 
-      {/* The derived week preview. Shown when nothing is saved yet so the user
-          can still see the week's ingredients before adding them to the list. */}
-      {!hasSavedItems && !noRecipeList && <ShoppingList view={view} />}
-
+      {/* Staples search, secondary, below the list. */}
       <div className="px-5 pt-2 pb-4">
         <StaplesSection
           initialStaples={staples}
