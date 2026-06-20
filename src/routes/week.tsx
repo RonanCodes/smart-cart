@@ -17,6 +17,8 @@ import { applySimilarSwapToPlan } from '#/lib/swap-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
 import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
 import { generatePlan } from '#/lib/planner-server'
+import { addWeekToShoppingList } from '#/lib/shopping-list-server'
+import { Button } from '#/components/ui/button'
 import { DayCard } from '#/components/week/DayCard'
 import { ChatReplan } from '#/components/week/ChatReplan'
 import { EditDaySheet } from '#/components/week/EditDaySheet'
@@ -56,6 +58,8 @@ function WeekPage() {
   const [message, setMessage] = useState<string | null>(null)
   /** The day whose edit sheet is open (tap-a-day -> ~5 alternatives). */
   const [editDay, setEditDay] = useState<string | null>(null)
+  /** Busy state for the "Add to shopping list" CTA. */
+  const [addingToList, setAddingToList] = useState(false)
 
   const locked = busyDay !== null || replanning
   const editing = editDay
@@ -152,6 +156,25 @@ function WeekPage() {
     }
   }
 
+  /**
+   * Add this week's recipes' ingredients (portion-scaled, the same consolidation
+   * the Shopping tab shows) to the household's persisted shopping list, then land
+   * on the Shopping tab so the user sees the saved, editable list. Idempotent on
+   * the server: pressing it again merges rather than duplicating.
+   */
+  async function addToShoppingList() {
+    if (addingToList) return
+    setAddingToList(true)
+    setMessage(null)
+    try {
+      await addWeekToShoppingList({ data: { planId: week.planId } })
+      void navigate({ to: '/shopping', search: { plan: week.planId } })
+    } catch {
+      setMessage('Could not add to your shopping list, try again.')
+      setAddingToList(false)
+    }
+  }
+
   async function replan(instruction: string) {
     if (locked) return
     setReplanning(true)
@@ -212,6 +235,17 @@ function WeekPage() {
               onPickSimilar={(recipeId) => pickSimilar(d.day, recipeId)}
             />
           ))}
+        </div>
+
+        <div className="pt-2 pb-2">
+          <Button
+            size="pill"
+            disabled={addingToList || locked}
+            onClick={() => void addToShoppingList()}
+          >
+            <ShoppingBag className="h-5 w-5" aria-hidden />
+            {addingToList ? 'Adding...' : 'Add to shopping list'}
+          </Button>
         </div>
       </div>
 
