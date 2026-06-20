@@ -6,6 +6,8 @@ export interface DeckCard {
   title: string
   cuisine: string | null
   imageUrl: string | null
+  /** Prep time in minutes, when known (shown as a "25 min" chip). */
+  prepMinutes: number | null
   /** A few key ingredients so an unfamiliar dish is still clear at a glance. */
   ingredients: Array<string>
 }
@@ -67,6 +69,7 @@ export async function loadCatalogue(): Promise<{
       category: recipe.category,
       dietaryTags: recipe.dietaryTags,
       ingredients: recipe.ingredients,
+      prepMinutes: recipe.prepMinutes,
       raw: recipe.raw,
     })
     .from(recipe)
@@ -89,6 +92,7 @@ export async function loadCatalogue(): Promise<{
       title: r.title,
       cuisine: r.cuisine,
       imageUrl: raw?.imageUrl ?? null,
+      prepMinutes: r.prepMinutes,
       ingredients: keyIngredients(r.ingredients),
     })
   }

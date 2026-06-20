@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Heart, X, UtensilsCrossed, Sparkles } from 'lucide-react'
+import { Heart, X, UtensilsCrossed, Sparkles, Clock } from 'lucide-react'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import { getOnboardingDeck, finishOnboarding } from '#/lib/onboarding-server'
 import type { DeckCard } from '#/lib/recsys-data'
@@ -96,7 +96,15 @@ function Onboarding() {
               )}
             </div>
             <div className="space-y-2 p-5">
-              {card.cuisine && <Badge>{card.cuisine}</Badge>}
+              <div className="flex flex-wrap items-center gap-2">
+                {card.cuisine && <Badge>{card.cuisine}</Badge>}
+                {card.prepMinutes != null && (
+                  <span className="text-muted-foreground inline-flex items-center gap-1 text-sm">
+                    <Clock className="h-3.5 w-3.5" />
+                    {card.prepMinutes} min
+                  </span>
+                )}
+              </div>
               <h2 className="text-xl leading-tight font-semibold">
                 {card.title}
               </h2>
