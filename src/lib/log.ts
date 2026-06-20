@@ -1,0 +1,93 @@
+/**
+ * Isomorphic structured logger for Souso.
+ *
+ * - **Server (Cloudflare Worker):** emits one JSON line per event to the console,
+ *   which Cloudflare Workers Logs captures (`observability.enabled` in
+ *   wrangler.jsonc). Query them in the CF dashboard or `wrangler tail`.
+ * - **Client (browser):** logs to the console AND ships `warn`/`error` events to
+ *   `/api/log`, so real-user failures land in the same Workers Logs (we have no
+ *   Sentry/PostHog wired yet). Uses `sendBeacon` so it survives a navigation.
+ *
+ * Pluggable: add a Sentry/PostHog sink in `emit()` when those are wired (see the
+ * SINKS note). Keep call sites using `log.*` and the backend can change underneath.
+ *
+ * Conventions (diagnose canon): `event` is a dotted, greppable name
+ * ("push.enable_failed"), context carries load-bearing ids (userId, householdId,
+ * traceId) so a single grep reconstructs a flow.
+ */
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+export type LogContext = Record<string, unknown>
+
+const isServer = typeof window === 'undefined'
+
+function serialiseError(err: unknown): LogContext {
+  if (err instanceof Error) {
+    return { name: err.name, message: err.message, stack: err.stack }
+  }
+  if (err && typeof err === 'object') return { message: JSON.stringify(err) }
+  return { message: String(err) }
+}
+
+interface LogEntry extends LogContext {
+  level: LogLevel
+  event: string
+  ts: string
+  origin: 'server' | 'client'
+}
+
+function emit(level: LogLevel, event: string, context?: LogContext): void {
+  const entry: LogEntry = {
+    level,
+    event,
+    ts: new Date().toISOString(),
+    origin: isServer ? 'server' : 'client',
+    ...context,
+  }
+  const line = JSON.stringify(entry)
+
+  // Console -> Workers Logs (server) / devtools (client).
+  if (level === 'error') console.error(line)
+  else if (level === 'warn') console.warn(line)
+  else console.log(line)
+
+  // SINKS: when Sentry/PostHog are wired, forward here, e.g.
+  //   if (level === 'error') Sentry.captureException(...)
+  //   posthog?.capture(event, entry)
+
+  // Client warn/error -> server, so real-user issues reach Workers Logs.
+  if (!isServer && (level === 'error' || level === 'warn')) ship(line)
+}
+
+function ship(line: string): void {
+  try {
+    if (typeof navigator.sendBeacon === 'function') {
+      navigator.sendBeacon(
+        '/api/log',
+        new Blob([line], { type: 'application/json' }),
+      )
+      return
+    }
+    void fetch('/api/log', {
+      method: 'POST',
+      body: line,
+      keepalive: true,
+      headers: { 'content-type': 'application/json' },
+    }).catch(() => {
+      // ignore — best-effort; also avoids an unhandled rejection in tests/SSR
+    })
+  } catch {
+    // Logging must never throw into the app (diagnose canon).
+  }
+}
+
+export const log = {
+  debug: (event: string, context?: LogContext) => emit('debug', event, context),
+  info: (event: string, context?: LogContext) => emit('info', event, context),
+  warn: (event: string, context?: LogContext) => emit('warn', event, context),
+  /** `log.error('x.failed', err, { userId })` — error is any thrown value. */
+  error: (event: string, error?: unknown, context?: LogContext) =>
+    emit('error', event, {
+      ...(error !== undefined ? { error: serialiseError(error) } : {}),
+      ...context,
+    }),
+}

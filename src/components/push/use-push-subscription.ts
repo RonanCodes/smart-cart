@@ -5,6 +5,7 @@ import {
   urlBase64ToUint8Array,
 } from '#/lib/push-client'
 import { getPushConfig, subscribePush } from '#/lib/push-server'
+import { log } from '#/lib/log'
 
 /**
  * The lifecycle of a browser push opt-in (#149, extracted in #204):
@@ -93,14 +94,17 @@ export function usePushSubscription(): UsePushSubscription {
   const enable = useCallback(async () => {
     if (!publicKey) return
     setState('subscribing')
+    log.info('push.enable_start')
     try {
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
+        log.info('push.permission_not_granted', { permission })
         setState(permission === 'denied' ? 'denied' : 'idle')
         return
       }
       const reg = await registerServiceWorker()
       if (!reg) {
+        log.error('push.sw_register_failed')
         setState('error')
         return
       }
@@ -111,9 +115,14 @@ export function usePushSubscription(): UsePushSubscription {
         // a Uint8Array is a valid applicationServerKey at runtime.
         applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
       })
+      log.info('push.browser_subscribed', { endpoint: sub.endpoint })
       await subscribePush({ data: { subscription: sub.toJSON() } })
+      log.info('push.enable_ok')
       setState('subscribed')
-    } catch {
+    } catch (err) {
+      // The bare catch used to swallow this — now we capture WHY it failed
+      // (browser subscribe vs the server store) in Workers Logs.
+      log.error('push.enable_failed', err)
       setState('error')
     }
   }, [publicKey])

@@ -7,6 +7,7 @@ import { STORE_OPTIONS, storeLabel } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
 import { TipSheet } from '#/components/shopping/TipSheet'
 import { startTip } from '#/lib/tip-server'
+import { log } from '#/lib/log'
 
 /** Rough basket € total for the tip math: we don't price the list yet, so
  * estimate from the matched item count. The fee floor (€0.50) bounds the low end. */
@@ -90,14 +91,33 @@ export function CartLinks({
     setTipBusy(true)
     const items = link?.matched ?? 0
     try {
+      // No tip: nothing to pay, just open the cart.
+      if (percent <= 0) {
+        log.info('tip.confirmed', { percent, store, tipped: false })
+        openCart()
+        setTipOpen(false)
+        return
+      }
+      // Tip: PAY FIRST. Redirect to Mollie's hosted checkout; the cart opens on
+      // the /tip/:id/return page after payment (store passed through).
       const res = await startTip({
-        data: { percent, basketTotal: Math.max(items * EUR_PER_ITEM, 1) },
+        data: {
+          percent,
+          basketTotal: Math.max(items * EUR_PER_ITEM, 1),
+          store,
+        },
       })
-      openCart() // cart lands in a new tab
-      setTipOpen(false)
-      if (res.checkoutUrl) window.location.href = res.checkoutUrl // tip in this tab
-    } catch {
+      log.info('tip.confirmed', { percent, store, tipped: !!res.checkoutUrl })
+      if (res.checkoutUrl) {
+        window.location.href = res.checkoutUrl
+      } else {
+        // No checkout URL came back: don't strand the user, open the cart.
+        openCart()
+        setTipOpen(false)
+      }
+    } catch (err) {
       // Never block the cart on a tip failure (#18): just open it.
+      log.error('tip.start_failed', err, { percent, store })
       openCart()
       setTipOpen(false)
     } finally {

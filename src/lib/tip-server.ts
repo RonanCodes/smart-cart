@@ -143,6 +143,8 @@ export interface StartTipInput {
   basketTotal: number
   /** Optional basket / meal_plan id this tip belongs to. */
   basketId?: string
+  /** Store to open after payment ('ah'|'jumbo'); passed back via the return URL. */
+  store?: string
 }
 
 export interface StartTipResult {
@@ -169,6 +171,7 @@ export const startTip = createServerFn({ method: 'POST' })
       percent: Number(d.percent),
       basketTotal: Number(d.basketTotal),
       basketId: d.basketId ? String(d.basketId) : undefined,
+      store: d.store === 'ah' || d.store === 'jumbo' ? d.store : undefined,
     }),
   )
   .handler(async ({ data }): Promise<StartTipResult> => {
@@ -202,11 +205,12 @@ export const startTip = createServerFn({ method: 'POST' })
     if (!apiKey) throw new Error('MOLLIE_API_KEY not configured')
     const appUrl = (await readEnv('APP_URL')) ?? ''
 
+    const storeQuery = data.store ? `?store=${data.store}` : ''
     const { createPayment } = await import('./mollie')
     const payment = await createPayment(apiKey, {
       amount,
       description: 'Souso tip',
-      redirectUrl: `${appUrl}/tip/${tipPaymentId}/return`,
+      redirectUrl: `${appUrl}/tip/${tipPaymentId}/return${storeQuery}`,
       webhookUrl: `${appUrl}/api/mollie/webhook`,
     })
 
