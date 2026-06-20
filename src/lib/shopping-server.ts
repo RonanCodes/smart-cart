@@ -1,10 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
-import { consolidate, sharedAcrossMeals } from './shopping'
+import { consolidate, sharedAcrossMeals, summariseWaste } from './shopping'
 import type {
   HouseholdPortions,
   ShoppingLine,
   ShoppingList,
   ShoppingRecipe,
+  WasteSummary,
 } from './shopping'
 
 /**
@@ -24,6 +25,8 @@ export interface ShoppingListView {
   list: ShoppingList
   /** Lines used in more than one meal, in list order (the interlink view). */
   shared: Array<ShoppingLine>
+  /** The food-waste reduction summary derived from the list (slice #80). */
+  waste: WasteSummary
 }
 
 /**
@@ -63,7 +66,7 @@ export function deriveShoppingView(
   days: Array<PlanDayRef>,
   recipesById: Map<string, PlanRecipe>,
   portions: HouseholdPortions,
-): { list: ShoppingList; shared: Array<ShoppingLine> } {
+): { list: ShoppingList; shared: Array<ShoppingLine>; waste: WasteSummary } {
   // A recipe used on N days contributes N times. We keep one ShoppingRecipe per
   // day-occurrence so portion scaling reflects cooking it more than once.
   const recipes: Array<ShoppingRecipe> = []
@@ -84,11 +87,16 @@ export function deriveShoppingView(
   }
 
   if (recipes.length === 0) {
-    return { list: emptyList(), shared: [] }
+    const empty = emptyList()
+    return { list: empty, shared: [], waste: summariseWaste(empty) }
   }
 
   const list = consolidate(recipes, portions)
-  return { list, shared: sharedAcrossMeals(list) }
+  return {
+    list,
+    shared: sharedAcrossMeals(list),
+    waste: summariseWaste(list),
+  }
 }
 
 /**
@@ -156,12 +164,14 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
 
     const current = planRows[0]
     if (!current) {
+      const empty = emptyList()
       return {
         planId: null,
         weekStart: null,
         portions,
-        list: emptyList(),
+        list: empty,
         shared: [],
+        waste: summariseWaste(empty),
       }
     }
 
@@ -193,7 +203,7 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
       ]),
     )
 
-    const { list, shared } = deriveShoppingView(
+    const { list, shared, waste } = deriveShoppingView(
       current.plan.days,
       recipesById,
       portions,
@@ -205,5 +215,6 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
       portions,
       list,
       shared,
+      waste,
     }
   })

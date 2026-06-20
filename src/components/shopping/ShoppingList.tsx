@@ -2,6 +2,7 @@ import { Sparkles } from 'lucide-react'
 import type { ShoppingListView } from '#/lib/shopping-server'
 import { Badge } from '#/components/ui/badge'
 import { ShoppingRow } from './ShoppingRow'
+import { WasteSummary } from './WasteSummary'
 
 /**
  * The consolidated shopping-list view rendered on the Shopping tab. Two blocks:
@@ -17,7 +18,7 @@ import { ShoppingRow } from './ShoppingRow'
  * build them.
  */
 export function ShoppingList({ view }: { view: ShoppingListView }) {
-  const { list, shared, portions } = view
+  const { list, shared, portions, waste } = view
   const itemCount = list.estimatedItems
   const peopleLabel = describePortions(portions.adults, portions.children ?? 0)
 
@@ -27,6 +28,8 @@ export function ShoppingList({ view }: { view: ShoppingListView }) {
         {itemCount} {itemCount === 1 ? 'item' : 'items'} to buy, scaled for{' '}
         {peopleLabel}.
       </p>
+
+      <WasteSummary waste={waste} />
 
       {shared.length > 0 && (
         <section aria-labelledby="shared-heading" className="space-y-2">
@@ -45,7 +48,11 @@ export function ShoppingList({ view }: { view: ShoppingListView }) {
           </p>
           <div className="bg-card border-border divide-border divide-y overflow-hidden rounded-[var(--radius-ios)] border">
             {shared.map((line) => (
-              <ShoppingRow key={`shared-${line.name}`} line={line} />
+              <ShoppingRow
+                key={`shared-${line.name}`}
+                line={line}
+                highlightReuse
+              />
             ))}
           </div>
         </section>

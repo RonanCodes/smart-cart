@@ -26,3 +26,6 @@ export type { ParsedQty } from './parse'
 
 export { canonicalUnit, normaliseUnitToken, renderFromBase } from './units'
 export type { CanonicalUnit } from './units'
+
+export { summariseWaste, hasExactAmount, wasteLevel, reuseLabel } from './waste'
+export type { WasteSummary, WasteLevel } from './waste'
