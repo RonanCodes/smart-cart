@@ -70,8 +70,8 @@ function AppHome() {
   return (
     <AppShell>
       <ScreenHeader
-        title="Here's what we learned about you"
-        subtitle="Built from your swipes. It sharpens every week as you cook and rate."
+        title="Your week"
+        subtitle="No plan yet. Plan your week and Souso turns it into one Albert Heijn or Jumbo basket."
         action={
           <Button variant="outline" size="sm" onClick={signOut}>
             <LogOut className="h-4 w-4" />
@@ -81,23 +81,58 @@ function AppHome() {
       />
 
       <div className="space-y-8 px-5 pt-2">
-        <Badge variant="primary">Your taste profile · {user.email}</Badge>
+        {/* Primary pre-plan action: this screen IS the Week tab before a plan exists. */}
+        <Card ios>
+          <CardHeader>
+            <CardTitle>Plan your week</CardTitle>
+            <CardDescription>
+              Seven dinners picked for your taste, ready to become one basket.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button disabled={planning} onClick={planWeek}>
+              {planning ? 'Planning…' : 'Plan my week'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={resetting}
+              onClick={resetAndOnboard}
+            >
+              <RefreshCw className="h-4 w-4" />
+              {resetting ? 'Resetting…' : 'Reset & redo onboarding'}
+            </Button>
+          </CardContent>
+        </Card>
 
-        {summary && summary.badges.length > 0 && (
-          <div className="flex flex-wrap gap-3">
-            {summary.badges.map((b) => (
-              <span
-                key={b.label}
-                className="bg-secondary text-secondary-foreground inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
-              >
-                <span className="text-lg">{b.emoji}</span>
-                {b.label}
-              </span>
-            ))}
+        {/* Taste profile: context for the plan above, clearly secondary. */}
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">
+              Here's what we learned about you
+            </h2>
+            <p className="text-muted-foreground mt-0.5 text-sm">
+              Built from your swipes. It sharpens every week as you cook and
+              rate.
+            </p>
           </div>
-        )}
 
-        <div className="grid gap-5 sm:grid-cols-2">
+          <Badge variant="primary">Your taste profile · {user.email}</Badge>
+
+          {summary && summary.badges.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {summary.badges.map((b) => (
+                <span
+                  key={b.label}
+                  className="bg-secondary text-secondary-foreground inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
+                >
+                  <span className="text-lg">{b.emoji}</span>
+                  {b.label}
+                </span>
+              ))}
+            </div>
+          )}
+
           <Card ios>
             <CardHeader>
               <CardTitle>You gravitate to</CardTitle>
@@ -124,30 +159,7 @@ function AppHome() {
               ))}
             </CardContent>
           </Card>
-          <Card ios>
-            <CardHeader>
-              <CardTitle>Your week</CardTitle>
-              <CardDescription>
-                Seven dinners picked for you, ready to become one AH or Jumbo
-                basket.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button disabled={planning} onClick={planWeek}>
-                {planning ? 'Planning…' : 'Plan my week'}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={resetting}
-                onClick={resetAndOnboard}
-              >
-                <RefreshCw className="h-4 w-4" />
-                {resetting ? 'Resetting…' : 'Reset & redo onboarding'}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        </section>
       </div>
     </AppShell>
   )
