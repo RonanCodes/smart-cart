@@ -23,6 +23,7 @@
     "import:recipes": "tsx scripts/import-recipes-db.ts",
     "fixture:freeze": "tsx scripts/freeze-benchmark-fixture.ts",
     "benchmark": "tsx scripts/benchmark.ts",
+    "seed": "tsx scripts/seed.ts",
     "reseed:d1": "tsx scripts/reseed-d1.ts",
     "seed:recipes": "tsx scripts/seed-recipes.ts",
     "cf-typegen": "wrangler types",
