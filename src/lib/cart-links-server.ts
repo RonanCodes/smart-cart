@@ -4,12 +4,18 @@ import { createServerFn } from '@tanstack/react-start'
  * Resolve the household's shopping list into one-click AH + Jumbo cart
  * deep-links.
  *
- * For each persisted shopping-list item we run the EXISTING pricing matcher
- * (matchIngredient against the checkjebon catalogue) to find that item's AH and
- * Jumbo product, pull the store SKU off the matched product's slug, and hand the
- * {sku, qty} pairs to the pure URL builders in `./cart-links`. Items the matcher
- * cannot place in a store are skipped, and the count of matched-vs-skipped is
- * returned so the UI can say "(N of M items)".
+ * For each persisted shopping-list item we resolve that item's AH and Jumbo
+ * product, pull the store SKU off the matched product's slug, and hand the
+ * {sku, qty} pairs to the pure URL builders in `./cart-links`. Items we cannot
+ * place in a store are skipped, and the count of matched-vs-skipped is returned
+ * so the UI can say "(N of M items)".
+ *
+ * Resolution order (#165): we PREFER the persisted `store_product` D1 link (the
+ * seeded, queryable catalogue copy) and FALL BACK to the existing in-memory
+ * matcher (matchIngredient against the bundled checkjebon catalogue) for any
+ * item D1 cannot place. The bundled path is unchanged, so nothing regresses if
+ * D1 is empty (a fresh clone before `pnpm seed`) -- every item simply takes the
+ * runtime fallback exactly as before.
  *
  * No store auth, no credentials, no new secrets: the deep-links are public URLs
  * the stores already honour. Server-only modules (DB, catalogue) are imported
@@ -87,24 +93,47 @@ export const buildCartLinks = createServerFn({ method: 'GET' }).handler(
     const { matchIngredient } = await import('./pricing')
     const { ahProductId, jumboSku, ahBulkCartUrl, jumboBulkCartUrl } =
       await import('./cart-links')
+    const { resolveIngredientsToProducts } =
+      await import('./store-product-server')
 
     const ahCat = getCatalogue('ah')
     const jumboCat = getCatalogue('jumbo')
+
+    // Prefer the persisted D1 product link; index it by (store, name) so the
+    // per-item loop can look up the D1 slug before reaching for the bundled
+    // matcher. A D1 outage / empty table leaves this map empty and every item
+    // falls back to the runtime matcher (no regression).
+    const d1Slug = new Map<string, string>()
+    try {
+      const resolved = await resolveIngredientsToProducts(names, [
+        'ah',
+        'jumbo',
+      ])
+      for (const line of resolved) {
+        const slug = line.match.product?.slug
+        if (slug) d1Slug.set(`${line.store}:${line.name}`, slug)
+      }
+    } catch {
+      // store_product not seeded / unavailable: fall back to bundled matcher.
+    }
+
+    /** Resolve one item's slug for a store: D1 first, bundled matcher fallback. */
+    function slugFor(name: string, store: 'ah' | 'jumbo'): string | null {
+      const fromD1 = d1Slug.get(`${store}:${name}`)
+      if (fromD1) return fromD1
+      const cat = store === 'ah' ? ahCat : jumboCat
+      if (!cat) return null
+      return matchIngredient(name, cat).product?.slug ?? null
+    }
 
     const ahItems: Array<{ sku: string; qty: number }> = []
     const jumboItems: Array<{ sku: string; qty: number }> = []
 
     for (const name of names) {
-      if (ahCat) {
-        const m = matchIngredient(name, ahCat)
-        const id = ahProductId(m.product?.slug)
-        if (id) ahItems.push({ sku: id, qty: 1 })
-      }
-      if (jumboCat) {
-        const m = matchIngredient(name, jumboCat)
-        const sku = jumboSku(m.product?.slug)
-        if (sku) jumboItems.push({ sku, qty: 1 })
-      }
+      const ahId = ahProductId(slugFor(name, 'ah'))
+      if (ahId) ahItems.push({ sku: ahId, qty: 1 })
+      const jSku = jumboSku(slugFor(name, 'jumbo'))
+      if (jSku) jumboItems.push({ sku: jSku, qty: 1 })
     }
 
     return {
