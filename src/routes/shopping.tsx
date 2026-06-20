@@ -12,6 +12,7 @@ import { listShoppingItems } from '#/lib/shopping-list-server'
 import type { ShoppingItem } from '#/lib/shopping'
 import { ShoppingList } from '#/components/shopping/ShoppingList'
 import { EditableShoppingList } from '#/components/shopping/EditableShoppingList'
+import { CartLinks } from '#/components/shopping/CartLinks'
 import { StaplesSection } from '#/components/shopping/StaplesSection'
 
 interface ShoppingSearch {
@@ -105,6 +106,14 @@ function Shopping() {
       {hasSavedItems && (
         <div className="px-5 pt-2 pb-2">
           <EditableShoppingList initialItems={items} />
+        </div>
+      )}
+
+      {/* One-click "Add all to Albert Heijn / Jumbo" deep-links (#147). Only
+          worth showing once there is a saved list to send to a store. */}
+      {hasSavedItems && (
+        <div className="px-5 pt-2 pb-2">
+          <CartLinks />
         </div>
       )}
 
