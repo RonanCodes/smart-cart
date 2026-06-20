@@ -27,6 +27,15 @@
       "binding": "RECIPES_VECTORS",
       "index_name": "smart-cart-recipes",
     },
+    {
+      // Ingredient -> product (SKU) matching. bge-m3 is multilingual, so an
+      // English ingredient query lands on the Dutch product ("mushroom" near
+      // "champignon" / "paddenstoel") with no synonym table. ADR-0003.
+      // Create once: pnpm exec wrangler vectorize create smart-cart-products \
+      //   --dimensions=1024 --metric=cosine
+      "binding": "PRODUCTS_VECTORS",
+      "index_name": "smart-cart-products",
+    },
   ],
   "routes": [
     { "pattern": "smartcart.ronanconnolly.dev", "custom_domain": true },
