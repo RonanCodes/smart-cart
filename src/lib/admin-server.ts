@@ -31,9 +31,38 @@ async function adminUser() {
   // setup. Dead code in the deployed build (import.meta.env.DEV is false there).
   if (import.meta.env.DEV) return u
   const { readEnv } = await import('./env')
-  const { parseApprovedList, isApprovedIn } = await import('./access-rules')
+  const { parseApprovedList, isAdminWith, ADMIN_EMAIL } =
+    await import('./access-rules')
+  // Env admins + the always-included default owner (mirrors admin-emails.ts),
+  // so the console can never be locked out.
   const admins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
-  return isApprovedIn(u.email, admins) ? u : null
+  admins.add(ADMIN_EMAIL)
+  // DB-backed admin grants (role='admin') let the console promote admins with no
+  // redeploy. A missing grant table degrades to env-only (loadAdminGrantMap
+  // returns an empty map) rather than locking everyone out.
+  const grants = await loadAdminGrantMap()
+  return isAdminWith(u.email, admins, grants) ? u : null
+}
+
+/**
+ * Load the DB-backed grant map (normalised email -> role) for the admin gate +
+ * the waitlist view. Dynamically imports the DB client + schema so nothing
+ * server-only leaks to the client bundle. Returns an empty map if the table is
+ * unavailable (e.g. migration 0004 not yet applied).
+ */
+async function loadAdminGrantMap() {
+  const { grantMapFrom } = await import('./access-rules')
+  try {
+    const { getDb } = await import('../db/client')
+    const { accessGrant } = await import('../db/access-grant-schema')
+    const db = await getDb()
+    const rows = await db
+      .select({ email: accessGrant.email, role: accessGrant.role })
+      .from(accessGrant)
+    return grantMapFrom(rows)
+  } catch {
+    return grantMapFrom([])
+  }
 }
 
 export const isAdmin = createServerFn({ method: 'GET' }).handler(
@@ -90,11 +119,16 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
 // outside the main profile schema (src/db/waitlist-schema.ts).
 // ---------------------------------------------------------------------------
 
+/** The access state of a waitlist email: not granted, granted user, or admin. */
+export type GrantState = 'none' | 'user' | 'admin'
+
 /** One waitlist signup, shaped for the admin list. */
 export interface WaitlistRowView {
   email: string
   /** ISO-8601 signup timestamp. */
   createdAt: string
+  /** Current DB-backed grant for this email, so buttons reflect state. */
+  grant: GrantState
 }
 
 export interface WaitlistView {
@@ -104,19 +138,25 @@ export interface WaitlistView {
 
 /**
  * Shape raw waitlist rows into the admin view: newest first, dates as ISO
- * strings, plus the total count. Pure so it can be unit-tested with a fixture.
+ * strings, each tagged with its current grant state, plus the total count. Pure
+ * so it can be unit-tested with a fixture (pass the grant map the rows resolve
+ * against; default empty = nobody granted).
  */
 export function shapeWaitlist(
   rows: Array<{ email: string; createdAt: Date | string | number }>,
+  grants: ReadonlyMap<string, 'user' | 'admin'> = new Map(),
 ): WaitlistView {
   const view = rows
-    .map((r) => ({
-      email: r.email,
-      createdAt:
-        r.createdAt instanceof Date
-          ? r.createdAt.toISOString()
-          : new Date(r.createdAt).toISOString(),
-    }))
+    .map(
+      (r): WaitlistRowView => ({
+        email: r.email,
+        createdAt:
+          r.createdAt instanceof Date
+            ? r.createdAt.toISOString()
+            : new Date(r.createdAt).toISOString(),
+        grant: grants.get(r.email.trim().toLowerCase()) ?? 'none',
+      }),
+    )
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   return { count: view.length, rows: view }
 }
@@ -130,9 +170,79 @@ export const listWaitlist = createServerFn({ method: 'GET' }).handler(
     const rows = await db
       .select({ email: waitlist.email, createdAt: waitlist.createdAt })
       .from(waitlist)
-    return shapeWaitlist(rows)
+    const grants = await loadAdminGrantMap()
+    return shapeWaitlist(rows, grants)
   },
 )
+
+// ---------------------------------------------------------------------------
+// Access grants: approve a waitlisted person (role 'user') or promote them to
+// admin (role 'admin') from the console, with NO redeploy. Both upsert into the
+// access_grant table keyed on the normalised email, so they are idempotent.
+// Admin-gated. isApproved (access.ts) + the adminUser gate above read these.
+// ---------------------------------------------------------------------------
+
+/**
+ * Grant login access to `email` (role 'user'). No-op if the email is ALREADY an
+ * admin grant (admin implies user, so we never downgrade an admin to a plain
+ * user). Returns the resulting grant state.
+ */
+export const grantUser = createServerFn({ method: 'POST' })
+  .inputValidator((d: { email: string }) => d)
+  .handler(async ({ data }): Promise<{ email: string; grant: GrantState }> => {
+    if (!(await adminUser())) throw new Error('forbidden')
+    const { normalizeEmail } = await import('./access-rules')
+    const email = normalizeEmail(data.email)
+    if (!email) throw new Error('email required')
+    const { getDb } = await import('../db/client')
+    const { accessGrant } = await import('../db/access-grant-schema')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+    // Don't downgrade an existing admin grant.
+    const existing = (
+      await db
+        .select({ role: accessGrant.role })
+        .from(accessGrant)
+        .where(eq(accessGrant.email, email))
+        .limit(1)
+    )[0]
+    if (existing?.role === 'admin') return { email, grant: 'admin' }
+    const now = new Date()
+    await db
+      .insert(accessGrant)
+      .values({ email, role: 'user', createdAt: now })
+      .onConflictDoUpdate({
+        target: accessGrant.email,
+        set: { role: 'user', createdAt: now },
+      })
+    return { email, grant: 'user' }
+  })
+
+/**
+ * Promote `email` to admin (role 'admin'; admin implies login access too).
+ * Upsert keyed on the normalised email, so it is idempotent. Returns the
+ * resulting grant state.
+ */
+export const grantAdmin = createServerFn({ method: 'POST' })
+  .inputValidator((d: { email: string }) => d)
+  .handler(async ({ data }): Promise<{ email: string; grant: GrantState }> => {
+    if (!(await adminUser())) throw new Error('forbidden')
+    const { normalizeEmail } = await import('./access-rules')
+    const email = normalizeEmail(data.email)
+    if (!email) throw new Error('email required')
+    const { getDb } = await import('../db/client')
+    const { accessGrant } = await import('../db/access-grant-schema')
+    const db = await getDb()
+    const now = new Date()
+    await db
+      .insert(accessGrant)
+      .values({ email, role: 'admin', createdAt: now })
+      .onConflictDoUpdate({
+        target: accessGrant.email,
+        set: { role: 'admin', createdAt: now },
+      })
+    return { email, grant: 'admin' }
+  })
 
 export interface Datapoint {
   recipeTitle: string

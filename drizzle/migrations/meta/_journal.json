@@ -29,6 +29,13 @@
       "when": 1782400000000,
       "tag": "0003_admin_notification_pref",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1782600000000,
+      "tag": "0004_access_grant",
+      "breakpoints": true
     }
   ]
 }
