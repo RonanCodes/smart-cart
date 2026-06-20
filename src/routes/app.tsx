@@ -4,7 +4,6 @@ import {
   redirect,
   useRouter,
   useNavigate,
-  Link,
 } from '@tanstack/react-router'
 import { LogOut, RefreshCw } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
@@ -139,12 +138,6 @@ function AppHome() {
               <Button disabled={planning} onClick={planWeek}>
                 {planning ? 'Planning…' : 'Plan my week'}
               </Button>
-              <Link to="/onboarding" className="block">
-                <Button variant="ghost" size="sm">
-                  <RefreshCw className="h-4 w-4" />
-                  Swipe more recipes
-                </Button>
-              </Link>
               <Button
                 variant="ghost"
                 size="sm"

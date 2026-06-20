@@ -3,6 +3,7 @@ import type { DeckCard } from './recsys-data'
 import type { InferredTaste } from './recsys/types'
 import { deriveBadges } from './badges'
 import type { Badge } from './badges'
+import type { OnboardingDraft } from '#/components/onboarding/form-state'
 
 interface SwipeInput {
   recipeId: string
@@ -120,6 +121,91 @@ export const finishOnboarding = createServerFn({ method: 'POST' })
       )
     }
     return { householdId, taste }
+  })
+
+/**
+ * Complete FORM onboarding (PRD #104): persist every form answer to the
+ * household + profile, then generate the first week from those answers and
+ * return its plan id so the flow can route straight to /week?plan=<id>.
+ *
+ * The form is now the data source (the swipe deck is no longer the onboarding
+ * path), so this is where the explicit answers become the persisted shape the
+ * planner filters on:
+ *   - diet + dislikes -> HARD filters (planner's veg-tag gate + ingredient
+ *     allergy gate; see draftToHousehold for the label->filter mapping).
+ *   - household (adults/children) -> portions.
+ *   - equipment + goals -> SOFT / best-effort weights (carried on the profile;
+ *     the planner uses goals as a soft nudge today, equipment is a seam).
+ *
+ * Profile is NOT NULL: we MERGE over any existing profile, never set null, so a
+ * redo-onboarding keeps fields the new draft does not touch.
+ */
+export interface CompleteOnboardingResult {
+  householdId: string
+  planId: string
+}
+
+export const completeOnboarding = createServerFn({ method: 'POST' })
+  .inputValidator((d: { draft: OnboardingDraft }) => d)
+  .handler(async ({ data }): Promise<CompleteOnboardingResult> => {
+    const { getSessionUser } = await import('./server-auth')
+    const user = await getSessionUser()
+    if (!user) throw new Error('Not signed in')
+
+    const { getDb } = await import('../db/client')
+    const { household } = await import('../db/schema')
+    const { draftToHousehold } = await import('./onboarding-mapping')
+    const { generatePlanForHousehold } = await import('./planner-core')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+
+    const mapped = draftToHousehold(data.draft)
+
+    const existing = await db
+      .select({ id: household.id, profile: household.profile })
+      .from(household)
+      .where(eq(household.ownerId, user.id))
+      .limit(1)
+
+    // Merge over any existing profile so a redo keeps untouched fields; the
+    // mapped fields win. profile is NOT NULL, so the spread base is {} not null.
+    const mergedProfile = { ...(existing[0]?.profile ?? {}), ...mapped.profile }
+
+    let householdId = existing[0]?.id
+    if (householdId) {
+      await db
+        .update(household)
+        .set({
+          profile: mergedProfile,
+          adults: mapped.adults,
+          children: mapped.children,
+          // Only overwrite the store when the form gave a real one; otherwise
+          // keep whatever the household already had (the column is NOT NULL).
+          ...(mapped.preferredStore
+            ? { preferredStore: mapped.preferredStore }
+            : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(household.id, householdId))
+    } else {
+      householdId = crypto.randomUUID()
+      await db.insert(household).values({
+        id: householdId,
+        ownerId: user.id,
+        profile: mergedProfile,
+        adults: mapped.adults,
+        children: mapped.children,
+        ...(mapped.preferredStore
+          ? { preferredStore: mapped.preferredStore }
+          : {}),
+        updatedAt: new Date(),
+      })
+    }
+
+    // Generate the first week from the just-persisted profile (hard filters +
+    // soft weights are read off the household row inside the planner core).
+    const { planId } = await generatePlanForHousehold(householdId)
+    return { householdId, planId }
   })
 
 /**
