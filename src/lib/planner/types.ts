@@ -25,24 +25,49 @@ export interface PlannerSwipe {
 }
 
 /**
+ * The type of a day, which constrains the recipe the planner may pick:
+ *  - 'home': any recipe length.
+ *  - 'busy': a quick dinner only (prep <= 25 min), with a graceful fallback to
+ *    the shortest available recipe so a busy cook-day is never left empty.
+ *  - 'out': no dinner at all, the day is cleared.
+ */
+export type DayType = 'home' | 'busy' | 'out'
+
+/** Prep-minutes ceiling for a 'busy' day. Recipes over this are not candidates. */
+export const BUSY_PREP_CAP_MINUTES = 25
+
+/**
  * The household profile fields the planner reads. Allergies and diet are hard
- * filters; the calorie goal is a soft nudge. Mirrors household.profile in the DB
- * schema, narrowed to what the planner uses.
+ * filters; the calorie goal is a soft nudge. `cookDays` drives the default
+ * weekly rhythm. Mirrors household.profile in the DB schema, narrowed to what
+ * the planner uses.
  */
 export interface PlannerProfile {
   allergies?: Array<string>
   diet?: string
   caloriesPerDay?: number
+  /**
+   * Days the household usually cooks (0=Mon..6=Sun). Drives the default day-type
+   * rhythm: cook-days default to 'home', non-cook-days default to 'out'. Empty
+   * or absent means all days are 'home' (cook every day).
+   */
+  cookDays?: Array<number>
 }
 
 /** One day's dinner in a generated week. */
 export interface PlannedDay {
   /** Day label, Monday first (the week always starts Monday). */
   day: string
-  /** The chosen recipe's title, denormalised for the week view. */
+  /** The chosen recipe's title, denormalised for the week view. Empty for 'out'. */
   meal: string
-  /** The chosen recipe id, the stable reference back into the catalogue. */
+  /** The chosen recipe id, the stable reference back into the catalogue. Empty for 'out'. */
   recipeRef: string
+  /**
+   * The type of this day, which constrained the pick. `generateWeek` always sets
+   * it; optional only so older plans and the replan layer (which leaves it
+   * untouched) read as 'home' when absent.
+   */
+  type?: DayType
 }
 
 /** The generated week: seven dinners, one per day, never a repeat. */
@@ -67,4 +92,13 @@ export interface PlanOptions {
    * to DEFAULT_ADAPTIVE_WEIGHTS, which reproduces today's behaviour exactly.
    */
   weights?: AdaptiveWeights
+  /**
+   * Explicit per-day types, position i maps to day i (Monday first). Overrides
+   * the cook-days rhythm so the week-view toggle and onboarding can drive types
+   * directly. When omitted, types come from `profile.cookDays`: cook-days are
+   * 'home', the rest are 'out'; an empty/absent cookDays means every day is
+   * 'home'. A shorter array than `days` falls back to the rhythm for the
+   * remaining days.
+   */
+  dayTypes?: Array<DayType>
 }

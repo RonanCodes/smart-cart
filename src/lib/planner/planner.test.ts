@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { PlannerProfile, PlannerRecipe } from './types'
-import { generateWeek, hardFilter } from './planner'
+import type { DayType, PlannerProfile, PlannerRecipe } from './types'
+import { BUSY_PREP_CAP_MINUTES } from './types'
+import { generateWeek, hardFilter, resolveDayTypes } from './planner'
 
 /**
  * A synthetic catalogue with enough breadth to fill a week several times over:
@@ -147,5 +148,161 @@ describe('planner', () => {
     )
     expect(week.days).toHaveLength(7)
     expect(new Set(week.days.map((d) => d.recipeRef)).size).toBe(7)
+  })
+
+  it('defaults every day to home when no cookDays (all 7 cooked)', () => {
+    const week = generateWeek(recipes, {}, swipes)
+    expect(week.days.map((d) => d.type)).toEqual(Array(7).fill('home'))
+    for (const d of week.days) expect(d.recipeRef).toBeTruthy()
+  })
+
+  it('maps cookDays to the home/out rhythm (non-cook-days are out)', () => {
+    // Cook Mon (0), Wed (2), Fri (4); the rest are out.
+    const profile: PlannerProfile = { cookDays: [0, 2, 4] }
+    const week = generateWeek(recipes, profile, swipes)
+    expect(week.days.map((d) => d.type)).toEqual([
+      'home',
+      'out',
+      'home',
+      'out',
+      'home',
+      'out',
+      'out',
+    ])
+    // Out days are cleared, home days carry a recipe.
+    for (const d of week.days) {
+      if (d.type === 'out') {
+        expect(d.recipeRef).toBe('')
+        expect(d.meal).toBe('')
+      } else {
+        expect(d.recipeRef).toBeTruthy()
+      }
+    }
+  })
+
+  it('out clears a day: no recipe, no pool consumption', () => {
+    const override: Array<DayType> = [
+      'out',
+      'home',
+      'home',
+      'home',
+      'home',
+      'home',
+      'home',
+    ]
+    const week = generateWeek(recipes, {}, swipes, { dayTypes: override })
+    expect(week.days[0]!.type).toBe('out')
+    expect(week.days[0]!.recipeRef).toBe('')
+    // The six remaining home days are all filled with distinct recipes.
+    const filled = week.days.filter((d) => d.recipeRef)
+    expect(filled).toHaveLength(6)
+    expect(new Set(filled.map((d) => d.recipeRef)).size).toBe(6)
+  })
+
+  it('busy caps prep at 25 minutes', () => {
+    const byId = new Map(recipes.map((r) => [r.id, r]))
+    const override: Array<DayType> = Array(7).fill('busy')
+    const week = generateWeek(recipes, {}, swipes, { dayTypes: override })
+    expect(week.days).toHaveLength(7)
+    for (const d of week.days) {
+      const r = byId.get(d.recipeRef)!
+      expect(r.prepMinutes).not.toBeNull()
+      expect(r.prepMinutes!).toBeLessThanOrEqual(BUSY_PREP_CAP_MINUTES)
+    }
+  })
+
+  it('busy falls back to the shortest available, never an empty cook-day', () => {
+    // A catalogue where NOTHING is quick: every recipe is well over the cap.
+    const slow: Array<PlannerRecipe> = Array.from({ length: 10 }, (_, i) => ({
+      id: `s${i}`,
+      title: `Slow dish ${i}`,
+      cuisine: 'Italian',
+      category: 'Main',
+      mealType: 'dinner',
+      dietaryTags: [],
+      ingredients: [{ name: 'beef' }, { name: 'onion' }],
+      calories: 600,
+      protein: 30,
+      // 40, 50, 60, ... all above the 25 cap; s0 is the shortest at 40.
+      prepMinutes: 40 + i * 10,
+    }))
+    const week = generateWeek(slow, {}, [], {
+      dayTypes: ['busy'] as Array<DayType>,
+      days: 1,
+    })
+    expect(week.days).toHaveLength(1)
+    const d = week.days[0]!
+    expect(d.type).toBe('busy')
+    // Never empty, and it picked the shortest available (s0 at 40 min).
+    expect(d.recipeRef).toBe('s0')
+  })
+
+  it('home is unconstrained: long recipes are allowed', () => {
+    const byId = new Map(recipes.map((r) => [r.id, r]))
+    const week = generateWeek(recipes, {}, swipes, {
+      dayTypes: Array(7).fill('home') as Array<DayType>,
+    })
+    // At least one picked recipe is over the busy cap (proving home is unconstrained).
+    const anyLong = week.days.some(
+      (d) => (byId.get(d.recipeRef)!.prepMinutes ?? 0) > BUSY_PREP_CAP_MINUTES,
+    )
+    expect(anyLong).toBe(true)
+  })
+
+  it('keeps no-repeat and hard filters across mixed day types', () => {
+    const byId = new Map(recipes.map((r) => [r.id, r]))
+    const profile: PlannerProfile = {
+      diet: 'vegetarian',
+      allergies: ['peanut'],
+    }
+    const override: Array<DayType> = [
+      'home',
+      'busy',
+      'out',
+      'busy',
+      'home',
+      'out',
+      'busy',
+    ]
+    const week = generateWeek(recipes, profile, swipes, { dayTypes: override })
+    const filled = week.days.filter((d) => d.recipeRef)
+    // No repeats among filled days.
+    expect(new Set(filled.map((d) => d.recipeRef)).size).toBe(filled.length)
+    for (const d of filled) {
+      const r = byId.get(d.recipeRef)!
+      // Hard filters still hold: vegetarian, no peanut, dinner only.
+      expect(r.dietaryTags.map((t) => t.toLowerCase())).toContain('vegetarian')
+      const text = r.ingredients.map((i) => i.name.toLowerCase()).join(' ')
+      expect(text.includes('peanut')).toBe(false)
+      expect(r.mealType).toBe('dinner')
+      // Busy days respect the cap.
+      if (d.type === 'busy') {
+        expect(r.prepMinutes!).toBeLessThanOrEqual(BUSY_PREP_CAP_MINUTES)
+      }
+    }
+  })
+
+  it('dayTypes override beats the cook-days rhythm', () => {
+    // cookDays says only Monday is home, but the override forces all busy.
+    const profile: PlannerProfile = { cookDays: [0] }
+    const week = generateWeek(recipes, profile, swipes, {
+      dayTypes: Array(7).fill('busy') as Array<DayType>,
+    })
+    expect(week.days.map((d) => d.type)).toEqual(Array(7).fill('busy'))
+  })
+
+  it('resolveDayTypes: short override falls back to the rhythm', () => {
+    const profile: PlannerProfile = { cookDays: [0, 1] }
+    // Override only covers the first day; the rest come from cookDays.
+    const types = resolveDayTypes(7, profile, ['out'])
+    expect(types).toEqual([
+      'out', // from override
+      'home', // cookDays has Tue (1)
+      'out',
+      'out',
+      'out',
+      'out',
+      'out',
+    ])
   })
 })

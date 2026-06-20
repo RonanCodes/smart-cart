@@ -1,4 +1,5 @@
 export type {
+  DayType,
   PlannerRecipe,
   PlannerProfile,
   PlannerSwipe,
@@ -6,4 +7,5 @@ export type {
   PlannedWeek,
   PlanOptions,
 } from './types'
-export { generateWeek, hardFilter, softScore } from './planner'
+export { BUSY_PREP_CAP_MINUTES } from './types'
+export { generateWeek, hardFilter, resolveDayTypes, softScore } from './planner'

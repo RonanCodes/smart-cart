@@ -2,11 +2,14 @@ import type { Swipe, SoftScoreWeights } from '../recsys/types'
 import { makeRecommender } from '../recsys/registry'
 import { DEFAULT_ADAPTIVE_WEIGHTS, DEFAULT_ALGORITHM } from '../recsys/config'
 import type {
+  DayType,
   PlanOptions,
+  PlannedDay,
   PlannedWeek,
   PlannerProfile,
   PlannerRecipe,
 } from './types'
+import { BUSY_PREP_CAP_MINUTES } from './types'
 
 /** Monday first, the week always starts Monday (CONTEXT.md hard rule). */
 const WEEK_DAYS = [
@@ -110,6 +113,42 @@ export function softScore(
 }
 
 /**
+ * Resolve the type of each day for a `days`-long week.
+ *
+ * Precedence:
+ *  1. An explicit `dayTypes` override (from the week-view toggle or onboarding),
+ *     position i = day i. A shorter override falls back to the cook-days rhythm
+ *     for the days it does not cover.
+ *  2. The cook-days rhythm: a day whose index (0=Mon..6=Sun) is in
+ *     `profile.cookDays` is 'home'; any other day is 'out'.
+ *  3. When `cookDays` is empty or absent, every day is 'home' (cook every day).
+ *
+ * Days repeat the 0..6 index when `days` > 7, mirroring how the week labels wrap.
+ */
+export function resolveDayTypes(
+  days: number,
+  profile: PlannerProfile,
+  override?: Array<DayType>,
+): Array<DayType> {
+  const cookDays = profile.cookDays ?? []
+  const everyDayHome = cookDays.length === 0
+  const cookSet = new Set(cookDays)
+
+  return Array.from({ length: days }, (_, i) => {
+    const fromOverride = override?.[i]
+    if (fromOverride) return fromOverride
+    if (everyDayHome) return 'home'
+    return cookSet.has(i % 7) ? 'home' : 'out'
+  })
+}
+
+/** True when a recipe is quick enough for a 'busy' day. Unknown prep is treated
+ * as not-quick, so it only lands on a busy day via the shortest-available fallback. */
+function fitsBusy(r: PlannerRecipe): boolean {
+  return r.prepMinutes != null && r.prepMinutes <= BUSY_PREP_CAP_MINUTES
+}
+
+/**
  * Generate a week of dinners for a household.
  *
  * Policy (grilled 2026-06-19, CONTEXT.md "Planner policy"):
@@ -173,21 +212,55 @@ export function generateWeek(
     return a.recipe.id < b.recipe.id ? -1 : 1
   })
 
-  // Pick the top `days`, never repeating a recipe (the only de-dup rule).
-  const picks: Array<PlannerRecipe> = []
+  // The preference-ordered pool we walk to fill each day. Walking the same order
+  // for every day keeps the no-repeat rule (a `used` set) and the deterministic
+  // pick. Each day only takes the highest-ranked recipe that FITS its type.
+  const pool = scored.map((s) => s.recipe)
+  const dayTypes = resolveDayTypes(days, profile, options.dayTypes)
+
   const used = new Set<string>()
-  for (const { recipe } of scored) {
-    if (picks.length >= days) break
-    if (used.has(recipe.id)) continue
-    used.add(recipe.id)
-    picks.push(recipe)
+  const planned: Array<PlannedDay> = []
+
+  for (let i = 0; i < days; i++) {
+    const day = WEEK_DAYS[i % WEEK_DAYS.length]!
+    const type = dayTypes[i]!
+
+    // 'out' clears the day: no recipe, no pool consumption.
+    if (type === 'out') {
+      planned.push({ day, meal: '', recipeRef: '', type })
+      continue
+    }
+
+    // 'busy' = quick only (prep <= 25 min). 'home' = any length. Within the
+    // time constraint the order is pure preference, and we never repeat a recipe.
+    const wantsQuick = type === 'busy'
+    let pick = pool.find((r) => !used.has(r.id) && (!wantsQuick || fitsBusy(r)))
+
+    // Graceful fallback: a busy cook-day must never be left empty. If nothing
+    // quick is left, take the shortest unused recipe (unknown prep counts as
+    // longest, so a timed recipe is always preferred over an untimed one).
+    if (!pick && wantsQuick) {
+      pick = pool
+        .filter((r) => !used.has(r.id))
+        .sort((a, b) => {
+          const pa = a.prepMinutes ?? Number.POSITIVE_INFINITY
+          const pb = b.prepMinutes ?? Number.POSITIVE_INFINITY
+          if (pa !== pb) return pa - pb
+          // Stable tie-break by id so the fallback stays deterministic.
+          return a.id < b.id ? -1 : 1
+        })[0]
+    }
+
+    if (!pick) {
+      // Pool exhausted (more home/busy days than distinct recipes). Leave empty
+      // rather than repeat, the no-repeat invariant wins.
+      planned.push({ day, meal: '', recipeRef: '', type })
+      continue
+    }
+
+    used.add(pick.id)
+    planned.push({ day, meal: pick.title, recipeRef: pick.id, type })
   }
 
-  return {
-    days: picks.map((r, i) => ({
-      day: WEEK_DAYS[i % WEEK_DAYS.length]!,
-      meal: r.title,
-      recipeRef: r.id,
-    })),
-  }
+  return { days: planned }
 }
