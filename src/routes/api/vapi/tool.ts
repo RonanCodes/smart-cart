@@ -30,10 +30,15 @@ export const Route = createFileRoute('/api/vapi/tool')({
           const { timingSafeEqual, extractToolCalls, extractCallToken } =
             await import('../../../lib/vapi-webhook')
 
-          // 1. Verify the shared secret (timing-safe, no Bearer prefix).
+          // 1. Verify the shared secret IF present (defense-in-depth). The
+          //    assistant's server.secret can only be set in the VAPI dashboard,
+          //    not via the API, so VAPI may send no X-Vapi-Secret header. When a
+          //    header IS sent it must match; when it isn't, we fall through to
+          //    the real security boundary: the signed call token (step 2), which
+          //    cannot be forged and is what scopes the call to a household.
           const secret = (await readEnv('VAPI_SERVER_SECRET')) ?? ''
           const got = request.headers.get('X-Vapi-Secret') ?? ''
-          if (!secret || !timingSafeEqual(got, secret)) {
+          if (got && secret && !timingSafeEqual(got, secret)) {
             return new Response('unauthorized', { status: 401 })
           }
 

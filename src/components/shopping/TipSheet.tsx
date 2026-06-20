@@ -34,7 +34,6 @@ export function TipSheet({
   open,
   onOpenChange,
   basketTotal,
-  freeRemaining,
   busy,
   onConfirm,
 }: {
@@ -42,14 +41,13 @@ export function TipSheet({
   onOpenChange: (open: boolean) => void
   /** Estimated basket total in euro, for the percent math. */
   basketTotal: number
-  /** Free adds left this month (0 once a tip is expected). */
-  freeRemaining: number
   busy: boolean
   /** User confirmed: the chosen whole percent (0 = no tip). */
   onConfirm: (percent: number) => void
 }) {
-  const free = freeRemaining > 0
-  const [percent, setPercent] = useState(free ? 0 : 3)
+  // Always prompt with a default tip (the free-3-a-month tier is skipped so the
+  // tip is always visible for the demo). "No tip" stays one slide away (#18).
+  const [percent, setPercent] = useState(3)
   const step = STEPS[percent] ?? { emoji: '🧺', label: 'No tip, all good!' }
   const amount = tipAmount(percent, basketTotal)
 
@@ -91,9 +89,7 @@ export function TipSheet({
         </div>
 
         <p className="text-muted-foreground text-center text-xs">
-          {free
-            ? `This one's on us, ${freeRemaining} free left this month. A tip is optional and just supports Souso.`
-            : 'An optional tip keeps Souso running. Totally up to you, no pressure.'}
+          An optional tip keeps Souso running. Totally up to you, no pressure.
         </p>
 
         <Button
