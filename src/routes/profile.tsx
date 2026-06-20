@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   User,
@@ -19,16 +20,28 @@ import { NotificationsSheet } from '#/components/profile/notifications-sheet'
 import { StoreSheet } from '#/components/profile/store-sheet'
 import { getStore, storeLabel } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
+import { ProfileSkeleton } from '#/components/profile/ProfileSkeleton'
+
+interface ProfileData {
+  isAdmin: boolean
+  store: StoreSlug
+}
+
+async function loadProfile(): Promise<ProfileData> {
+  const [admin, store] = await Promise.all([isAdmin(), getStore()])
+  return { isAdmin: admin, store }
+}
 
 export const Route = createFileRoute('/profile')({
   // Server-decide admin status so the 'Admin console' row only renders for true
   // admins, and read the current preferred store so its row shows the real
   // value. isAdmin reuses the /admin gate; getStore reads the household's
   // preferredStore (defaults to 'ah' for guests / pre-onboard).
-  loader: async () => ({
-    isAdmin: await isAdmin(),
-    store: await getStore(),
-  }),
+  loader: (): Promise<ProfileData> => loadProfile(),
+  // Skeleton while the loader resolves (#229). The loader still runs on the
+  // server and hydrates first paint (SSR untouched); the skeleton only shows on
+  // client-side navigations and slow loads, holding the settings layout.
+  pendingComponent: ProfileSkeleton,
   component: Profile,
 })
 
@@ -39,7 +52,17 @@ export const Route = createFileRoute('/profile')({
  */
 function Profile() {
   const { data: session } = authClient.useSession()
-  const { isAdmin, store: initialStore } = Route.useLoaderData()
+  const loaderData = Route.useLoaderData()
+  // Cache the admin flag + preferred store under the shared QueryClient (#229)
+  // so flicking back to this tab is instant with no refetch. The loader's
+  // server-rendered result seeds the cache as initialData, so first paint stays
+  // SSR; the query only refetches in the background once it goes stale (30s).
+  const { data } = useQuery({
+    queryKey: ['profile'],
+    queryFn: loadProfile,
+    initialData: loaderData,
+  })
+  const { isAdmin, store: initialStore } = data
   const [helpOpen, setHelpOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [storeOpen, setStoreOpen] = useState(false)

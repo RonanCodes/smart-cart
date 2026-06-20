@@ -2,8 +2,16 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { Compass } from 'lucide-react'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { Button } from '#/components/ui/button'
+import { DiscoverSkeleton } from '#/components/swipe-deck/DiscoverSkeleton'
 
-export const Route = createFileRoute('/discover')({ component: Discover })
+export const Route = createFileRoute('/discover')({
+  // Skeleton while a loader resolves (#229). Discover is a static placeholder
+  // today (no loader, so this never fires yet), but wiring the pendingComponent
+  // now means the swipe deck slice only has to add its data read, the loading
+  // shape is already in place and mirrors the eventual deck card.
+  pendingComponent: DiscoverSkeleton,
+  component: Discover,
+})
 
 /**
  * Discover tab — placeholder for the swipe-first recipe deck (PRD #87). Stubbed
