@@ -8,6 +8,7 @@ import {
   isAdminWith,
   grantStateFor,
   normalizeEmail,
+  mergePeople,
 } from './access-rules'
 
 describe('parseApprovedList', () => {
@@ -141,5 +142,136 @@ describe('grantStateFor', () => {
 describe('normalizeEmail', () => {
   it('trims and lowercases', () => {
     expect(normalizeEmail('  Foo@Bar.COM ')).toBe('foo@bar.com')
+  })
+})
+
+describe('mergePeople (union user rows + env admins + env approved + grants)', () => {
+  type B = { emoji: string; label: string }
+  const userRow = (
+    over: Partial<{
+      userId: string
+      email: string
+      householdId: string | null
+      swipes: number
+      badges: Array<B>
+    }> = {},
+  ) => ({
+    userId: 'u1',
+    email: 'onboarded@x.com',
+    householdId: 'h1',
+    swipes: 5,
+    badges: [{ emoji: '🍝', label: 'Pasta person' }] as Array<B>,
+    ...over,
+  })
+
+  it('keeps a real onboarded user (has household) with swipes + badges', () => {
+    const out = mergePeople<B>({
+      userRows: [userRow()],
+      envAdmins: new Set(),
+      envApproved: new Set(),
+      grants: new Map(),
+    })
+    const p = out.find((x) => x.email === 'onboarded@x.com')!
+    expect(p.userId).toBe('u1')
+    expect(p.householdId).toBe('h1')
+    expect(p.swipes).toBe(5)
+    expect(p.onboarded).toBe(true)
+    expect(p.isAdmin).toBe(false)
+    expect(p.access).toBe('none') // real row, no grant/env entry
+  })
+
+  it('a signed-in user with no household is NOT onboarded', () => {
+    const out = mergePeople<B>({
+      userRows: [userRow({ householdId: null, swipes: 0, badges: [] })],
+      envAdmins: new Set(),
+      envApproved: new Set(),
+      grants: new Map(),
+    })
+    expect(out[0]!.onboarded).toBe(false)
+  })
+
+  it('includes env admins / approved / grants who have NO user row', () => {
+    const out = mergePeople<B>({
+      userRows: [],
+      envAdmins: parseApprovedList('boss@x.com'),
+      envApproved: parseApprovedList('approved@x.com'),
+      grants: grantMapFrom([{ email: 'granted@x.com', role: 'user' }]),
+    })
+    const emails = out.map((p) => p.email)
+    expect(emails).toContain('boss@x.com')
+    expect(emails).toContain('approved@x.com')
+    expect(emails).toContain('granted@x.com')
+    for (const p of out) {
+      expect(p.userId).toBeNull()
+      expect(p.householdId).toBeNull()
+      expect(p.swipes).toBe(0)
+      expect(p.onboarded).toBe(false)
+    }
+  })
+
+  it('flags admins (env admin OR admin grant) with isAdmin + access=admin', () => {
+    const out = mergePeople<B>({
+      userRows: [userRow({ email: 'boss@x.com', userId: 'u9' })],
+      envAdmins: parseApprovedList('boss@x.com'),
+      envApproved: new Set(),
+      grants: grantMapFrom([{ email: 'grantedadmin@x.com', role: 'admin' }]),
+    })
+    const boss = out.find((p) => p.email === 'boss@x.com')!
+    expect(boss.isAdmin).toBe(true)
+    expect(boss.access).toBe('admin')
+    const ga = out.find((p) => p.email === 'grantedadmin@x.com')!
+    expect(ga.isAdmin).toBe(true)
+    expect(ga.access).toBe('admin')
+  })
+
+  it('classifies env-approved / user-granted as access=user (not admin)', () => {
+    const out = mergePeople<B>({
+      userRows: [],
+      envAdmins: new Set(),
+      envApproved: parseApprovedList('approved@x.com'),
+      grants: grantMapFrom([{ email: 'granteduser@x.com', role: 'user' }]),
+    })
+    expect(out.find((p) => p.email === 'approved@x.com')!.access).toBe('user')
+    expect(out.find((p) => p.email === 'approved@x.com')!.isAdmin).toBe(false)
+    expect(out.find((p) => p.email === 'granteduser@x.com')!.access).toBe(
+      'user',
+    )
+  })
+
+  it('de-dupes by normalised email, merging the user row onto the env entry', () => {
+    const out = mergePeople<B>({
+      userRows: [userRow({ email: 'Boss@X.com', userId: 'u9' })],
+      envAdmins: parseApprovedList('boss@x.com'),
+      envApproved: new Set(),
+      grants: new Map(),
+    })
+    const matches = out.filter((p) => p.email === 'boss@x.com')
+    expect(matches).toHaveLength(1)
+    expect(matches[0]!.userId).toBe('u9') // user row carried through
+    expect(matches[0]!.isAdmin).toBe(true) // env admin claim applied
+    expect(matches[0]!.email).toBe('boss@x.com') // normalised
+  })
+
+  it('sorts admins first, then onboarded users, then the rest (alpha within)', () => {
+    const out = mergePeople<B>({
+      userRows: [
+        userRow({ email: 'zed@x.com', userId: 'uz', householdId: 'hz' }), // onboarded
+        userRow({
+          email: 'newbie@x.com',
+          userId: 'un',
+          householdId: null,
+          swipes: 0,
+          badges: [],
+        }), // signed in, not onboarded
+      ],
+      envAdmins: parseApprovedList('boss@x.com'),
+      envApproved: new Set(),
+      grants: new Map(),
+    })
+    expect(out.map((p) => p.email)).toEqual([
+      'boss@x.com', // admin
+      'zed@x.com', // onboarded
+      'newbie@x.com', // neither
+    ])
   })
 })
