@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { Bell, Store, ChefHat } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
 import { Input } from '#/components/ui/input'
@@ -10,6 +12,9 @@ import {
   CardHeader,
   CardTitle,
 } from '#/components/ui/card'
+import { List, ListRow } from '#/components/ui/list'
+import { Sheet } from '#/components/ui/sheet'
+import { EmptyState } from '#/components/ui/app-shell'
 
 export const Route = createFileRoute('/styleguide')({ component: StyleGuide })
 
@@ -42,6 +47,7 @@ function Section({
 }
 
 function StyleGuide() {
+  const [sheetOpen, setSheetOpen] = useState(false)
   return (
     <main className="mx-auto max-w-4xl space-y-12 px-6 py-16">
       <header className="space-y-2">
@@ -98,6 +104,57 @@ function StyleGuide() {
           <Input placeholder="you@example.com" />
           <Input placeholder="Disabled" disabled />
         </div>
+      </Section>
+
+      <Section title="iOS shell primitives">
+        <p className="text-muted-foreground text-sm">
+          The mobile shell pieces: a grouped list, a bottom sheet, and an empty
+          state. Best viewed at 390px.
+        </p>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <List className="max-w-sm">
+            <ListRow
+              leading={<Store aria-hidden />}
+              title="Preferred store"
+              value="Albert Heijn"
+              chevron
+              onClick={() => {}}
+            />
+            <ListRow
+              leading={<Bell aria-hidden />}
+              title="Notifications"
+              value="On"
+              chevron
+              onClick={() => {}}
+            />
+          </List>
+          <Card ios className="max-w-sm">
+            <CardContent className="pt-6">
+              <p className="mb-3 text-sm font-medium">iOS card + sheet</p>
+              <Button onClick={() => setSheetOpen(true)}>Open sheet</Button>
+            </CardContent>
+          </Card>
+        </div>
+        <EmptyState
+          icon={<ChefHat aria-hidden />}
+          title="Nothing here yet"
+          hint="Empty states get the same care as the happy path."
+        />
+        <Sheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          title="A bottom sheet"
+        >
+          <div className="text-muted-foreground space-y-4 pb-4 text-sm">
+            <p>
+              Springs up, grabber handle, dismiss by swipe-down, backdrop tap,
+              or Escape.
+            </p>
+            <Button size="pill" onClick={() => setSheetOpen(false)}>
+              Done
+            </Button>
+          </div>
+        </Sheet>
       </Section>
 
       <Section title="Card">

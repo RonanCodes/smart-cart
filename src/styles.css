@@ -110,6 +110,47 @@
     'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
+/*
+  iOS-native shell tokens. The app is TanStack Start + Tailwind, but the mobile
+  surface should feel like an Expo / React Native app: a translucent bottom tab
+  bar, safe-area-aware layout, bottom sheets that spring up, big touch targets,
+  and tap feedback. These tokens drive the shell primitives in
+  src/components/ui/{safe-area,tab-bar,sheet,list}.tsx.
+*/
+:root {
+  /* Safe-area insets, defaulted to 0 on non-notch devices. The shell reads these
+     so content always clears the notch + home indicator. Requires
+     viewport-fit=cover on the meta viewport (set in __root.tsx). */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  /* Bottom tab bar metrics. Height is the bar itself; the layout pads content
+     by tab-bar-space so nothing hides under the fixed bar. */
+  --tab-bar-height: 3.5rem;
+  --tab-bar-space: calc(var(--tab-bar-height) + var(--safe-bottom));
+
+  /* iOS card radius: rounder than the desktop default for the native feel. */
+  --radius-ios: 1.25rem;
+
+  /* The translucent material behind the tab bar + sheet headers. A near-white
+     wash so light mode stays clean (flagged: light mode needs work). */
+  --material: oklch(0.99 0.006 120 / 0.78);
+  --hairline: oklch(0.86 0.01 140 / 0.9);
+}
+
+.dark {
+  --material: oklch(0.2 0.02 150 / 0.78);
+  --hairline: oklch(0.4 0.02 150 / 0.9);
+}
+
+@theme inline {
+  --radius-ios: var(--radius-ios);
+  --color-material: var(--material);
+  --color-hairline: var(--hairline);
+}
+
 * {
   box-sizing: border-box;
   border-color: var(--color-border);
@@ -126,4 +167,74 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* Prevent the iOS rubber-band white flash + double-tap zoom feel. */
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+}
+
+/* Momentum scrolling helper for any scroll container that wants the native
+   inertial feel. Applied via the `.ios-scroll` class on list/feed surfaces. */
+.ios-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* ── Bottom-sheet motion ─────────────────────────────────────────────────────
+   A spring-ish ease for the slide-up, and a quick fade for the backdrop. The
+   Sheet primitive toggles data-state="open"|"closed" and these drive it without
+   a heavy animation dep. */
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes sheet-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* iOS-style spring: overshoots slightly on the way up. */
+.sheet-panel[data-state='open'] {
+  animation: sheet-in 0.42s cubic-bezier(0.32, 1.28, 0.5, 1);
+}
+.sheet-panel[data-state='closed'] {
+  animation: sheet-out 0.26s cubic-bezier(0.4, 0, 1, 1);
+}
+.sheet-backdrop[data-state='open'] {
+  animation: backdrop-in 0.3s ease-out;
+}
+.sheet-backdrop[data-state='closed'] {
+  animation: backdrop-out 0.24s ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel[data-state='open'],
+  .sheet-panel[data-state='closed'],
+  .sheet-backdrop[data-state='open'],
+  .sheet-backdrop[data-state='closed'] {
+    animation-duration: 0.01ms;
+  }
 }

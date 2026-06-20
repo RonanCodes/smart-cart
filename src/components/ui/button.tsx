@@ -4,7 +4,7 @@ import type { VariantProps } from 'class-variance-authority'
 import { cn } from '#/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition active:scale-[0.97] focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100',
   {
     variants: {
       variant: {
@@ -20,9 +20,11 @@ const buttonVariants = cva(
       },
       size: {
         sm: 'h-9 px-3',
-        default: 'h-10 px-5 py-2',
-        lg: 'h-12 px-7 text-base',
-        icon: 'h-10 w-10',
+        default: 'h-11 px-5 py-2',
+        lg: 'h-13 px-7 text-base',
+        icon: 'h-11 w-11',
+        /** Full-width pill CTA, the iOS primary-action shape. */
+        pill: 'h-13 w-full rounded-full px-7 text-base',
       },
     },
     defaultVariants: { variant: 'default', size: 'default' },

@@ -12,7 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WeekRouteImport } from './routes/week'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as ShoppingRouteImport } from './routes/shopping'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -36,9 +39,24 @@ const SignInRoute = SignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShoppingRoute = ShoppingRouteImport.update({
+  id: '/shopping',
+  path: '/shopping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiscoverRoute = DiscoverRouteImport.update({
+  id: '/discover',
+  path: '/discover',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -81,7 +99,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/app': typeof AppRoute
+  '/discover': typeof DiscoverRoute
   '/onboarding': typeof OnboardingRoute
+  '/profile': typeof ProfileRoute
+  '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
@@ -94,7 +115,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/app': typeof AppRoute
+  '/discover': typeof DiscoverRoute
   '/onboarding': typeof OnboardingRoute
+  '/profile': typeof ProfileRoute
+  '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
@@ -108,7 +132,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/app': typeof AppRoute
+  '/discover': typeof DiscoverRoute
   '/onboarding': typeof OnboardingRoute
+  '/profile': typeof ProfileRoute
+  '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
   '/styleguide': typeof StyleguideRoute
   '/week': typeof WeekRoute
@@ -123,7 +150,10 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/app'
+    | '/discover'
     | '/onboarding'
+    | '/profile'
+    | '/shopping'
     | '/sign-in'
     | '/styleguide'
     | '/week'
@@ -136,7 +166,10 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/app'
+    | '/discover'
     | '/onboarding'
+    | '/profile'
+    | '/shopping'
     | '/sign-in'
     | '/styleguide'
     | '/week'
@@ -149,7 +182,10 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/app'
+    | '/discover'
     | '/onboarding'
+    | '/profile'
+    | '/shopping'
     | '/sign-in'
     | '/styleguide'
     | '/week'
@@ -163,7 +199,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AppRoute: typeof AppRoute
+  DiscoverRoute: typeof DiscoverRoute
   OnboardingRoute: typeof OnboardingRoute
+  ProfileRoute: typeof ProfileRoute
+  ShoppingRoute: typeof ShoppingRoute
   SignInRoute: typeof SignInRoute
   StyleguideRoute: typeof StyleguideRoute
   WeekRoute: typeof WeekRoute
@@ -196,11 +235,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shopping': {
+      id: '/shopping'
+      path: '/shopping'
+      fullPath: '/shopping'
+      preLoaderRoute: typeof ShoppingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/discover': {
+      id: '/discover'
+      path: '/discover'
+      fullPath: '/discover'
+      preLoaderRoute: typeof DiscoverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -259,7 +319,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AppRoute: AppRoute,
+  DiscoverRoute: DiscoverRoute,
   OnboardingRoute: OnboardingRoute,
+  ProfileRoute: ProfileRoute,
+  ShoppingRoute: ShoppingRoute,
   SignInRoute: SignInRoute,
   StyleguideRoute: StyleguideRoute,
   WeekRoute: WeekRoute,
