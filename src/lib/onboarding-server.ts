@@ -99,6 +99,39 @@ export const finishOnboarding = createServerFn({ method: 'POST' })
     return { householdId, taste }
   })
 
+/**
+ * Reset onboarding: clear the household's swipes + learned taste so the user can
+ * swipe again from scratch. Keeps the household row. Useful to re-onboard a fresh
+ * person on stage during the demo.
+ */
+export const resetOnboarding = createServerFn({ method: 'POST' }).handler(
+  async (): Promise<{ ok: true }> => {
+    const { getSessionUser } = await import('./server-auth')
+    const user = await getSessionUser()
+    if (!user) throw new Error('Not signed in')
+    const { getDb } = await import('../db/client')
+    const { household, recipeSwipe } = await import('../db/schema')
+    const { eq, sql } = await import('drizzle-orm')
+    const db = await getDb()
+    const rows = await db
+      .select({ id: household.id })
+      .from(household)
+      .where(eq(household.ownerId, user.id))
+      .limit(1)
+    const householdId = rows[0]?.id
+    if (householdId) {
+      await db
+        .delete(recipeSwipe)
+        .where(eq(recipeSwipe.householdId, householdId))
+      await db
+        .update(household)
+        .set({ profile: sql`null`, updatedAt: new Date() })
+        .where(eq(household.id, householdId))
+    }
+    return { ok: true }
+  },
+)
+
 /** Does the signed-in user already have a household (i.e. has onboarded)? */
 export const hasHousehold = createServerFn({ method: 'GET' }).handler(
   async (): Promise<boolean> => {
