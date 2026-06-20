@@ -1,11 +1,14 @@
-import { generateWeek } from '../planner/planner'
+import { generateWeek, rankRecipes, resolveDayTypes } from '../planner/planner'
+import { BUSY_PREP_CAP_MINUTES } from '../planner/types'
 import type {
+  DayType,
   PlannedDay,
   PlannedWeek,
   PlannerProfile,
   PlannerRecipe,
   PlannerSwipe,
 } from '../planner/types'
+import { expandTerm } from './term-synonyms'
 import type { ReplanContext, ReplanEdit, ReplanResult } from './types'
 
 /**
@@ -43,12 +46,20 @@ function recipeText(r: PlannerRecipe): string {
     .join(' ')
 }
 
-/** True when a recipe matches a free term (cuisine or ingredient), loosely. */
+/**
+ * True when a recipe matches a free term (cuisine or ingredient), loosely.
+ *
+ * The term is expanded through the EN/NL synonym map first, so a user typing
+ * "rice" matches the catalogue's Dutch "rijst"/"risotto" text, "pasta" matches
+ * "spaghetti"/"penne", and so on. An unmapped term still matches its literal
+ * substring. We match across title + ingredients + cuisine.
+ */
 function recipeMatchesTerm(r: PlannerRecipe, term: string): boolean {
-  const t = normalise(term)
-  if (!t) return false
-  if (r.cuisine && normalise(r.cuisine).includes(t)) return true
-  return recipeText(r).includes(t)
+  const variants = expandTerm(term)
+  if (variants.length === 0) return false
+  const cuisine = r.cuisine ? normalise(r.cuisine) : ''
+  const text = recipeText(r)
+  return variants.some((v) => cuisine.includes(v) || text.includes(v))
 }
 
 /**
@@ -124,6 +135,67 @@ function repickDays(
   })
 
   return { week: { days }, changed }
+}
+
+/** True when a recipe is quick enough for a 'busy' day (mirrors the planner). */
+function fitsBusy(r: PlannerRecipe): boolean {
+  return r.prepMinutes != null && r.prepMinutes <= BUSY_PREP_CAP_MINUTES
+}
+
+/**
+ * Fill a week from a caller-supplied, already-ordered candidate pool, honouring
+ * each day's type and the no-repeat rule. This is the SAME day-fill `generateWeek`
+ * does (busy days take quick dinners with the shortest-available fallback, out
+ * days stay empty, no recipe repeats), but it walks the pool order we hand it
+ * rather than re-ranking. The "more-of" lean uses it to fill from a term-biased
+ * pool, so matching recipes land first while the planner's order still decides
+ * everything else.
+ *
+ * Day types come from the existing week where present (a replan must not silently
+ * un-skip an "eating out" day), falling back to the profile's cook-days rhythm.
+ */
+function fillFromPool(
+  week: PlannedWeek,
+  pool: Array<PlannerRecipe>,
+  profile: PlannerProfile,
+  seed?: number,
+): PlannedWeek {
+  void seed // pool order is already seeded upstream; kept for signature parity.
+  const days = week.days.length || 7
+  const rhythm = resolveDayTypes(days, profile)
+  const types: Array<DayType> = week.days.map(
+    (d, i) => d.type ?? rhythm[i] ?? 'home',
+  )
+
+  const used = new Set<string>()
+  const planned: Array<PlannedDay> = week.days.map((d, i) => {
+    const type = types[i] ?? 'home'
+    const label = d.day
+
+    if (type === 'out') return { day: label, meal: '', recipeRef: '', type }
+
+    const wantsQuick = type === 'busy'
+    let pick = pool.find((r) => !used.has(r.id) && (!wantsQuick || fitsBusy(r)))
+
+    // Busy-day fallback: nothing quick left, take the shortest unused recipe.
+    if (!pick && wantsQuick) {
+      pick = pool
+        .filter((r) => !used.has(r.id))
+        .sort((a, b) => {
+          const pa = a.prepMinutes ?? Number.POSITIVE_INFINITY
+          const pb = b.prepMinutes ?? Number.POSITIVE_INFINITY
+          if (pa !== pb) return pa - pb
+          return a.id < b.id ? -1 : 1
+        })[0]
+    }
+
+    if (!pick) return { day: label, meal: '', recipeRef: '', type }
+
+    used.add(pick.id)
+    return { day: label, meal: pick.title, recipeRef: pick.id, type }
+  })
+
+  return { days: planned }
 }
 
 export function applyReplan(
@@ -253,27 +325,71 @@ export function applyReplan(
 
     case 'more-of': {
       const term = edit.term ?? ''
-      // Bias by seeding the ranker with synthetic "likes" for every recipe that
-      // matches the term, on top of the real swipes. The planner does the rest:
-      // matching recipes rise in the ranked order, so the regenerated week leans
-      // toward the term without us touching the ranking maths.
-      const boosted: Array<PlannerSwipe> = [
-        ...swipes,
-        ...recipes
-          .filter((r) => recipeMatchesTerm(r, term))
-          .map((r) => ({ recipeId: r.id, like: true })),
-      ]
-      const next = generateWeek(recipes, profile, boosted, {
-        days: week.days.length || 7,
-        seed,
-      })
+      const byRef = new Map(recipes.map((r) => [r.id, r]))
+
+      // How many filled dinners already match the term, before we touch anything.
+      const matchesBefore = week.days.filter((d) => {
+        const r = d.recipeRef ? byRef.get(d.recipeRef) : null
+        return r ? recipeMatchesTerm(r, term) : false
+      }).length
+
+      // Hard-filtered, planner-ranked pool (allergies + diet + dinners only).
+      // We bias toward the term by floating matching recipes to the FRONT of this
+      // pool while keeping the planner's preference order WITHIN each partition,
+      // then fill the week from the biased pool. This is a genuine, visible lean
+      // (not a few synthetic swipes the recommender may drown out), and it never
+      // touches the ranking maths or the hard filters: a matching recipe that is
+      // hard-filtered out (allergy/diet) is simply absent from the pool.
+      const ranked = rankRecipes(recipes, profile, swipes, { seed })
+      const matchingPool = ranked.filter((r) => recipeMatchesTerm(r, term))
+
+      // Honest "none found": the catalogue (after hard filters) has nothing that
+      // matches the term, so we can not lean toward it. Leave the week unchanged
+      // and say so plainly instead of asserting a lean that did not happen.
+      if (matchingPool.length === 0) {
+        return {
+          edit,
+          week,
+          changed: false,
+          message: `I couldn't find more ${term} dishes in the current menu, so I left the week as it is.`,
+          source,
+        }
+      }
+
+      const rest = ranked.filter((r) => !recipeMatchesTerm(r, term))
+      const biasedPool = [...matchingPool, ...rest]
+
+      const next = fillFromPool(week, biasedPool, profile, seed)
       const before = week.days.map((d) => d.recipeRef).join('|')
       const after = next.days.map((d) => d.recipeRef).join('|')
+      const changed = before !== after
+
+      const matchesAfter = next.days.filter((d) => {
+        const r = d.recipeRef ? byRef.get(d.recipeRef) : null
+        return r ? recipeMatchesTerm(r, term) : false
+      }).length
+      const gained = matchesAfter - matchesBefore
+
+      // Word the reply from the real diff, never optimistically. We only claim a
+      // lean when matching dinners actually went up; otherwise we say honestly
+      // that the week could not take more (already leaned, or no room after the
+      // hard filters and the no-repeat rule).
+      let message: string
+      if (gained > 0) {
+        message = `Swapped ${gained} dinner${gained === 1 ? '' : 's'} to ${term} dishes (now ${matchesAfter} of ${next.days.filter((d) => d.recipeRef).length}).`
+      } else if (matchesAfter > 0) {
+        message = `The week already leans toward ${term} (${matchesAfter} ${term} dinner${matchesAfter === 1 ? '' : 's'}); I couldn't fit more without repeating a meal.`
+      } else {
+        message = `I couldn't find more ${term} dishes in the current menu, so I left the week as it is.`
+      }
+
       return {
         edit,
         week: next,
-        changed: before !== after,
-        message: `Leaned the week toward ${term}.`,
+        // Only report a change when something genuinely moved. A reshuffle that
+        // does not raise the term count is still a real week change.
+        changed,
+        message,
         source,
       }
     }
