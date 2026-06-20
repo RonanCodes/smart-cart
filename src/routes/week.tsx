@@ -66,10 +66,24 @@ function WeekPage() {
     ? (week.days.find((d) => d.day === editDay) ?? null)
     : null
 
-  /** Move to a new plan revision: update local state and reflect it in the URL. */
+  /**
+   * Move to a new plan revision: update local state and reflect it in the URL.
+   *
+   * The week data updates in place via `setWeek` (optimistic, no refetch), so the
+   * navigation here only rewrites the `plan` search param for shareability and the
+   * back button. The router runs with `scrollRestoration: true` (see router.tsx),
+   * which treats a new `plan` value as a fresh location and would reset scroll to
+   * the top after every swap/similar/alternative pick (#145). `resetScroll: false`
+   * keeps the user exactly where they were so the day they just edited stays in view.
+   */
   function adopt(planId: string, next: WeekView) {
     setWeek(next)
-    void navigate({ to: '/week', search: { plan: planId }, replace: true })
+    void navigate({
+      to: '/week',
+      search: { plan: planId },
+      replace: true,
+      resetScroll: false,
+    })
   }
 
   async function swap(day: string) {
