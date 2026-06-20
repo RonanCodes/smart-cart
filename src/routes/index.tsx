@@ -1,192 +1,121 @@
-import { createFileRoute } from '@tanstack/react-router'
-import {
-  CalendarCheck,
-  ShoppingCart,
-  Sparkles,
-  ThumbsUp,
-  ShieldCheck,
-} from 'lucide-react'
-import { authClient } from '#/lib/auth-client'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createFileRoute, redirect, Link } from '@tanstack/react-router'
+import { Sparkles } from 'lucide-react'
+import { getPublicDeck } from '#/lib/public-deck-server'
+import { hasHousehold } from '#/lib/onboarding-server'
+import { resolveSessionUserOrNull } from '#/lib/route-guards'
+import type { DeckCard } from '#/lib/recsys-data'
+import { readAnonSwipes, writeAnonSwipes } from '#/lib/anon-swipes'
+import type { AnonSwipe } from '#/lib/anon-swipes'
+import { SwipeDeck } from '#/components/swipe-deck'
+import { SafeArea } from '#/components/ui/safe-area'
 import { Button } from '#/components/ui/button'
-import { Badge } from '#/components/ui/badge'
-import { Card, CardContent } from '#/components/ui/card'
 
-export const Route = createFileRoute('/')({ component: Home })
+/** Swipe at least this many before "Save my week" unlocks. */
+const ENOUGH = 8
+/** A full read; drives the progress bar. */
+const TARGET = 15
 
-const LOOP = [
-  { icon: Sparkles, label: 'Learn', note: 'How your household eats' },
-  { icon: CalendarCheck, label: 'Plan', note: 'A week of dinners' },
-  { icon: ShoppingCart, label: 'Fill basket', note: 'Ready at AH / Jumbo' },
-  { icon: ThumbsUp, label: 'Cook & rate', note: 'One tap feedback' },
-]
+export const Route = createFileRoute('/')({
+  // Swipe-first: anyone NOT yet onboarded stays here and swipes anonymously. A
+  // signed-in user who already has a household skips the opener and lands in the
+  // app. (A signed-in but not-onboarded user can keep swiping here, then sign in
+  // is a no-op and finishOnboarding persists their batch.)
+  beforeLoad: async () => {
+    const user = await resolveSessionUserOrNull()
+    if (user && (await hasHousehold())) throw redirect({ to: '/app' })
+  },
+  component: Opener,
+})
 
-const FEATURES = [
-  {
-    icon: CalendarCheck,
-    title: 'Your week, planned',
-    body: 'Open the app to a full week of dinners picked for your household. Swap any meal with one tap.',
-  },
-  {
-    icon: ShoppingCart,
-    title: 'A basket in one click',
-    body: 'Your menu plus your regulars become one filled basket at Albert Heijn or Jumbo, with the price compared across stores. You check out.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Adapts to real life',
-    body: 'Tell it "we’re eating out Wednesday" or "the kids hate mushrooms" or "spend twenty euro less" and the whole week replans in seconds.',
-  },
-  {
-    icon: ThumbsUp,
-    title: 'Knows you better each week',
-    body: 'Thumbs up the meals you liked. Good ones come back, the rest quietly disappear. Every week it fits your household more closely.',
-  },
-]
+function Opener() {
+  const [queue, setQueue] = useState<Array<DeckCard>>([])
+  const [swipes, setSwipes] = useState<Array<AnonSwipe>>([])
+  const [ready, setReady] = useState(false)
+  const seen = useRef(new Set<string>())
+  const loadingMore = useRef(false)
 
-function Home() {
-  const { data: session } = authClient.useSession()
-  const loggedIn = Boolean(session?.user)
+  const loadMore = useCallback(async (current: Array<AnonSwipe>) => {
+    if (loadingMore.current) return
+    loadingMore.current = true
+    try {
+      const deck = await getPublicDeck({ data: { swipes: current, k: 8 } })
+      const fresh = deck.filter((c) => !seen.current.has(c.id))
+      for (const c of fresh) seen.current.add(c.id)
+      setQueue((q) => [...q, ...fresh])
+    } finally {
+      loadingMore.current = false
+    }
+  }, [])
+
+  // Restore any swipes the visitor already made this session (e.g. they bounced
+  // off the sign-in page and came back), then load the first batch from them.
+  useEffect(() => {
+    const held = readAnonSwipes()
+    setSwipes(held)
+    void loadMore(held).then(() => setReady(true))
+    // run once on mount
+  }, [])
+
+  function swipe(card: DeckCard, like: boolean) {
+    const next = [...swipes, { recipeId: card.id, like }]
+    setSwipes(next)
+    writeAnonSwipes(next)
+    setQueue((q) => q.filter((c) => c.id !== card.id))
+    if (queue.length <= 3) void loadMore(next)
+  }
+
+  const card = queue[0]
+  const count = swipes.length
+  const pct = Math.min(100, (count / TARGET) * 100)
+  const enough = count >= ENOUGH
 
   return (
-    <div className="bg-background text-foreground">
-      {/* Nav */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <span className="flex items-center gap-2 font-bold">
-          <ShoppingCart className="text-primary h-6 w-6" />
-          Smart Cart
-        </span>
-        <nav className="flex items-center gap-2">
-          <a href="#how">
-            <Button variant="ghost" size="sm">
-              How it works
-            </Button>
-          </a>
-          {loggedIn ? (
-            <a href="/app">
-              <Button size="sm">Open app</Button>
-            </a>
-          ) : (
-            <a href="/sign-in">
-              <Button size="sm">Get started</Button>
-            </a>
-          )}
-        </nav>
-      </header>
-
-      {/* Hero */}
-      <section className="mx-auto grid max-w-6xl items-center gap-10 px-6 pt-10 pb-20 md:grid-cols-2">
-        <div className="space-y-6">
-          <Badge variant="primary">Your household food planner</Badge>
-          <h1 className="text-5xl font-bold tracking-tight text-balance sm:text-6xl">
-            Never wonder <span className="text-primary">what's for dinner</span>{' '}
-            again.
-          </h1>
-          <p className="text-muted-foreground max-w-md text-lg text-balance">
-            Smart Cart learns how your household eats, plans your week, and
-            fills a ready-to-order basket at Albert Heijn or Jumbo in under a
-            minute. You just check out.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <a href={loggedIn ? '/app' : '/sign-in'}>
-              <Button size="lg">
-                {loggedIn ? 'Open app' : 'Plan my first week'}
-              </Button>
-            </a>
-            <a href="#how">
-              <Button size="lg" variant="outline">
-                See how it works
-              </Button>
-            </a>
+    <SafeArea
+      edges={['top', 'bottom', 'left', 'right']}
+      className="bg-background flex flex-col"
+    >
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 py-6">
+        <header className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 font-bold">
+              <Sparkles className="text-primary h-5 w-5" />
+              What would you eat?
+            </span>
+            <span className="text-muted-foreground text-sm">
+              {count} swipes
+            </span>
           </div>
-          <p className="text-muted-foreground flex items-center gap-2 text-sm">
-            <ShieldCheck className="text-primary h-4 w-4" />
-            We never touch your money. Smart Cart plans and fills the basket;
-            you check out.
-          </p>
-        </div>
-        <div className="relative">
-          <img
-            src="/mascot-hero.png"
-            alt="The Smart Cart character with a week of groceries"
-            className="mx-auto w-full max-w-md"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none'
-            }}
-          />
-        </div>
-      </section>
-
-      {/* The loop */}
-      <section id="how" className="bg-secondary/40 border-border border-y">
-        <div className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="text-center text-3xl font-bold tracking-tight">
-            One loop that gets smarter every week
-          </h2>
-          <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-center">
-            Most apps stop at suggesting recipes. Smart Cart goes further: it
-            learns your household, plans the week, and fills your basket. Every
-            week it fits you better.
-          </p>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {LOOP.map((step, i) => (
-              <Card key={step.label}>
-                <CardContent className="space-y-2 pt-6">
-                  <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-lg">
-                    <step.icon className="h-5 w-5" />
-                  </div>
-                  <p className="text-muted-foreground text-xs font-semibold">
-                    Step {i + 1}
-                  </p>
-                  <p className="font-semibold">{step.label}</p>
-                  <p className="text-muted-foreground text-sm">{step.note}</p>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="bg-secondary h-1.5 w-full overflow-hidden rounded-full">
+            <div
+              className="bg-primary h-full rounded-full transition-all"
+              style={{ width: `${pct}%` }}
+            />
           </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <div className="grid gap-6 md:grid-cols-2">
-          {FEATURES.map((f) => (
-            <Card key={f.title}>
-              <CardContent className="flex gap-4 pt-6">
-                <div className="bg-accent/10 text-accent flex h-11 w-11 shrink-0 items-center justify-center rounded-lg">
-                  <f.icon className="h-5 w-5" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="font-semibold">{f.title}</h3>
-                  <p className="text-muted-foreground text-sm">{f.body}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="bg-primary text-primary-foreground">
-        <div className="mx-auto max-w-3xl px-6 py-16 text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-balance">
-            Put dinner on the table, automatically.
-          </h2>
-          <p className="mt-3 opacity-90">
-            A Dutch family spends about €150 and five hours a week on groceries.
-            Get that time back.
+          <p className="text-muted-foreground text-sm">
+            Swipe a few dinners. No account needed. Sign in at the end to save
+            your week.
           </p>
-          <a href="/sign-in" className="mt-6 inline-block">
-            <Button size="lg" variant="secondary">
-              Get started free
-            </Button>
-          </a>
-        </div>
-      </section>
+        </header>
 
-      <footer className="text-muted-foreground mx-auto flex max-w-6xl items-center justify-between px-6 py-10 text-sm">
-        <span>© 2026 Smart Cart</span>
-        <span>Made in Amsterdam</span>
-      </footer>
-    </div>
+        <div className="mt-6 flex flex-1 flex-col">
+          <SwipeDeck card={card} ready={ready} onSwipe={swipe} />
+        </div>
+
+        <div className="mt-6 space-y-3">
+          <Link
+            to="/sign-in"
+            search={{ from: 'opener' }}
+            className="block"
+            disabled={!enough}
+            aria-disabled={!enough}
+          >
+            <Button className="w-full" size="lg" disabled={!enough}>
+              {enough ? 'Save my week' : `Swipe ${ENOUGH - count} more to save`}
+            </Button>
+          </Link>
+        </div>
+      </main>
+    </SafeArea>
   )
 }

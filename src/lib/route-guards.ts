@@ -21,6 +21,21 @@ const resolveSessionUser = createServerFn({ method: 'GET' }).handler(
 )
 
 /**
+ * Resolve the signed-in user, or null when signed out, without redirecting.
+ * Used by the public opener (index route) to decide whether an already-onboarded
+ * visitor should skip straight to /app, while still letting signed-out visitors
+ * through to swipe anonymously. Fails open to null so a transient session error
+ * never blocks the public deck.
+ */
+export async function resolveSessionUserOrNull(): Promise<GuardUser | null> {
+  try {
+    return await resolveSessionUser()
+  } catch {
+    return null
+  }
+}
+
+/**
  * `beforeLoad` guard for signed-in-only routes. A signed-out visitor is redirected
  * to /sign-in server-side before any gated page renders. Fails closed: any error
  * resolving the session redirects to sign-in rather than leaking the gated page.
