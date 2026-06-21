@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   createFileRoute,
   redirect,
@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-router'
 import { ShoppingBag } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
-import { loadWeek, loadWeekBootstrap } from '#/lib/week-server'
+import { loadWeek, loadWeekBootstrap, latestPlanId } from '#/lib/week-server'
 import { weekPlanUrl } from '#/lib/week-url'
 import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { replanWeek } from '#/lib/replan-server'
@@ -102,6 +102,40 @@ function WeekPage() {
   )
   /** The recipe id whose rating write is in flight, if any. */
   const [ratingBusy, setRatingBusy] = useState<string | null>(null)
+  /** Days whose dinner a voice replan just changed, glowing for ~3s (#17). */
+  const [glowDays, setGlowDays] = useState<ReadonlySet<string>>(() => new Set())
+  /** Latest week, read inside the voice-sync callback without stale closure. */
+  const weekRef = useRef<WeekView>(week)
+  weekRef.current = week
+
+  /**
+   * After an in-app voice action, pull the household's newest plan. A voice
+   * replan writes a new plan revision server-to-server, so the page can't learn
+   * its id any other way. If it's new, adopt it and glow the days that changed
+   * (the "AI is doing its magic" cue). Idempotent + cheap: a no-op when nothing
+   * changed, so it's safe to fire on every voice message + on call-end.
+   */
+  async function syncFromVoice() {
+    try {
+      const { planId } = await latestPlanId()
+      const prev = weekRef.current
+      if (!planId || planId === prev.planId) return
+      const next = await loadWeek({ data: { planId } })
+      const changed = next.days
+        .filter((d) => {
+          const before = prev.days.find((p) => p.day === d.day)
+          return before && before.recipeRef !== d.recipeRef
+        })
+        .map((d) => d.day)
+      adopt(planId, next)
+      if (changed.length > 0) {
+        setGlowDays(new Set(changed))
+        window.setTimeout(() => setGlowDays(new Set()), 3200)
+      }
+    } catch {
+      // Best-effort live sync; the chat path + a manual reload still work.
+    }
+  }
 
   /**
    * Submit a post-meal rating for a day's dinner (#126). Writes meal_feedback via
@@ -347,7 +381,7 @@ function WeekPage() {
 
       <div className="space-y-6 px-5 pt-2">
         <ChatReplan busy={replanning} onSubmit={replan} />
-        <VoiceButton />
+        <VoiceButton onActed={() => void syncFromVoice()} />
 
         <RatingReminders />
 
@@ -367,6 +401,7 @@ function WeekPage() {
               day={d}
               busy={busyDay === d.day}
               locked={locked}
+              glowing={glowDays.has(d.day)}
               onEdit={() => setEditDay(d.day)}
               onAdd={() => void startAdd(d.day)}
               onSwap={() => swap(d.day)}
