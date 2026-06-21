@@ -26,14 +26,14 @@ interface DayCardProps {
   locked: boolean
   /** A voice/chat replan just changed this day: play the AI "magic" glow. */
   glowing?: boolean
-  /** Tap the card to open the edit sheet (~5 ready alternatives). */
+  /** Tap the card to open the recipe sheet (ingredients + steps, titled by name). */
   onEdit: () => void
   /**
    * Add a meal to this (eating-out / empty) day: opens the same picker so the user
    * can drop a dinner in (#175). Only called for a skipped day.
    */
   onAdd: () => void
-  /** Swap this day's dinner for the next-best by preference. */
+  /** Open the swap chooser pull-up: ~5 pre-ranked alternatives for this day (#291). */
   onSwap: () => void
   /** Load similar recipes for this day's dinner under the given re-rank. */
   onLoadSimilar: (sort: SimilarSort) => Promise<Array<SimilarNeighbour>>
@@ -54,12 +54,12 @@ interface DayCardProps {
  * prep / calories / protein chips when the recipe carries them. A skipped day
  * (eating out) renders an empty state instead of a recipe.
  *
- * Two swaps, both full-width tappable buttons (no hover-only affordance, works on
- * touch at 390px):
- *  - Tapping the card itself opens the edit sheet (#123): ~5 ready alternatives,
+ * Tapping the card itself opens the recipe sheet (#291): the dish's ingredients,
+ * steps, and "Souso knows" facts, titled by the recipe name. Two swap actions
+ * sit below, both full-width tappable (no hover-only affordance, works on touch
+ * at 390px):
+ *  - "Swap" opens the alternatives chooser pull-up (#291): ~5 ready alternatives,
  *    pre-ranked for the household and shipped with the week, so it opens instantly.
- *    This is THE edit method.
- *  - "Swap" takes the next-best by preference (#12).
  *  - "Similar" expands an inline chooser of the dish's nearest neighbours (#31), so
  *    the replacement stays close to what is already planned ("like this, but a
  *    different night"), with a faster / lighter re-rank toggle.
@@ -101,7 +101,8 @@ export function DayCard({
       )}
     >
       {/* The whole dish (image + title + macros) is one big tap target that opens
-          the edit sheet. A skipped day has nothing to edit, so it is inert. */}
+          the recipe sheet (ingredients + steps). A skipped day has no recipe, so
+          it taps through to "Add a meal" instead. */}
       <button
         type="button"
         disabled={locked || picking}
@@ -184,7 +185,8 @@ export function DayCard({
         ) : (
           <>
             <p className="text-muted-foreground pt-2 text-center text-xs">
-              Tap the dish to see {day.alternatives.length || '5'} ready swaps
+              Tap the dish for the recipe, or swap for{' '}
+              {day.alternatives.length || '5'} ready alternatives
             </p>
             <div className="grid grid-cols-2 gap-2">
               <Button
