@@ -22,6 +22,7 @@ import type {
   ShoppingRecipe,
 } from './types'
 import { canonicalUnit, renderFromBase, round } from './units'
+import { dedupeKey, isNonGroceryWater } from './clean-list'
 
 /**
  * How much of an adult portion one child eats. Exposed as a constant so the UI
@@ -58,9 +59,14 @@ interface Accumulator {
   order: number
 }
 
-/** Lowercased, trimmed key so 'Onion' and 'onion ' merge. */
+/**
+ * Lowercased, trimmed, spelling-normalised key so 'Onion' and 'onion ' merge,
+ * AND so spelling variants collapse to one line ('chili flakes' == 'chilli
+ * flakes'). Delegates to `dedupeKey` (#cart-clean) so the merge key and the
+ * display-time de-dupe key stay identical.
+ */
 function nameKey(name: string): string {
-  return name.trim().toLowerCase()
+  return dedupeKey(name)
 }
 
 /**
@@ -80,6 +86,9 @@ export function consolidate(
     const factor = recipeServings ? target / recipeServings : 1
 
     for (const ing of recipe.ingredients) {
+      // Cooking water "from the tap" is a recipe step, not a grocery; never let
+      // it reach the cart (#cart-clean).
+      if (isNonGroceryWater(ing.name)) continue
       const key = nameKey(ing.name)
       if (key === '') continue
 
@@ -136,6 +145,9 @@ function toLine(entry: Accumulator): ShoppingLine {
   // largest base value is primary (it gets totalQty/unit). Ties broken by base
   // label for determinism.
   const rendered = [...entry.buckets.values()]
+    // A bucket that summed to zero ("0 tsp") is noise, not a buyable amount;
+    // drop it so the line shows a clean name with no junk quantity (#cart-clean).
+    .filter((b) => b.baseValue !== 0)
     .sort((a, b) => b.baseValue - a.baseValue || a.base.localeCompare(b.base))
     .map((b) => {
       const r = renderFromBase(b.dimension as never, b.baseValue, b.base)

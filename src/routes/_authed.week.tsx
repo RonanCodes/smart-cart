@@ -39,6 +39,7 @@ import type { MealFeedbackState } from '#/lib/meal-feedback-server'
 import type { MealRating } from '#/lib/meal-feedback'
 import { Button } from '#/components/ui/button'
 import { DayCard } from '#/components/week/DayCard'
+import { DayCardSkeleton } from '#/components/week/DayCardSkeleton'
 import { ChatReplan } from '#/components/week/ChatReplan'
 import { VoiceButton } from '#/components/week/VoiceButton'
 import type { VoiceButtonHandle } from '#/components/week/VoiceButton'
@@ -877,6 +878,25 @@ function LoadedWeek({
   const [aiOpen, setAiOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
 
+  /**
+   * Days whose dinner is being rewritten right now, shown as a per-card skeleton
+   * IN PLACE of just that day's card while the rest of the list stays live
+   * (#week-card-loading). Two sources, unioned:
+   *  - `busyDay`: a single-day write in flight (swipe-to-swap, similar pick,
+   *    alternative pick, day cleared) — exactly one day.
+   *  - `workingDays`: the day(s) a streaming replan is targeting — one or more,
+   *    derived from the instruction (`detectTargetDays`) up front and confirmed by
+   *    the real diff. A replan with no named day shows no per-card skeleton (the
+   *    chat card glows instead, see `workingGlow`), so the whole list never blanks.
+   * The full-page WeekSkeleton stays for the cold loader only; nothing here ever
+   * triggers it.
+   */
+  const updatingDays = useMemo(() => {
+    const set = new Set<string>(workingDays)
+    if (busyDay) set.add(busyDay)
+    return set
+  }, [busyDay, workingDays])
+
   // #week-control: wipe this week's plan so it returns to the empty state with a
   // "Build my week" CTA (a clean slate for a demo). Hard-nav so the loader
   // re-runs against the now-deleted plan.
@@ -941,24 +961,31 @@ function LoadedWeek({
               // Anchor so the step-through review can scroll each changed day into
               // view by id (`day-Monday`, …). `scroll-mt` clears the sticky header.
               <div key={d.day} id={`day-${d.day}`} className="scroll-mt-20">
-                <DayCard
-                  day={d}
-                  swapOptions={decks.get(d.day)}
-                  busy={busyDay === d.day}
-                  locked={locked}
-                  glowing={glowDays.has(d.day)}
-                  working={workingDays.has(d.day)}
-                  onEdit={cbs.onEdit}
-                  onAdd={cbs.onAdd}
-                  onSwap={cbs.onSwap}
-                  onSwapTo={cbs.onSwapTo}
-                  onLoadSimilar={cbs.onLoadSimilar}
-                  onPickSimilar={cbs.onPickSimilar}
-                  rating={feedback.get(d.recipeRef)?.rating ?? null}
-                  ratingNote={feedback.get(d.recipeRef)?.note ?? null}
-                  ratingBusy={ratingBusy === d.recipeRef}
-                  onRate={cbs.onRate}
-                />
+                {updatingDays.has(d.day) ? (
+                  // This day's dinner is being rewritten: a per-card skeleton in
+                  // place of just this card, while every sibling stays interactive
+                  // (#week-card-loading).
+                  <DayCardSkeleton day={d.day} />
+                ) : (
+                  <DayCard
+                    day={d}
+                    swapOptions={decks.get(d.day)}
+                    busy={busyDay === d.day}
+                    locked={locked}
+                    glowing={glowDays.has(d.day)}
+                    working={workingDays.has(d.day)}
+                    onEdit={cbs.onEdit}
+                    onAdd={cbs.onAdd}
+                    onSwap={cbs.onSwap}
+                    onSwapTo={cbs.onSwapTo}
+                    onLoadSimilar={cbs.onLoadSimilar}
+                    onPickSimilar={cbs.onPickSimilar}
+                    rating={feedback.get(d.recipeRef)?.rating ?? null}
+                    ratingNote={feedback.get(d.recipeRef)?.note ?? null}
+                    ratingBusy={ratingBusy === d.recipeRef}
+                    onRate={cbs.onRate}
+                  />
+                )}
               </div>
             )
           })}

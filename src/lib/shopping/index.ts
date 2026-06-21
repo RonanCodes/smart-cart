@@ -47,3 +47,11 @@ export type {
   NewShoppingItem,
   MergePlan,
 } from './persist'
+
+export {
+  cleanRows,
+  dedupeKey,
+  isNonGroceryWater,
+  isZeroAmount,
+} from './clean-list'
+export type { CleanableRow } from './clean-list'

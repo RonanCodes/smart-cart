@@ -38,3 +38,83 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     return null
   }
 }
+
+/**
+ * One-shot push opt-in, designed to be fired from a user-gesture moment (the
+ * click that completes a sign-in / sign-up). Browsers only show the Notification
+ * permission prompt in response to a gesture, so this runs inline on the verify
+ * success handler rather than as a separate onboarding step (#149 prompt-on-auth).
+ *
+ * Behaviour, in one pass:
+ *   - Unsupported browser (SSR, no SW/PushManager/Notification, iOS Safari NOT
+ *     installed as a PWA) -> silent no-op. Web push needs an installed PWA on iOS,
+ *     so mobile Safari simply skips here with no error and no prompt.
+ *   - `Notification.permission === 'denied'` -> do nothing (can't re-prompt).
+ *   - `=== 'granted'` -> the user already said yes; (re)ensure the browser is
+ *     subscribed and the server has the row, then return.
+ *   - `=== 'default'` -> request permission; on grant, register the SW + subscribe
+ *     against the VAPID key + persist server-side.
+ *
+ * NEVER throws and is idempotent: re-running when already subscribed is cheap and
+ * safe. Callers fire-and-forget it (`void promptForNotifications()`) BEFORE the
+ * post-auth redirect so the prompt surfaces, but navigation never waits on it.
+ */
+export async function promptForNotifications(): Promise<void> {
+  try {
+    if (!pushSupported()) return
+    if (Notification.permission === 'denied') return
+
+    // Lazy import so the push-server fns (and their server-only deps) only pull in
+    // when we actually reach a sign-in success, not on every module load.
+    const { log } = await import('./log')
+    const { getPushConfig, subscribePush } = await import('./push-server')
+
+    const cfg = await getPushConfig()
+    if (!cfg.publicKey) {
+      // No VAPID public key configured server-side; nobody can subscribe. Quiet.
+      log.info('push.prompt_skipped_unconfigured')
+      return
+    }
+
+    if (Notification.permission === 'default') {
+      log.info('push.prompt_request')
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        log.info('push.prompt_not_granted', { permission })
+        return
+      }
+    }
+    // Either it was already 'granted', or the user just granted it. Ensure the
+    // service worker + subscription + server row all exist (idempotent upsert).
+
+    const reg = await registerServiceWorker()
+    if (!reg) {
+      log.error('push.prompt_sw_register_failed')
+      return
+    }
+    await navigator.serviceWorker.ready
+
+    const existing = await reg.pushManager.getSubscription()
+    const sub =
+      existing ??
+      (await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        // Cast bridges the Uint8Array<ArrayBufferLike> vs BufferSource mismatch;
+        // a Uint8Array is a valid applicationServerKey at runtime.
+        applicationServerKey: urlBase64ToUint8Array(
+          cfg.publicKey,
+        ) as BufferSource,
+      }))
+
+    await subscribePush({ data: { subscription: sub.toJSON() } })
+    log.info('push.prompt_subscribed', { endpoint: sub.endpoint })
+  } catch (err) {
+    // Best-effort: a failure here must never break sign-in. Swallow after logging.
+    try {
+      const { log } = await import('./log')
+      log.error('push.prompt_failed', err)
+    } catch {
+      // Logging itself failed; nothing more we can safely do.
+    }
+  }
+}

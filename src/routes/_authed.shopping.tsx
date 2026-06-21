@@ -11,7 +11,7 @@ import { CartStoreSwitch } from '#/components/shopping/CartStoreSwitch'
 import { FloatingOrderBar } from '#/components/shopping/FloatingOrderBar'
 import { ShoppingSkeleton } from '#/components/shopping/ShoppingSkeleton'
 import type { ShoppingItem } from '#/lib/shopping'
-import type { StapleLine, FrequentStaple } from '#/lib/staples-server'
+import type { StapleLine } from '#/lib/staples-server'
 import { deriveLiveCartSet } from '#/lib/shopping/cart-set'
 import type { CartExtra } from '#/lib/shopping/cart-set'
 import {
@@ -82,12 +82,11 @@ function Shopping() {
   // (a backend hiccup degrading gracefully rather than 500-ing), render the
   // graceful empty-cart state instead of destructuring null (which crashed the
   // client with "Cannot destructure property 'view' from null" in Sentry).
-  if (!data) return <EmptyCart initialStaples={[]} frequentlyBought={[]} />
+  if (!data) return <EmptyCart initialStaples={[]} />
 
   const {
     view,
     staples: initialStaples,
-    frequentlyBought,
     items: initialItems,
     preferredStore,
   } = data
@@ -166,10 +165,7 @@ function Shopping() {
           }
         />
         <div className="px-5 pt-6 pb-4">
-          <StaplesSection
-            initialStaples={initialStaples}
-            frequentlyBought={frequentlyBought}
-          />
+          <StaplesSection initialStaples={initialStaples} />
         </div>
       </AppShell>
     )
@@ -179,12 +175,7 @@ function Shopping() {
   // state, but still let the user start a list from staples alone (a top-up
   // shop without a meal plan).
   if (!hasSavedItems && initialStaples.length === 0) {
-    return (
-      <EmptyCart
-        initialStaples={initialStaples}
-        frequentlyBought={frequentlyBought}
-      />
-    )
+    return <EmptyCart initialStaples={initialStaples} />
   }
 
   return (
@@ -251,7 +242,6 @@ function Shopping() {
       <div className="px-5 pt-2 pb-2">
         <StaplesSection
           initialStaples={initialStaples}
-          frequentlyBought={frequentlyBought}
           onStaplesChange={setLiveStaples}
           onCheckedChange={setSelectedExtraIds}
         />
@@ -280,13 +270,7 @@ function Shopping() {
  * plus the staples section so a top-up shop can start without a meal plan. Shared
  * by the genuine no-items case AND the loader-degraded (null data) fail-safe.
  */
-function EmptyCart({
-  initialStaples,
-  frequentlyBought,
-}: {
-  initialStaples: Array<StapleLine>
-  frequentlyBought: Array<FrequentStaple>
-}) {
+function EmptyCart({ initialStaples }: { initialStaples: Array<StapleLine> }) {
   return (
     <AppShell>
       <ScreenHeader
@@ -304,10 +288,7 @@ function EmptyCart({
         }
       />
       <div className="px-5 pt-6 pb-4">
-        <StaplesSection
-          initialStaples={initialStaples}
-          frequentlyBought={frequentlyBought}
-        />
+        <StaplesSection initialStaples={initialStaples} />
       </div>
     </AppShell>
   )

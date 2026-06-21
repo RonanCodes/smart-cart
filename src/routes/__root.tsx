@@ -64,16 +64,17 @@ export const Route = createRootRoute({
       { property: 'og:url', content: SITE_URL },
       { property: 'og:site_name', content: 'Souso' },
       // Share-card image (link previews on iMessage/Slack/WhatsApp/X). Absolute
-      // URL, the Souso brand hero. summary_large_image renders it wide.
-      { property: 'og:image', content: `${SITE_URL}/brand/souso-hero.png` },
-      { property: 'og:image:width', content: '1536' },
-      { property: 'og:image:height', content: '1024' },
+      // URL, the Souso brand card (toque mark + wordmark on cream).
+      // summary_large_image renders it wide.
+      { property: 'og:image', content: `${SITE_URL}/og-card.png?v=4` },
+      { property: 'og:image:width', content: '1200' },
+      { property: 'og:image:height', content: '630' },
       {
         property: 'og:image:alt',
         content: 'Souso, your sous chef for recipes and the weekly shop',
       },
       { name: 'twitter:card', content: 'summary_large_image' },
-      { name: 'twitter:image', content: `${SITE_URL}/brand/souso-hero.png` },
+      { name: 'twitter:image', content: `${SITE_URL}/og-card.png?v=4` },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
@@ -91,24 +92,24 @@ export const Route = createRootRoute({
         href: '/fonts/schoolbell.woff2',
         crossOrigin: 'anonymous',
       },
-      { rel: 'icon', href: '/favicon.ico?v=3', sizes: 'any' },
-      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=3' },
+      { rel: 'icon', href: '/favicon.ico?v=5', sizes: 'any' },
+      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=5' },
       {
         rel: 'icon',
         type: 'image/png',
         sizes: '32x32',
-        href: '/favicon-32x32.png?v=3',
+        href: '/favicon-32x32.png?v=5',
       },
       {
         rel: 'icon',
         type: 'image/png',
         sizes: '16x16',
-        href: '/favicon-16x16.png?v=3',
+        href: '/favicon-16x16.png?v=5',
       },
       {
         rel: 'apple-touch-icon',
         sizes: '180x180',
-        href: '/apple-touch-icon.png?v=3',
+        href: '/apple-touch-icon.png?v=5',
       },
       { rel: 'manifest', href: '/site.webmanifest' },
     ],

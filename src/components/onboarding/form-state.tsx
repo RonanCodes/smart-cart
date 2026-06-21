@@ -59,6 +59,43 @@ export const EMPTY_DRAFT: OnboardingDraft = {
   locale: 'en',
 }
 
+/**
+ * sessionStorage key for the in-flight draft. The draft lives in the reducer
+ * while the flow is mounted; this mirror is a belt-and-braces backup so an
+ * accidental reload mid-flow (notably during the email/OTP step) does not lose
+ * the answers. sessionStorage (not localStorage) so it is scoped to the tab and
+ * cleared when the tab closes — a half-finished draft never leaks across visits.
+ */
+export const DRAFT_STORAGE_KEY = 'souso.onboarding.draft'
+
+/**
+ * Restore a draft saved by {@link saveDraft}, or null when there is none / it is
+ * unreadable. Merges over EMPTY_DRAFT so a draft saved by an older shape still
+ * loads (missing keys fall back to defaults). No-throw: storage can be disabled
+ * (private mode) or hold garbage, neither of which must break onboarding.
+ */
+export function loadDraft(): OnboardingDraft | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(DRAFT_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<OnboardingDraft>
+    return { ...EMPTY_DRAFT, ...parsed }
+  } catch {
+    return null
+  }
+}
+
+/** Mirror the draft to sessionStorage. No-throw (storage may be unavailable). */
+export function saveDraft(draft: OnboardingDraft): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+  } catch {
+    // Private mode / quota: the in-memory reducer is still the source of truth.
+  }
+}
+
 export type OnboardingAction = {
   type: 'patch'
   patch: Partial<OnboardingDraft>

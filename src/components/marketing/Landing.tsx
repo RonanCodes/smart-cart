@@ -15,7 +15,10 @@ import { StickyNote } from '#/components/ui/sticky-note'
  * lets already-approved users reach /login.
  *
  * Once the app is live (`launched`), the waitlist capture is replaced by a
- * "get started" CTA into /sign-in, since anyone can now sign in.
+ * "get started" CTA. EMAIL-LAST (TJ's design): "Get started" goes straight into
+ * /onboarding (anonymous — no email prompt up front); the email is collected at
+ * the END of the form. "Already have access? Log in" routes existing users to
+ * sign-in.
  *
  * Mounted at the public entry route / (the swipe-deck opener is retired).
  */
@@ -61,15 +64,17 @@ const SOCIAL_PROOF_MIN = 1
 export function Landing({
   launched = false,
   userCount = 0,
-  signInTo = '/sign-in',
+  signInTo = '/onboarding',
   loginTo = '/login',
 }: {
   launched?: boolean
   /** Total registered users, from the public getUserCount server fn. Drives the
    * social-proof line; hidden below SOCIAL_PROOF_MIN. */
   userCount?: number
-  /** Where the "Get started" CTA points. Overridden by the design prototype so
-   * the walkthrough stays inside /design/* instead of jumping to real auth. */
+  /** Where the "Get started" CTA points. EMAIL-LAST: defaults to /onboarding so
+   * a visitor runs the form first and gives their email at the end. Overridden
+   * by the design prototype so the walkthrough stays inside /design/* instead of
+   * jumping to real onboarding. */
   signInTo?: string
   /** Where the "Already have access? Log in" link points (same reason). */
   loginTo?: string
