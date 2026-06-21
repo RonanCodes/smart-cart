@@ -35,6 +35,8 @@ import { VoiceButton } from '#/components/week/VoiceButton'
 import { EditDaySheet } from '#/components/week/EditDaySheet'
 import { RatingReminders } from '#/components/week/RatingReminders'
 import { WeekSkeleton } from '#/components/week/WeekSkeleton'
+import { ReplanBanner } from '#/components/week/ReplanBanner'
+import type { PlanDayChange } from '#/lib/replan/diff'
 
 interface WeekSearch {
   plan?: string
@@ -91,6 +93,8 @@ function WeekPage() {
   const [voiceLive, setVoiceLive] = useState(false)
   const [replanning, setReplanning] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  /** The per-day diff behind the replan message, for the "Show changes" disclosure. */
+  const [changes, setChanges] = useState<Array<PlanDayChange>>([])
   /** The agent's narration as it streams in during a chat replan. */
   const [streamingText, setStreamingText] = useState('')
   /** The day whose edit sheet is open (tap-a-day -> ~5 alternatives). */
@@ -162,6 +166,7 @@ function WeekPage() {
     if (!recipeId || ratingBusy) return
     setRatingBusy(recipeId)
     setMessage(null)
+    setChanges([])
     try {
       const res = await submitMealFeedback({
         data: {
@@ -215,6 +220,7 @@ function WeekPage() {
     if (locked) return
     setBusyDay(day)
     setMessage(null)
+    setChanges([])
     try {
       const res = await replanWeek({
         data: { planId: week.planId, action: 'swap', days: [day] },
@@ -253,6 +259,7 @@ function WeekPage() {
     if (locked) return
     setBusyDay(day)
     setMessage(null)
+    setChanges([])
     try {
       const res = await applySimilarSwapToPlan({
         data: { planId: week.planId, day, recipeId },
@@ -277,6 +284,7 @@ function WeekPage() {
     if (locked) return
     setBusyDay(day)
     setMessage(null)
+    setChanges([])
     try {
       const res = await applySimilarSwapToPlan({
         data: { planId: week.planId, day, recipeId },
@@ -313,6 +321,7 @@ function WeekPage() {
     if (locked) return
     setBusyDay(day)
     setMessage(null)
+    setChanges([])
     try {
       const res = await clearDayInPlan({
         data: { planId: week.planId, day },
@@ -341,6 +350,7 @@ function WeekPage() {
     setAddAlternatives(null)
     setEditDay(day)
     setMessage(null)
+    setChanges([])
     try {
       const res = await addMealAlternatives({
         data: { planId: week.planId, day },
@@ -362,6 +372,7 @@ function WeekPage() {
     if (addingToList) return
     setAddingToList(true)
     setMessage(null)
+    setChanges([])
     try {
       await addWeekToShoppingList({ data: { planId: week.planId } })
       // Await the navigation so the Shopping loader re-runs (and re-reads the
@@ -389,10 +400,12 @@ function WeekPage() {
     const startPlanId = week.planId
     setReplanning(true)
     setMessage(null)
+    setChanges([])
     setStreamingText('')
     let finalPlanId = startPlanId
     let changed = false
     let finalMessage: string | null = null
+    let finalChanges: Array<PlanDayChange> = []
     try {
       for await (const ev of streamReplan(startPlanId, instruction)) {
         if (ev.type === 'text') {
@@ -403,6 +416,7 @@ function WeekPage() {
           finalMessage = ev.message
           finalPlanId = ev.planId
           changed = ev.changed
+          finalChanges = ev.changes
           if (ev.planId !== startPlanId) {
             setWeek((w) => ({ ...w, planId: ev.planId }))
           }
@@ -419,8 +433,10 @@ function WeekPage() {
         adopt(next.planId, next)
       }
       setMessage(finalMessage)
+      setChanges(finalChanges)
     } catch {
       setMessage('Could not adjust the week, try again.')
+      setChanges([])
     } finally {
       setReplanning(false)
       setStreamingText('')
@@ -459,14 +475,7 @@ function WeekPage() {
 
         <RatingReminders />
 
-        {message && (
-          <div
-            role="status"
-            className="bg-secondary text-secondary-foreground rounded-lg px-4 py-3 text-sm"
-          >
-            {message}
-          </div>
-        )}
+        {message && <ReplanBanner message={message} changes={changes} />}
 
         <div className="grid grid-cols-1 gap-4">
           {week.days.map((d) => (

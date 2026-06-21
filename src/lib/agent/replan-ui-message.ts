@@ -1,5 +1,6 @@
 import type { UIMessage } from 'ai'
 import type { PlannedWeek } from '../planner/types'
+import type { PlanDayChange } from '../replan/diff'
 
 /**
  * The typed UI message for the chat replan stream (`POST /api/replan`).
@@ -12,6 +13,16 @@ export type ReplanUIMessage = UIMessage<
   never,
   {
     week: { week: PlannedWeek }
-    done: { message: string; changed: boolean; planId: string }
+    done: {
+      message: string
+      changed: boolean
+      planId: string
+      /**
+       * The exact per-day changes behind the summary: old dish -> new dish for
+       * every day the replan touched. Empty when nothing changed. Drives the
+       * banner's collapsed "Show changes" disclosure.
+       */
+      changes: Array<PlanDayChange>
+    }
   }
 >
