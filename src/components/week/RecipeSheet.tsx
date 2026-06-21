@@ -78,7 +78,7 @@ export function RecipeSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={day?.meal}>
-      <div className="pb-2">
+      <div className="pb-16">
         {/* Hero: the die-cut dish sticker (the recipeImageUrl-resolved sticker
             from the week row) with a hand-written keeper note tucked at the
             corner, the Souso "personal recipe-book" touch. The same photo
