@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import clsx from 'clsx'
 import {
   UtensilsCrossed,
   Shuffle,
@@ -94,9 +95,10 @@ export function DayCard({
 
   return (
     <div
-      className={`bg-card border-border flex flex-col overflow-hidden rounded-xl border shadow-sm${
-        glowing ? 'ai-glow' : ''
-      }`}
+      className={clsx(
+        'bg-card border-border flex flex-col overflow-hidden rounded-xl border shadow-sm',
+        glowing && 'ai-glow',
+      )}
     >
       {/* The whole dish (image + title + macros) is one big tap target that opens
           the edit sheet. A skipped day has nothing to edit, so it is inert. */}
