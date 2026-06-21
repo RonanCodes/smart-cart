@@ -49,7 +49,6 @@ function tapButton(href: string, label: string): string {
  * typing. No magic link -> code-only, the original layout.
  */
 function otpHtml(code: string, magicLinkUrl?: string): string {
-  const spaced = code.split('').join('&nbsp;')
   const tapBlock = magicLinkUrl
     ? `<p style="color:#9aa89a;font-size:13px;margin:0 0 12px;">or just tap here to sign in</p>
        ${tapButton(magicLinkUrl, 'Sign in to Souso')}
@@ -57,7 +56,7 @@ function otpHtml(code: string, magicLinkUrl?: string): string {
     : ''
   return emailShell(`
         <p style="color:#5b6b5b;margin:0 0 20px;font-size:15px;">Your sign-in code:</p>
-        <p style="font-size:38px;font-weight:800;letter-spacing:8px;color:#1f2a1f;margin:0 0 24px;">${spaced}</p>
+        <p style="font-size:38px;font-weight:800;letter-spacing:8px;color:#1f2a1f;margin:0 0 24px;">${code}</p>
         <p style="color:#8a988a;font-size:13px;line-height:1.5;margin:0 0 ${magicLinkUrl ? '24px' : '0'};">It expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
         ${tapBlock}`)
 }
