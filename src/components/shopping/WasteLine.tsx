@@ -11,7 +11,14 @@ import type { WasteSummary } from '#/lib/shopping'
  * Hidden entirely when there is nothing real to claim, so it never adds noise
  * to a one-recipe or top-up shop.
  */
-export function WasteLine({ waste }: { waste: WasteSummary }) {
+export function WasteLine({
+  waste,
+  estimated = false,
+}: {
+  waste: WasteSummary
+  /** When true, the amounts behind the count are inferred, so we say "approx" (#313). */
+  estimated?: boolean
+}) {
   if (!waste.hasSavings || waste.sharedIngredientCount === 0) return null
 
   const n = waste.sharedIngredientCount
@@ -21,6 +28,7 @@ export function WasteLine({ waste }: { waste: WasteSummary }) {
       <span>
         {n} {n === 1 ? 'ingredient' : 'ingredients'} reused across your meals,
         nothing left over.
+        {estimated && ' Amounts are approximate.'}
       </span>
     </p>
   )

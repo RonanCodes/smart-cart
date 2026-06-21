@@ -39,6 +39,8 @@ describe('mapRecipeDetail — the recipe row -> {ingredients, steps}', () => {
       steps: ['Kook de aardappelen.', 'Snijd de ui.'],
       prepMinutes: 25,
       servings: 4,
+      // No quantitiesEstimated flag on this row, so the amounts are not labelled.
+      amountsEstimated: false,
     })
   })
 
@@ -66,7 +68,68 @@ describe('mapRecipeDetail — the recipe row -> {ingredients, steps}', () => {
         prepMinutes: null,
         servings: null,
       }),
-    ).toEqual({ ingredients: [], steps: [], prepMinutes: null, servings: null })
+    ).toEqual({
+      ingredients: [],
+      steps: [],
+      prepMinutes: null,
+      servings: null,
+      amountsEstimated: false,
+    })
+  })
+
+  it('flags amounts as estimated when the row says so AND has an amount (#313)', () => {
+    const result = mapRecipeDetail({
+      ingredients: [{ name: 'pumpkin', qty: '350', unit: 'g' }],
+      instructions: ['Roast the pumpkin.'],
+      prepMinutes: 30,
+      servings: 4,
+      quantitiesEstimated: true,
+    })
+    // The amount renders for display...
+    expect(result.ingredients).toEqual([{ name: 'pumpkin', amount: '350 g' }])
+    // ...and is labelled approximate so the UI can say so.
+    expect(result.amountsEstimated).toBe(true)
+  })
+
+  it('does NOT flag estimated when the recipe carries no amount at all (#313)', () => {
+    const result = mapRecipeDetail({
+      ingredients: [{ name: 'salt' }],
+      instructions: ['Season.'],
+      prepMinutes: 5,
+      servings: 2,
+      quantitiesEstimated: true,
+    })
+    expect(result.ingredients).toEqual([{ name: 'salt', amount: null }])
+    // Nothing to qualify, so no "approx" note.
+    expect(result.amountsEstimated).toBe(false)
+  })
+
+  it('defaults to the English ingredients + steps when present (#295)', () => {
+    const result = mapRecipeDetail({
+      ingredients: [{ name: 'aardappelen', qty: '500', unit: 'g' }],
+      instructions: ['Kook de aardappelen.'],
+      ingredientsEn: [{ name: 'potatoes', qty: '500', unit: 'g' }],
+      instructionsEn: ['Boil the potatoes.'],
+      prepMinutes: 20,
+      servings: 4,
+    })
+    expect(result.ingredients).toEqual([{ name: 'potatoes', amount: '500 g' }])
+    expect(result.steps).toEqual(['Boil the potatoes.'])
+  })
+
+  it('falls back to Dutch when the English fields are absent or empty (#295)', () => {
+    const result = mapRecipeDetail({
+      ingredients: [{ name: 'aardappelen', qty: '500', unit: 'g' }],
+      instructions: ['Kook de aardappelen.'],
+      ingredientsEn: null,
+      instructionsEn: [],
+      prepMinutes: 20,
+      servings: 4,
+    })
+    expect(result.ingredients).toEqual([
+      { name: 'aardappelen', amount: '500 g' },
+    ])
+    expect(result.steps).toEqual(['Kook de aardappelen.'])
   })
 
   it('returns empty arrays when the row has empty arrays', () => {
@@ -77,7 +140,13 @@ describe('mapRecipeDetail — the recipe row -> {ingredients, steps}', () => {
         prepMinutes: 10,
         servings: 1,
       }),
-    ).toEqual({ ingredients: [], steps: [], prepMinutes: 10, servings: 1 })
+    ).toEqual({
+      ingredients: [],
+      steps: [],
+      prepMinutes: 10,
+      servings: 1,
+      amountsEstimated: false,
+    })
   })
 })
 
@@ -109,6 +178,7 @@ vi.mock('../db/schema', () => ({
     instructions: 'instructions-col',
     prepMinutes: 'prep-col',
     servings: 'servings-col',
+    quantitiesEstimated: 'qty-est-col',
   },
 }))
 vi.mock('drizzle-orm', () => ({ eq: () => 'eq-clause' }))
@@ -136,6 +206,7 @@ describe('fetchRecipeDetail', () => {
       steps: ['Spoel de rijst.'],
       prepMinutes: 20,
       servings: 3,
+      amountsEstimated: false,
     })
   })
 
@@ -149,6 +220,7 @@ describe('fetchRecipeDetail', () => {
       steps: [],
       prepMinutes: null,
       servings: null,
+      amountsEstimated: false,
     })
   })
 
@@ -159,6 +231,7 @@ describe('fetchRecipeDetail', () => {
       steps: [],
       prepMinutes: null,
       servings: null,
+      amountsEstimated: false,
     })
   })
 

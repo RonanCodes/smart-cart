@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import { ChevronLeft, Plus, Minus, ChefHat } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { StickyNote } from '#/components/ui/sticky-note'
@@ -29,6 +30,7 @@ const STEPS = [
 ]
 
 export const Route = createFileRoute('/design/recipe')({
+  beforeLoad: requireAdminBeforeLoad,
   component: DesignRecipe,
 })
 

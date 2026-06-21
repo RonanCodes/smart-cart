@@ -21,6 +21,12 @@ export const household = sqliteTable('household', {
   preferredStore: text('preferred_store').notNull().default('ah'),
   /** Soft weekly grocery budget in euro cents (null = no cap). */
   weeklyBudgetCents: integer('weekly_budget_cents'),
+  /** The plan id whose week we last auto-seeded into the shopping list. A plan
+   * auto-seeds exactly once; after that an explicit "Clear all" stays cleared
+   * (we never re-seed the same plan) and only a NEW plan re-seeds. Null until
+   * the first auto-seed. (#311: fixes Clear all being undone by the loader
+   * re-seeding on the next visit.) */
+  lastSeededPlanId: text('last_seeded_plan_id'),
   /** Learned taste profile (allergies, dislikes, diet). The real-time memory the
    * feedback loop folds into; read by the planner. */
   profile: text('profile', { mode: 'json' })
@@ -40,6 +46,12 @@ export const household = sqliteTable('household', {
       /** Days they usually cook (0=Mon..6=Sun). Drives the default weekly
        * rhythm: only these days get a planned dinner. Empty/absent = all 7. */
       cookDays?: Array<number>
+      /** MANUAL skip-day override (0=Mon..6=Sun): the weekdays the household
+       * has explicitly told us they skip dinner. When set (non-null), it WINS
+       * over the auto-inferred skip-days in generation. null/absent = let Souso
+       * keep auto-inferring from past plans. An empty array means "I skip no
+       * days" (an explicit override that suppresses inference). */
+      skipDays?: Array<number> | null
       /** Kitchen appliances the household has (Oven, Microwave, Stovetop,
        * Blender, Multi cooker, Air fryer). Gates recipe feasibility. */
       equipment?: Array<string>
@@ -126,6 +138,34 @@ export const recipe = sqliteTable('recipe', {
     .$type<Array<string>>()
     .notNull()
     .$defaultFn(() => []),
+  /**
+   * English translation of `title`, baked at seed time for the demo recipe set
+   * (AH/Jumbo recipes with images). Null when not translated; the display falls
+   * back to the Dutch `title`. The Dutch source is never overwritten (#295).
+   */
+  titleEn: text('title_en'),
+  /** English ingredient lines, parallel to `ingredients` (same qty/unit, English name). */
+  ingredientsEn: text('ingredients_en', { mode: 'json' }).$type<
+    Array<{ name: string; qty?: string; unit?: string; productId?: string }>
+  >(),
+  /** English how-to steps, parallel to `instructions`. */
+  instructionsEn: text('instructions_en', { mode: 'json' }).$type<
+    Array<string>
+  >(),
+  /**
+   * Estimated per-ingredient metric amount, parallel to `ingredients` by index.
+   * The scraped AH/Jumbo data has patchy quantities (many lines carry none), so
+   * the demo set gets LLM-estimated amounts baked in at seed time (#313). Null
+   * when not estimated. `quantitiesEstimated` flags that the displayed amounts +
+   * food-waste figures are inferred, so the UI can label them "approx".
+   */
+  ingredientsQty: text('ingredients_qty', { mode: 'json' }).$type<
+    Array<{ qty: number; unit: 'g' | 'ml' | 'stuks' }>
+  >(),
+  /** True when the amounts on this recipe are LLM-estimated, not from the source (#313). */
+  quantitiesEstimated: integer('quantities_estimated', {
+    mode: 'boolean',
+  }).default(false),
   /** Full scraped blob, kept verbatim as the source of truth. */
   raw: text('raw', { mode: 'json' }).$type<Record<string, unknown>>(),
   createdAt: integer('created_at', { mode: 'timestamp' })

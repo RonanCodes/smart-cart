@@ -62,18 +62,28 @@ export const Route = createFileRoute('/api/mollie/webhook')({
 
         // Re-fetch status (source of truth) and write it to the matching row.
         // Idempotent: a retry with the same status rewrites the same value.
-        await applyMolliePaymentUpdate(
-          apiKey,
-          { getPayment },
-          {
-            updateStatus: (molliePaymentId, status) =>
-              db
-                .update(tipPayment)
-                .set({ status })
-                .where(eq(tipPayment.molliePaymentId, molliePaymentId)),
-          },
-          id,
-        )
+        try {
+          await applyMolliePaymentUpdate(
+            apiKey,
+            { getPayment },
+            {
+              updateStatus: (molliePaymentId, status) =>
+                db
+                  .update(tipPayment)
+                  .set({ status })
+                  .where(eq(tipPayment.molliePaymentId, molliePaymentId)),
+            },
+            id,
+          )
+        } catch (err) {
+          // Make the webhook-side getPayment / status-update failure diagnosable
+          // (#307): carry the payment id + mode. We still answer 200 so Mollie
+          // stops retrying a failure a retry won't fix.
+          log.error('tip.mollie.webhook_failed', err, {
+            molliePaymentId: id,
+            mode,
+          })
+        }
 
         return new Response('ok', { status: 200 }) // 200 fast; Mollie retries on failure
       },

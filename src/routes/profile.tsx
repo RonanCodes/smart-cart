@@ -9,6 +9,8 @@ import {
   Bell,
   CircleHelp,
   Shield,
+  Heart,
+  CalendarOff,
 } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
@@ -19,28 +21,44 @@ import { Badge } from '#/components/ui/badge'
 import { NotificationsSheet } from '#/components/profile/notifications-sheet'
 import { PlanReminderSection } from '#/components/profile/plan-reminder-section'
 import { StoreSheet } from '#/components/profile/store-sheet'
+import { PreferencesSheet } from '#/components/profile/preferences-sheet'
+import { SkipDaysSheet } from '#/components/profile/skip-days-sheet'
 import { storeLabel, loadProfileBootstrap } from '#/lib/store-pref-server'
 import type { StoreSlug, ProfileBootstrap } from '#/lib/store-pref-server'
 import { getHouseholdSummary } from '#/lib/onboarding-server'
 import type { HouseholdSummary } from '#/lib/onboarding-server'
+import {
+  getProfileEditor,
+  getInferredSkipDays,
+} from '#/lib/profile-edit-server'
+import type {
+  EditableProfile,
+  InferredSkipDays,
+} from '#/lib/profile-edit-server'
+import { DAY_LABELS } from '#/lib/onboarding-rhythm'
 import { ProfileSkeleton } from '#/components/profile/ProfileSkeleton'
 
-/** The profile route's data: the settings bootstrap plus the taste summary (#268). */
+/** The profile route's data: the settings bootstrap plus the taste summary (#268)
+ * and the editable data points + inferred skip-days (#data-points). */
 interface ProfileData extends ProfileBootstrap {
   summary: HouseholdSummary | null
+  editor: EditableProfile | null
+  inferredSkip: InferredSkipDays | null
 }
 
 /**
- * Compose the settings bootstrap (admin + store) with the taste summary in ONE
- * loader (#268). The taste profile moved here from the retired /app pre-plan
- * home; the data source (getHouseholdSummary) is unchanged, only the surface.
+ * Compose the settings bootstrap (admin + store) with the taste summary (#268)
+ * and the editable data points (#data-points) in ONE loader. The editor + the
+ * inferred skip-days feed the "What Souso knows about you" editing surface.
  */
 async function loadProfileData(): Promise<ProfileData> {
-  const [bootstrap, summary] = await Promise.all([
+  const [bootstrap, summary, editor, inferredSkip] = await Promise.all([
     loadProfileBootstrap(),
     getHouseholdSummary(),
+    getProfileEditor(),
+    getInferredSkipDays(),
   ])
-  return { ...bootstrap, summary }
+  return { ...bootstrap, summary, editor, inferredSkip }
 }
 
 export const Route = createFileRoute('/profile')({
@@ -83,6 +101,23 @@ function Profile() {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [storeOpen, setStoreOpen] = useState(false)
   const [store, setStore] = useState<StoreSlug>(initialStore)
+  const [preferencesOpen, setPreferencesOpen] = useState(false)
+  const [skipDaysOpen, setSkipDaysOpen] = useState(false)
+  // Local mirrors so an edit reflects immediately without a route reload. Seeded
+  // from the loader; updated by each sheet's onSaved with the server's result.
+  const [editor, setEditor] = useState<EditableProfile | null>(data.editor)
+  const [inferredSkip, setInferredSkip] = useState<InferredSkipDays | null>(
+    data.inferredSkip,
+  )
+
+  /** The skip-days summary string for the row's trailing value. Manual wins;
+   * else the inferred set; else a neutral "Auto". */
+  const skipDaysValue = (() => {
+    const days = inferredSkip?.manual ?? inferredSkip?.inferred ?? []
+    if (inferredSkip?.manual != null && days.length === 0) return 'None'
+    if (days.length === 0) return 'Auto'
+    return days.map((d) => DAY_LABELS[d]).join(', ')
+  })()
 
   async function signOut() {
     // Best-effort client sign-out, then ALWAYS hard-navigate to the server-side
@@ -145,13 +180,16 @@ function Profile() {
         {/* Weekly planning reminder (Part B): pick a day + time to be nudged. */}
         <PlanReminderSection />
 
-        {/* Your taste (#268): moved here from the retired /app pre-plan home. */}
+        {/* What Souso knows about you (#data-points): the taste summary (#268),
+            now with edit affordances. Everything here feeds the next week. */}
         <section className="space-y-3">
           <div>
-            <h2 className="text-lg font-semibold">Your taste</h2>
+            <h2 className="text-lg font-semibold">
+              What Souso knows about you
+            </h2>
             <p className="text-muted-foreground mt-0.5 text-sm">
-              Built from what you told us in onboarding. It sharpens every week
-              as you cook and rate.
+              These are the signals Souso plans with. They sharpen every week as
+              you cook and rate, and you can adjust any of them.
             </p>
           </div>
 
@@ -186,6 +224,23 @@ function Profile() {
               </Badge>
             ))}
           </div>
+
+          <List>
+            <ListRow
+              leading={<Heart aria-hidden />}
+              title="Your preferences"
+              value="Cuisines, avoid, diet, goals"
+              chevron
+              onClick={() => setPreferencesOpen(true)}
+            />
+            <ListRow
+              leading={<CalendarOff aria-hidden />}
+              title="Days you skip"
+              value={skipDaysValue}
+              chevron
+              onClick={() => setSkipDaysOpen(true)}
+            />
+          </List>
         </section>
 
         {isAdmin && (
@@ -247,6 +302,28 @@ function Profile() {
         onOpenChange={setStoreOpen}
         current={store}
         onChange={setStore}
+      />
+
+      {editor && (
+        <PreferencesSheet
+          open={preferencesOpen}
+          onOpenChange={setPreferencesOpen}
+          current={editor}
+          onSaved={setEditor}
+        />
+      )}
+
+      <SkipDaysSheet
+        open={skipDaysOpen}
+        onOpenChange={setSkipDaysOpen}
+        inferred={inferredSkip}
+        onSaved={(next) => {
+          setEditor(next)
+          // Reflect the new manual override in the row's trailing value at once.
+          setInferredSkip((prev) =>
+            prev ? { ...prev, manual: next.skipDays } : prev,
+          )
+        }}
       />
     </AppShell>
   )

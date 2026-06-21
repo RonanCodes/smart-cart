@@ -46,6 +46,8 @@ const KEYWORDS: ReadonlyArray<readonly [string, string]> = [
   ['almond', 'nuts'],
   ['walnut', 'nuts'],
   ['cashew', 'nuts'],
+  ['peanut', 'nuts'],
+  ['hazelnut', 'nuts'],
   ['nut', 'nuts'],
   ['tofu', 'soy'],
   ['soy', 'soy'],
@@ -62,10 +64,21 @@ const KEYWORDS: ReadonlyArray<readonly [string, string]> = [
   ['egg', 'egg'],
 ]
 
+/**
+ * Match each keyword as a whole word (allowing a simple "s"/"es" plural) rather
+ * than a raw substring, so short keywords stop bleeding into longer unrelated
+ * words: "egg" no longer hits "eggplant", "nut" no longer hits "butternut". The
+ * compound terms we DO want ("peanut", "hazelnut") are listed explicitly above.
+ * Compiled once at module load.
+ */
+const MATCHERS: ReadonlyArray<readonly [RegExp, string]> = KEYWORDS.map(
+  ([keyword, slug]) => [new RegExp(`\\b${keyword}(e?s)?\\b`), slug] as const,
+)
+
 export function ingredientSticker(name: string): string | null {
   const n = name.toLowerCase()
-  for (const [keyword, slug] of KEYWORDS) {
-    if (n.includes(keyword)) return `/stickers/ingredients/${slug}.png`
+  for (const [matcher, slug] of MATCHERS) {
+    if (matcher.test(n)) return `/stickers/ingredients/${slug}.png`
   }
   return null
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import {
   ShoppingBasket,
   Sparkles,
@@ -51,6 +52,7 @@ function dish(
     calories,
     protein,
     imageUrl: `/stickers/recipes/${slug}.png`,
+    videoUrl: null,
     price: `€${euros} pp`,
     alternatives: [],
   }
@@ -252,6 +254,7 @@ const SUGGESTIONS = [
 ]
 
 export const Route = createFileRoute('/design/week')({
+  beforeLoad: requireAdminBeforeLoad,
   validateSearch: (s: Record<string, unknown>): { state?: string } =>
     typeof s.state === 'string' ? { state: s.state } : {},
   component: DesignWeek,

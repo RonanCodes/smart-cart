@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import {
   Search,
   Clock,
@@ -130,6 +131,7 @@ const THEMES: Array<{ title: string; tag: string }> = [
 ]
 
 export const Route = createFileRoute('/design/discover')({
+  beforeLoad: requireAdminBeforeLoad,
   component: DesignSearch,
 })
 

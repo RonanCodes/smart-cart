@@ -49,6 +49,8 @@ export function EditableShoppingList({
   const [adding, setAdding] = useState(false)
   /** Two-tap guard for "Clear all": first tap arms it, second confirms. */
   const [confirmingClear, setConfirmingClear] = useState(false)
+  /** A failed bulk action (clear / check-all) , shown instead of failing silently. */
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const remaining = items.filter((i) => !i.checked).length
   const allChecked = items.length > 0 && remaining === 0
@@ -121,13 +123,16 @@ export function EditableShoppingList({
 
   async function toggleAll() {
     setBusyId('__all__')
+    setActionError(null)
     try {
       const { items: next } = await setAllChecked({
         data: { checked: !allChecked },
       })
       setItems(next)
     } catch {
-      // no-op
+      setActionError(
+        'Could not update the list. Check your connection and try again.',
+      )
     } finally {
       setBusyId(null)
     }
@@ -148,13 +153,18 @@ export function EditableShoppingList({
     }
     setConfirmingClear(false)
     setBusyId('__clear__')
+    setActionError(null)
     try {
       const { items: next } = await clearShoppingList()
       setItems(next)
-      // Tell the route the empty list is deliberate, so it does not re-seed.
+      // The empty list stays cleared on the next visit via the household's
+      // durable lastSeededPlanId (#311), so no extra signal to the route is
+      // needed; onCleared is kept optional for callers that still want it.
       onCleared?.()
     } catch {
-      // no-op; the list simply stays as it was.
+      setActionError(
+        'Could not clear the list. Check your connection and try again.',
+      )
     } finally {
       setBusyId(null)
     }
@@ -201,6 +211,12 @@ export function EditableShoppingList({
           </div>
         )}
       </div>
+
+      {actionError && (
+        <p role="alert" className="text-destructive px-1 text-sm">
+          {actionError}
+        </p>
+      )}
 
       {unchecked.length > 0 && (
         <div className="bg-card border-border divide-border divide-y overflow-hidden rounded-[var(--radius-ios)] border">

@@ -144,7 +144,7 @@ export function softScore(
 export function resolveDayTypes(
   days: number,
   profile: PlannerProfile,
-  override?: Array<DayType>,
+  override?: Array<DayType | undefined>,
 ): Array<DayType> {
   const cookDays = profile.cookDays ?? []
   const everyDayHome = cookDays.length === 0
@@ -186,13 +186,28 @@ export function rankRecipes(
   recipes: Array<PlannerRecipe>,
   profile: PlannerProfile,
   swipes: Array<{ recipeId: string; like: boolean }>,
-  options: Pick<PlanOptions, 'seed' | 'algorithm' | 'weights'> = {},
+  options: Pick<
+    PlanOptions,
+    'seed' | 'algorithm' | 'weights' | 'excludeRecipeIds'
+  > = {},
 ): Array<PlannerRecipe> {
   const seed = options.seed ?? 42
   const algorithm = options.algorithm ?? DEFAULT_ALGORITHM
   const weights = options.weights ?? DEFAULT_ADAPTIVE_WEIGHTS
 
-  const candidates = hardFilter(recipes, profile)
+  const hardFiltered = hardFilter(recipes, profile)
+
+  // Variety exclusion (#week-nav): drop recipes the caller wants kept out of the
+  // pool entirely (e.g. last week's dinners, so a fresh next week differs). An
+  // empty/absent set is a strict no-op, so the fresh-household first week and the
+  // recsys regression fixture rank identically to before.
+  const excluded =
+    options.excludeRecipeIds && options.excludeRecipeIds.length
+      ? new Set(options.excludeRecipeIds)
+      : null
+  const candidates = excluded
+    ? hardFiltered.filter((r) => !excluded.has(r.id))
+    : hardFiltered
 
   // Rank the full candidate pool by the configured preference algorithm, seeded by
   // the swipes. We pass the candidates (not the whole catalogue) so hard-filtered

@@ -23,6 +23,16 @@ interface DayCardProps {
   onEdit: () => void
   onAdd: () => void
   onSwap: () => void
+  /**
+   * DORMANT (Souso restyle, PR #320). The props below drive features the
+   * restyled card no longer renders: the inline "Similar" chooser (#31) and the
+   * post-meal MealRating (#126), plus the per-day `busy` spinner. They are kept
+   * — interface + the wiring in `_authed.week.tsx` — on purpose, so the team can
+   * re-enable either feature for the demo by re-adding the markup without
+   * rebuilding the plumbing. `busy`, `rating*`, `onRate`, `onLoadSimilar` and
+   * `onPickSimilar` are intentionally not destructured in DayCardImpl. Rating
+   * still ships standalone at /rate/$planId/$day. See the PR's follow-up comment.
+   */
   onLoadSimilar: (sort: SimilarSort) => Promise<Array<SimilarNeighbour>>
   onPickSimilar: (recipeId: string) => Promise<void>
   rating: Rating

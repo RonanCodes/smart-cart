@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import type { MealFeedbackState } from './meal-feedback-server'
+import { pickTitle } from './recipe-locale'
 
 /**
  * One ready alternative for a day, denormalised with the same card detail the
@@ -47,6 +48,8 @@ export interface WeekDayView {
   imageUrl: string | null
   /** Estimated price per serving as a display string (e.g. "€2,80"), optional. */
   price?: string
+  /** Cached living-photo cooking video URL (recipe_media), null when none yet. */
+  videoUrl: string | null
   /**
    * ~5 ready alternatives for this day, pre-ranked for the household and already
    * excluding the current pick + the rest of the week (no dupes). Shipped with
@@ -84,6 +87,7 @@ export const loadWeek = createServerFn({ method: 'GET' })
     const { household, recipe, recipeSwipe, mealPlan } =
       await import('../db/schema')
     const { eq, and, inArray } = await import('drizzle-orm')
+    const { recipeMedia } = await import('../db/recipe-media-schema')
     const { hasImage } = await import('../db/recipe-filters')
     const { topNForDay } = await import('./planner/planner')
     const { healWeekPlan } = await import('./heal/heal-week-plan')
@@ -118,6 +122,7 @@ export const loadWeek = createServerFn({ method: 'GET' })
       .select({
         id: recipe.id,
         title: recipe.title,
+        titleEn: recipe.titleEn,
         cuisine: recipe.cuisine,
         category: recipe.category,
         dietaryTags: recipe.dietaryTags,
@@ -139,9 +144,12 @@ export const loadWeek = createServerFn({ method: 'GET' })
       .from(recipeSwipe)
       .where(eq(recipeSwipe.householdId, hh.id))
 
+    // Default the demo display to English (Dutch fallback). The catalogue's
+    // title flows into the week cards (the day's `meal`) and the alternatives,
+    // so resolving the locale once here covers both surfaces (#295).
     const catalogue = catalogueRows.map((r) => ({
       id: r.id,
-      title: r.title,
+      title: pickTitle(r.title, r.titleEn),
       cuisine: r.cuisine,
       category: r.category,
       dietaryTags: r.dietaryTags,
@@ -159,6 +167,11 @@ export const loadWeek = createServerFn({ method: 'GET' })
           null,
       ]),
     )
+
+    // The display title (English, Dutch fallback) per recipe id. The stored plan
+    // baked the Dutch title into `d.meal` at build time; we override it at read
+    // time so existing weeks pick up English without a re-plan (#295).
+    const titleById = new Map(catalogue.map((r) => [r.id, r.title]))
 
     const swipes = swipeRows
       .filter((s) => s.direction === 'like' || s.direction === 'dislike')
@@ -229,6 +242,20 @@ export const loadWeek = createServerFn({ method: 'GET' })
 
     const detail = new Map(detailRows.map((r) => [r.id, r]))
 
+    // Cached living-photo videos for this week's recipes (recipe_media), so the
+    // week cards can autoplay them. One batched read; recipes with no clip map to
+    // null and render as a plain photo.
+    const mediaRows = ids.length
+      ? await db
+          .select({
+            recipeId: recipeMedia.recipeId,
+            videoUrl: recipeMedia.videoUrl,
+          })
+          .from(recipeMedia)
+          .where(inArray(recipeMedia.recipeId, ids))
+      : []
+    const videoById = new Map(mediaRows.map((m) => [m.recipeId, m.videoUrl]))
+
     // Every recipe placed in the week is off-limits as an alternative, so picking
     // one can never create a duplicate. Includes each day's current pick.
     const weekRecipeIds = ids
@@ -256,13 +283,14 @@ export const loadWeek = createServerFn({ method: 'GET' })
 
       return {
         day: d.day,
-        meal: d.meal,
+        meal: (d.recipeRef && titleById.get(d.recipeRef)) || d.meal,
         recipeRef: d.recipeRef ?? '',
         cuisine: r?.cuisine ?? null,
         prepMinutes: r?.prepMinutes ?? null,
         calories: r?.calories ?? null,
         protein: r?.protein ?? null,
         imageUrl: raw?.imageUrl ?? null,
+        videoUrl: (d.recipeRef ? videoById.get(d.recipeRef) : null) ?? null,
         alternatives,
       }
     })
@@ -364,25 +392,39 @@ export const loadWeekBootstrap = createServerFn({ method: 'GET' })
 
 /**
  * The result of navigating to a week by offset (Part A). Either a loaded week
- * (current/future, generated on demand if it didn't exist; or a past week that
- * happened to have a plan) OR an empty state (a past week with no plan, which we
- * never generate). `offset` and `weekStart` echo what was resolved so the UI can
- * label the week + keep the URL deep-linkable.
+ * (this week, generated on demand if it didn't exist; or any week that already
+ * has a plan) OR an empty state (a past week with no plan, never back-filled; or
+ * a FUTURE week with no plan, opt-in via "Generate next week"). `offset` and
+ * `weekStart` echo what was resolved so the UI can label the week + keep the URL
+ * deep-linkable.
  */
 export type WeekForOffsetResult =
   | { kind: 'week'; offset: number; weekStart: string; week: WeekView }
   | { kind: 'empty'; offset: number; weekStart: string }
 
 /**
+ * Whether navigating to a week OFFSET that has no plan yet should generate one
+ * on demand (#week-nav). Pure so the policy is unit-testable without the DB:
+ *   - offset 0 (THIS week): true. /week must always land on a week the first
+ *     time a freshly-onboarded household opens it.
+ *   - any other offset: false. Past weeks are never back-filled; future weeks
+ *     are opt-in via the explicit "Generate next week" CTA (so a future week is
+ *     no longer auto-generated into a deterministic clone of this week, bug 1).
+ */
+export function shouldGenerateForOffset(offset: number): boolean {
+  return Math.trunc(offset) === 0
+}
+
+/**
  * Load the signed-in household's plan for a week OFFSET (Part A): 0 = this week's
  * Monday, +1 = next week, -1 = last week, etc. Resolves the target Monday from
  * today ± offset weeks, finds the newest meal_plan stamped to that weekStart, and:
  *   - if one exists, returns the enriched week (via loadWeek);
- *   - if none exists and offset >= 0 (current/future), GENERATES one stamped to
- *     that weekStart (so "next week" is created on demand the first time it's
- *     opened), then returns it;
- *   - if none exists and offset < 0 (a past week), returns an empty state — we
- *     never back-fill history.
+ *   - if none exists and offset == 0 (THIS week), GENERATES one stamped to that
+ *     weekStart so /week always lands on a week, then returns it;
+ *   - if none exists and offset != 0 (a past OR future week), returns an empty
+ *     state. Past weeks are never back-filled; future weeks are opt-in via the
+ *     "Generate next week" CTA (generateWeekForOffset), not auto-generated.
  *
  * Server-only deps are dynamically imported (the week-server pattern).
  */
@@ -430,9 +472,11 @@ export const loadWeekForOffset = createServerFn({ method: 'GET' })
       return { kind: 'week', offset, weekStart, week }
     }
 
-    // No plan for that week. Generate only for current/future weeks; never
-    // back-fill the past.
-    if (offset < 0) {
+    // No plan for that week. Only THIS week (offset 0) generates on demand so
+    // /week always lands on a week; past + future weeks return empty (past never
+    // back-filled, future opt-in via generateWeekForOffset) — see
+    // shouldGenerateForOffset for the policy + #week-nav bug 1.
+    if (!shouldGenerateForOffset(offset)) {
       return { kind: 'empty', offset, weekStart }
     }
 
@@ -441,6 +485,73 @@ export const loadWeekForOffset = createServerFn({ method: 'GET' })
     const week = await loadWeek({ data: { planId } })
     return { kind: 'week', offset, weekStart, week }
   })
+
+/**
+ * Explicitly generate the plan for a week OFFSET (#week-nav). Backs the
+ * "Generate next week" CTA on a future empty week: future weeks are no longer
+ * auto-generated when navigated to (that produced a deterministic clone of this
+ * week, #week-nav bug 1), so the user opts in here. Resolves the target Monday,
+ * reuses any plan already stamped to it (idempotent), else generates a fresh one
+ * (with variety vs the most recent plan + inferred skip-days, see
+ * generatePlanForHousehold), and returns the enriched week.
+ *
+ * Server-only deps are dynamically imported (the week-server pattern).
+ */
+export const generateWeekForOffset = createServerFn({ method: 'POST' })
+  .validator((data: { offset: number }) => data)
+  .handler(
+    async ({
+      data,
+    }): Promise<{ offset: number; weekStart: string; week: WeekView }> => {
+      const offset = Math.trunc(data.offset)
+      const { getSessionUser } = await import('./server-auth')
+      const user = await getSessionUser()
+      if (!user) throw new Error('Not signed in')
+
+      const { getDb } = await import('../db/client')
+      const { household, mealPlan } = await import('../db/schema')
+      const { eq, and, desc } = await import('drizzle-orm')
+      const { weekStartForOffset } = await import('./week-offset')
+      const db = await getDb()
+
+      const hh = (
+        await db
+          .select({ id: household.id })
+          .from(household)
+          .where(eq(household.ownerId, user.id))
+          .limit(1)
+      )[0]
+      if (!hh) throw new Error('No household, onboard first')
+
+      const weekStart = weekStartForOffset(offset)
+
+      // Idempotent: if a plan already exists for that week (a double-tap, or it
+      // was generated meanwhile), adopt it rather than writing a duplicate.
+      const existing = (
+        await db
+          .select({ id: mealPlan.id })
+          .from(mealPlan)
+          .where(
+            and(
+              eq(mealPlan.householdId, hh.id),
+              eq(mealPlan.weekStart, weekStart),
+            ),
+          )
+          .orderBy(desc(mealPlan.createdAt))
+          .limit(1)
+      )[0]
+
+      if (existing) {
+        const week = await loadWeek({ data: { planId: existing.id } })
+        return { offset, weekStart, week }
+      }
+
+      const { generatePlanForHousehold } = await import('./planner-core')
+      const { planId } = await generatePlanForHousehold(hh.id, weekStart)
+      const week = await loadWeek({ data: { planId } })
+      return { offset, weekStart, week }
+    },
+  )
 
 /**
  * The household's newest meal_plan id (by createdAt). Used by the in-app voice

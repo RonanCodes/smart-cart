@@ -12,6 +12,7 @@ function day(over: Partial<WeekDayView> & { day: string }): WeekDayView {
     calories: over.calories ?? 500,
     protein: over.protein ?? 30,
     imageUrl: over.imageUrl ?? null,
+    videoUrl: over.videoUrl ?? null,
     alternatives: over.alternatives ?? [],
   }
 }

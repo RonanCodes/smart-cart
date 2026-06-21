@@ -1,3 +1,5 @@
+import { pickIngredients, pickInstructions } from './recipe-locale'
+
 /** What the recipe-detail view needs to fetch the dish. */
 export interface RecipeDetailInput {
   /** The catalogue recipe id (the day's recipeRef). */
@@ -23,6 +25,12 @@ export interface RecipeDetailResult {
   steps: Array<string>
   prepMinutes: number | null
   servings: number | null
+  /**
+   * True when the ingredient amounts are LLM-estimated rather than from the
+   * source (#313), so the card can label them "approx". The demo AH/Jumbo set
+   * has patchy scraped quantities, so the amounts are inferred.
+   */
+  amountsEstimated: boolean
 }
 
 /** The shape of the recipe columns this view reads (the recipe table). */
@@ -34,8 +42,18 @@ export interface RecipeDetailRow {
     productId?: string
   }> | null
   instructions: Array<string> | null
+  /** English translations baked at seed time; null when not translated (#295). */
+  ingredientsEn?: Array<{
+    name: string
+    qty?: string
+    unit?: string
+    productId?: string
+  }> | null
+  instructionsEn?: Array<string> | null
   prepMinutes: number | null
   servings: number | null
+  /** True when the amounts are LLM-estimated, not from the source (#313). */
+  quantitiesEstimated?: boolean | null
 }
 
 /**
@@ -59,14 +77,22 @@ export function formatAmount(qty?: string, unit?: string): string | null {
  * blanks, and tolerates null JSON columns (older / partial rows) -> empty arrays.
  */
 export function mapRecipeDetail(row: RecipeDetailRow): RecipeDetailResult {
-  const ingredients: Array<RecipeIngredient> = (row.ingredients ?? [])
+  // Default to English (the demo locale), fall back to Dutch when a recipe has
+  // no translation. The Dutch source is kept on the row untouched (#295).
+  const ingredients: Array<RecipeIngredient> = pickIngredients(
+    row.ingredients,
+    row.ingredientsEn,
+  )
     .filter((i) => i.name.trim() !== '')
     .map((i) => ({
       name: i.name.trim(),
       amount: formatAmount(i.qty, i.unit),
     }))
 
-  const steps: Array<string> = (row.instructions ?? [])
+  const steps: Array<string> = pickInstructions(
+    row.instructions,
+    row.instructionsEn,
+  )
     .filter((s): s is string => typeof s === 'string' && s.trim() !== '')
     .map((s) => s.trim())
 
@@ -75,6 +101,10 @@ export function mapRecipeDetail(row: RecipeDetailRow): RecipeDetailResult {
     steps,
     prepMinutes: row.prepMinutes,
     servings: row.servings,
+    // Only claim "approx" when there is actually an amount to qualify; a recipe
+    // with no ingredient amounts at all should not show the estimate note.
+    amountsEstimated:
+      !!row.quantitiesEstimated && ingredients.some((i) => i.amount !== null),
   }
 }
 
@@ -101,6 +131,7 @@ export async function fetchRecipeDetail(
     steps: [],
     prepMinutes: null,
     servings: null,
+    amountsEstimated: false,
   }
   if (!data.recipeId) return empty
 
@@ -117,8 +148,11 @@ export async function fetchRecipeDetail(
     .select({
       ingredients: recipe.ingredients,
       instructions: recipe.instructions,
+      ingredientsEn: recipe.ingredientsEn,
+      instructionsEn: recipe.instructionsEn,
       prepMinutes: recipe.prepMinutes,
       servings: recipe.servings,
+      quantitiesEstimated: recipe.quantitiesEstimated,
     })
     .from(recipe)
     .where(eq(recipe.id, data.recipeId))
