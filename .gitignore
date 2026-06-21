@@ -35,3 +35,4 @@ drizzle/seed/*.sql
 .playwright-mcp/
 # Added by Braintrust Wizard
 .braintrust.json
+.tmp-replicate/

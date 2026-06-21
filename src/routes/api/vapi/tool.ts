@@ -39,15 +39,13 @@ export const Route = createFileRoute('/api/vapi/tool')({
       POST: async ({ request }) => {
         try {
           const { readEnv } = await import('../../../lib/env')
-          const { timingSafeEqual, extractToolCalls, extractCallToken } =
-            await import('../../../lib/vapi-webhook')
+          const {
+            timingSafeEqual,
+            extractToolCalls,
+            extractCallToken,
+            extractCallPlanId,
+          } = await import('../../../lib/vapi-webhook')
 
-          // 1. Verify the shared secret IF present (defense-in-depth). The
-          //    assistant's server.secret can only be set in the VAPI dashboard,
-          //    not via the API, so VAPI may send no X-Vapi-Secret header. When a
-          //    header IS sent it must match; when it isn't, we fall through to
-          //    the real security boundary: the signed call token (step 2), which
-          //    cannot be forged and is what scopes the call to a household.
           const secret = (await readEnv('VAPI_SERVER_SECRET')) ?? ''
           const got = request.headers.get('X-Vapi-Secret') ?? ''
           if (got && secret && !timingSafeEqual(got, secret)) {
@@ -56,36 +54,54 @@ export const Route = createFileRoute('/api/vapi/tool')({
 
           const body: unknown = await request.json().catch(() => ({}))
 
-          // 2. Derive identity from the verified token only.
           const { verifyVapiToken } =
             await import('../../../lib/vapi-verify-server')
           const rawToken = extractCallToken(body)
           const claims = await verifyVapiToken(rawToken)
+          const planId = extractCallPlanId(body)
 
-          // 3. Dispatch each tool call. One try/catch per call so a single
-          //    failure can never throw the whole webhook (always 200).
           const { dispatchVapiTool } =
             await import('../../../lib/vapi-dispatch')
           const calls = extractToolCalls(body)
           const { log } = await import('../../../lib/log')
+          let ctxFound = false
+          let loadedPlanId: string | undefined
+          if (claims) {
+            const { loadVoiceReplanContext } =
+              await import('../../../lib/agent/replan-context-server')
+            const ctx = await loadVoiceReplanContext(claims.householdId, planId)
+            ctxFound = Boolean(ctx)
+            loadedPlanId = ctx?.planId
+          }
           log.info('vapi.tool_call', {
             tools: calls.map((c) => c.name),
-            identified: Boolean(claims),
             tokenPresent: Boolean(rawToken),
-            // Top-level keys of the payload + the call object, so we can confirm
-            // exactly where VAPI puts the echoed metadata (diagnosis).
+            planId: planId ?? null,
+            planIdPresent: Boolean(planId),
+            identified: Boolean(claims),
+            ctxFound,
+            loadedPlanId,
             bodyKeys: keysOf(body),
             messageKeys: keysOf(prop(body, 'message')),
             callKeys: keysOf(
               prop(prop(body, 'message'), 'call') ?? prop(body, 'call'),
             ),
           })
+          if (rawToken && !claims) {
+            log.warn('vapi.token_verify_failed', {
+              hint: 'Token reached webhook but did not verify — check VAPI_TOOL_TOKEN_SECRET matches between token mint and webhook env',
+            })
+          }
+          if (!rawToken) {
+            log.warn('vapi.token_missing', {
+              hint: 'No token in webhook call metadata — expect call.metadata or call.assistantOverrides.metadata',
+            })
+          }
           const results = await Promise.all(
             calls.map(async (c) => {
               let result: string
               try {
                 if (!claims) {
-                  // No trustworthy household: decline cleanly, take no action.
                   result =
                     "I can't tell which account you're signed in to right now, so I can't make changes. Try reopening the app and starting again."
                 } else {
@@ -93,6 +109,7 @@ export const Route = createFileRoute('/api/vapi/tool')({
                     c.name,
                     c.args,
                     claims.householdId,
+                    planId,
                   )
                 }
               } catch (err) {
@@ -110,8 +127,6 @@ export const Route = createFileRoute('/api/vapi/tool')({
         } catch (err) {
           const { log } = await import('../../../lib/log')
           log.error('vapi.webhook_failed', err)
-          // Last-resort guard: never let the handler throw. VAPI ignores non-200,
-          // so even on an unexpected failure we answer 200 with an empty result set.
           return Response.json({ results: [] })
         }
       },

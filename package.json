@@ -28,6 +28,7 @@
     "reseed:d1": "tsx scripts/reseed-d1.ts",
     "seed:recipes": "tsx scripts/seed-recipes.ts",
     "cf-typegen": "wrangler types",
+    "eval:replan-agent": "braintrust eval evals/replan-agent.eval.ts",
     "quality": "pnpm run format && pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
     "prepare": "husky"
   },

@@ -7,10 +7,15 @@ import {
 } from '@tanstack/react-router'
 import { ShoppingBag } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
-import { loadWeek, loadWeekBootstrap, latestPlanId } from '#/lib/week-server'
+import {
+  loadWeek,
+  loadWeekBootstrap,
+  resolveLatestPlanId,
+} from '#/lib/week-server'
 import { weekPlanUrl } from '#/lib/week-url'
 import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { replanWeek } from '#/lib/replan-server'
+import { applyStreamedWeek, streamReplan } from '#/lib/agent/replan-client'
 import { getSimilarRecipes } from '#/lib/similar-server'
 import { applySimilarSwapToPlan } from '#/lib/swap-server'
 import { clearDayInPlan } from '#/lib/week-clear-server'
@@ -83,8 +88,11 @@ function WeekPage() {
   const navigate = useNavigate()
   const [week, setWeek] = useState<WeekView>(initial)
   const [busyDay, setBusyDay] = useState<string | null>(null)
+  const [voiceLive, setVoiceLive] = useState(false)
   const [replanning, setReplanning] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  /** The agent's narration as it streams in during a chat replan. */
+  const [streamingText, setStreamingText] = useState('')
   /** The day whose edit sheet is open (tap-a-day -> ~5 alternatives). */
   const [editDay, setEditDay] = useState<string | null>(null)
   /**
@@ -118,8 +126,10 @@ function WeekPage() {
    */
   async function syncFromVoice() {
     try {
-      const { planId } = await latestPlanId()
       const prev = weekRef.current
+      const { planId } = await resolveLatestPlanId({
+        data: { planId: prev.planId },
+      })
       if (!planId || planId === prev.planId) return
       const next = await loadWeek({ data: { planId } })
       const changed = next.days
@@ -128,7 +138,7 @@ function WeekPage() {
           return before && before.recipeRef !== d.recipeRef
         })
         .map((d) => d.day)
-      adopt(planId, next)
+      adopt(next.planId, next)
       if (changed.length > 0) {
         setGlowDays(new Set(changed))
         window.setTimeout(() => setGlowDays(new Set()), 3200)
@@ -174,7 +184,7 @@ function WeekPage() {
     }
   }
 
-  const locked = busyDay !== null || replanning
+  const locked = busyDay !== null || replanning || voiceLive
   const editing = editDay
     ? (week.days.find((d) => d.day === editDay) ?? null)
     : null
@@ -207,11 +217,7 @@ function WeekPage() {
     setMessage(null)
     try {
       const res = await replanWeek({
-        data: {
-          planId: week.planId,
-          instruction: `swap ${day}`,
-          focusedDay: day,
-        },
+        data: { planId: week.planId, action: 'swap', days: [day] },
       })
       const next = await loadWeek({ data: { planId: res.planId } })
       adopt(res.planId, next)
@@ -370,21 +376,54 @@ function WeekPage() {
     }
   }
 
+  /**
+   * Free-text replan through the streaming agent (`POST /api/replan`). The
+   * narration streams into the chat box, the grid reflows live as tools fire
+   * (optimistic, via `applyStreamedWeek`), and on `done` we reconcile with the
+   * authoritative enriched week (`loadWeek`) so images/alternatives are exact.
+   * Structured one-tap actions (swap, similar, alternatives) keep using the
+   * model-free `replanWeek` / swap-server paths so they work with no API key.
+   */
   async function replan(instruction: string) {
     if (locked) return
+    const startPlanId = week.planId
     setReplanning(true)
     setMessage(null)
+    setStreamingText('')
+    let finalPlanId = startPlanId
+    let changed = false
+    let finalMessage: string | null = null
     try {
-      const res = await replanWeek({
-        data: { planId: week.planId, instruction },
-      })
-      const next = await loadWeek({ data: { planId: res.planId } })
-      adopt(res.planId, next)
-      setMessage(res.message)
+      for await (const ev of streamReplan(startPlanId, instruction)) {
+        if (ev.type === 'text') {
+          setStreamingText((t) => t + ev.delta)
+        } else if (ev.type === 'week') {
+          setWeek((w) => applyStreamedWeek(w, ev.week))
+        } else if (ev.type === 'done') {
+          finalMessage = ev.message
+          finalPlanId = ev.planId
+          changed = ev.changed
+          if (ev.planId !== startPlanId) {
+            setWeek((w) => ({ ...w, planId: ev.planId }))
+          }
+          setReplanning(false)
+          setStreamingText('')
+        } else {
+          finalMessage = ev.message
+          setReplanning(false)
+          setStreamingText('')
+        }
+      }
+      if (changed) {
+        const next = await loadWeek({ data: { planId: finalPlanId } })
+        adopt(next.planId, next)
+      }
+      setMessage(finalMessage)
     } catch {
       setMessage('Could not adjust the week, try again.')
     } finally {
       setReplanning(false)
+      setStreamingText('')
     }
   }
 
@@ -406,8 +445,17 @@ function WeekPage() {
       />
 
       <div className="space-y-6 px-5 pt-2">
-        <ChatReplan busy={replanning} onSubmit={replan} />
-        <VoiceButton onActed={() => void syncFromVoice()} />
+        <ChatReplan
+          busy={replanning}
+          onSubmit={replan}
+          streamingText={streamingText}
+        />
+        <VoiceButton
+          planId={week.planId}
+          disabled={replanning}
+          onLiveChange={setVoiceLive}
+          onActed={() => void syncFromVoice()}
+        />
 
         <RatingReminders />
 

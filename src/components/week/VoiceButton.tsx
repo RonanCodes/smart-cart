@@ -61,6 +61,19 @@ async function mintToken(): Promise<string> {
 
 type CallState = 'idle' | 'connecting' | 'live' | 'error'
 
+export interface VoiceButtonProps {
+  /** The meal_plan revision open in the week view (voice edits this revision). */
+  planId: string
+  /** Disable starting a call while chat replan is in flight. */
+  disabled?: boolean
+  /** True while a call is connecting or live (locks the rest of the week UI). */
+  onLiveChange?: (live: boolean) => void
+  /** Debounced resync after voice tool activity (live grid + glow cue). */
+  onActed?: () => void
+  /** Runs when the call ends (final resync safety net). */
+  onCallEnd?: () => void
+}
+
 /**
  * "Talk to Souso", in-app two-way voice via VAPI WebRTC (no phone number).
  *
@@ -72,15 +85,20 @@ type CallState = 'idle' | 'connecting' | 'live' | 'error'
  * The SDK is loaded + constructed lazily (see resolveVapiCtor) so a bad bundler
  * interop degrades to an inert button, never a page crash.
  */
-export function VoiceButton({ onActed }: { onActed?: () => void } = {}) {
+export function VoiceButton({
+  planId,
+  disabled = false,
+  onLiveChange,
+  onActed,
+  onCallEnd,
+}: VoiceButtonProps) {
   const vapi = useRef<Vapi | null>(null)
   const [state, setState] = useState<CallState>('idle')
   const [reason, setReason] = useState<ErrorReason>('unknown')
-  // Latest callback, so the effect's long-lived event handlers never go stale.
   const onActedRef = useRef(onActed)
   onActedRef.current = onActed
-  // Debounce the "something happened, resync the week" signal: a call emits many
-  // messages, but we only need one cheap refetch shortly after.
+  const onCallEndRef = useRef(onCallEnd)
+  onCallEndRef.current = onCallEnd
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scheduleSync = () => {
     if (syncTimer.current) clearTimeout(syncTimer.current)
@@ -96,7 +114,6 @@ export function VoiceButton({ onActed }: { onActed?: () => void } = {}) {
         if (cancelled) return
         const VapiCtor = resolveVapiCtor(mod)
         if (!VapiCtor) {
-          // Capture the actual module shape so the interop can be fixed for good.
           log.error('vapi.ctor_unresolved', undefined, {
             modType: typeof mod,
             defaultType: typeof (mod as { default?: unknown }).default,
@@ -111,11 +128,15 @@ export function VoiceButton({ onActed }: { onActed?: () => void } = {}) {
         try {
           const v = new VapiCtor(VAPI_PUBLIC_KEY)
           vapi.current = v
-          v.on('call-start', () => setState('live'))
+          v.on('call-start', () => {
+            onLiveChange?.(true)
+            setState('live')
+          })
           v.on('call-end', () => {
+            onLiveChange?.(false)
             setState('idle')
-            // Final resync once the call ends (catches the last replan).
             onActedRef.current?.()
+            onCallEndRef.current?.()
           })
           v.on('error', (e: unknown) => {
             log.error('vapi.sdk_error', e)
@@ -124,8 +145,6 @@ export function VoiceButton({ onActed }: { onActed?: () => void } = {}) {
           })
           v.on('message', (m: unknown) => {
             log.debug('vapi.message', { m })
-            // A tool ran (or the conversation advanced) -> the week may have
-            // changed server-side. Debounced refetch + glow on the week page.
             scheduleSync()
           })
         } catch (e) {
@@ -145,10 +164,11 @@ export function VoiceButton({ onActed }: { onActed?: () => void } = {}) {
       vapi.current?.stop()
       vapi.current = null
     }
-  }, [])
+  }, [onLiveChange])
 
   async function start() {
-    if (!vapi.current) {
+    if (!vapi.current || disabled) {
+      if (disabled) return
       setReason('init')
       setState('error')
       return
@@ -159,12 +179,15 @@ export function VoiceButton({ onActed }: { onActed?: () => void } = {}) {
       return
     }
     setState('connecting')
+    onLiveChange?.(true)
     try {
       const token = await mintToken()
-      await vapi.current.start(VAPI_ASSISTANT_ID, { metadata: { token } })
+      await vapi.current.start(VAPI_ASSISTANT_ID, {
+        metadata: { token, planId },
+      })
     } catch (err) {
+      onLiveChange?.(false)
       const tagged = (err as { reason?: ErrorReason }).reason
-      // A mic-permission rejection from vapi.start surfaces as a DOMException.
       const isMic =
         err instanceof DOMException ||
         /permission|microphone|notallowed/i.test(String(err))
@@ -177,11 +200,14 @@ export function VoiceButton({ onActed }: { onActed?: () => void } = {}) {
 
   function stop() {
     vapi.current?.stop()
+    onLiveChange?.(false)
     setState('idle')
+    onCallEndRef.current?.()
   }
 
   const live = state === 'live'
   const connecting = state === 'connecting'
+  const inactive = disabled && !live && !connecting
 
   const errorLabel =
     reason === 'auth'
@@ -197,7 +223,7 @@ export function VoiceButton({ onActed }: { onActed?: () => void } = {}) {
       <Button
         type="button"
         onClick={() => (live ? stop() : start())}
-        disabled={connecting}
+        disabled={connecting || inactive}
         variant={live ? 'secondary' : 'default'}
         className="w-full gap-2"
         aria-label={live ? 'Stop talking to Souso' : 'Talk to Souso'}

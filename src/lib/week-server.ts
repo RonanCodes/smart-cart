@@ -268,6 +268,56 @@ export const loadWeek = createServerFn({ method: 'GET' })
     return { planId, weekStart: current.weekStart, days }
   })
 
+/**
+ * Resolve the newest meal_plan revision for the same week as `planId`. Used after
+ * a voice replan so the week view can adopt the persisted revision the agent wrote
+ * (voice has no stream to push plan ids back to the browser).
+ */
+export const resolveLatestPlanId = createServerFn({ method: 'POST' })
+  .validator((data: { planId: string }) => data)
+  .handler(async ({ data }): Promise<{ planId: string }> => {
+    const { getSessionUser } = await import('./server-auth')
+    const user = await getSessionUser()
+    if (!user) throw new Error('Not signed in')
+
+    const { getDb } = await import('../db/client')
+    const { household, mealPlan } = await import('../db/schema')
+    const { eq, and, desc } = await import('drizzle-orm')
+    const db = await getDb()
+
+    const householdRows = await db
+      .select({ id: household.id })
+      .from(household)
+      .where(eq(household.ownerId, user.id))
+      .limit(1)
+    const hh = householdRows[0]
+    if (!hh) throw new Error('No household, onboard first')
+
+    const anchor = await db
+      .select({ weekStart: mealPlan.weekStart })
+      .from(mealPlan)
+      .where(and(eq(mealPlan.id, data.planId), eq(mealPlan.householdId, hh.id)))
+      .limit(1)
+    const row = anchor[0]
+    if (!row) throw new Error('Plan not found')
+
+    const latest = await db
+      .select({ id: mealPlan.id })
+      .from(mealPlan)
+      .where(
+        and(
+          eq(mealPlan.householdId, hh.id),
+          eq(mealPlan.weekStart, row.weekStart),
+        ),
+      )
+      .orderBy(desc(mealPlan.createdAt))
+      .limit(1)
+    const plan = latest[0]
+    if (!plan) throw new Error('Plan not found')
+
+    return { planId: plan.id }
+  })
+
 /** Everything the /week route's loader needs, in one server round-trip (#251). */
 export interface WeekBootstrap {
   week: WeekView

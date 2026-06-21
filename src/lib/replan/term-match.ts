@@ -70,3 +70,31 @@ export async function buildTermMatcherLive(
   const termVector = await embed(t)
   return buildTermMatcher(termVector, recipeVectors, threshold)
 }
+
+/**
+ * Conservative substring matcher on title + ingredients. Used alongside embeddings
+ * for exclude so terms like "risotto" still catch Dutch titles without a vector.
+ */
+export function substringTermMatcher(term: string): TermMatcher | null {
+  const t = term.trim().toLowerCase()
+  if (!t) return null
+  return (recipe: PlannerRecipe): boolean => {
+    const text = [
+      recipe.title,
+      recipe.cuisine ?? '',
+      ...recipe.ingredients.map((i) => i.name),
+    ]
+      .join(' ')
+      .toLowerCase()
+    return text.includes(t)
+  }
+}
+
+/** Union of matchers: a recipe matches when any constituent matcher matches. */
+export function combineTermMatchers(
+  ...matchers: Array<TermMatcher | null | undefined>
+): TermMatcher | null {
+  const active = matchers.filter((m): m is TermMatcher => m != null)
+  if (active.length === 0) return null
+  return (recipe) => active.some((m) => m(recipe))
+}

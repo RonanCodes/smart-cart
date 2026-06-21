@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildTermMatcher, buildTermMatcherLive } from './term-match'
+import {
+  buildTermMatcher,
+  buildTermMatcherLive,
+  combineTermMatchers,
+  substringTermMatcher,
+} from './term-match'
 import type { PlannerRecipe } from '../planner/types'
 
 /**
@@ -98,5 +103,29 @@ describe('buildTermMatcherLive', () => {
     }
     expect(await buildTermMatcherLive('rice', new Map(), embed)).toBeNull()
     expect(calls).toBe(0)
+  })
+})
+
+describe('substringTermMatcher', () => {
+  it('matches title and ingredient substrings', () => {
+    const matches = substringTermMatcher('risotto')!
+    const r: PlannerRecipe = {
+      ...recipe('r1'),
+      title: 'Groenterisotto',
+      ingredients: [{ name: 'courgette' }],
+    }
+    expect(matches(r)).toBe(true)
+    expect(matches(recipe('plain'))).toBe(false)
+  })
+})
+
+describe('combineTermMatchers', () => {
+  it('matches when any constituent matcher matches', () => {
+    const a = (r: PlannerRecipe) => r.id === 'a'
+    const b = (r: PlannerRecipe) => r.id === 'b'
+    const combined = combineTermMatchers(a, b)!
+    expect(combined(recipe('a'))).toBe(true)
+    expect(combined(recipe('b'))).toBe(true)
+    expect(combined(recipe('c'))).toBe(false)
   })
 })

@@ -6,7 +6,7 @@ import { flush, initLogger, traced, wrapAISDK } from 'braintrust'
 import * as ai from 'ai'
 
 initLogger({
-  projectName: 'My Project',
+  projectName: 'Smart Cart',
   // Cloudflare Workers has no Vercel waitUntil; flush before the request ends.
   asyncFlush: false,
 })
