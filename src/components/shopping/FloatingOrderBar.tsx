@@ -158,10 +158,19 @@ export function FloatingOrderBar({
           </Button>
 
           {!canOrder && (
-            <p className="text-muted-foreground mt-1.5 text-center text-[11px]">
-              {storeLabel(store)} ordering isn&rsquo;t available yet. Pick
-              Albert Heijn or Jumbo to send your cart.
-            </p>
+            <div className="mt-2 flex flex-col items-center gap-1 text-center">
+              <img
+                src="/stickers/person-ok.png"
+                alt=""
+                aria-hidden
+                className="souso-sticker h-20 w-auto object-contain"
+                style={{ transform: 'rotate(-3deg)' }}
+              />
+              <p className="text-muted-foreground text-[11px] font-medium">
+                Picnic goes live the second they say yes. This guy&rsquo;s ready
+                when they are. Pick Albert Heijn or Jumbo to send your cart now.
+              </p>
+            </div>
           )}
 
           {canOrder && link?.url && link.matched < link.total && (
