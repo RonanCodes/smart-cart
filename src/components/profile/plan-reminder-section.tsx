@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarClock } from 'lucide-react'
+import { CalendarClock, Loader2 } from 'lucide-react'
 import { getMyNotifyPrefs, setMyNotifyPrefs } from '#/lib/notify-prefs-server'
 import { DOW_LABELS, DEFAULT_NOTIFY_PREFS } from '#/lib/notify-prefs'
 import type { NotifyPrefs } from '#/lib/notify-prefs'
@@ -59,6 +59,12 @@ export function PlanReminderSection() {
             aria-hidden
           />
           <span className="flex-1 text-base font-medium">Remind me</span>
+          {busy && (
+            <Loader2
+              className="text-muted-foreground h-4 w-4 animate-spin"
+              aria-label="Saving"
+            />
+          )}
           <button
             type="button"
             role="switch"

@@ -1,0 +1,19 @@
+# Cloudflare Workers static-asset cache headers. Long-cache the immutable brand
+# assets so repeat navigations don't re-download them (the stickers are the bulk
+# of page weight). Self-hosted fonts never change -> immutable; images get a week
+# (stickers rarely change, and a deploy that does change one ships a new file).
+
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/stickers/*
+  Cache-Control: public, max-age=604800
+
+/brand/*
+  Cache-Control: public, max-age=604800
+
+/*.png
+  Cache-Control: public, max-age=604800
+
+/*.svg
+  Cache-Control: public, max-age=604800
