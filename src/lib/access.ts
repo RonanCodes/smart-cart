@@ -36,6 +36,11 @@ async function loadGrantMap() {
  * entry point; the pure rules live in access-rules.ts.
  */
 export async function isApproved(email: string): Promise<boolean> {
+  // Once the app has gone live (admin Launch toggle), the waitlist is removed
+  // and every email may sign in. Checked first so launch opens every gate that
+  // funnels through here (OTP send, magic-link send, the waitlist gate).
+  const { readLaunchState } = await import('./launch')
+  if ((await readLaunchState()).launched) return true
   const approved = parseApprovedList(await readEnv('APPROVED_EMAILS'))
   const grants = await loadGrantMap()
   return isApprovedWith(email, approved, grants)

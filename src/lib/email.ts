@@ -58,6 +58,20 @@ function otpHtml(code: string, magicLinkUrl?: string): string {
         ${tapBlock}`)
 }
 
+/**
+ * The launch-announcement email body: Souso has gone live. A celebratory line
+ * plus one big "open Souso" button to the sign-in page (the gate is open now, so
+ * anyone can sign in with a code).
+ */
+function launchHtml(signInUrl: string): string {
+  return emailShell(`
+        <p style="font-size:40px;margin:0 0 8px;">🎉</p>
+        <p style="color:#1f2a1f;font-size:22px;font-weight:800;margin:0 0 8px;">Souso is live</p>
+        <p style="color:#5b6b5b;margin:0 0 24px;font-size:15px;line-height:1.5;">The wait is over. Your sous-chef is ready to plan the week and write the shopping list. Tap below and tell Souso who you're cooking for.</p>
+        ${tapButton(signInUrl, 'Open Souso')}
+        <p style="color:#b6c2b6;font-size:11px;line-height:1.5;margin:16px 0 0;">Sign in with your email, we'll send a 6-digit code.</p>`)
+}
+
 /** The approval email body: a welcome line plus one big sign-in button. */
 function approvalHtml(magicLinkUrl: string): string {
   return emailShell(`
@@ -132,6 +146,30 @@ export async function sendApprovalEmail(
       `Resend failed to send the approval email: ${error.message}`,
     )
   }
+}
+
+/**
+ * Send ONE person the "Souso is live" launch email. Best-effort: returns
+ * { sent } and never throws (the launch toggle has already committed by the time
+ * this runs, and one bad address must not abort the rest of the broadcast). A
+ * missing RESEND_API_KEY is a no-op `{ sent: false }`. The sign-in URL points at
+ * the live app's /sign-in; the gate is open post-launch, so anyone can sign in.
+ */
+export async function sendLaunchEmail(
+  to: string,
+  signInUrl: string,
+): Promise<{ sent: boolean }> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) return { sent: false }
+  const resend = new Resend(apiKey)
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: 'Souso is live 🎉',
+    text: `Souso is live! Your sous-chef is ready to plan the week and write the shopping list. Open Souso and sign in with your email: ${signInUrl}`,
+    html: launchHtml(signInUrl),
+  })
+  return { sent: !error }
 }
 
 /**

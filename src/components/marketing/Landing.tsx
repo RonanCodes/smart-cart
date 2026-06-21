@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Clock, PiggyBank, Sparkles, Leaf } from 'lucide-react'
+import { Clock, PiggyBank, Sparkles, Leaf, PartyPopper } from 'lucide-react'
 import { joinWaitlist } from '#/lib/waitlist-server'
 import { SafeArea } from '#/components/ui/safe-area'
-import { Button } from '#/components/ui/button'
+import { Button, buttonVariants } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { StickyNote } from '#/components/ui/sticky-note'
 
@@ -13,6 +13,9 @@ import { StickyNote } from '#/components/ui/sticky-note'
  * die-cut dish stickers as the hero, a hand-written note, cream + olive. The
  * waitlist email capture is the primary CTA; a quiet 'Log in' link at the bottom
  * lets already-approved users reach /login.
+ *
+ * Once the app is live (`launched`), the waitlist capture is replaced by a
+ * "get started" CTA into /sign-in, since anyone can now sign in.
  *
  * Mounted at the public entry route / (the swipe-deck opener is retired).
  */
@@ -48,7 +51,7 @@ const BENEFITS: Array<Benefit> = [
   },
 ]
 
-export function Landing() {
+export function Landing({ launched = false }: { launched?: boolean }) {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'busy' | 'done' | 'error'>(
     'idle',
@@ -114,9 +117,30 @@ export function Landing() {
           </p>
         </section>
 
-        {/* Primary CTA: waitlist */}
+        {/* Primary CTA: once live, a "get started" button into sign-in; before
+            launch, the waitlist capture. */}
         <section className="border-hairline bg-card mt-8 rounded-[var(--radius-ios)] border p-6 shadow-[0_1px_3px_rgba(22,52,31,0.05),0_14px_34px_-18px_rgba(22,52,31,0.25)]">
-          {status === 'done' ? (
+          {launched ? (
+            <div className="flex flex-col items-center text-center">
+              <div className="bg-secondary text-primary flex h-14 w-14 items-center justify-center rounded-full">
+                <PartyPopper className="h-7 w-7" />
+              </div>
+              <p className="mt-4 text-lg font-bold">We&apos;re live</p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                Souso is open. Plan your week and build your shopping list in
+                minutes.
+              </p>
+              <Link
+                to="/sign-in"
+                className={buttonVariants({
+                  size: 'pill',
+                  className: 'mt-4 w-full',
+                })}
+              >
+                Get started
+              </Link>
+            </div>
+          ) : status === 'done' ? (
             <div className="flex flex-col items-center text-center">
               <div className="bg-secondary text-primary flex h-14 w-14 items-center justify-center rounded-full">
                 <Leaf className="h-7 w-7" />

@@ -4,14 +4,13 @@ import type { WaitlistDb } from './waitlist-server'
 /**
  * Best-effort: add an UNAPPROVED sign-in email to the waitlist so the
  * "You're on the waitlist" message the sign-in gate shows is actually TRUE and
- * an admin sees them at /admin/waitlist. Called from the sign-in gates
- * (auth.ts sendVerificationOTP + demo-auth.ts requestDemoCode) BEFORE they
- * throw NOT_APPROVED_MESSAGE.
+ * an admin sees them at /admin/waitlist. Called from the sign-in gate
+ * (auth.ts sendVerificationOTP) BEFORE it throws NOT_APPROVED_MESSAGE.
  *
  * This lives in its own SERVER-ONLY module (not waitlist-server.ts, which is
  * pulled into the client bundle via joinWaitlist) so the dynamic
  * `import('../db/client')` , and the `cloudflare:workers` binding it carries ,
- * never leaks into the client build. Only the two server-side gates import it.
+ * never leaks into the client build. Only the server-side gate imports it.
  *
  * Non-fatal by contract: a DB or normalisation failure must NEVER change the
  * gate behaviour, so every error is swallowed and the gate still throws

@@ -4,6 +4,7 @@ import {
   entryRedirectTarget,
   resolveSessionUserOrNull,
 } from '#/lib/route-guards'
+import { getLaunchState } from '#/lib/launch-server'
 import { Landing } from '#/components/marketing/Landing'
 
 /**
@@ -17,6 +18,9 @@ import { Landing } from '#/components/marketing/Landing'
  *   - signed out                -> render the Landing
  * The swipe-deck opener is retired (the SwipeDeck component stays in the repo
  * but is no longer routed from /).
+ *
+ * Once the app has gone live (admin Launch toggle), the loader passes `launched`
+ * to the Landing so it drops the waitlist form in favour of a "get started" CTA.
  */
 export const Route = createFileRoute('/')({
   beforeLoad: async () => {
@@ -25,5 +29,11 @@ export const Route = createFileRoute('/')({
     const target = entryRedirectTarget({ signedIn: Boolean(user), onboarded })
     if (target) throw redirect({ to: target })
   },
-  component: Landing,
+  loader: async () => ({ launched: (await getLaunchState()).launched }),
+  component: IndexPage,
 })
+
+function IndexPage() {
+  const { launched } = Route.useLoaderData()
+  return <Landing launched={launched} />
+}
