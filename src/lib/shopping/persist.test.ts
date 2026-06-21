@@ -64,40 +64,27 @@ describe('lineToNewItem', () => {
 })
 
 describe('shouldAutoSeed', () => {
-  it('seeds when a week is planned and no rows are saved yet', () => {
-    expect(shouldAutoSeed({ planId: 'plan-1', savedItemCount: 0 })).toBe(true)
-  })
-
-  it('does not seed when rows already exist (idempotent revisit)', () => {
-    expect(shouldAutoSeed({ planId: 'plan-1', savedItemCount: 3 })).toBe(false)
+  it('seeds a planned week we have not seeded yet', () => {
+    expect(shouldAutoSeed({ planId: 'plan-1', lastSeededPlanId: null })).toBe(
+      true,
+    )
   })
 
   it('does not seed when there is no planned week', () => {
-    expect(shouldAutoSeed({ planId: null, savedItemCount: 0 })).toBe(false)
+    expect(shouldAutoSeed({ planId: null, lastSeededPlanId: null })).toBe(false)
   })
 
-  it('does not re-seed a list the user cleared back down to one row', () => {
-    // A single staple still counts as "has rows"; the page must not refill.
-    expect(shouldAutoSeed({ planId: 'plan-1', savedItemCount: 1 })).toBe(false)
-  })
-
-  it('does not re-seed an empty list the user deliberately cleared', () => {
+  it('does not re-seed a plan already seeded (Clear all stays cleared)', () => {
+    // The household seeded plan-1 once; after a deliberate Clear all the SAME
+    // plan id must not refill on the next visit.
     expect(
-      shouldAutoSeed({
-        planId: 'plan-1',
-        savedItemCount: 0,
-        clearedByUser: true,
-      }),
+      shouldAutoSeed({ planId: 'plan-1', lastSeededPlanId: 'plan-1' }),
     ).toBe(false)
   })
 
-  it('still seeds an empty list when the empty is not user-cleared', () => {
+  it('re-seeds when a NEW plan replaces the previously seeded one', () => {
     expect(
-      shouldAutoSeed({
-        planId: 'plan-1',
-        savedItemCount: 0,
-        clearedByUser: false,
-      }),
+      shouldAutoSeed({ planId: 'plan-2', lastSeededPlanId: 'plan-1' }),
     ).toBe(true)
   })
 })

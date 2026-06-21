@@ -21,6 +21,12 @@ export const household = sqliteTable('household', {
   preferredStore: text('preferred_store').notNull().default('ah'),
   /** Soft weekly grocery budget in euro cents (null = no cap). */
   weeklyBudgetCents: integer('weekly_budget_cents'),
+  /** The plan id whose week we last auto-seeded into the shopping list. A plan
+   * auto-seeds exactly once; after that an explicit "Clear all" stays cleared
+   * (we never re-seed the same plan) and only a NEW plan re-seeds. Null until
+   * the first auto-seed. (#311: fixes Clear all being undone by the loader
+   * re-seeding on the next visit.) */
+  lastSeededPlanId: text('last_seeded_plan_id'),
   /** Learned taste profile (allergies, dislikes, diet). The real-time memory the
    * feedback loop folds into; read by the planner. */
   profile: text('profile', { mode: 'json' })

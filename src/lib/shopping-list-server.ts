@@ -375,3 +375,44 @@ export const clearShoppingList = createServerFn({ method: 'POST' }).handler(
     return reloadItems(db, householdId)
   },
 )
+
+/**
+ * The plan id whose week was last auto-seeded into this household's list, or
+ * null if never. The Shopping loader reads it to seed a plan EXACTLY once, so an
+ * explicit "Clear all" stays cleared and only a new plan re-seeds (#311).
+ */
+export const getLastSeededPlanId = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<{ lastSeededPlanId: string | null }> => {
+    const householdId = await requireHouseholdId()
+    const { getDb } = await import('../db/client')
+    const { household } = await import('../db/schema')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+    const rows = await db
+      .select({ v: household.lastSeededPlanId })
+      .from(household)
+      .where(eq(household.id, householdId))
+      .limit(1)
+    return { lastSeededPlanId: rows[0]?.v ?? null }
+  },
+)
+
+/** Record that `planId`'s week was auto-seeded, so it is not re-seeded after an
+ * explicit "Clear all" (#311). Scoped to the household. */
+export const markPlanSeeded = createServerFn({ method: 'POST' })
+  .inputValidator((d: { planId: unknown }) => ({
+    planId: String(d.planId ?? ''),
+  }))
+  .handler(async ({ data }): Promise<{ ok: true }> => {
+    const householdId = await requireHouseholdId()
+    if (!data.planId) return { ok: true }
+    const { getDb } = await import('../db/client')
+    const { household } = await import('../db/schema')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+    await db
+      .update(household)
+      .set({ lastSeededPlanId: data.planId })
+      .where(eq(household.id, householdId))
+    return { ok: true }
+  })

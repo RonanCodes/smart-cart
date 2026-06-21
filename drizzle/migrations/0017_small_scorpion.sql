@@ -1,0 +1,1 @@
+ALTER TABLE `household` ADD `last_seeded_plan_id` text;
