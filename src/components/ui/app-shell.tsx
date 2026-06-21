@@ -2,6 +2,7 @@ import * as React from 'react'
 import { cn } from '#/lib/utils'
 import { SafeArea } from '#/components/ui/safe-area'
 import { TabBar } from '#/components/ui/tab-bar'
+import { InstallPrompt } from '#/components/pwa/InstallPrompt'
 
 /**
  * AppShell — the iOS-native frame the main app screens live inside. It owns the
@@ -47,6 +48,7 @@ export function AppShell({
           {children}
         </main>
       </div>
+      <InstallPrompt />
       <TabBar />
     </SafeArea>
   )
