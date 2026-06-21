@@ -33,15 +33,19 @@ export interface PersonaInput {
   days: Array<PersonaDay>
 }
 
-/** The subset of VAPI `AssistantOverrides` we set per call. */
+/** The subset of VAPI `AssistantOverrides` we set per call.
+ *
+ * IMPORTANT: we deliberately do NOT override `model` here. VAPI rejects/hangs on
+ * a PARTIAL model override (`{ messages }` with no provider+model), which left
+ * the call stuck "connecting". We only send the safe, mergeable fields
+ * (firstMessage + variableValues). The persona SYSTEM PROMPT (buildPersonaSystemPrompt)
+ * belongs in the dashboard assistant; `variableValues` expose the week so a
+ * dashboard `{{ weekPlan }}` / `{{ weekLabel }}` template grounds it per call. */
 export interface PersonaOverrides {
   firstMessage: string
   variableValues: {
     weekLabel: string
     weekPlan: string
-  }
-  model: {
-    messages: Array<{ role: 'system'; content: string }>
   }
 }
 
@@ -102,9 +106,6 @@ export function buildPersonaOverrides(input: PersonaInput): PersonaOverrides {
     variableValues: {
       weekLabel: input.weekLabel,
       weekPlan: describeWeekForVoice(input.days),
-    },
-    model: {
-      messages: [{ role: 'system', content: buildPersonaSystemPrompt(input) }],
     },
   }
 }
