@@ -274,13 +274,16 @@ export interface ShoppingBootstrap {
  * The /shopping loader, batched into ONE round-trip (#251). The route used to fan
  * out five GET server fns per visit (loadShoppingList + loadStaples +
  * frequentlyBoughtStaples + listShoppingItems + getStore) plus a conditional
- * auto-seed write. This composes the same reads INSIDE one server handler and
- * keeps the identical auto-seed branch, so behaviour is unchanged: the list
- * still self-seeds from the week on first visit, and a deliberate "Clear all"
- * (cleared=true) still suppresses the re-seed.
+ * auto-seed write. This composes the same reads INSIDE one server handler.
+ *
+ * Auto-seed intent is now DURABLE (#311): a plan auto-seeds exactly once, keyed
+ * on the household's `lastSeededPlanId`, so an explicit "Clear all" stays cleared
+ * across navigations (same plan id, already seeded -> no re-seed) and only a NEW
+ * plan re-seeds. The old `cleared` search-param was ephemeral and lost on a
+ * fresh visit, which let the loader re-fill a just-cleared list.
  */
 export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
-  .inputValidator((d?: { planId?: string; cleared?: boolean }) => d ?? {})
+  .inputValidator((d?: { planId?: string }) => d ?? {})
   .handler(async ({ data }): Promise<ShoppingBootstrap> => {
     const { loadStaples, frequentlyBoughtStaples } =
       await import('./staples-server')
@@ -288,30 +291,33 @@ export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
       listShoppingItems,
       addWeekToShoppingList,
       backfillShoppingAmounts,
+      getLastSeededPlanId,
+      markPlanSeeded,
     } = await import('./shopping-list-server')
     const { getStore } = await import('./store-pref-server')
     const { shouldAutoSeed } = await import('./shopping')
 
     const planArg = data.planId ? { planId: data.planId } : {}
-    const [view, staplesRes, frequentRes, itemsRes, preferredStore] =
+    const [view, staplesRes, frequentRes, itemsRes, preferredStore, seedState] =
       await Promise.all([
         loadShoppingList({ data: planArg }),
         loadStaples(),
         frequentlyBoughtStaples(),
         listShoppingItems(),
         getStore(),
+        getLastSeededPlanId(),
       ])
 
     let items = itemsRes.items
     if (
       shouldAutoSeed({
         planId: view.planId,
-        savedItemCount: items.length,
-        clearedByUser: data.cleared,
+        lastSeededPlanId: seedState.lastSeededPlanId,
       })
     ) {
       const seeded = await addWeekToShoppingList({ data: planArg })
       items = seeded.items
+      if (view.planId) await markPlanSeeded({ data: { planId: view.planId } })
     } else {
       // Existing list: top up any stale recipe rows whose amount was dropped
       // before the Dutch-qty split shipped (#243), matched against the current

@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { ShoppingBag } from 'lucide-react'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { Button } from '#/components/ui/button'
@@ -14,32 +14,26 @@ import { ShoppingSkeleton } from '#/components/shopping/ShoppingSkeleton'
 interface ShoppingSearch {
   /** Optional plan id, set when arriving from the week view's "Shopping list". */
   plan?: string
-  /**
-   * Set after the user taps "Clear all": the empty list is a deliberate choice,
-   * so the loader must NOT re-seed it from the week on this visit. Survives a
-   * reload because it lives in the URL.
-   */
-  cleared?: boolean
 }
 
 export const Route = createFileRoute('/_authed/shopping')({
   validateSearch: (search: Record<string, unknown>): ShoppingSearch => ({
     plan: typeof search.plan === 'string' ? search.plan : undefined,
-    cleared: search.cleared === true || search.cleared === '1',
   }),
   // Auth + onboarding run ONCE in the shared `_authed` layout (#251); this route
   // no longer re-fires the two guard server fns in its own beforeLoad.
   // Reuse the loader result on back-nav within 30s (#251). Default route
   // staleTime is 0, so coming back to /shopping always re-ran the (5-call) fan-out.
   staleTime: 30_000,
-  loaderDeps: ({ search }) => ({ plan: search.plan, cleared: search.cleared }),
+  loaderDeps: ({ search }) => ({ plan: search.plan }),
   loader: ({ deps }): Promise<ShoppingBootstrap> =>
     // ONE round-trip (#251): loadShoppingBootstrap composes loadShoppingList +
-    // staples + frequently-bought + saved items + store, plus the same auto-seed
-    // branch, server-side. Same shape, same behaviour (the auto-seed still fires
-    // on first visit and is still suppressed by cleared=true).
+    // staples + frequently-bought + saved items + store, plus the auto-seed
+    // branch, server-side. The auto-seed fires once per plan; a deliberate
+    // "Clear all" stays cleared via the household's durable lastSeededPlanId
+    // (#311), so no `cleared` URL flag is needed.
     loadShoppingBootstrap({
-      data: { planId: deps.plan, cleared: deps.cleared },
+      data: { planId: deps.plan },
     }),
   // Skeleton while the loader resolves (#226). The loader can auto-seed the list
   // from the week, so this is the slice's most visible loading win. SSR is
@@ -63,19 +57,7 @@ export const Route = createFileRoute('/_authed/shopping')({
 function Shopping() {
   const { view, staples, frequentlyBought, items, preferredStore } =
     Route.useLoaderData()
-  const { plan } = Route.useSearch()
-  const navigate = useNavigate()
   const hasSavedItems = items.length > 0
-
-  // Record a deliberate clear in the URL so a reload does not re-seed the list
-  // from the week. `replace` keeps it out of the back-stack.
-  function markCleared() {
-    void navigate({
-      to: '/shopping',
-      search: { plan, cleared: true },
-      replace: true,
-    })
-  }
 
   // Nothing to shop for yet: no saved rows and no staples. The bare empty
   // state, but still let the user start a list from staples alone (a top-up
@@ -124,7 +106,7 @@ function Shopping() {
           add, and remove all survive a reload. */}
       {hasSavedItems && (
         <div className="px-5 pt-3 pb-2">
-          <EditableShoppingList initialItems={items} onCleared={markCleared} />
+          <EditableShoppingList initialItems={items} />
         </div>
       )}
 

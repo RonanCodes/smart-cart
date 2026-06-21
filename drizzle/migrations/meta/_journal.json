@@ -120,6 +120,13 @@
       "when": 1782011043206,
       "tag": "0016_next_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1782031836594,
+      "tag": "0017_small_scorpion",
+      "breakpoints": true
     }
   ]
 }

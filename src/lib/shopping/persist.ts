@@ -77,27 +77,23 @@ export function lineToNewItem(line: ShoppingLine): NewShoppingItem {
  * Should the Shopping tab auto-seed its editable list from the week on load?
  *
  * The page is the clean editable list by default: when the household has a
- * planned week (a non-null plan id) but has not saved any rows yet, we seed the
- * list from that week so the user lands on the real list instead of a read-only
- * preview, with no dead "Add to shopping list" tap required. Once any row
- * exists (a recipe seed, a staple, or a manual add) we never re-seed, so a
- * user who cleared the list is not fought by the page re-filling it. The seed
- * itself is idempotent on the server (planMerge dedupes), so this guard is
- * about intent, not correctness.
+ * planned week we seed the list from that week once, so the user lands on the
+ * real list instead of a read-only preview, with no dead "Add to shopping list"
+ * tap required. The seed itself is idempotent on the server (planMerge dedupes).
  *
- * `clearedByUser` is the deliberate-empty signal: an empty list reached by
- * tapping "Clear all" is a CHOICE, not a never-seeded state, so we must not
- * immediately re-fill it. Clearing to empty stays cleared until the user adds
- * something back. Without this flag, "Clear all" on a planned week would race
- * the loader into re-seeding the very rows the user just wiped.
+ * Intent is tracked DURABLY by `lastSeededPlanId` (the plan id we last seeded
+ * for this household), NOT by the live row count: a plan auto-seeds exactly
+ * once, so an explicit "Clear all" stays cleared (same plan id, already seeded
+ * -> no re-seed) even after navigating away and back, and only a NEW plan
+ * re-seeds. The old row-count + ephemeral `clearedByUser` search-param signal
+ * was lost on a fresh visit, which let the loader re-fill a just-cleared list
+ * (#311).
  */
 export function shouldAutoSeed(input: {
   planId: string | null
-  savedItemCount: number
-  clearedByUser?: boolean
+  lastSeededPlanId: string | null
 }): boolean {
-  if (input.clearedByUser) return false
-  return input.planId !== null && input.savedItemCount === 0
+  return input.planId !== null && input.planId !== input.lastSeededPlanId
 }
 
 /**
