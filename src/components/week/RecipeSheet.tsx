@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react'
 import { Shuffle, X } from 'lucide-react'
 import type { WeekDayView } from '#/lib/week-server'
+import { getRecipeVideo } from '#/lib/recipe-media-server'
 import { Sheet } from '#/components/ui/sheet'
 import { Button } from '#/components/ui/button'
 import { RecipeFacts } from '#/components/week/RecipeFacts'
 import { RecipeDetail } from '#/components/week/RecipeDetail'
+import { PlayableRecipeImage } from '#/components/recipe/PlayableRecipeImage'
 
 interface RecipeSheetProps {
   /** The day whose dish to read; null closes the sheet. */
@@ -48,9 +51,45 @@ export function RecipeSheet({
   onSwap,
   onRemove,
 }: RecipeSheetProps) {
+  // The cooking video for this dish, fetched lazily once the sheet is open. Read
+  // only (videoUrl + status); null until the inspector has generated a clip, so
+  // the hero degrades to a plain photo with no play badge. Reset per recipe so a
+  // previous dish's video never bleeds into the next.
+  const recipeRef = day?.recipeRef ?? ''
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open || !recipeRef) return
+    let cancelled = false
+    setVideoUrl(null)
+    void getRecipeVideo({ data: { recipeId: recipeRef } })
+      .then((res) => {
+        if (!cancelled) setVideoUrl(res.videoUrl)
+      })
+      .catch(() => {
+        // Degrade to image-only: leave videoUrl null so we show just the photo.
+        if (!cancelled) setVideoUrl(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, recipeRef])
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={day?.meal}>
       <div className="pb-2">
+        {/* The dish photo, which becomes the cooking video on tap (seamless: the
+            video's poster is this same photo). No video cached -> just the photo,
+            no play badge. */}
+        {day?.recipeRef && day.imageUrl && (
+          <PlayableRecipeImage
+            imageSrc={day.imageUrl}
+            videoUrl={videoUrl}
+            alt={day.meal}
+            className="bg-secondary mb-4 aspect-[4/3] w-full rounded-xl"
+          />
+        )}
+
         {/* The dish itself: ingredients + written-out steps + time / servings.
             Lazy-loads once the sheet is open. */}
         {day?.recipeRef && (
