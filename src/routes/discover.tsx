@@ -1,35 +1,31 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { DiscoverSkeleton } from '#/components/swipe-deck/DiscoverSkeleton'
-import { DiscoverFeed } from '#/components/discover/DiscoverFeed'
+import { SearchScreen } from '#/components/discover/SearchScreen'
 
 export const Route = createFileRoute('/discover')({
   // Reuse the loader result on back-nav within 30s (#251).
   staleTime: 30_000,
-  // Skeleton while a loader resolves (#229). The feed itself fetches client-side
-  // (lazy, on mount) and shows its own loading skeleton, so this only fires for a
-  // future loader; harmless to keep wired.
+  // Skeleton while a loader resolves (#229). The screen itself fetches
+  // client-side (browse rows on mount, results as you type) and shows its own
+  // loading state, so this only fires for a future loader; harmless to keep wired.
   pendingComponent: DiscoverSkeleton,
-  component: Discover,
+  component: Search,
 })
 
 /**
- * Discover tab — a personalized, source-cited "ideas" feed (#Cala). A scrollable
- * stack of cards tailored to the household's profile (in-season produce, a
- * nutrition fact, a cuisine spotlight, a fun food fact), each grounded in real
- * cited web knowledge from Cala (cala.ai), never a hallucination.
- *
- * The feed hides itself entirely when Cala is unconfigured or the household isn't
- * onboarded, so the screen degrades to just its header in that case.
+ * Search tab (path /discover, labelled "Search" in the tab bar). A live search
+ * bar over a browse view: before you type, themed horizontal rows of catalogue
+ * recipes (each likeable); as you type, it searches recipes AND store products
+ * (e.g. "toilet paper") and lets you add a product to the shopping list. All
+ * backed by real data — the recipe catalogue (AH/Jumbo + image filter) and the
+ * store_product table.
  */
-function Discover() {
+function Search() {
   return (
     <AppShell>
-      <ScreenHeader
-        title="Discover"
-        subtitle="Ideas about food, health, and what's good to cook right now, tailored to your household."
-      />
-      <DiscoverFeed />
+      <ScreenHeader title="Search" />
+      <SearchScreen />
     </AppShell>
   )
 }
