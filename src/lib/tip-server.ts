@@ -185,6 +185,13 @@ export const startTip = createServerFn({ method: 'POST' })
     const amount = computeTipAmount(data.percent, data.basketTotal)
     const tipPaymentId = crypto.randomUUID()
 
+    // The effective Mollie mode (test|live) for this household: its override ??
+    // the global default ?? 'test'. Stored on the row so the webhook re-fetches
+    // status with the matching key (a live payment can't be read with test).
+    const { resolvePaymentMode, mollieKeyForMode } =
+      await import('./payment-mode-resolve')
+    const mode = await resolvePaymentMode(db, householdId)
+
     // No-tip path: record the free-count usage, no Mollie charge, never error.
     if (amount === null) {
       await recordFreeAdd(db, householdId, period)
@@ -196,13 +203,13 @@ export const startTip = createServerFn({ method: 'POST' })
         amount: '',
         molliePaymentId: null,
         status: 'none',
+        mode,
       })
       return { checkoutUrl: null, tipPaymentId, amount: null }
     }
 
+    const apiKey = await mollieKeyForMode(mode)
     const { readEnv } = await import('./env')
-    const apiKey = await readEnv('MOLLIE_API_KEY')
-    if (!apiKey) throw new Error('MOLLIE_API_KEY not configured')
     const appUrl = (await readEnv('APP_URL')) ?? ''
 
     const storeQuery = data.store ? `?store=${data.store}` : ''
@@ -222,6 +229,7 @@ export const startTip = createServerFn({ method: 'POST' })
       amount,
       molliePaymentId: payment.id,
       status: payment.status,
+      mode,
     })
 
     return {

@@ -27,6 +27,7 @@ import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AdminWhyRouteImport } from './routes/admin/why'
 import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminMatchingRouteImport } from './routes/admin/matching'
 import { Route as AdminFeedbackRouteImport } from './routes/admin/feedback'
 import { Route as AdminBenchmarkRouteImport } from './routes/admin/benchmark'
@@ -129,6 +130,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminMatchingRoute = AdminMatchingRouteImport.update({
   id: '/matching',
   path: '/matching',
@@ -206,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/matching': typeof AdminMatchingRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/admin/why': typeof AdminWhyRoute
@@ -236,6 +243,7 @@ export interface FileRoutesByTo {
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/matching': typeof AdminMatchingRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/admin/why': typeof AdminWhyRoute
@@ -269,6 +277,7 @@ export interface FileRoutesById {
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/matching': typeof AdminMatchingRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/admin/why': typeof AdminWhyRoute
@@ -302,6 +311,7 @@ export interface FileRouteTypes {
     | '/admin/benchmark'
     | '/admin/feedback'
     | '/admin/matching'
+    | '/admin/payments'
     | '/admin/users'
     | '/admin/waitlist'
     | '/admin/why'
@@ -332,6 +342,7 @@ export interface FileRouteTypes {
     | '/admin/benchmark'
     | '/admin/feedback'
     | '/admin/matching'
+    | '/admin/payments'
     | '/admin/users'
     | '/admin/waitlist'
     | '/admin/why'
@@ -364,6 +375,7 @@ export interface FileRouteTypes {
     | '/admin/benchmark'
     | '/admin/feedback'
     | '/admin/matching'
+    | '/admin/payments'
     | '/admin/users'
     | '/admin/waitlist'
     | '/admin/why'
@@ -531,6 +543,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/payments': {
+      id: '/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AdminPaymentsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/matching': {
       id: '/admin/matching'
       path: '/matching'
@@ -622,6 +641,7 @@ interface AdminRouteRouteChildren {
   AdminBenchmarkRoute: typeof AdminBenchmarkRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminMatchingRoute: typeof AdminMatchingRoute
+  AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminWaitlistRoute: typeof AdminWaitlistRoute
   AdminWhyRoute: typeof AdminWhyRoute
@@ -632,6 +652,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBenchmarkRoute: AdminBenchmarkRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
   AdminMatchingRoute: AdminMatchingRoute,
+  AdminPaymentsRoute: AdminPaymentsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminWaitlistRoute: AdminWaitlistRoute,
   AdminWhyRoute: AdminWhyRoute,

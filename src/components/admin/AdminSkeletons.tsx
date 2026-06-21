@@ -236,3 +236,53 @@ export function WaitlistSkeleton() {
     </div>
   )
 }
+
+/**
+ * PaymentsSkeleton — /admin/payments pendingComponent. Mirrors PaymentsPanel:
+ * the global-mode card (a caption over a two-segment control), then a divided
+ * list of household rows (email + effective mode on the left, a three-way
+ * Inherit/Test/Live selector on the right).
+ */
+export function PaymentsSkeleton() {
+  return (
+    <div
+      className="max-w-2xl space-y-6"
+      aria-busy="true"
+      aria-label="Loading the payment-mode settings"
+    >
+      {/* Global mode card */}
+      <div className="border-border bg-card space-y-3 rounded-xl border p-4">
+        <div className="flex items-start gap-3">
+          <Skeleton className="mt-0.5 h-5 w-5 shrink-0 rounded-full" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-64" />
+          </div>
+        </div>
+        <Skeleton className="h-11 w-full max-w-xs rounded-xl" />
+      </div>
+
+      {/* Per-household overrides */}
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-3 w-3/4" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div
+              key={i}
+              className="border-border flex items-center justify-between gap-3 rounded-lg border px-4 py-3"
+            >
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-11 w-44 shrink-0 rounded-xl" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
