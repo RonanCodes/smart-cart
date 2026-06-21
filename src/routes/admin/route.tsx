@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   Palette,
   Beaker,
+  SwatchBook,
 } from 'lucide-react'
 import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import { ScreenHeader } from '#/components/ui/app-shell'
@@ -133,6 +134,11 @@ function AdminLayout() {
             {/* Souso design prototype (PR #320). Admin-gated so the throwaway
                 /design/* preview is reachable for demos without shipping it as
                 a public route. */}
+            <TabLink
+              to="/admin/design-system"
+              icon={<SwatchBook className="h-4 w-4" />}
+              label="Design system"
+            />
             <TabLink
               to="/design/onboarding"
               icon={<Palette className="h-4 w-4" />}
