@@ -11,9 +11,11 @@ import { useOnboardingForm } from '../form-state'
  * `draft.store` (slug 'ah' | 'jumbo' | 'picnic'); the planner uses it to build a
  * ready-to-order basket against that retailer.
  *
- * All three are selectable (#294). The list comes from the shared STORE_OPTIONS
- * catalogue so onboarding and the Profile store sheet can't drift. Stores with a
- * brand logo (Picnic) render it; the rest keep their brand-colour initials chip.
+ * Albert Heijn + Picnic are selectable; Jumbo is parked as a disabled "Coming
+ * soon" row until its pricing + cart are tested (still shown so we can re-enable
+ * it later). The list comes from the shared STORE_OPTIONS catalogue so
+ * onboarding and the Profile store sheet can't drift. Stores with a brand logo
+ * (Picnic) render it; the rest keep their brand-colour initials chip.
  *
  * Persistence is wired separately (#110); this step only patches the in-flight
  * draft. Mobile first at 390px: full-width tappable rows.
@@ -22,6 +24,7 @@ export function StoreStep() {
   const { draft, patch } = useOnboardingForm()
 
   function pick(option: StoreOption) {
+    if (option.comingSoon) return
     patch({ store: option.slug })
   }
 
@@ -33,19 +36,23 @@ export function StoreStep() {
         className="flex flex-col gap-3"
       >
         {STORE_OPTIONS.map((option) => {
-          const isSelected = draft.store === option.slug
+          const comingSoon = option.comingSoon === true
+          const isSelected = draft.store === option.slug && !comingSoon
           return (
             <button
               key={option.name}
               type="button"
               role="radio"
               aria-checked={isSelected}
+              aria-disabled={comingSoon}
+              disabled={comingSoon}
               onClick={() => pick(option)}
               className={cn(
                 'flex items-center gap-4 rounded-[var(--radius-ios)] border p-4 text-left transition active:scale-[0.98]',
                 isSelected
                   ? 'border-primary bg-primary/5'
                   : 'border-border bg-card',
+                comingSoon && 'cursor-not-allowed opacity-50 active:scale-100',
               )}
             >
               {option.iconSrc ? (
@@ -71,7 +78,11 @@ export function StoreStep() {
                   {option.name}
                 </span>
               </span>
-              {isSelected ? (
+              {comingSoon ? (
+                <span className="bg-secondary text-muted-foreground shrink-0 rounded-full px-2.5 py-1 text-[0.7rem] font-semibold">
+                  Coming soon
+                </span>
+              ) : isSelected ? (
                 <Check aria-hidden className="text-primary h-6 w-6 shrink-0" />
               ) : null}
             </button>

@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
+import * as Sentry from '@sentry/react'
 import { UtensilsCrossed } from 'lucide-react'
 import { log } from '#/lib/log'
 
@@ -23,9 +24,20 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    // Ships to /api/log -> Workers Logs AND (now) server-side Sentry forward.
+    // This is the path that ALWAYS reaches Sentry, even when the browser SDK is
+    // blocked by an ad-blocker, because the beacon is same-origin.
     log.error('react.error_boundary', error, {
       componentStack: info.componentStack,
     })
+    // Best-effort direct client capture too (free; may be ad-blocker-blocked).
+    try {
+      Sentry.captureException(error, {
+        extra: { componentStack: info.componentStack },
+      })
+    } catch {
+      // never let telemetry break the fallback render (diagnose canon)
+    }
   }
 
   render(): ReactNode {

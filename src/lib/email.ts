@@ -67,7 +67,7 @@ function launchHtml(signInUrl: string): string {
   return emailShell(`
         <p style="font-size:40px;margin:0 0 8px;">🎉</p>
         <p style="color:#1f2a1f;font-size:22px;font-weight:800;margin:0 0 8px;">Souso is live</p>
-        <p style="color:#5b6b5b;margin:0 0 24px;font-size:15px;line-height:1.5;">The wait is over. Your sous-chef is ready to plan the week and write the shopping list. Tap below and tell Souso who you're cooking for.</p>
+        <p style="color:#5b6b5b;margin:0 0 24px;font-size:15px;line-height:1.5;">Your sous-chef is ready to plan your week of dinners and turn it into one grocery cart. Tap below and tell Souso who you're cooking for.</p>
         ${tapButton(signInUrl, 'Open Souso')}
         <p style="color:#b6c2b6;font-size:11px;line-height:1.5;margin:16px 0 0;">Sign in with your email, we'll send a 6-digit code.</p>`)
 }
@@ -148,6 +148,24 @@ export async function sendApprovalEmail(
   }
 }
 
+/** The launch email subject line. Exported so the admin UI can preview the exact
+ * subject that will be sent without re-typing it (single source of truth). */
+export const LAUNCH_EMAIL_SUBJECT = 'Souso is live 🎉'
+
+/**
+ * The launch email plain-text body, exported so the admin broadcast panel can show
+ * a readable preview of what every recipient receives. `{signInUrl}` is the only
+ * variable; `launchEmailText` fills it for the real send. Plain and warm, no
+ * em-dashes. The HTML version (`launchHtml`) carries the same message visually.
+ */
+export const LAUNCH_EMAIL_BODY =
+  "Souso is live. Your sous-chef is ready to plan your week of dinners and turn it into one grocery cart. Open Souso, sign in with your email, and tell it who you're cooking for."
+
+/** Build the launch email plain-text fallback, appending the sign-in link. */
+export function launchEmailText(signInUrl: string): string {
+  return `${LAUNCH_EMAIL_BODY}\n\nOpen Souso: ${signInUrl}`
+}
+
 /**
  * Send ONE person the "Souso is live" launch email. Best-effort: returns
  * { sent } and never throws (the launch toggle has already committed by the time
@@ -165,8 +183,8 @@ export async function sendLaunchEmail(
   const { error } = await resend.emails.send({
     from: FROM,
     to,
-    subject: 'Souso is live 🎉',
-    text: `Souso is live! Your sous-chef is ready to plan the week and write the shopping list. Open Souso and sign in with your email: ${signInUrl}`,
+    subject: LAUNCH_EMAIL_SUBJECT,
+    text: launchEmailText(signInUrl),
     html: launchHtml(signInUrl),
   })
   return { sent: !error }

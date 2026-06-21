@@ -100,9 +100,18 @@ export const Route = createFileRoute('/_authed/week')({
     // plan returns an empty state we render with a "plan this week" CTA.
     if (deps.week !== undefined && !Number.isNaN(deps.week)) {
       const res = await loadWeekForOffset({ data: { offset: deps.week } })
-      if (res.kind === 'empty') {
-        return { kind: 'empty', offset: res.offset, weekStart: res.weekStart }
+      // The type says res is always a result, but a prod 500 surfaced here as
+      // `undefined` and crashed the route on `res.kind` (#week-crash). Guard
+      // defensively; the rule can't see the runtime state so disable it here.
+      /* eslint-disable @typescript-eslint/no-unnecessary-condition */
+      if (!res || res.kind === 'empty') {
+        return {
+          kind: 'empty',
+          offset: res ? res.offset : deps.week,
+          weekStart: res ? res.weekStart : '',
+        }
       }
+      /* eslint-enable @typescript-eslint/no-unnecessary-condition */
       const { listMealFeedback } = await import('#/lib/meal-feedback-server')
       const { countMissingFromWeek } =
         await import('#/lib/shopping-list-server')

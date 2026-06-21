@@ -286,7 +286,16 @@ function accumulateMatchedLine(
   lineItems: Array<BasketLineItem>,
   waste: BasketWasteSummary,
 ): { lineCents: number; estimated: boolean } | null {
-  if (match.product === null || match.priceCents === null) return null
+  // A product with no slug can be PRICED but cannot be added to the store cart
+  // (cart-build skips items with no SKU), so the displayed total would exceed the
+  // real basket. Exclude it from pricing too, so the total only counts items that
+  // can actually be added (#plan-cart-mismatch).
+  if (
+    match.product === null ||
+    match.priceCents === null ||
+    match.product.slug === null
+  )
+    return null
 
   const product = match.product
   const required = parseRequired(req.amount)

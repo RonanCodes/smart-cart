@@ -10,6 +10,7 @@ import {
   CreditCard,
   BookOpen,
   Rocket,
+  Send,
   ChevronLeft,
   Palette,
   Beaker,
@@ -125,6 +126,11 @@ function AdminLayout() {
               to="/admin/launch"
               icon={<Rocket className="h-4 w-4" />}
               label="Launch"
+            />
+            <TabLink
+              to="/admin/email"
+              icon={<Send className="h-4 w-4" />}
+              label="Email all"
             />
             <TabLink
               to="/admin/data-mode"
