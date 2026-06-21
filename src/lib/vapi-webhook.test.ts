@@ -3,6 +3,7 @@ import {
   timingSafeEqual,
   extractToolCalls,
   extractCallToken,
+  extractCallPlanId,
 } from './vapi-webhook'
 import { dispatchVapiTool } from './vapi-dispatch'
 
@@ -97,15 +98,31 @@ describe('extractCallToken', () => {
     expect(
       extractCallToken({
         message: {
-          call: { assistantOverrides: { metadata: { token: 'tok3' } } },
+          call: {
+            assistantOverrides: {
+              metadata: { token: 'from_overrides', planId: 'p1' },
+            },
+          },
         },
       }),
-    ).toBe('tok3')
+    ).toBe('from_overrides')
     expect(
       extractCallToken({
         call: { assistantOverrides: { metadata: { token: 'tok4' } } },
       }),
     ).toBe('tok4')
+  })
+  it('prefers call.metadata over assistantOverrides on conflict', () => {
+    expect(
+      extractCallToken({
+        message: {
+          call: {
+            metadata: { token: 'direct' },
+            assistantOverrides: { metadata: { token: 'overrides' } },
+          },
+        },
+      }),
+    ).toBe('direct')
   })
   it('deep-scans for metadata.token anywhere in the payload', () => {
     expect(
@@ -116,6 +133,34 @@ describe('extractCallToken', () => {
     expect(extractCallToken({ message: {} })).toBeUndefined()
     expect(extractCallToken(null)).toBeUndefined()
     expect(extractCallToken({ metadata: { token: 123 } })).toBeUndefined()
+  })
+})
+
+describe('extractCallPlanId', () => {
+  it('reads planId from call metadata', () => {
+    expect(
+      extractCallPlanId({
+        message: { call: { metadata: { token: 't', planId: 'plan_1' } } },
+      }),
+    ).toBe('plan_1')
+  })
+  it('reads planId from assistantOverrides.metadata', () => {
+    expect(
+      extractCallPlanId({
+        message: {
+          call: {
+            assistantOverrides: {
+              metadata: { token: 't', planId: 'plan_2' },
+            },
+          },
+        },
+      }),
+    ).toBe('plan_2')
+  })
+  it('is undefined when absent', () => {
+    expect(
+      extractCallPlanId({ call: { metadata: { token: 't' } } }),
+    ).toBeUndefined()
   })
 })
 

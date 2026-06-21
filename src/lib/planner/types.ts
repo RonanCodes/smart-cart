@@ -160,13 +160,22 @@ export interface PlanOptions {
    * directly. When omitted, types come from `profile.cookDays`: cook-days are
    * 'home', the rest are 'out'; an empty/absent cookDays means every day is
    * 'home'. A shorter array than `days` falls back to the rhythm for the
-   * remaining days.
+   * remaining days. Holes (undefined entries) also fall back to the rhythm, so a
+   * sparse override (e.g. "skip Friday, leave the rest to the profile") works.
    */
-  dayTypes?: Array<DayType>
+  dayTypes?: Array<DayType | undefined>
   /**
    * Soft penalties from learned memory + recent week history (variety / "not X
    * every week", recently-served dishes). Subtracted from the soft score in
    * `rankRecipes`. Empty/absent leaves ranking unchanged (benchmark-safe).
    */
   penalties?: SoftPenalties
+  /**
+   * Recipe ids to keep OUT of the ranked pool entirely (#week-nav variety). Used
+   * when generating a FUTURE week to exclude last week's dinners, so next week
+   * brings different meals instead of cloning the most recent plan. Empty/absent
+   * is a strict no-op (the fresh-household first week and the recsys regression
+   * fixture are unchanged). Hard filters (diet/allergies) still apply on top.
+   */
+  excludeRecipeIds?: Array<string>
 }

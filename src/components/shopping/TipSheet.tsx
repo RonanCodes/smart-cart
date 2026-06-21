@@ -1,26 +1,23 @@
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Heart, ShoppingBasket } from 'lucide-react'
 import { Sheet } from '#/components/ui/sheet'
 import { Button } from '#/components/ui/button'
 
 /**
  * The optional tip prompt shown on add-to-cart (decisions #16-#19).
  *
- * Reward, never guilt (#18): the mascot reaction is positive-only, neutral and
- * kind at no-tip (never sad), happier as the tip climbs. "No tip" (slider at 0)
- * is a real, unpunished choice. We call it an optional fee, not a "tip", when a
- * default is on, so it stays honest.
- *
- * The mascot uses emoji (the PNG mascot set isn't committed yet); swap to the
- * `souso-*` art when it lands.
+ * Reward, never guilt (#18): the reaction is positive-only, neutral and kind at
+ * no-tip (a calm basket, never sad), and a warmer filled heart that grows as the
+ * tip climbs. "No tip" (slider at 0) is a real, unpunished choice. We call it an
+ * optional fee, not a "tip", when a default is on, so it stays honest.
  */
-const STEPS: { emoji: string; label: string }[] = [
-  { emoji: '🧺', label: 'No tip, all good!' },
-  { emoji: '🙂', label: 'Thanks!' },
-  { emoji: '😊', label: 'Lovely, cheers!' },
-  { emoji: '😄', label: "You're the best!" },
-  { emoji: '🤩', label: 'Amazing!' },
-  { emoji: '🥳', label: 'Over the moon!' },
+const STEPS: { label: string }[] = [
+  { label: 'No tip, all good!' },
+  { label: 'Thanks!' },
+  { label: 'Lovely, cheers!' },
+  { label: "You're the best!" },
+  { label: 'Amazing!' },
+  { label: 'Over the moon!' },
 ]
 
 const FEE_FLOOR = 0.5
@@ -48,15 +45,28 @@ export function TipSheet({
   // Always prompt with a default tip (the free-3-a-month tier is skipped so the
   // tip is always visible for the demo). "No tip" stays one slide away (#18).
   const [percent, setPercent] = useState(3)
-  const step = STEPS[percent] ?? { emoji: '🧺', label: 'No tip, all good!' }
+  const step = STEPS[percent] ?? { label: 'No tip, all good!' }
   const amount = tipAmount(percent, basketTotal)
+  // Neutral basket at no-tip; a filled heart that grows with the tip otherwise.
+  const tipping = percent > 0
+  const heartSize = `${1.6 + percent * 0.12}rem`
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Send to your store">
       <div className="space-y-5 pb-2">
-        <div className="flex flex-col items-center gap-1 py-2">
-          <div className="text-5xl transition-transform" aria-hidden>
-            {step.emoji}
+        <div className="flex flex-col items-center gap-2 py-2">
+          <div
+            className="bg-secondary text-primary flex h-16 w-16 items-center justify-center rounded-full"
+            aria-hidden
+          >
+            {tipping ? (
+              <Heart
+                fill="currentColor"
+                style={{ width: heartSize, height: heartSize }}
+              />
+            ) : (
+              <ShoppingBasket className="h-7 w-7" />
+            )}
           </div>
           <p className="text-sm font-medium">{step.label}</p>
         </div>

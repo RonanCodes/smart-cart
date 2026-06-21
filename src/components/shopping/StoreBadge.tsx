@@ -8,13 +8,17 @@ import { productUrl } from '#/lib/product-url'
  * Reused on both the admin matching panel and the consumer shopping rows so the
  * brand mark + colour + accessible label never drift between the two surfaces.
  *
- * Brand colours mirror STORE_OPTIONS (src/lib/store-pref-server.ts) so the chip
- * matches the rest of the app: AH `#00ade6` on white, Jumbo `#eab90c` on black.
+ * Icon source (#293): the real store favicons live under public/brand/stores/
+ * (ah.png, jumbo.png), downloaded locally (no hotlinking). When an icon exists
+ * we render it; otherwise we fall back to the coloured initial chip so a store
+ * with no local icon still renders something honest. Brand colours mirror
+ * STORE_OPTIONS (src/lib/store-pref-server.ts): AH `#00ade6` on white, Jumbo
+ * `#eab90c` on black.
  *
  * Behaviour:
- *  - Unknown store (not 'ah' / 'jumbo'): renders nothing, so a row with no
+ *  - Unknown store (not a known brand): renders nothing, so a row with no
  *    per-store match shows no glyph and never crashes.
- *  - Known store, no slug: a static chip with an accessible label ("Albert
+ *  - Known store, no slug: a static badge with an accessible label ("Albert
  *    Heijn" / "Jumbo"), no link.
  *  - Known store + slug: an anchor opening the product page in a new tab,
  *    labelled "Open <name|product> at <store>".
@@ -23,10 +27,12 @@ import { productUrl } from '#/lib/product-url'
 interface Brand {
   /** Human store name for the accessible label. */
   name: string
-  /** Short glyph shown in the chip in lieu of a logo. */
+  /** Short glyph shown in the chip when no local icon is present. */
   glyph: string
-  /** Tailwind classes for the brand chip (background + text). */
+  /** Tailwind classes for the fallback brand chip (background + text). */
   className: string
+  /** Local favicon path under /public, when one exists. Null => chip only. */
+  icon: string | null
 }
 
 const BRANDS: Record<string, Brand> = {
@@ -34,8 +40,14 @@ const BRANDS: Record<string, Brand> = {
     name: 'Albert Heijn',
     glyph: 'AH',
     className: 'bg-[#00ade6] text-white',
+    icon: '/brand/stores/ah.png',
   },
-  jumbo: { name: 'Jumbo', glyph: 'J', className: 'bg-[#eab90c] text-black' },
+  jumbo: {
+    name: 'Jumbo',
+    glyph: 'J',
+    className: 'bg-[#eab90c] text-black',
+    icon: '/brand/stores/jumbo.png',
+  },
 }
 
 export function StoreBadge({
@@ -46,7 +58,7 @@ export function StoreBadge({
 }: {
   /** The store the match came from ('ah' | 'jumbo'); anything else renders null. */
   store: string | null | undefined
-  /** The matched product slug, for the click-through. Null = static chip. */
+  /** The matched product slug, for the click-through. Null = static badge. */
   slug?: string | null
   /** The matched product name, woven into the link's accessible label. */
   productName?: string | null
@@ -56,7 +68,17 @@ export function StoreBadge({
   const brand = store ? BRANDS[store.toLowerCase()] : undefined
   if (!brand) return null
 
-  const chip = (
+  // Prefer the real local favicon; fall back to the coloured initial chip.
+  const mark = brand.icon ? (
+    <img
+      src={brand.icon}
+      alt=""
+      aria-hidden
+      className="h-5 w-5 shrink-0 rounded-md object-contain"
+      loading="lazy"
+      decoding="async"
+    />
+  ) : (
     <span
       className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md px-1 text-[10px] leading-none font-bold ${brand.className}`}
       aria-hidden
@@ -67,7 +89,7 @@ export function StoreBadge({
 
   const href = productUrl(store, slug)
 
-  // No slug -> a static, labelled chip (still tells the reader the store).
+  // No slug -> a static, labelled badge (still tells the reader the store).
   if (!href) {
     return (
       <span
@@ -76,7 +98,7 @@ export function StoreBadge({
         aria-label={brand.name}
         title={brand.name}
       >
-        {chip}
+        {mark}
       </span>
     )
   }
@@ -87,14 +109,14 @@ export function StoreBadge({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      // Generous tap target for touch (the chip itself is small).
+      // Generous tap target for touch (the mark itself is small).
       className={`inline-flex items-center rounded-md p-0.5 transition-opacity hover:opacity-80 ${className}`}
       aria-label={`Open ${subject} at ${brand.name} (opens in a new tab)`}
       title={`Open at ${brand.name}`}
       // The badge is often nested inside a clickable row; keep the click local.
       onClick={(e) => e.stopPropagation()}
     >
-      {chip}
+      {mark}
     </a>
   )
 }

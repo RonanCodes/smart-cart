@@ -144,7 +144,7 @@ export function softScore(
 export function resolveDayTypes(
   days: number,
   profile: PlannerProfile,
-  override?: Array<DayType>,
+  override?: Array<DayType | undefined>,
 ): Array<DayType> {
   const cookDays = profile.cookDays ?? []
   const everyDayHome = cookDays.length === 0
@@ -188,14 +188,28 @@ export function rankRecipes(
   swipes: Array<{ recipeId: string; like: boolean }>,
   options: Pick<
     PlanOptions,
-    'seed' | 'algorithm' | 'weights' | 'penalties'
+    'seed' | 'algorithm' | 'weights' | 'penalties' | 'excludeRecipeIds'
   > = {},
 ): Array<PlannerRecipe> {
   const seed = options.seed ?? 42
   const algorithm = options.algorithm ?? DEFAULT_ALGORITHM
   const weights = options.weights ?? DEFAULT_ADAPTIVE_WEIGHTS
 
-  const candidates = hardFilter(recipes, profile)
+  const hardFiltered = hardFilter(recipes, profile)
+
+  // Variety exclusion (#week-nav): recipes the caller wants kept fresh (e.g. last
+  // week's dinners, so a fresh next week differs). This is a SOFT preference, not
+  // a hard removal (#320 follow-up): excluded recipes stay in the pool but sink to
+  // the BACK in the sort below. A large catalogue never reaches them (next week
+  // still differs), but a small diet-filtered pool falls back to them rather than
+  // leaving every day as an empty "eating out" card. An empty/absent set is a
+  // strict no-op, so the fresh-household first week and the recsys regression
+  // fixture rank identically to before.
+  const excluded =
+    options.excludeRecipeIds && options.excludeRecipeIds.length
+      ? new Set(options.excludeRecipeIds)
+      : null
+  const candidates = hardFiltered
 
   // Rank the full candidate pool by the configured preference algorithm, seeded by
   // the swipes. We pass the candidates (not the whole catalogue) so hard-filtered
@@ -233,6 +247,11 @@ export function rankRecipes(
   }))
 
   scored.sort((a, b) => {
+    // Excluded (last week's) recipes sink to the back so they're only used when
+    // the rest of the pool can't fill the week — variety as a soft preference.
+    const aEx = excluded?.has(a.recipe.id) ? 1 : 0
+    const bEx = excluded?.has(b.recipe.id) ? 1 : 0
+    if (aEx !== bEx) return aEx - bEx
     if (b.score !== a.score) return b.score - a.score
     // Stable tie-break on original rank, then id, so the order is deterministic.
     if (a.index !== b.index) return a.index - b.index

@@ -1,4 +1,6 @@
 import type { OnboardingDraft } from '#/components/onboarding/form-state'
+import type { StoreSlug } from './store-pref-server'
+import type { Locale } from './recipe-locale'
 import { clampHouseholdCount } from './onboarding-rhythm'
 
 /**
@@ -38,15 +40,18 @@ export interface MappedProfile {
 export interface MappedHousehold {
   adults: number
   children: number
-  /** Only set when the draft store is a real selectable store ('ah' | 'jumbo').
-   * Picnic (draft.store === null, the CTO joke) and an unanswered step are left
-   * undefined so the caller keeps the existing/default store. */
-  preferredStore?: 'ah' | 'jumbo'
+  /** Only set when the draft store is a selectable store ('ah' | 'jumbo' |
+   * 'picnic'). An unanswered step (draft.store === null) and anything else are
+   * left undefined so the caller keeps the existing/default store. */
+  preferredStore?: StoreSlug
+  /** The recipe-content language ('en' | 'nl', #310). Always set: the draft
+   * defaults to 'en', so onboarding always carries a valid locale through. */
+  preferredLocale: Locale
   profile: MappedProfile
 }
 
-/** Stores we actually fulfil. Picnic is the joke; null/anything else is ignored. */
-const REAL_STORES = new Set(['ah', 'jumbo'])
+/** Stores a household can pick. null / anything else is ignored. */
+const REAL_STORES = new Set<StoreSlug>(['ah', 'jumbo', 'picnic'])
 
 /**
  * Diet labels the planner CAN hard-filter via dietary tags, in priority order.
@@ -83,7 +88,14 @@ export function draftToHousehold(draft: OnboardingDraft): MappedHousehold {
 
   const store = draft.store ? normalise(draft.store) : null
   const preferredStore =
-    store && REAL_STORES.has(store) ? (store as 'ah' | 'jumbo') : undefined
+    store && REAL_STORES.has(store as StoreSlug)
+      ? (store as StoreSlug)
+      : undefined
+
+  // The recipe-content language. The draft defaults to 'en'; anything other
+  // than the one known alternative ('nl') falls back to English, so a junk
+  // value never reaches the column.
+  const preferredLocale: Locale = draft.locale === 'nl' ? 'nl' : 'en'
 
   const dietLabels = draft.diet.map(normalise)
 
@@ -114,6 +126,7 @@ export function draftToHousehold(draft: OnboardingDraft): MappedHousehold {
     adults,
     children,
     preferredStore,
+    preferredLocale,
     profile: {
       allergies,
       // Keep the user's own dislike words for display ("no anchovies"); the

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Compass, CalendarDays, ShoppingBag, User } from 'lucide-react'
+import { CalendarDays, Search, ShoppingBasket, User } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '#/lib/utils'
 
@@ -24,9 +24,9 @@ interface TabDef {
 }
 
 const TABS: Array<TabDef> = [
-  { to: '/discover', label: 'Discover', icon: Compass },
   { to: '/week', label: 'Week', icon: CalendarDays },
-  { to: '/shopping', label: 'Shopping', icon: ShoppingBag },
+  { to: '/discover', label: 'Search', icon: Search },
+  { to: '/shopping', label: 'Cart', icon: ShoppingBasket },
   { to: '/profile', label: 'Profile', icon: User },
 ]
 
@@ -59,6 +59,12 @@ export function TabBar() {
             <li key={tab.to} className="flex-1">
               <Link
                 to={tab.to}
+                // The tab bar is always on screen, so `viewport` warms all four
+                // tab routes in the background once after paint (#302). Combined
+                // with defaultPreloadStaleTime:30_000, the warm match is reused on
+                // tap, so switching tabs is instant instead of blocking on a fresh
+                // auth + loader round-trip. The 30s cache stops it re-fetching.
+                preload="viewport"
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'flex h-full flex-col items-center justify-center gap-0.5',

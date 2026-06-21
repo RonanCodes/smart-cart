@@ -466,6 +466,10 @@ export const grantUser = createServerFn({ method: 'POST' })
         .limit(1)
     )[0]
     if (existing?.role === 'admin') return { email, grant: 'admin' }
+    // Only email an approval link on a genuinely NEW grant, not on re-approving
+    // an already-'user' email (avoids a duplicate "you're in" email on a repeat
+    // click). The link itself stays one-time + short-TTL even if it is re-sent.
+    const wasNew = existing?.role !== 'user'
     const now = new Date()
     await db
       .insert(accessGrant)
@@ -474,6 +478,12 @@ export const grantUser = createServerFn({ method: 'POST' })
         target: accessGrant.email,
         set: { role: 'user', createdAt: now },
       })
+    // Issue #259: one-tap approval sign-in link. Best-effort (the helper
+    // swallows its own errors); the grant above has already committed.
+    if (wasNew) {
+      const { sendApprovalMagicLink } = await import('./auth')
+      await sendApprovalMagicLink(email)
+    }
     return { email, grant: 'user' }
   })
 
@@ -535,9 +545,14 @@ export const approveAllWaitlist = createServerFn({ method: 'POST' }).handler(
     if (emails.length === 0) return { ok: true, approved: 0 }
 
     const { normalizeEmail } = await import('./access-rules')
+    const { sendApprovalMagicLink } = await import('./auth')
     const now = new Date()
     // One upsert per email (each is a tiny single-row write, well under D1's
     // bound-param limit). Same write the single "Approve as user" uses.
+    // `pendingApprovableEmails` already excludes existing 'user'/'admin' grants,
+    // so every email here is a genuinely new approval and earns an approval link
+    // (issue #259). Best-effort per email: the helper swallows its own errors so
+    // one failed send never aborts the batch or the response count.
     for (const raw of emails) {
       const email = normalizeEmail(raw)
       if (!email) continue
@@ -548,6 +563,7 @@ export const approveAllWaitlist = createServerFn({ method: 'POST' }).handler(
           target: accessGrant.email,
           set: { role: 'user', createdAt: now },
         })
+      await sendApprovalMagicLink(email)
     }
     return { ok: true, approved: emails.length }
   },

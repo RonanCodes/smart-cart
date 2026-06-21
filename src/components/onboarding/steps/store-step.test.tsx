@@ -62,24 +62,14 @@ describe('StoreStep', () => {
     expect(ah.getAttribute('aria-checked')).toBe('true')
   })
 
-  it('tapping Picnic shows the joke and does NOT select a store', () => {
+  it('selects Picnic into draft.store with the picnic slug', () => {
     const latest = withForm(<StoreStep />)
-    // No joke before the tap.
-    expect(screen.queryByText(/convince the CTO/)).toBeNull()
-
     fireEvent.click(screen.getByRole('radio', { name: /Picnic/ }))
-
-    // Joke is shown.
-    expect(
-      screen.getByText(/Coming soon, if we can convince the CTO/),
-    ).toBeTruthy()
-    // Picnic never writes to the draft.
-    expect(latest.draft.store).toBeNull()
-    // Picnic stays unchecked.
+    expect(latest.draft.store).toBe('picnic')
     expect(
       screen
         .getByRole('radio', { name: /Picnic/ })
         .getAttribute('aria-checked'),
-    ).toBe('false')
+    ).toBe('true')
   })
 })

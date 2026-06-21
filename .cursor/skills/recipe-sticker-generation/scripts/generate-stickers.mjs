@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+/**
+ * Generate recipe stickers via Replicate google/nano-banana-2.
+ *
+ * Usage:
+ *   node .../generate-stickers.mjs data/images/foo.jpg
+ *   node .../generate-stickers.mjs --all-ah
+ *   node .../generate-stickers.mjs --all-jumbo
+ *
+ * Env: REPLICATE_API_TOKEN in .dev.vars
+ */
 import fs from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
@@ -33,7 +43,9 @@ function resize(rel) {
   fs.mkdirSync(SM_DIR, { recursive: true })
   const out = path.join(SM_DIR, base)
   if (!fs.existsSync(out) || fs.statSync(out).mtimeMs < fs.statSync(abs).mtimeMs) {
-    execSync(`sips -s format jpeg -s formatOptions 80 -Z 1024 "${abs}" --out "${out}"`, { stdio: 'pipe' })
+    execSync(`sips -s format jpeg -s formatOptions 80 -Z 1024 "${abs}" --out "${out}"`, {
+      stdio: 'pipe',
+    })
   }
   return out
 }
@@ -51,7 +63,9 @@ async function poll(token, url) {
   for (let i = 0; i < 90; i++) {
     const body = await (await fetch(url, { headers: { Authorization: `Bearer ${token}` } })).json()
     if (body.status === 'succeeded') return body
-    if (body.status === 'failed' || body.status === 'canceled') throw new Error(body.error || body.status)
+    if (body.status === 'failed' || body.status === 'canceled') {
+      throw new Error(body.error || body.status)
+    }
     await sleep(2000)
   }
   throw new Error('poll timeout')
@@ -99,19 +113,22 @@ async function generate(token, imagePath, prompt) {
   return outPath
 }
 
-const args = process.argv.slice(2)
-let images = args.filter((a) => !a.startsWith('-'))
-
-if (args.includes('--all-ah')) {
-  images = fs
+function listImages(prefix) {
+  return fs
     .readdirSync(path.join(ROOT, 'data/images'))
-    .filter((f) => f.startsWith('ah_') && /\.jpe?g$/i.test(f))
+    .filter((f) => f.startsWith(`${prefix}_`) && /\.jpe?g$/i.test(f))
     .map((f) => path.join('data/images', f))
     .sort()
 }
 
+const args = process.argv.slice(2)
+let images = args.filter((a) => !a.startsWith('-'))
+
+if (args.includes('--all-ah')) images = listImages('ah')
+if (args.includes('--all-jumbo')) images = listImages('jumbo')
+
 if (images.length === 0) {
-  console.error('Usage: generate-stickers.mjs <image...> | --all-ah')
+  console.error('Usage: generate-stickers.mjs <image...> | --all-ah | --all-jumbo')
   process.exit(1)
 }
 

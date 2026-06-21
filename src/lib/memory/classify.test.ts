@@ -40,7 +40,9 @@ describe('classifyNote', () => {
       object: memoryDraftSchema.parse({
         kind: 'variety',
         cuisine: 'pizza',
+        term: null,
         polarity: 'neutral',
+        scope: 'persistent',
       }),
     })
     const d = await classifyNote('not pizza every week', {

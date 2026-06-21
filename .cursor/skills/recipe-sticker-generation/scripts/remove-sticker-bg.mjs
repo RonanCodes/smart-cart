@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+/**
+ * Key out chroma-green canvas from generated stickers, then synthesize a uniform
+ * white die-cut border + drop shadow. Requires ffmpeg + ffprobe.
+ */
 import fs from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
@@ -49,11 +53,22 @@ function saveRgba(file, rgba, w, h) {
 }
 
 function sampleCorners(rgba, w, h) {
-  const pts = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1], [1, 1], [w - 2, 1]]
-  let r = 0, g = 0, b = 0
+  const pts = [
+    [0, 0],
+    [w - 1, 0],
+    [0, h - 1],
+    [w - 1, h - 1],
+    [1, 1],
+    [w - 2, 1],
+  ]
+  let r = 0
+  let g = 0
+  let b = 0
   for (const [x, y] of pts) {
     const i = (y * w + x) * 4
-    r += rgba[i]; g += rgba[i + 1]; b += rgba[i + 2]
+    r += rgba[i]
+    g += rgba[i + 1]
+    b += rgba[i + 2]
   }
   return [Math.round(r / pts.length), Math.round(g / pts.length), Math.round(b / pts.length)]
 }
@@ -79,8 +94,14 @@ function floodOuterBg(rgba, w, h, isBg) {
     const i = idx * 4
     if (isBg(rgba[i], rgba[i + 1], rgba[i + 2])) stack.push(idx)
   }
-  for (let x = 0; x < w; x++) { seed(x, 0); seed(x, h - 1) }
-  for (let y = 0; y < h; y++) { seed(0, y); seed(w - 1, y) }
+  for (let x = 0; x < w; x++) {
+    seed(x, 0)
+    seed(x, h - 1)
+  }
+  for (let y = 0; y < h; y++) {
+    seed(0, y)
+    seed(w - 1, y)
+  }
 
   while (stack.length) {
     const idx = stack.pop()
@@ -89,7 +110,12 @@ function floodOuterBg(rgba, w, h, isBg) {
     isOuter[idx] = 1
     const x = idx % w
     const y = (idx - x) / w
-    for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+    for (const [nx, ny] of [
+      [x - 1, y],
+      [x + 1, y],
+      [x, y - 1],
+      [x, y + 1],
+    ]) {
       if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
       const nidx = ny * w + nx
       if (visited[nidx]) continue
@@ -172,11 +198,13 @@ function greenDespill(rgba, subject, w, h, reach = 3) {
   }
   const r2 = reach * reach
   for (const e of edge) {
-    const ex = e % w, ey = (e - ex) / w
+    const ex = e % w
+    const ey = (e - ex) / w
     for (let dy = -reach; dy <= reach; dy++) {
       for (let dx = -reach; dx <= reach; dx++) {
         if (dx * dx + dy * dy > r2) continue
-        const x = ex + dx, y = ey + dy
+        const x = ex + dx
+        const y = ey + dy
         if (x < 0 || y < 0 || x >= w || y >= h) continue
         const idx = y * w + x
         if (!subject[idx]) continue
@@ -201,7 +229,8 @@ function removeBg(rgba, w, h, { tol, border, shadowAlpha }) {
   const shadowSrc = new Float32Array(w * h)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const sx = x - SHADOW_OFFSET, sy = y - SHADOW_OFFSET
+      const sx = x - SHADOW_OFFSET
+      const sy = y - SHADOW_OFFSET
       if (sx >= 0 && sy >= 0) shadowSrc[y * w + x] = shape[sy * w + sx]
     }
   }
@@ -210,14 +239,22 @@ function removeBg(rgba, w, h, { tol, border, shadowAlpha }) {
     if (subject[idx]) continue
     if (dist[idx] <= borderUnits) {
       const i = idx * 4
-      rgba[i] = 255; rgba[i + 1] = 255; rgba[i + 2] = 255; rgba[i + 3] = 255
+      rgba[i] = 255
+      rgba[i + 1] = 255
+      rgba[i + 2] = 255
+      rgba[i + 3] = 255
     }
   }
   for (let idx = 0; idx < w * h; idx++) {
     const i = idx * 4
     if (rgba[i + 3] !== 0) continue
     const a = Math.round(shadow[idx] * shadowAlpha)
-    if (a > 2) { rgba[i] = 0; rgba[i + 1] = 0; rgba[i + 2] = 0; rgba[i + 3] = Math.min(255, a) }
+    if (a > 2) {
+      rgba[i] = 0
+      rgba[i + 1] = 0
+      rgba[i + 2] = 0
+      rgba[i + 3] = Math.min(255, a)
+    }
   }
   return { bg }
 }
@@ -241,15 +278,30 @@ const numArg = (name, def) => {
   const a = args.find((x) => x.startsWith(`--${name}=`))
   return a ? Number(a.split('=')[1]) : def
 }
-const opts = { tol: numArg('tol', DEFAULT_TOL), border: numArg('border', DEFAULT_BORDER), shadowAlpha: numArg('shadow', DEFAULT_SHADOW_ALPHA) }
+const opts = {
+  tol: numArg('tol', DEFAULT_TOL),
+  border: numArg('border', DEFAULT_BORDER),
+  shadowAlpha: numArg('shadow', DEFAULT_SHADOW_ALPHA),
+}
 
 let files = args.filter((a) => !a.startsWith('--'))
 if (args.includes('--all') || files.length === 0) {
-  files = fs.readdirSync(IN_DIR).filter((f) => f.endsWith('-sticker.png')).map((f) => path.join(IN_DIR, f))
+  files = fs
+    .readdirSync(IN_DIR)
+    .filter((f) => f.endsWith('-sticker.png'))
+    .map((f) => path.join(IN_DIR, f))
+}
+
+if (files.length === 0) {
+  console.error('Usage: remove-sticker-bg.mjs <sticker.png> [more...] | --all')
+  process.exit(1)
 }
 
 for (const file of files) {
   const abs = path.isAbsolute(file) ? file : path.join(ROOT, file)
-  if (!fs.existsSync(abs)) { console.error(`missing: ${file}`); continue }
+  if (!fs.existsSync(abs)) {
+    console.error(`missing: ${file}`)
+    continue
+  }
   processFile(abs, opts)
 }

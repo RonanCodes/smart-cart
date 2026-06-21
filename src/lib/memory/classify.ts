@@ -19,10 +19,20 @@ import type { MemoryDraft } from './memory'
 
 export const memoryDraftSchema = z.object({
   kind: z.enum(['preference', 'constraint', 'variety', 'context', 'logistics']),
-  cuisine: z.string().nullable().default(null),
-  term: z.string().nullable().default(null),
-  polarity: z.enum(['like', 'dislike', 'neutral']).default('neutral'),
-  scope: z.enum(['persistent', 'week']).default('persistent'),
+  cuisine: z
+    .string()
+    .nullable()
+    .describe(
+      'A single lowercase cuisine or dish type (italian, thai, pizza, pasta, …), or null when none is clearly the subject.',
+    ),
+  term: z
+    .string()
+    .nullable()
+    .describe(
+      'A single lowercase food/ingredient term (salmon, mushroom, peanut, …), or null when none is clearly the subject.',
+    ),
+  polarity: z.enum(['like', 'dislike', 'neutral']),
+  scope: z.enum(['persistent', 'week']),
 })
 
 export type MemoryDraftSchema = z.infer<typeof memoryDraftSchema>

@@ -8,9 +8,10 @@ import {
   planMerge,
   shouldAutoSeed,
   countMissing,
+  backfillAmounts,
   addToListCta,
 } from './persist'
-import type { ShoppingItem } from './persist'
+import type { ShoppingItem, NewShoppingItem } from './persist'
 import type { ShoppingLine } from './types'
 
 function line(partial: Partial<ShoppingLine> & { name: string }): ShoppingLine {
@@ -63,40 +64,27 @@ describe('lineToNewItem', () => {
 })
 
 describe('shouldAutoSeed', () => {
-  it('seeds when a week is planned and no rows are saved yet', () => {
-    expect(shouldAutoSeed({ planId: 'plan-1', savedItemCount: 0 })).toBe(true)
-  })
-
-  it('does not seed when rows already exist (idempotent revisit)', () => {
-    expect(shouldAutoSeed({ planId: 'plan-1', savedItemCount: 3 })).toBe(false)
+  it('seeds a planned week we have not seeded yet', () => {
+    expect(shouldAutoSeed({ planId: 'plan-1', lastSeededPlanId: null })).toBe(
+      true,
+    )
   })
 
   it('does not seed when there is no planned week', () => {
-    expect(shouldAutoSeed({ planId: null, savedItemCount: 0 })).toBe(false)
+    expect(shouldAutoSeed({ planId: null, lastSeededPlanId: null })).toBe(false)
   })
 
-  it('does not re-seed a list the user cleared back down to one row', () => {
-    // A single staple still counts as "has rows"; the page must not refill.
-    expect(shouldAutoSeed({ planId: 'plan-1', savedItemCount: 1 })).toBe(false)
-  })
-
-  it('does not re-seed an empty list the user deliberately cleared', () => {
+  it('does not re-seed a plan already seeded (Clear all stays cleared)', () => {
+    // The household seeded plan-1 once; after a deliberate Clear all the SAME
+    // plan id must not refill on the next visit.
     expect(
-      shouldAutoSeed({
-        planId: 'plan-1',
-        savedItemCount: 0,
-        clearedByUser: true,
-      }),
+      shouldAutoSeed({ planId: 'plan-1', lastSeededPlanId: 'plan-1' }),
     ).toBe(false)
   })
 
-  it('still seeds an empty list when the empty is not user-cleared', () => {
+  it('re-seeds when a NEW plan replaces the previously seeded one', () => {
     expect(
-      shouldAutoSeed({
-        planId: 'plan-1',
-        savedItemCount: 0,
-        clearedByUser: false,
-      }),
+      shouldAutoSeed({ planId: 'plan-2', lastSeededPlanId: 'plan-1' }),
     ).toBe(true)
   })
 })
@@ -255,5 +243,97 @@ describe('planMerge', () => {
     )
     expect(plan.inserts).toHaveLength(1)
     expect(plan.inserts[0]?.amount).toBe('5')
+  })
+})
+
+describe('backfillAmounts', () => {
+  function derived(
+    partial: Partial<NewShoppingItem> & { name: string },
+  ): NewShoppingItem {
+    return {
+      amount: null,
+      unit: null,
+      source: 'recipe',
+      ...partial,
+    }
+  }
+
+  it('fills a blank recipe row from a freshly derived amount, matched by name', () => {
+    const broccoli = item({ name: 'broccoli', amount: null, source: 'recipe' })
+    const updates = backfillAmounts(
+      [broccoli],
+      [derived({ name: 'Broccoli', amount: '300 g', unit: 'g' })],
+    )
+    expect(updates).toEqual([{ id: broccoli.id, amount: '300 g', unit: 'g' }])
+  })
+
+  it('treats a whitespace-only amount as blank and fills it', () => {
+    const row = item({ name: 'melk', amount: '   ', source: 'recipe' })
+    const updates = backfillAmounts(
+      [row],
+      [derived({ name: 'melk', amount: '200 ml', unit: 'ml' })],
+    )
+    expect(updates).toEqual([{ id: row.id, amount: '200 ml', unit: 'ml' }])
+  })
+
+  it('never clobbers a row that already carries an amount (a user edit)', () => {
+    const row = item({ name: 'broccoli', amount: '2 heads', source: 'recipe' })
+    const updates = backfillAmounts(
+      [row],
+      [derived({ name: 'broccoli', amount: '300 g', unit: 'g' })],
+    )
+    expect(updates).toEqual([])
+  })
+
+  it('leaves non-recipe rows alone even when a recipe name matches', () => {
+    const manual = item({ name: 'broccoli', amount: null, source: 'manual' })
+    const staple = item({ name: 'melk', amount: null, source: 'staple' })
+    const updates = backfillAmounts(
+      [manual, staple],
+      [
+        derived({ name: 'broccoli', amount: '300 g', unit: 'g' }),
+        derived({ name: 'melk', amount: '200 ml', unit: 'ml' }),
+      ],
+    )
+    expect(updates).toEqual([])
+  })
+
+  it('leaves a blank row blank when the derived line has no amount', () => {
+    // 'snufje' (a pinch) derives to no amount, so the '+' affordance stays.
+    const row = item({ name: 'zout', amount: null, source: 'recipe' })
+    const updates = backfillAmounts(
+      [row],
+      [derived({ name: 'zout', amount: null })],
+    )
+    expect(updates).toEqual([])
+  })
+
+  it('only touches rows the current week can supply, ignoring the rest', () => {
+    const known = item({ name: 'citroen', amount: null, source: 'recipe' })
+    const orphan = item({ name: 'oude-rest', amount: null, source: 'recipe' })
+    const updates = backfillAmounts(
+      [known, orphan],
+      [derived({ name: 'Citroen', amount: '1', unit: null })],
+    )
+    expect(updates).toEqual([{ id: known.id, amount: '1', unit: null }])
+  })
+
+  it('matches case-insensitively and on collapsed whitespace', () => {
+    const row = item({ name: '  Rode   Ui ', amount: null, source: 'recipe' })
+    const updates = backfillAmounts(
+      [row],
+      [derived({ name: 'rode ui', amount: '2', unit: null })],
+    )
+    expect(updates).toEqual([{ id: row.id, amount: '2', unit: null }])
+  })
+
+  it('is a no-op when nothing is stale', () => {
+    const full = item({ name: 'broccoli', amount: '300 g', source: 'recipe' })
+    expect(
+      backfillAmounts(
+        [full],
+        [derived({ name: 'broccoli', amount: '300 g', unit: 'g' })],
+      ),
+    ).toEqual([])
   })
 })

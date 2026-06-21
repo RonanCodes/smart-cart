@@ -1,0 +1,150 @@
+import { UtensilsCrossed, Clock, Flame, Beef, Loader2 } from 'lucide-react'
+import type { WeekDayView, DayAlternative } from '#/lib/week-server'
+import { Sheet } from '#/components/ui/sheet'
+
+interface SwapSheetProps {
+  /** The day being swapped / added to; null closes the sheet. */
+  day: WeekDayView | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** True while a pick is being persisted (locks the cards). */
+  picking: boolean
+  /** The user tapped an alternative: swap it into this day. */
+  onPick: (recipeId: string) => void
+  /**
+   * "Add a meal" to an eating-out / empty day (#175) rather than swap a planned
+   * one. Changes the copy ("pick a dinner for X" instead of "replace X") and, when
+   * `addAlternatives` is provided, renders those (fetched for the empty day) in
+   * place of the day's own shipped alternatives, which are empty for an 'out' day.
+   */
+  adding?: boolean
+  /** Alternatives to show when adding to an empty day; null while still loading. */
+  addAlternatives?: Array<DayAlternative> | null
+}
+
+/**
+ * The swap / add chooser, as its own bottom pull-up (#291). Lifted out of the
+ * old conflated edit sheet so the recipe detail (RecipeSheet) and the
+ * "what else could I cook" alternatives chooser are two distinct sheets: tapping
+ * the dish reads the recipe, tapping Swap (or "Swap this dinner" inside the
+ * recipe sheet) opens this one.
+ *
+ * Shows ~5 ready alternatives that are already pre-ranked for the household and
+ * shipped with the week, so the sheet opens instantly with no spinner. Tapping
+ * an alternative swaps it into that day. The cards are appetizing (image, title,
+ * prep, calories, protein), full-width tappable so there is no hover-only
+ * affordance and it works on touch at 390px.
+ *
+ * The same sheet doubles as the "Add a meal" picker for an eating-out / empty day
+ * (#175): when `adding` is set the copy reframes to "pick a dinner" and the cards
+ * come from `addAlternatives` (fetched on demand, since an 'out' day ships none).
+ */
+export function SwapSheet({
+  day,
+  open,
+  onOpenChange,
+  picking,
+  onPick,
+  adding = false,
+  addAlternatives = null,
+}: SwapSheetProps) {
+  // When adding to an empty day, the day's own `alternatives` are empty (an 'out'
+  // day ships none), so use the on-demand list once it has loaded.
+  const alts = adding ? (addAlternatives ?? []) : (day?.alternatives ?? [])
+  const loadingAdd = adding && addAlternatives === null
+
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={
+        day
+          ? adding
+            ? `Add a meal: ${day.day}`
+            : `Swap ${day.day}`
+          : undefined
+      }
+    >
+      <div className="pb-2">
+        {day && (
+          <p className="text-muted-foreground mb-3 text-center text-sm">
+            {adding ? (
+              <>Pick a dinner for {day.day}.</>
+            ) : (
+              <>
+                Pick a dinner to replace{' '}
+                <span className="text-foreground font-medium">{day.meal}</span>.
+              </>
+            )}
+          </p>
+        )}
+
+        {loadingAdd ? (
+          <p className="text-muted-foreground flex items-center justify-center gap-2 py-6 text-center text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Finding dinners you'll like...
+          </p>
+        ) : alts.length === 0 ? (
+          <p className="text-muted-foreground py-6 text-center text-sm">
+            {adding
+              ? 'No dinners left to add this week.'
+              : 'No other dinners left to swap in this week.'}
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {alts.map((a) => (
+              <li key={a.recipeRef}>
+                <button
+                  type="button"
+                  disabled={picking}
+                  onClick={() => onPick(a.recipeRef)}
+                  className="border-border bg-card hover:bg-secondary/60 active:bg-secondary flex w-full items-center gap-3 overflow-hidden rounded-xl border p-2 text-left transition-colors disabled:opacity-60"
+                >
+                  <div className="bg-secondary h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg">
+                    {a.imageUrl ? (
+                      <img
+                        src={a.imageUrl}
+                        alt={a.meal}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-muted-foreground flex h-full items-center justify-center">
+                        <UtensilsCrossed className="h-7 w-7" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="line-clamp-2 text-sm leading-snug font-semibold">
+                      {a.meal}
+                    </span>
+                    <span className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+                      {a.cuisine && <span>{a.cuisine}</span>}
+                      {a.prepMinutes != null && (
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {a.prepMinutes} min
+                        </span>
+                      )}
+                      {a.calories != null && (
+                        <span className="inline-flex items-center gap-1">
+                          <Flame className="h-3 w-3" />
+                          {a.calories} kcal
+                        </span>
+                      )}
+                      {a.protein != null && (
+                        <span className="inline-flex items-center gap-1">
+                          <Beef className="h-3 w-3" />
+                          {a.protein}g
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Sheet>
+  )
+}

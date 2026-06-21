@@ -83,7 +83,70 @@
       "idx": 11,
       "version": "6",
       "when": 1784000000000,
-      "tag": "0011_household_memory",
+      "tag": "0011_recipe_facts",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1784200000000,
+      "tag": "0012_discover_cards",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1784400000000,
+      "tag": "0013_recipe_media",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1784600000000,
+      "tag": "0014_household_notify_pref",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1782008657739,
+      "tag": "0015_curly_kylun",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1782011043206,
+      "tag": "0016_next_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1782031836594,
+      "tag": "0017_small_scorpion",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1782032516300,
+      "tag": "0018_windy_carmella_unuscione",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1782100000000,
+      "tag": "0019_launch_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1784800000000,
+      "tag": "0020_household_memory",
       "breakpoints": true
     }
   ]

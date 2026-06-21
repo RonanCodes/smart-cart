@@ -79,6 +79,43 @@ export function extractToolCalls(body: unknown): Array<ParsedToolCall> {
   return out
 }
 
+type CallMetadataCarrier = {
+  metadata?: unknown
+  assistantOverrides?: { metadata?: unknown }
+}
+
+function isMetadataRecord(v: unknown): v is Record<string, unknown> {
+  return v != null && typeof v === 'object' && !Array.isArray(v)
+}
+
+/** `message.call` or top-level `call` — VAPI uses both shapes. */
+function readCallFromBody(body: unknown): CallMetadataCarrier | undefined {
+  const b = body as {
+    message?: { call?: CallMetadataCarrier }
+    call?: CallMetadataCarrier
+  } | null
+  return b?.message?.call ?? b?.call
+}
+
+/**
+ * Pull echoed call metadata out of the webhook body. VAPI's path varies by version:
+ * - `call.metadata` on some events
+ * - `call.assistantOverrides.metadata` when the client passed metadata via
+ *   `vapi.start(id, { metadata })` (AssistantOverrides — what @vapi-ai/web sends)
+ * Merge both; top-level `call.metadata` wins on key conflicts.
+ */
+function readCallMetadata(body: unknown): Record<string, unknown> | undefined {
+  const call = readCallFromBody(body)
+  if (!call) return undefined
+
+  const fromOverrides = isMetadataRecord(call.assistantOverrides?.metadata)
+    ? call.assistantOverrides.metadata
+    : {}
+  const fromCall = isMetadataRecord(call.metadata) ? call.metadata : {}
+  const merged = { ...fromOverrides, ...fromCall }
+  return Object.keys(merged).length > 0 ? merged : undefined
+}
+
 /**
  * Pull the signed session token VAPI echoes back from call-start.
  *
@@ -91,6 +128,9 @@ export function extractToolCalls(body: unknown): Array<ParsedToolCall> {
  * version (PRD §4 caveat). The webhook logs the raw payload separately to confirm.
  */
 export function extractCallToken(body: unknown): string | undefined {
+  const fromMeta = readCallMetadata(body)?.token
+  if (typeof fromMeta === 'string' && fromMeta.length > 0) return fromMeta
+
   const known = [
     ['message', 'call', 'assistantOverrides', 'metadata', 'token'],
     ['call', 'assistantOverrides', 'metadata', 'token'],
@@ -109,7 +149,6 @@ export function extractCallToken(body: unknown): string | undefined {
     )
     if (typeof v === 'string' && v.length > 0) return v
   }
-  // Fallback: find any `{ metadata: { token: <string> } }` anywhere in the tree.
   return deepFindToken(body)
 }
 
@@ -125,4 +164,10 @@ function deepFindToken(node: unknown, depth = 0): string | undefined {
     if (found) return found
   }
   return undefined
+}
+
+/** The meal_plan revision the user had open when the voice call started. */
+export function extractCallPlanId(body: unknown): string | undefined {
+  const planId = readCallMetadata(body)?.planId
+  return typeof planId === 'string' && planId.length > 0 ? planId : undefined
 }

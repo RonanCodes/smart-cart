@@ -1,218 +1,123 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import type { Tool } from 'ai'
-import type { MemorySource } from '../memory/memory'
+import type { WeekSession } from './week-session'
 
 /**
- * The shared agent tool surface: ONE definition consumed by two callers — the
- * chat tool-calling agent (via the AI SDK `tool()` adapter) and the voice (VAPI)
- * dispatch (via `dispatchAgentTool`). Defining the tools once guarantees chat and
- * voice behave identically: same names, same schemas, same handlers.
+ * The replan agent's tool surface.
  *
- * Every handler is server-only and reaches its collaborators through dynamic
- * `import()` (the planner-server / vapi-dispatch pattern), so this module can be
- * dynamically imported from a server-fn handler or the VAPI webhook without ever
- * leaking the D1 binding into the client bundle.
+ * Every tool takes a CONSTRAINT (which days, what term, what day type) and returns
+ * a short spoken summary. None of them accepts or returns a recipe id or title:
+ * the model never names a dish. The real recipe is always picked by the planner
+ * core inside the `WeekSession`, so a wrong tool call can at worst replan the wrong
+ * day, never invent food (CONTEXT.md hard rule: no hallucinated recipes).
  *
- * The `householdId` is ALWAYS the server-verified identity supplied by the caller
- * (the signed-in user's household, or the household from the signed VAPI call
- * token) — never a tool argument, which a model could spoof.
+ * The registry shape (a plain object of named tools bound to a session) leaves room
+ * to grow into the full Souso assistant later (add_items, generate_cart) without
+ * touching the runner.
  */
 
-/** Side-channel + identity the handlers run against. */
-export interface AgentToolContext {
-  /** Server-verified household. Never read from a tool argument. */
-  householdId: string
-  /** Where the write came from, stamped on any memory the agent stores. */
-  source: MemorySource
-  /**
-   * Called when a tool changed the week, so the chat server can adopt the new
-   * plan revision in the UI. Voice leaves this undefined (it only speaks back).
-   */
-  onReplan?: (res: {
-    planId: string
-    weekStart: string
-    changed: boolean
-  }) => void
-}
+const DAY = z.enum([
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+])
 
-export const rememberInputSchema = z.object({
-  content: z
-    .string()
-    .min(1)
-    .describe("The household's words, e.g. 'not pizza every week'."),
-  kind: z
-    .enum(['preference', 'constraint', 'variety', 'context', 'logistics'])
-    .describe(
-      "How to use it: 'variety' = wants it LESS often (not banned); 'constraint' = allergy/never; 'preference' = plain like/dislike; 'logistics' = time/equipment/budget; 'context' = anything else.",
-    ),
-  cuisine: z
-    .string()
-    .nullish()
-    .describe(
-      'A single lowercase cuisine word if one is the subject, else null.',
-    ),
-  term: z
-    .string()
-    .nullish()
-    .describe(
-      'A single lowercase food/ingredient word if one is the subject, else null.',
-    ),
-  polarity: z
-    .enum(['like', 'dislike', 'neutral'])
-    .default('neutral')
-    .describe(
-      "'neutral' for a variety wish; 'dislike' for an allergy/dislike.",
-    ),
-  scope: z
-    .enum(['persistent', 'week'])
-    .default('persistent')
-    .describe("'week' only if it clearly applies to this week alone."),
-})
+const DAY_TYPE = z.enum(['home', 'busy', 'out'])
 
-export const replanInputSchema = z.object({
-  instruction: z
-    .string()
-    .min(1)
-    .describe(
-      "A single plain-language change to the week, e.g. 'eating out Wednesday', 'no fish', 'more pasta'.",
-    ),
-})
+export function buildReplanTools(session: WeekSession) {
+  return {
+    get_week: tool({
+      description:
+        'Read the current week back: each day and its dinner (or that it is an eating-out day). Use this before editing if you are unsure what is planned.',
+      inputSchema: z.object({}),
+      execute: async () => session.describe(),
+    }),
 
-const emptyInputSchema = z.object({})
+    skip_day: tool({
+      description:
+        'Clear one or more days because the household is eating out or away. The days are left empty.',
+      inputSchema: z.object({
+        days: z.array(DAY).min(1).describe('Weekday names to clear.'),
+      }),
+      execute: async ({ days }) => session.skipDays(days).summary,
+    }),
 
-/** A tool definition: name, model-facing description, input schema, handler. */
-interface AgentToolDef<TSchema extends z.ZodTypeAny> {
-  name: string
-  description: string
-  schema: TSchema
-  run: (args: z.infer<TSchema>, ctx: AgentToolContext) => Promise<string>
-}
+    swap_day: tool({
+      description:
+        "Replace a day's dinner with the next-best pick by the household's preference. Use when they dislike a specific day's meal or want something different. With no day, swaps the day in focus.",
+      inputSchema: z.object({
+        days: z
+          .array(DAY)
+          .default([])
+          .describe('Weekday names to swap; empty for the focused/last day.'),
+      }),
+      execute: async ({ days }) => session.swapDays(days).summary,
+    }),
 
-function def<TSchema extends z.ZodTypeAny>(
-  d: AgentToolDef<TSchema>,
-): AgentToolDef<TSchema> {
-  return d
-}
+    exclude: tool({
+      description:
+        'Remove an ingredient or cuisine from the week and refill the affected days (e.g. "no fish", "lay off the spicy stuff"). Pass a single lowercase food or cuisine term.',
+      inputSchema: z.object({
+        term: z
+          .string()
+          .min(1)
+          .describe('A single food or cuisine to avoid, lowercase.'),
+      }),
+      execute: async ({ term }) => (await session.exclude(term)).summary,
+    }),
 
-async function runRecallMemory(ctx: AgentToolContext): Promise<string> {
-  const { buildMemoryContext } = await import('../memory/memory-server')
-  const { text } = await buildMemoryContext(ctx.householdId)
-  return text
-}
+    lean_more: tool({
+      description:
+        'Favour more of an ingredient or cuisine in the week ("more pasta", "more veggies"). Pass a single lowercase food or cuisine term.',
+      inputSchema: z.object({
+        term: z
+          .string()
+          .min(1)
+          .describe('A single food or cuisine to favour, lowercase.'),
+      }),
+      execute: async ({ term }) => (await session.leanMore(term)).summary,
+    }),
 
-async function runGetWeek(ctx: AgentToolContext): Promise<string> {
-  const { getWeekText } = await import('../memory/memory-server')
-  return getWeekText(ctx.householdId)
-}
+    make_quicker: tool({
+      description:
+        'Replace dinners with quicker ones (short prep time). Use for "something faster", "we are busy this week". With no day, applies to the whole week.',
+      inputSchema: z.object({
+        days: z
+          .array(DAY)
+          .default([])
+          .describe('Weekday names to speed up; empty for the whole week.'),
+      }),
+      execute: async ({ days }) => session.makeQuicker(days).summary,
+    }),
 
-async function runRemember(
-  args: z.infer<typeof rememberInputSchema>,
-  ctx: AgentToolContext,
-): Promise<string> {
-  const { rememberFact } = await import('../memory/memory-server')
-  const m = await rememberFact(ctx.householdId, {
-    content: args.content,
-    source: ctx.source,
-    kind: args.kind,
-    cuisine: args.cuisine ?? null,
-    term: args.term ?? null,
-    polarity: args.polarity,
-    scope: args.scope,
-  })
-  return `Got it — I'll remember that: "${m.content}".`
-}
+    set_day_type: tool({
+      description:
+        "Set a day's type: 'out' to clear it, 'busy' to require a quick dinner, 'home' for a normal dinner (filling it if empty).",
+      inputSchema: z.object({
+        day: DAY,
+        type: DAY_TYPE,
+      }),
+      execute: async ({ day, type }) => session.setDayType(day, type).summary,
+    }),
 
-async function runReplan(
-  args: z.infer<typeof replanInputSchema>,
-  ctx: AgentToolContext,
-): Promise<string> {
-  const { replanForHousehold } = await import('../replan-internal-server')
-  const res = await replanForHousehold(ctx.householdId, args.instruction)
-  if (!res) {
-    return "There's no week planned yet, so there's nothing to change."
+    add_meal: tool({
+      description:
+        'Add a dinner to an empty day (one that was eating-out or cleared). Picks the top dinner that fits the household and the day.',
+      inputSchema: z.object({ day: DAY }),
+      execute: async ({ day }) => session.addMeal(day).summary,
+    }),
+
+    regenerate_week: tool({
+      description:
+        'Start over with a fresh week of dinners, keeping each day type. Use for "start over" or "give me a totally new week".',
+      inputSchema: z.object({}),
+      execute: async () => session.regenerate().summary,
+    }),
   }
-  ctx.onReplan?.({
-    planId: res.planId,
-    weekStart: res.weekStart,
-    changed: res.changed,
-  })
-  return res.message
 }
 
-/**
- * The tool registry. Order is the order the model sees them. Recall is first so
- * the agent is nudged to read memory before acting.
- */
-export const AGENT_TOOLS = [
-  def({
-    name: 'recall_memory',
-    description:
-      "Read everything we remember about this household plus this week's and last week's dinners and recent post-meal feedback. Call this FIRST to ground any decision.",
-    schema: emptyInputSchema,
-    run: (_args, ctx) => runRecallMemory(ctx),
-  }),
-  def({
-    name: 'get_week',
-    description: "Read the household's current planned week (the dinners).",
-    schema: emptyInputSchema,
-    run: (_args, ctx) => runGetWeek(ctx),
-  }),
-  def({
-    name: 'remember',
-    description:
-      "Save an important, durable fact about the household's tastes or context for future weeks. Use this whenever you learn something worth keeping. A note like 'not pizza every week' is a 'variety' wish (eat it less often), NOT a dislike.",
-    schema: rememberInputSchema,
-    run: runRemember,
-  }),
-  def({
-    name: 'replan_week',
-    description:
-      'Change the current week from a single plain-language instruction. The change is grounded in the real recipe catalogue (never invents recipes).',
-    schema: replanInputSchema,
-    run: runReplan,
-  }),
-] as const
-
-/** Tool names the agent surface exposes (for typing the dispatch). */
-export type AgentToolName = (typeof AGENT_TOOLS)[number]['name']
-
-/** The registry widened to a uniform def type, so the generic consumers below
- * don't trip over the union of per-tool schema types. */
-const AGENT_TOOL_LIST = AGENT_TOOLS as ReadonlyArray<AgentToolDef<z.ZodTypeAny>>
-
-/**
- * Validate + run one tool by name (the VAPI dispatch path). Returns an honest
- * string for an unknown tool or bad arguments rather than throwing, so a voice
- * call never fails hard.
- */
-export async function dispatchAgentTool(
-  name: string,
-  rawArgs: Record<string, unknown>,
-  ctx: AgentToolContext,
-): Promise<string> {
-  const t = AGENT_TOOL_LIST.find((d) => d.name === name)
-  if (!t) return `I don't know how to "${name}" yet.`
-  const parsed = t.schema.safeParse(rawArgs)
-  if (!parsed.success) {
-    return `I couldn't use ${name} — the details were incomplete.`
-  }
-  return t.run(parsed.data, ctx)
-}
-
-/**
- * Build the AI SDK `tools` map for the chat agent's `generateText` loop. Each
- * tool's `execute` closes over the verified context, so the model never passes
- * identity. Returns a plain record keyed by tool name.
- */
-export function buildAiTools(ctx: AgentToolContext): Record<string, Tool> {
-  const tools: Record<string, Tool> = {}
-  for (const d of AGENT_TOOL_LIST) {
-    tools[d.name] = tool({
-      description: d.description,
-      inputSchema: d.schema,
-      execute: async (args: unknown) => d.run(d.schema.parse(args), ctx),
-    })
-  }
-  return tools
-}
+export type ReplanTools = ReturnType<typeof buildReplanTools>

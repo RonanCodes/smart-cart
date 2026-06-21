@@ -77,27 +77,23 @@ export function lineToNewItem(line: ShoppingLine): NewShoppingItem {
  * Should the Shopping tab auto-seed its editable list from the week on load?
  *
  * The page is the clean editable list by default: when the household has a
- * planned week (a non-null plan id) but has not saved any rows yet, we seed the
- * list from that week so the user lands on the real list instead of a read-only
- * preview, with no dead "Add to shopping list" tap required. Once any row
- * exists (a recipe seed, a staple, or a manual add) we never re-seed, so a
- * user who cleared the list is not fought by the page re-filling it. The seed
- * itself is idempotent on the server (planMerge dedupes), so this guard is
- * about intent, not correctness.
+ * planned week we seed the list from that week once, so the user lands on the
+ * real list instead of a read-only preview, with no dead "Add to shopping list"
+ * tap required. The seed itself is idempotent on the server (planMerge dedupes).
  *
- * `clearedByUser` is the deliberate-empty signal: an empty list reached by
- * tapping "Clear all" is a CHOICE, not a never-seeded state, so we must not
- * immediately re-fill it. Clearing to empty stays cleared until the user adds
- * something back. Without this flag, "Clear all" on a planned week would race
- * the loader into re-seeding the very rows the user just wiped.
+ * Intent is tracked DURABLY by `lastSeededPlanId` (the plan id we last seeded
+ * for this household), NOT by the live row count: a plan auto-seeds exactly
+ * once, so an explicit "Clear all" stays cleared (same plan id, already seeded
+ * -> no re-seed) even after navigating away and back, and only a NEW plan
+ * re-seeds. The old row-count + ephemeral `clearedByUser` search-param signal
+ * was lost on a fresh visit, which let the loader re-fill a just-cleared list
+ * (#311).
  */
 export function shouldAutoSeed(input: {
   planId: string | null
-  savedItemCount: number
-  clearedByUser?: boolean
+  lastSeededPlanId: string | null
 }): boolean {
-  if (input.clearedByUser) return false
-  return input.planId !== null && input.savedItemCount === 0
+  return input.planId !== null && input.planId !== input.lastSeededPlanId
 }
 
 /**
@@ -236,6 +232,54 @@ export function countMissing(
   incoming: Array<NewShoppingItem>,
 ): number {
   return planMerge(existing, incoming).inserts.length
+}
+
+/**
+ * Backfill amounts onto stale saved rows from a freshly derived week (#292).
+ *
+ * The bug: a list saved BEFORE the Dutch-qty split shipped (#243) holds recipe
+ * rows whose `amount` is null, because the unsplit "350 g" parsed as an
+ * unparsable note and the amount was dropped. Re-deriving the week now produces
+ * the real amount, so on every shopping load we top those rows up rather than
+ * forcing the user to clear + regenerate.
+ *
+ * Rules, deliberately conservative so a backfill is always safe:
+ *  - Only `source: 'recipe'` rows are touched. A manual or staple row that
+ *    happens to share a recipe ingredient's name keeps the user's own intent.
+ *  - Only rows with a genuinely BLANK amount (null or whitespace) are filled. A
+ *    row that already carries any amount, even one the user typed over, is left
+ *    exactly as-is, so a user edit is never clobbered.
+ *  - Only when the freshly derived line for that name has a real amount
+ *    (a non-null `amount` after `lineToNewItem`, i.e. not '(unspecified amount)')
+ *    do we write. A line with no source amount leaves the row blank (the '+'
+ *    affordance), never '(unspecified)'.
+ *
+ * Matching is by normalised name (same key as `planMerge`). Returns the list of
+ * `{ id, amount, unit }` updates the server should apply; empty when nothing is
+ * stale. Pure: it computes the diff, it does not touch the DB.
+ */
+export function backfillAmounts(
+  existing: Array<ShoppingItem>,
+  derived: Array<NewShoppingItem>,
+): Array<{ id: string; amount: string; unit: string | null }> {
+  const byName = new Map<string, NewShoppingItem>()
+  for (const line of derived) {
+    // Only lines that actually carry an amount can backfill a blank row.
+    if (line.amount === null) continue
+    byName.set(normaliseItemName(line.name), line)
+  }
+  if (byName.size === 0) return []
+
+  const updates: Array<{ id: string; amount: string; unit: string | null }> = []
+  for (const item of existing) {
+    if (item.source !== 'recipe') continue
+    // A blank amount is null or whitespace-only; anything else is the user's.
+    if (item.amount !== null && item.amount.trim() !== '') continue
+    const match = byName.get(normaliseItemName(item.name))
+    if (!match || match.amount === null) continue
+    updates.push({ id: item.id, amount: match.amount, unit: match.unit })
+  }
+  return updates
 }
 
 /**

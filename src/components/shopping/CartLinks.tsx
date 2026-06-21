@@ -3,6 +3,7 @@ import { Check, Loader2, ShoppingCart } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { buildCartLinks } from '#/lib/cart-links-server'
 import type { CartLinkResult } from '#/lib/cart-links-server'
+import type { CartExtra } from '#/lib/shopping/cart-set'
 import { STORE_OPTIONS, storeLabel } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
 import { TipSheet } from '#/components/shopping/TipSheet'
@@ -13,10 +14,11 @@ import { log } from '#/lib/log'
  * estimate from the matched item count. The fee floor (€0.50) bounds the low end. */
 const EUR_PER_ITEM = 2.5
 
-/** The two stores we actually fulfil a basket against (Picnic is the joke). */
-const SELECTABLE_STORES = STORE_OPTIONS.filter(
-  (o): o is typeof o & { slug: StoreSlug } => o.slug !== null,
-)
+/** The stores we can build a bulk-cart deep-link for today. Picnic is a
+ * selectable preference (#294) but its cart isn't wired yet (#293), so it's not
+ * offered as a cart target here. */
+const CART_STORES = new Set<StoreSlug>(['ah', 'jumbo'])
+const SELECTABLE_STORES = STORE_OPTIONS.filter((o) => CART_STORES.has(o.slug))
 
 /**
  * The bottom "Send everything to a store" action for the Shopping tab (#238).
@@ -39,9 +41,20 @@ const SELECTABLE_STORES = STORE_OPTIONS.filter(
  */
 export function CartLinks({
   preferredStore,
+  itemNames,
+  extras,
 }: {
   /** The household's preferred store (#212), pre-selected in the selector. */
   preferredStore: StoreSlug
+  /**
+   * The live UNCHECKED recipe + manual item names from the list above. Passed so
+   * a tick the user just made is honoured immediately (#311): a ticked item is
+   * "already have" and is not re-bought, with no DB round-trip lag. Undefined
+   * keeps the legacy behaviour (the server reads the unchecked rows itself).
+   */
+  itemNames?: Array<string>
+  /** The live UNCHECKED extras (staples), with their store + saved slug. */
+  extras?: Array<CartExtra>
 }) {
   const [store, setStore] = useState<StoreSlug>(preferredStore)
   const [link, setLink] = useState<CartLinkResult | null>(null)
@@ -49,6 +62,10 @@ export function CartLinks({
   const [error, setError] = useState(false)
   const [tipOpen, setTipOpen] = useState(false)
   const [tipBusy, setTipBusy] = useState(false)
+  // The friendly message from a failed Mollie payment (#307). Shown after the
+  // cart opens, so the user knows the charge didn't go through (e.g. live
+  // payments not enabled), never a silent no-op.
+  const [tipError, setTipError] = useState<string | null>(null)
 
   // Switching store invalidates a previously-resolved link (it was for the old
   // store), so the next tap re-resolves for the now-selected store.
@@ -66,7 +83,20 @@ export function CartLinks({
     setLoading(true)
     setError(false)
     try {
-      const res = await buildCartLinks({ data: { store } })
+      // Hand the server the live unchecked set when the route lifted it up, so
+      // ticks made since load are honoured with no DB lag (#311). When it is not
+      // supplied, omit `live` and the server reads the unchecked rows itself.
+      const live =
+        itemNames !== undefined
+          ? {
+              itemNames,
+              staples: (extras ?? []).map((e) => ({
+                slug: e.slug,
+                store: e.store,
+              })),
+            }
+          : undefined
+      const res = await buildCartLinks({ data: { store, live } })
       setLink(res)
       if (!res.url) {
         setError(true)
@@ -89,6 +119,7 @@ export function CartLinks({
    * the hosted checkout. No-tip is a normal, unpunished outcome (#18). */
   async function confirmTip(percent: number) {
     setTipBusy(true)
+    setTipError(null)
     const items = link?.matched ?? 0
     try {
       // No tip: nothing to pay, just open the cart.
@@ -116,10 +147,17 @@ export function CartLinks({
         setTipOpen(false)
       }
     } catch (err) {
-      // Never block the cart on a tip failure (#18): just open it.
+      // Never block the cart on a tip failure (#18): open it anyway. But surface
+      // the friendly message (#307) so the failure isn't silent. startTip
+      // rethrows a user-safe message; fall back to a generic line.
       log.error('tip.start_failed', err, { percent, store })
       openCart()
       setTipOpen(false)
+      setTipError(
+        err instanceof Error && err.message
+          ? err.message
+          : "We couldn't start that payment. Your cart still opened, no charge was made.",
+      )
     } finally {
       setTipBusy(false)
     }
@@ -211,6 +249,12 @@ export function CartLinks({
           {link && !link.url
             ? `None of your items matched a ${storeLabel(store)} product yet.`
             : 'Could not build the cart link. Try again.'}
+        </p>
+      )}
+
+      {tipError && (
+        <p className="text-destructive text-xs" role="alert">
+          {tipError}
         </p>
       )}
 

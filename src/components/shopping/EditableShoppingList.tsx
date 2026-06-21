@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
-import { Check, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Check, Plus, Trash2, ShoppingBasket } from 'lucide-react'
 import { Input } from '#/components/ui/input'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
+import { ingredientSticker } from '#/lib/ingredient-sticker'
 import {
   addShoppingItem,
   updateShoppingItem,
@@ -32,6 +33,7 @@ import type { ShoppingItem } from '#/lib/shopping'
 export function EditableShoppingList({
   initialItems,
   onCleared,
+  onItemsChange,
 }: {
   initialItems: Array<ShoppingItem>
   /**
@@ -40,14 +42,33 @@ export function EditableShoppingList({
    * the week on the next visit / reload).
    */
   onCleared?: () => void
+  /**
+   * Fired whenever the items change (tick, edit, add, remove, clear). The route
+   * lifts this up so the price comparison + the single cart action recompute
+   * from the live UNCHECKED set as the user ticks rows off (#311), with no full
+   * reload. The list still owns its own server round-trips; this is a read-only
+   * mirror for the siblings below it.
+   */
+  onItemsChange?: (items: Array<ShoppingItem>) => void
 }) {
   const [items, setItems] = useState<Array<ShoppingItem>>(initialItems)
+
+  // Mirror every items change up to the route (#311). An effect (not a call in
+  // each setItems site) keeps the single source of truth here and fires once per
+  // committed render, including the initial mount so the siblings start in sync.
+  const onItemsChangeRef = useRef(onItemsChange)
+  onItemsChangeRef.current = onItemsChange
+  useEffect(() => {
+    onItemsChangeRef.current?.(items)
+  }, [items])
   const [busyId, setBusyId] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [adding, setAdding] = useState(false)
   /** Two-tap guard for "Clear all": first tap arms it, second confirms. */
   const [confirmingClear, setConfirmingClear] = useState(false)
+  /** A failed bulk action (clear / check-all) , shown instead of failing silently. */
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const remaining = items.filter((i) => !i.checked).length
   const allChecked = items.length > 0 && remaining === 0
@@ -120,13 +141,16 @@ export function EditableShoppingList({
 
   async function toggleAll() {
     setBusyId('__all__')
+    setActionError(null)
     try {
       const { items: next } = await setAllChecked({
         data: { checked: !allChecked },
       })
       setItems(next)
     } catch {
-      // no-op
+      setActionError(
+        'Could not update the list. Check your connection and try again.',
+      )
     } finally {
       setBusyId(null)
     }
@@ -147,13 +171,18 @@ export function EditableShoppingList({
     }
     setConfirmingClear(false)
     setBusyId('__clear__')
+    setActionError(null)
     try {
       const { items: next } = await clearShoppingList()
       setItems(next)
-      // Tell the route the empty list is deliberate, so it does not re-seed.
+      // The empty list stays cleared on the next visit via the household's
+      // durable lastSeededPlanId (#311), so no extra signal to the route is
+      // needed; onCleared is kept optional for callers that still want it.
       onCleared?.()
     } catch {
-      // no-op; the list simply stays as it was.
+      setActionError(
+        'Could not clear the list. Check your connection and try again.',
+      )
     } finally {
       setBusyId(null)
     }
@@ -200,6 +229,12 @@ export function EditableShoppingList({
           </div>
         )}
       </div>
+
+      {actionError && (
+        <p role="alert" className="text-destructive px-1 text-sm">
+          {actionError}
+        </p>
+      )}
 
       {unchecked.length > 0 && (
         <div className="bg-card border-border divide-border divide-y overflow-hidden rounded-[var(--radius-ios)] border">
@@ -296,6 +331,7 @@ function ItemRow({
   onSaveAmount: (value: string) => void
   onRemove: () => void
 }) {
+  const sticker = ingredientSticker(item.name)
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <button
@@ -313,6 +349,28 @@ function ItemRow({
       >
         {item.checked && <Check className="h-4 w-4" aria-hidden />}
       </button>
+
+      {/* Cut-out product sticker (or a neutral tile when we have no match). */}
+      <div
+        className={`bg-secondary flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+          item.checked ? 'opacity-50' : ''
+        }`}
+      >
+        {sticker ? (
+          <img
+            src={sticker}
+            alt=""
+            aria-hidden
+            className="souso-sticker h-8 w-8 object-contain"
+            style={{ transform: 'rotate(-3deg)' }}
+          />
+        ) : (
+          <ShoppingBasket
+            className="text-muted-foreground/50 h-5 w-5"
+            aria-hidden
+          />
+        )}
+      </div>
 
       <div className="min-w-0 flex-1">
         <InlineEdit

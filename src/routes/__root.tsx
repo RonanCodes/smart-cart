@@ -7,11 +7,11 @@ import {
   Scripts,
 } from '@tanstack/react-router'
 import appCss from '../styles.css?url'
-import { DevBanner } from '../components/DevBanner'
 import { registerServiceWorker } from '../lib/push-client'
 import { QueryClientProvider } from '../lib/query-client'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { log } from '../lib/log'
+import { useSession } from '../lib/auth-client'
 
 const SITE_URL = 'https://smartcart.ronanconnolly.dev'
 const SITE_TITLE = 'Souso: your sous chef for recipes and the weekly shop'
@@ -27,16 +27,70 @@ export const Route = createRootRoute({
         content:
           'width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1',
       },
+      // Status-bar / notch theming. iOS Safari (the browser PWA tab, before an
+      // app is installed) paints the top safe-area from <meta name="theme-color">,
+      // NOT the manifest theme_color. Without this the notch rendered pure white.
+      // #F5F1E7 is the Souso cream ground (the --background token); matching it
+      // here means the notch reads as part of the app chrome instead of a white
+      // bar. One meta only: the app defaults to light, and TanStack's HeadContent
+      // dedupes metas by `name`, so a second media-scoped theme-color is
+      // unreliable. Installed/dark PWAs still get the cream from the manifest
+      // theme_color.
+      {
+        name: 'theme-color',
+        content: '#F5F1E7',
+      },
+      // Translucent status bar on an installed iOS PWA so the safe-area inset
+      // background (set in SafeArea) shows through under the notch.
+      {
+        name: 'apple-mobile-web-app-capable',
+        content: 'yes',
+      },
+      {
+        name: 'apple-mobile-web-app-status-bar-style',
+        content: 'default',
+      },
+      // The installed-PWA home-screen name on iOS (falls back to <title>, which
+      // is the long marketing string). Keep it the short brand name.
+      {
+        name: 'apple-mobile-web-app-title',
+        content: 'Souso',
+      },
       { title: SITE_TITLE },
       { name: 'description', content: SITE_DESCRIPTION },
       { property: 'og:title', content: SITE_TITLE },
       { property: 'og:description', content: SITE_DESCRIPTION },
       { property: 'og:type', content: 'website' },
       { property: 'og:url', content: SITE_URL },
+      { property: 'og:site_name', content: 'Souso' },
+      // Share-card image (link previews on iMessage/Slack/WhatsApp/X). Absolute
+      // URL, the Souso brand hero. summary_large_image renders it wide.
+      { property: 'og:image', content: `${SITE_URL}/brand/souso-hero.png` },
+      { property: 'og:image:width', content: '1536' },
+      { property: 'og:image:height', content: '1024' },
+      {
+        property: 'og:image:alt',
+        content: 'Souso, your sous chef for recipes and the weekly shop',
+      },
       { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:image', content: `${SITE_URL}/brand/souso-hero.png` },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
+      {
+        rel: 'preload',
+        as: 'font',
+        type: 'font/woff2',
+        href: '/fonts/outfit.woff2',
+        crossOrigin: 'anonymous',
+      },
+      {
+        rel: 'preload',
+        as: 'font',
+        type: 'font/woff2',
+        href: '/fonts/schoolbell.woff2',
+        crossOrigin: 'anonymous',
+      },
       { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
       {
         rel: 'icon',
@@ -69,7 +123,6 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
-        <DevBanner />
         <Scripts />
       </body>
     </html>
@@ -77,6 +130,16 @@ function RootDocument({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  // Attach the signed-in user (id + email) to Sentry so every client event shows
+  // WHO hit it; clear to anonymous when signed out. The setter is a no-op until
+  // initObservability() has run and a no-op in dev where Sentry is off (#284).
+  const { data: session } = useSession()
+  useEffect(() => {
+    void import('../lib/observability-client').then(
+      ({ setObservabilityUser }) => setObservabilityUser(session?.user ?? null),
+    )
+  }, [session?.user.id, session?.user.email])
+
   // Register the PWA service worker once on the client (guarded; no-op in SSR or
   // browsers without service workers). It powers Web Push rating reminders (#149)
   // and makes the manifest-declared app installable.
@@ -86,6 +149,19 @@ function RootComponent() {
       initObservability(),
     )
     void registerServiceWorker()
+    // The service worker asks us to deep-link when a push notification is tapped
+    // (client.navigate is unreliable on iOS PWAs, so the SW postMessages instead).
+    // Hard-navigate so the gated /rate route loads with the session — bulletproof
+    // across browsers vs. a client-side router push from a cold tap.
+    const onSwMessage = (e: MessageEvent) => {
+      const data = e.data as { type?: string; url?: string } | null
+      if (data?.type === 'souso-navigate' && typeof data.url === 'string') {
+        window.location.assign(data.url)
+      }
+    }
+    const swContainer =
+      'serviceWorker' in navigator ? navigator.serviceWorker : null
+    swContainer?.addEventListener('message', onSwMessage)
     // Global client error catchers -> logger -> /api/log -> Workers Logs.
     const onError = (e: ErrorEvent) =>
       log.error('window.error', e.error ?? e.message, {
@@ -97,6 +173,7 @@ function RootComponent() {
     window.addEventListener('error', onError)
     window.addEventListener('unhandledrejection', onRejection)
     return () => {
+      swContainer?.removeEventListener('message', onSwMessage)
       window.removeEventListener('error', onError)
       window.removeEventListener('unhandledrejection', onRejection)
     }

@@ -56,3 +56,14 @@ export {
 
 export type { ProductSearchHit, ProductSearchOptions } from './search'
 export { searchProducts } from './search'
+
+export type {
+  BasketRequest,
+  BasketLineItem,
+  BasketWaste,
+  BasketUnavailable,
+  StoreBasket,
+  BasketWasteSummary,
+  BasketComparison,
+} from './basket'
+export { basketForStore, compareBaskets } from './basket'

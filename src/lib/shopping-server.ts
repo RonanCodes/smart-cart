@@ -11,6 +11,7 @@ import type {
 } from './shopping'
 import type { StapleLine, FrequentStaple } from './staples-server'
 import type { StoreSlug } from './store-pref-server'
+import { pickTitle, pickIngredients } from './recipe-locale'
 
 /**
  * The shopping-list view's payload: the consolidated list, the subset of lines
@@ -31,6 +32,11 @@ export interface ShoppingListView {
   shared: Array<ShoppingLine>
   /** The food-waste reduction summary derived from the list (slice #80). */
   waste: WasteSummary
+  /**
+   * True when any contributing recipe's amounts are LLM-estimated (#313), so the
+   * list amounts and the waste figures should be labelled "approx" in the UI.
+   */
+  amountsEstimated: boolean
 }
 
 /**
@@ -45,6 +51,8 @@ export interface PlanRecipe {
   title: string
   servings?: number | null
   ingredients: Array<{ name: string; qty?: string; unit?: string }>
+  /** True when this recipe's amounts are LLM-estimated, not from the source (#313). */
+  quantitiesEstimated?: boolean | null
 }
 
 /** An empty list, used when there is no plan or no usable recipes. */
@@ -70,14 +78,23 @@ export function deriveShoppingView(
   days: Array<PlanDayRef>,
   recipesById: Map<string, PlanRecipe>,
   portions: HouseholdPortions,
-): { list: ShoppingList; shared: Array<ShoppingLine>; waste: WasteSummary } {
+): {
+  list: ShoppingList
+  shared: Array<ShoppingLine>
+  waste: WasteSummary
+  amountsEstimated: boolean
+} {
   // A recipe used on N days contributes N times. We keep one ShoppingRecipe per
   // day-occurrence so portion scaling reflects cooking it more than once.
   const recipes: Array<ShoppingRecipe> = []
+  // Any contributing recipe with estimated amounts taints the whole list as
+  // approx, since the consolidated totals mix its estimates in.
+  let amountsEstimated = false
   for (const d of days) {
     if (!d.recipeRef) continue
     const r = recipesById.get(d.recipeRef)
     if (!r) continue
+    if (r.quantitiesEstimated) amountsEstimated = true
     recipes.push({
       id: r.id,
       title: r.title,
@@ -99,7 +116,12 @@ export function deriveShoppingView(
 
   if (recipes.length === 0) {
     const empty = emptyList()
-    return { list: empty, shared: [], waste: summariseWaste(empty) }
+    return {
+      list: empty,
+      shared: [],
+      waste: summariseWaste(empty),
+      amountsEstimated: false,
+    }
   }
 
   const list = consolidate(recipes, portions)
@@ -107,6 +129,7 @@ export function deriveShoppingView(
     list,
     shared: sharedAcrossMeals(list),
     waste: summariseWaste(list),
+    amountsEstimated,
   }
 }
 
@@ -183,6 +206,7 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
         list: empty,
         shared: [],
         waste: summariseWaste(empty),
+        amountsEstimated: false,
       }
     }
 
@@ -195,26 +219,32 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
           .select({
             id: recipe.id,
             title: recipe.title,
+            titleEn: recipe.titleEn,
             servings: recipe.servings,
             ingredients: recipe.ingredients,
+            ingredientsEn: recipe.ingredientsEn,
+            quantitiesEstimated: recipe.quantitiesEstimated,
           })
           .from(recipe)
           .where(inArray(recipe.id, ids))
       : []
 
+    // Default the shopping ingredient names to English (Dutch fallback) so the
+    // demo list reads in English; quantities are language-agnostic (#295).
     const recipesById = new Map<string, PlanRecipe>(
       recipeRows.map((r) => [
         r.id,
         {
           id: r.id,
-          title: r.title,
+          title: pickTitle(r.title, r.titleEn),
           servings: r.servings,
-          ingredients: r.ingredients,
+          ingredients: pickIngredients(r.ingredients, r.ingredientsEn),
+          quantitiesEstimated: r.quantitiesEstimated,
         },
       ]),
     )
 
-    const { list, shared, waste } = deriveShoppingView(
+    const { list, shared, waste, amountsEstimated } = deriveShoppingView(
       current.plan.days,
       recipesById,
       portions,
@@ -227,6 +257,7 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
       list,
       shared,
       waste,
+      amountsEstimated,
     }
   })
 
@@ -243,41 +274,57 @@ export interface ShoppingBootstrap {
  * The /shopping loader, batched into ONE round-trip (#251). The route used to fan
  * out five GET server fns per visit (loadShoppingList + loadStaples +
  * frequentlyBoughtStaples + listShoppingItems + getStore) plus a conditional
- * auto-seed write. This composes the same reads INSIDE one server handler and
- * keeps the identical auto-seed branch, so behaviour is unchanged: the list
- * still self-seeds from the week on first visit, and a deliberate "Clear all"
- * (cleared=true) still suppresses the re-seed.
+ * auto-seed write. This composes the same reads INSIDE one server handler.
+ *
+ * Auto-seed intent is now DURABLE (#311): a plan auto-seeds exactly once, keyed
+ * on the household's `lastSeededPlanId`, so an explicit "Clear all" stays cleared
+ * across navigations (same plan id, already seeded -> no re-seed) and only a NEW
+ * plan re-seeds. The old `cleared` search-param was ephemeral and lost on a
+ * fresh visit, which let the loader re-fill a just-cleared list.
  */
 export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
-  .inputValidator((d?: { planId?: string; cleared?: boolean }) => d ?? {})
+  .inputValidator((d?: { planId?: string }) => d ?? {})
   .handler(async ({ data }): Promise<ShoppingBootstrap> => {
     const { loadStaples, frequentlyBoughtStaples } =
       await import('./staples-server')
-    const { listShoppingItems, addWeekToShoppingList } =
-      await import('./shopping-list-server')
+    const {
+      listShoppingItems,
+      addWeekToShoppingList,
+      backfillShoppingAmounts,
+      getLastSeededPlanId,
+      markPlanSeeded,
+    } = await import('./shopping-list-server')
     const { getStore } = await import('./store-pref-server')
     const { shouldAutoSeed } = await import('./shopping')
 
     const planArg = data.planId ? { planId: data.planId } : {}
-    const [view, staplesRes, frequentRes, itemsRes, preferredStore] =
+    const [view, staplesRes, frequentRes, itemsRes, preferredStore, seedState] =
       await Promise.all([
         loadShoppingList({ data: planArg }),
         loadStaples(),
         frequentlyBoughtStaples(),
         listShoppingItems(),
         getStore(),
+        getLastSeededPlanId(),
       ])
 
     let items = itemsRes.items
     if (
       shouldAutoSeed({
         planId: view.planId,
-        savedItemCount: items.length,
-        clearedByUser: data.cleared,
+        lastSeededPlanId: seedState.lastSeededPlanId,
       })
     ) {
       const seeded = await addWeekToShoppingList({ data: planArg })
       items = seeded.items
+      if (view.planId) await markPlanSeeded({ data: { planId: view.planId } })
+    } else {
+      // Existing list: top up any stale recipe rows whose amount was dropped
+      // before the Dutch-qty split shipped (#243), matched against the current
+      // week, without clobbering user-typed amounts (#292). A no-op when nothing
+      // is stale, so the common case stays a single extra cheap read.
+      const filled = await backfillShoppingAmounts({ data: planArg })
+      items = filled.items
     }
 
     return {

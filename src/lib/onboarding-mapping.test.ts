@@ -47,21 +47,30 @@ describe('draftToHousehold mapping', () => {
     expect(m.children).toBe(0)
   })
 
-  it('only sets preferredStore for a real store (ah/jumbo)', () => {
+  it('sets preferredStore for each selectable store (ah/jumbo/picnic)', () => {
     expect(draftToHousehold(draft({ store: 'ah' })).preferredStore).toBe('ah')
     expect(draftToHousehold(draft({ store: 'jumbo' })).preferredStore).toBe(
       'jumbo',
     )
+    expect(draftToHousehold(draft({ store: 'picnic' })).preferredStore).toBe(
+      'picnic',
+    )
   })
 
-  it('ignores a null store (Picnic joke / unanswered) — leaves it undefined', () => {
+  it('leaves preferredStore undefined for a null or unknown store', () => {
     expect(
       draftToHousehold(draft({ store: null })).preferredStore,
     ).toBeUndefined()
-    // an unknown slug is treated the same way, never persisted
+    // an unknown slug is never persisted
     expect(
-      draftToHousehold(draft({ store: 'picnic' })).preferredStore,
+      draftToHousehold(draft({ store: 'lidl' })).preferredStore,
     ).toBeUndefined()
+  })
+
+  it("defaults preferredLocale to 'en' and carries 'nl' when picked (#310)", () => {
+    expect(draftToHousehold(EMPTY_DRAFT).preferredLocale).toBe('en')
+    expect(draftToHousehold(draft({ locale: 'nl' })).preferredLocale).toBe('nl')
+    expect(draftToHousehold(draft({ locale: 'en' })).preferredLocale).toBe('en')
   })
 
   it('maps cuisine likes/hates onto the profile (normalised, deduped)', () => {
