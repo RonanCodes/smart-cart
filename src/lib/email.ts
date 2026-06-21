@@ -10,8 +10,12 @@ const MASCOT = 'https://smartcart.ronanconnolly.dev/brand/souso-v3-hello.png'
 const GREEN = '#43A047'
 const CANVAS = '#FBFDF9'
 
-function otpHtml(code: string): string {
-  const spaced = code.split('').join('&nbsp;')
+/**
+ * Shared mobile-first email shell: header band with the mascot, a body block,
+ * and the footer. `inner` is the body HTML. Keeping one shell means the OTP and
+ * approval emails render identically in Gmail / Apple Mail.
+ */
+function emailShell(inner: string): string {
   return `
   <div style="background:${CANVAS};padding:32px 0;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;">
     <div style="max-width:440px;margin:0 auto;background:#ffffff;border:1px solid #e7eee7;border-radius:16px;overflow:hidden;">
@@ -20,9 +24,7 @@ function otpHtml(code: string): string {
         <span style="color:#ffffff;font-size:20px;font-weight:700;vertical-align:middle;margin-left:10px;">Souso</span>
       </div>
       <div style="padding:32px 28px;text-align:center;">
-        <p style="color:#5b6b5b;margin:0 0 20px;font-size:15px;">Your sign-in code:</p>
-        <p style="font-size:38px;font-weight:800;letter-spacing:8px;color:#1f2a1f;margin:0 0 24px;">${spaced}</p>
-        <p style="color:#8a988a;font-size:13px;line-height:1.5;margin:0;">It expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
+        ${inner}
       </div>
       <div style="padding:16px 28px;border-top:1px solid #f0f4f0;text-align:center;">
         <p style="color:#9aa89a;font-size:12px;margin:0;">Souso, your sous chef</p>
@@ -31,25 +33,104 @@ function otpHtml(code: string): string {
   </div>`
 }
 
+/** A full-width, finger-friendly green tap button. Used by both emails. */
+function tapButton(href: string, label: string): string {
+  return `<a href="${href}" style="display:block;background:${GREEN};color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:14px 20px;border-radius:12px;text-align:center;">${label}</a>`
+}
+
+/**
+ * The OTP sign-in email body. The 6-digit code stays primary and is always the
+ * fallback. When a one-tap magic link is supplied (issue #259) it renders below
+ * the code as "or just tap here to sign in", so the user can click instead of
+ * typing. No magic link -> code-only, the original layout.
+ */
+function otpHtml(code: string, magicLinkUrl?: string): string {
+  const spaced = code.split('').join('&nbsp;')
+  const tapBlock = magicLinkUrl
+    ? `<p style="color:#9aa89a;font-size:13px;margin:0 0 12px;">or just tap here to sign in</p>
+       ${tapButton(magicLinkUrl, 'Sign in to Souso')}
+       <p style="color:#b6c2b6;font-size:11px;line-height:1.5;margin:16px 0 0;">This link signs you in directly and works once. Prefer the code? Type it above.</p>`
+    : ''
+  return emailShell(`
+        <p style="color:#5b6b5b;margin:0 0 20px;font-size:15px;">Your sign-in code:</p>
+        <p style="font-size:38px;font-weight:800;letter-spacing:8px;color:#1f2a1f;margin:0 0 24px;">${spaced}</p>
+        <p style="color:#8a988a;font-size:13px;line-height:1.5;margin:0 0 ${magicLinkUrl ? '24px' : '0'};">It expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
+        ${tapBlock}`)
+}
+
+/** The approval email body: a welcome line plus one big sign-in button. */
+function approvalHtml(magicLinkUrl: string): string {
+  return emailShell(`
+        <p style="color:#1f2a1f;font-size:20px;font-weight:800;margin:0 0 8px;">You're in.</p>
+        <p style="color:#5b6b5b;margin:0 0 24px;font-size:15px;line-height:1.5;">Your spot on Souso is ready. Tap below to sign in, no code to type.</p>
+        ${tapButton(magicLinkUrl, 'Sign in to Souso')}
+        <p style="color:#b6c2b6;font-size:11px;line-height:1.5;margin:16px 0 0;">This link signs you in directly and works once. If you didn't expect this, you can ignore it.</p>`)
+}
+
 /**
  * Send the sign-in one-time code. Throws if Resend is unconfigured so the auth
  * flow surfaces a clear error rather than silently failing to deliver the code.
+ *
+ * When `magicLinkUrl` is supplied (issue #259) the email shows the code AND an
+ * "or just tap here to sign in" one-tap link below it. The typed code always
+ * stays as the fallback, so a missing link degrades to the original code-only
+ * email. The magic link is NEVER logged.
  */
-export async function sendOtpEmail(to: string, code: string): Promise<void> {
+export async function sendOtpEmail(
+  to: string,
+  code: string,
+  magicLinkUrl?: string,
+): Promise<void> {
   const apiKey = await readEnv('RESEND_API_KEY')
   if (!apiKey) {
     throw new Error('RESEND_API_KEY is not set, cannot send the sign-in code.')
   }
   const resend = new Resend(apiKey)
+  const tapText = magicLinkUrl
+    ? `\n\nOr just tap here to sign in directly: ${magicLinkUrl}`
+    : ''
   const { error } = await resend.emails.send({
     from: FROM,
     to,
     subject: `Your Souso code: ${code}`,
-    text: `Your Souso sign-in code is ${code}. It expires in 10 minutes.`,
-    html: otpHtml(code),
+    text: `Your Souso sign-in code is ${code}. It expires in 10 minutes.${tapText}`,
+    html: otpHtml(code, magicLinkUrl),
   })
   if (error) {
     throw new Error(`Resend failed to send the sign-in code: ${error.message}`)
+  }
+}
+
+/**
+ * Send the approval email (issue #259): when an admin approves a waitlisted
+ * person, they get a one-tap magic sign-in link that drops them straight into
+ * onboarding (or their week plan if already onboarded). No code to type. Throws
+ * if Resend is unconfigured; the approval write has already committed by the
+ * time this is called, so the caller treats a send failure as best-effort. The
+ * magic link is NEVER logged.
+ */
+export async function sendApprovalEmail(
+  to: string,
+  magicLinkUrl: string,
+): Promise<void> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) {
+    throw new Error(
+      'RESEND_API_KEY is not set, cannot send the approval email.',
+    )
+  }
+  const resend = new Resend(apiKey)
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `You're in: welcome to Souso`,
+    text: `You're approved for Souso. Tap here to sign in, no code needed: ${magicLinkUrl}`,
+    html: approvalHtml(magicLinkUrl),
+  })
+  if (error) {
+    throw new Error(
+      `Resend failed to send the approval email: ${error.message}`,
+    )
   }
 }
 
