@@ -1,5 +1,6 @@
 import { getRequest } from '@tanstack/react-start/server'
 import { getAuth } from './auth'
+import { setServerLogUser } from './log'
 
 export interface SessionUser {
   id: string
@@ -70,6 +71,16 @@ async function ensureDevUser(): Promise<void> {
  * still wins over the dev user.
  */
 export async function getSessionUser(): Promise<SessionUser | undefined> {
+  const user = await resolveSessionUser()
+  // Attach the request's user to the server structured logger (#284) so every
+  // server log line for this request carries { userId, email } and shows WHO
+  // hit an error. `setServerLogUser(undefined)` clears it for signed-out paths;
+  // it never throws, so it cannot break the request.
+  setServerLogUser(user)
+  return user
+}
+
+async function resolveSessionUser(): Promise<SessionUser | undefined> {
   if (import.meta.env.DEV) {
     try {
       const real = await readRealSession()

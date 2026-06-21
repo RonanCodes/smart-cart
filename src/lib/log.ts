@@ -20,6 +20,30 @@ export type LogContext = Record<string, unknown>
 
 const isServer = typeof window === 'undefined'
 
+/**
+ * Server-side request user context (#284). Set from `getSessionUser()` when a
+ * request resolves a signed-in user, so every server log line for that request
+ * carries `{ userId, email }` and you can see WHO hit an error. Cleared (or just
+ * left empty) for signed-out / public requests, so it never crashes when there
+ * is no session. Per-call context still wins on key collision.
+ */
+let serverUserContext: LogContext = {}
+
+/** Attach (or clear with `null`) the signed-in user to every server log line. */
+export function setServerLogUser(
+  user: { id?: string; email?: string } | null | undefined,
+): void {
+  if (!isServer) return
+  if (!user || (!user.id && !user.email)) {
+    serverUserContext = {}
+    return
+  }
+  serverUserContext = {
+    ...(user.id ? { userId: user.id } : {}),
+    ...(user.email ? { email: user.email } : {}),
+  }
+}
+
 function serialiseError(err: unknown): LogContext {
   if (err instanceof Error) {
     return { name: err.name, message: err.message, stack: err.stack }
@@ -41,6 +65,9 @@ function emit(level: LogLevel, event: string, context?: LogContext): void {
     event,
     ts: new Date().toISOString(),
     origin: isServer ? 'server' : 'client',
+    // Server request user (#284): merged BEFORE per-call context so an explicit
+    // userId/email passed at the call site still wins.
+    ...(isServer ? serverUserContext : {}),
     ...context,
   }
   const line = JSON.stringify(entry)
