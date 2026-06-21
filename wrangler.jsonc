@@ -9,7 +9,7 @@
     "enabled": true,
   },
   "vars": {
-    "BETTER_AUTH_URL": "https://smartcart.ronanconnolly.dev",
+    "BETTER_AUTH_URL": "https://souso.app",
   },
   // Cron triggers (Part C): the scheduled() handler runs every 15 minutes and
   // decides which pushes to fire from the current Europe/Amsterdam local time

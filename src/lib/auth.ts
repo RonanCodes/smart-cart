@@ -36,6 +36,10 @@ export function resolveTrustedOrigins(
     new Set(
       [
         baseURL,
+        // The app is served on all of these custom domains; a sign-in from any
+        // of them must be trusted or Better Auth rejects it with "Invalid origin".
+        'https://souso.app',
+        'https://www.souso.app',
         'https://smartcart.ronanconnolly.dev',
         'https://*.workers.dev',
         'http://localhost:3000',

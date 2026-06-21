@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ShoppingCart } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
+import { log } from '#/lib/log'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import {
@@ -33,7 +34,17 @@ export function LoginForm() {
       type: 'sign-in',
     })
     setBusy(false)
-    if (sendErr) return setError(sendErr.message ?? 'Could not send the code.')
+    if (sendErr) {
+      // Forward to Sentry/Workers Logs so a sign-in failure (e.g. a rejected
+      // origin, a gated email) is visible, not just shown to the user. Carries
+      // the page origin, which is exactly what an "Invalid origin" turns on.
+      log.error('auth.client_send_failed', sendErr, {
+        email,
+        status: (sendErr as { status?: number }).status,
+        origin: typeof window !== 'undefined' ? window.location.origin : null,
+      })
+      return setError(sendErr.message ?? 'Could not send the code.')
+    }
     setStep('code')
   }
 
@@ -46,7 +57,14 @@ export function LoginForm() {
       otp: code,
     })
     setBusy(false)
-    if (signErr) return setError(signErr.message ?? 'That code did not work.')
+    if (signErr) {
+      log.error('auth.client_verify_failed', signErr, {
+        email,
+        status: (signErr as { status?: number }).status,
+        origin: typeof window !== 'undefined' ? window.location.origin : null,
+      })
+      return setError(signErr.message ?? 'That code did not work.')
+    }
     window.location.href = '/app'
   }
 
