@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   createFileRoute,
   redirect,
@@ -22,6 +22,9 @@ import { weekLabel } from '#/lib/week-offset'
 import { weekPlanUrl } from '#/lib/week-url'
 import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { applyStreamedWeek, streamReplan } from '#/lib/agent/replan-client'
+import type { ReplanHistoryTurn } from '#/lib/agent/replan-client'
+import { mergeWeekPreservingIdentity } from '#/lib/week-merge'
+import { detectTargetDays } from '#/lib/replan/target-days'
 import { getSimilarRecipes } from '#/lib/similar-server'
 import { applySimilarSwapToPlan } from '#/lib/swap-server'
 import { clearDayInPlan } from '#/lib/week-clear-server'
@@ -265,9 +268,26 @@ function LoadedWeek({
   const [ratingBusy, setRatingBusy] = useState<string | null>(null)
   /** Days whose dinner a voice replan just changed, glowing for ~3s (#17). */
   const [glowDays, setGlowDays] = useState<ReadonlySet<string>>(() => new Set())
+  /**
+   * Days that Souso is actively working on WHILE a replan is in flight
+   * (#replan-ux). Driven by the day name(s) in the chat instruction, or a
+   * single-day voice swap. Empty set + `replanning` true means "target not known
+   * yet" — the chat card glows instead (see `workingGlow`).
+   */
+  const [workingDays, setWorkingDays] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
   /** Latest week, read inside the voice-sync callback without stale closure. */
   const weekRef = useRef<WeekView>(week)
   weekRef.current = week
+  /**
+   * Latest `locked` + `ratingBusy`, read inside the STABLE per-day callbacks
+   * below without a stale closure (#replan-ux). DayCard is memoised so a card
+   * that doesn't re-render holds the callback reference it was first given;
+   * reading these guards from refs keeps that held callback correct.
+   */
+  const lockedRef = useRef(false)
+  const ratingBusyRef = useRef<string | null>(null)
 
   /**
    * After an in-app voice action, pull the household's newest plan. A voice
@@ -307,37 +327,42 @@ function LoadedWeek({
    * recommender folds this row into next week's taste, so a thumbs-down visibly
    * shifts future suggestions.
    */
-  async function rate(
-    recipeId: string,
-    next: { rating: MealRating; note: string | null },
-  ) {
-    if (!recipeId || ratingBusy) return
-    setRatingBusy(recipeId)
-    setMessage(null)
-    setChanges([])
-    try {
-      const res = await submitMealFeedback({
-        data: {
-          planId: week.planId,
-          recipeId,
-          rating: next.rating,
-          note: next.note,
-        },
-      })
-      setFeedback((prev) => {
-        const map = new Map(prev)
-        if (res.feedback) map.set(recipeId, res.feedback)
-        else map.delete(recipeId)
-        return map
-      })
-    } catch {
-      setMessage('Could not save your rating, try again.')
-    } finally {
-      setRatingBusy(null)
-    }
-  }
+  const rate = useCallback(
+    async (
+      recipeId: string,
+      next: { rating: MealRating; note: string | null },
+    ) => {
+      if (!recipeId || ratingBusyRef.current) return
+      setRatingBusy(recipeId)
+      setMessage(null)
+      setChanges([])
+      try {
+        const res = await submitMealFeedback({
+          data: {
+            planId: weekRef.current.planId,
+            recipeId,
+            rating: next.rating,
+            note: next.note,
+          },
+        })
+        setFeedback((prev) => {
+          const map = new Map(prev)
+          if (res.feedback) map.set(recipeId, res.feedback)
+          else map.delete(recipeId)
+          return map
+        })
+      } catch {
+        setMessage('Could not save your rating, try again.')
+      } finally {
+        setRatingBusy(null)
+      }
+    },
+    [],
+  )
 
   const locked = busyDay !== null || replanning || voiceLive
+  lockedRef.current = locked
+  ratingBusyRef.current = ratingBusy
   const recipeViewing = recipeDay
     ? (week.days.find((d) => d.day === recipeDay) ?? null)
     : null
@@ -360,51 +385,66 @@ function LoadedWeek({
    * (preserving the #145 keep-scroll intent). A genuine cold /week load still runs
    * the loader and shows the skeleton.
    */
-  function adopt(planId: string, next: WeekView) {
-    setWeek(next)
+  // `adopt` and the per-day handlers below are STABLE (`useCallback([])`,
+  // reading mutable state from refs) so DayCard's `React.memo` actually holds: a
+  // card that doesn't re-render keeps the same callback references and never goes
+  // stale (#replan-ux).
+  const adopt = useCallback((planId: string, next: WeekView) => {
+    // Identity-preserving merge (#replan-ux): keep the SAME object reference for
+    // every day whose rendered fields didn't change, so memoised DayCards for
+    // unchanged days skip rendering and the grid stays rock-steady. A naive
+    // `setWeek(next)` swapped the whole week object, handing all seven cards new
+    // props and letting a single-day swap jitter its siblings.
+    setWeek((prev) => mergeWeekPreservingIdentity(prev, next))
     if (typeof window !== 'undefined') {
       window.history.replaceState(window.history.state, '', weekPlanUrl(planId))
     }
-  }
+  }, [])
 
   /**
    * Load the nearest-neighbour swaps for a day's current dinner (#31), re-ranked
    * by the chooser's toggle. Returns [] for a skipped day (no recipe to match).
    */
-  async function loadSimilar(
-    day: string,
-    sort: SimilarSort,
-  ): Promise<Array<SimilarNeighbour>> {
-    const d = week.days.find((x) => x.day === day)
-    if (!d?.recipeRef) return []
-    const res = await getSimilarRecipes({
-      data: { recipeId: d.recipeRef, sort },
-    })
-    return res.neighbours
-  }
+  const loadSimilar = useCallback(
+    async (
+      day: string,
+      sort: SimilarSort,
+    ): Promise<Array<SimilarNeighbour>> => {
+      const d = weekRef.current.days.find((x) => x.day === day)
+      if (!d?.recipeRef) return []
+      const res = await getSimilarRecipes({
+        data: { recipeId: d.recipeRef, sort },
+      })
+      return res.neighbours
+    },
+    [],
+  )
 
   /**
    * Persist a chosen similar recipe into a day (#31 pick -> #12 write path). Writes
    * a new plan revision and adopts it, exactly like the next-best swap.
    */
-  async function pickSimilar(day: string, recipeId: string) {
-    if (locked) return
-    setBusyDay(day)
-    setMessage(null)
-    setChanges([])
-    try {
-      const res = await applySimilarSwapToPlan({
-        data: { planId: week.planId, day, recipeId },
-      })
-      const next = await loadWeek({ data: { planId: res.planId } })
-      adopt(res.planId, next)
-    } catch {
-      setMessage('Could not swap that day, try again.')
-      throw new Error('similar swap failed')
-    } finally {
-      setBusyDay(null)
-    }
-  }
+  const pickSimilar = useCallback(
+    async (day: string, recipeId: string) => {
+      if (lockedRef.current) return
+      setBusyDay(day)
+      setMessage(null)
+      setChanges([])
+      try {
+        const res = await applySimilarSwapToPlan({
+          data: { planId: weekRef.current.planId, day, recipeId },
+        })
+        const next = await loadWeek({ data: { planId: res.planId } })
+        adopt(res.planId, next)
+      } catch {
+        setMessage('Could not swap that day, try again.')
+        throw new Error('similar swap failed')
+      } finally {
+        setBusyDay(null)
+      }
+    },
+    [adopt],
+  )
 
   /**
    * Pick one of the day's ~5 ready alternatives (the tap-a-day edit, #123). Writes
@@ -444,14 +484,14 @@ function LoadedWeek({
 
   /** Open the swap chooser pull-up for a planned day (the Swap button / the
    * "Swap this dinner" action inside the recipe sheet). Closes the recipe sheet
-   * so the two pull-ups never stack. */
-  function startSwap(day: string) {
-    if (locked) return
+   * so the two pull-ups never stack. Stable for DayCard's memo (#replan-ux). */
+  const startSwap = useCallback((day: string) => {
+    if (lockedRef.current) return
     setRecipeDay(null)
     setAdding(false)
     setAddAlternatives(null)
     setSwapDay(day)
-  }
+  }, [])
 
   /**
    * Remove / skip a day's dinner: the household is not cooking that night (#255).
@@ -487,8 +527,8 @@ function LoadedWeek({
    * (pickAlternative -> applySimilarSwapToPlan), so the day becomes a normal
    * planned day afterwards.
    */
-  async function startAdd(day: string) {
-    if (locked) return
+  const startAdd = useCallback(async (day: string) => {
+    if (lockedRef.current) return
     setRecipeDay(null)
     setAdding(true)
     setAddAlternatives(null)
@@ -497,14 +537,14 @@ function LoadedWeek({
     setChanges([])
     try {
       const res = await addMealAlternatives({
-        data: { planId: week.planId, day },
+        data: { planId: weekRef.current.planId, day },
       })
       setAddAlternatives(res.alternatives)
     } catch {
       setAddAlternatives([])
       setMessage('Could not load dinners to add, try again.')
     }
-  }
+  }, [])
 
   /**
    * Add this week's recipes' ingredients (portion-scaled, the same consolidation
@@ -539,19 +579,27 @@ function LoadedWeek({
    * Structured one-tap actions (swap, similar, alternatives) keep using the
    * model-free swap-server paths so they work with no API key.
    */
-  async function replan(instruction: string) {
-    if (locked) return
+  async function replan(
+    instruction: string,
+    history: Array<ReplanHistoryTurn>,
+  ): Promise<string> {
+    if (locked) return ''
     const startPlanId = week.planId
     setReplanning(true)
     setMessage(null)
     setChanges([])
     setStreamingText('')
+    // Pre-glow the day(s) the instruction names WHILE Souso works (#replan-ux).
+    // If no day is named yet, the chat card glows instead (see `workingGlow`).
+    setWorkingDays(new Set(detectTargetDays(instruction)))
     let finalPlanId = startPlanId
     let changed = false
     let finalMessage: string | null = null
     let finalChanges: Array<PlanDayChange> = []
     try {
-      for await (const ev of streamReplan(startPlanId, instruction)) {
+      for await (const ev of streamReplan(startPlanId, instruction, {
+        history,
+      })) {
         if (ev.type === 'text') {
           setStreamingText((t) => t + ev.delta)
         } else if (ev.type === 'week') {
@@ -575,17 +623,69 @@ function LoadedWeek({
       if (changed) {
         const next = await loadWeek({ data: { planId: finalPlanId } })
         adopt(next.planId, next)
+        // Play the per-changed-day "magic" glow on exactly the days the diff
+        // says moved, so the post-change confirmation matches the real result.
+        const changedDays = finalChanges.map((c) => c.day)
+        if (changedDays.length > 0) {
+          setGlowDays(new Set(changedDays))
+          window.setTimeout(() => setGlowDays(new Set()), 3200)
+        }
       }
       setMessage(finalMessage)
       setChanges(finalChanges)
+      return finalMessage ?? "Done. I've updated your week."
     } catch {
       setMessage('Could not adjust the week, try again.')
       setChanges([])
+      return 'Could not adjust the week, try again.'
     } finally {
       setReplanning(false)
       setStreamingText('')
+      setWorkingDays(new Set())
     }
   }
+
+  // Stable per-day bound callbacks, keyed by day label (#replan-ux). Built once
+  // per day-set (the labels never change order: Monday..Sunday) from the stable
+  // handlers above, so each DayCard gets the SAME callback objects across renders
+  // and `React.memo` holds. Recipe-dependent actions (rate) resolve the current
+  // recipe at call time via `weekRef`, so binding by the stable day label is safe
+  // even after a swap changes the day's recipe.
+  const dayKeys = week.days.map((d) => d.day).join('|')
+  const dayCallbacks = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        onEdit: () => void
+        onAdd: () => void
+        onSwap: () => void
+        onLoadSimilar: (sort: SimilarSort) => Promise<Array<SimilarNeighbour>>
+        onPickSimilar: (recipeId: string) => Promise<void>
+        onRate: (next: {
+          rating: MealRating
+          note: string | null
+        }) => Promise<void>
+      }
+    >()
+    for (const day of dayKeys.split('|')) {
+      if (!day) continue
+      map.set(day, {
+        onEdit: () => setRecipeDay(day),
+        onAdd: () => void startAdd(day),
+        onSwap: () => startSwap(day),
+        onLoadSimilar: (sort) => loadSimilar(day, sort),
+        onPickSimilar: (recipeId) => pickSimilar(day, recipeId),
+        onRate: (next) => {
+          const recipeId =
+            weekRef.current.days.find((x) => x.day === day)?.recipeRef ?? ''
+          return rate(recipeId, next)
+        },
+      })
+    }
+    return map
+    // The stable handlers never change identity, so the map rebuilds only when
+    // the day set changes (added/removed/reordered days, essentially never).
+  }, [dayKeys, startAdd, startSwap, loadSimilar, pickSimilar, rate])
 
   return (
     <AppShell>
@@ -610,6 +710,7 @@ function LoadedWeek({
           busy={replanning}
           onSubmit={replan}
           streamingText={streamingText}
+          working={replanning && workingDays.size === 0}
         />
         <VoiceButton
           planId={week.planId}
@@ -623,24 +724,28 @@ function LoadedWeek({
         {message && <ReplanBanner message={message} changes={changes} />}
 
         <div className="grid grid-cols-1 gap-4">
-          {week.days.map((d) => (
-            <DayCard
-              key={d.day}
-              day={d}
-              busy={busyDay === d.day}
-              locked={locked}
-              glowing={glowDays.has(d.day)}
-              onEdit={() => setRecipeDay(d.day)}
-              onAdd={() => void startAdd(d.day)}
-              onSwap={() => startSwap(d.day)}
-              onLoadSimilar={(sort) => loadSimilar(d.day, sort)}
-              onPickSimilar={(recipeId) => pickSimilar(d.day, recipeId)}
-              rating={feedback.get(d.recipeRef)?.rating ?? null}
-              ratingNote={feedback.get(d.recipeRef)?.note ?? null}
-              ratingBusy={ratingBusy === d.recipeRef}
-              onRate={(next) => rate(d.recipeRef, next)}
-            />
-          ))}
+          {week.days.map((d) => {
+            const cbs = dayCallbacks.get(d.day)!
+            return (
+              <DayCard
+                key={d.day}
+                day={d}
+                busy={busyDay === d.day}
+                locked={locked}
+                glowing={glowDays.has(d.day)}
+                working={workingDays.has(d.day)}
+                onEdit={cbs.onEdit}
+                onAdd={cbs.onAdd}
+                onSwap={cbs.onSwap}
+                onLoadSimilar={cbs.onLoadSimilar}
+                onPickSimilar={cbs.onPickSimilar}
+                rating={feedback.get(d.recipeRef)?.rating ?? null}
+                ratingNote={feedback.get(d.recipeRef)?.note ?? null}
+                ratingBusy={ratingBusy === d.recipeRef}
+                onRate={cbs.onRate}
+              />
+            )
+          })}
         </div>
 
         <div className="pt-2 pb-2">

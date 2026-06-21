@@ -1,7 +1,7 @@
 import { stepCountIs } from 'ai'
 import { buildReplanSystemPrompt } from './prompt'
 import { buildReplanTools } from './tools'
-import type { LanguageModel } from 'ai'
+import type { LanguageModel, ModelMessage } from 'ai'
 import type {
   PlannedWeek,
   PlannerProfile,
@@ -38,17 +38,44 @@ export interface ReplanAgentInput {
   instruction: string
   /** The language model to run the loop. */
   model: LanguageModel
+  /**
+   * Prior conversation turns for a multi-turn replan (#replan-ux). When the
+   * agent asks a clarifying question ("Which day did you mean?") and the user
+   * answers, the earlier turns are passed back here so the model understands the
+   * answer in context. Empty / omitted for the common one-shot case, which keeps
+   * the request identical to before. The current `instruction` is always
+   * appended as the final user turn, so callers pass only the PRIOR turns.
+   */
+  history?: Array<ReplanTurn>
+}
+
+/** One prior turn in a multi-turn replan conversation. */
+export interface ReplanTurn {
+  role: 'user' | 'assistant'
+  text: string
 }
 
 /** The shared args for `streamText` / `generateText`. */
 export function replanAgentArgs(input: ReplanAgentInput) {
-  return {
+  const base = {
     model: input.model,
     system: buildReplanSystemPrompt(input.profile, input.recipes),
-    prompt: input.instruction,
     tools: buildReplanTools(input.session),
     stopWhen: stepCountIs(REPLAN_MAX_STEPS),
   }
+  // No prior turns: the original one-shot shape (a bare `prompt`), unchanged.
+  if (!input.history || input.history.length === 0) {
+    return { ...base, prompt: input.instruction }
+  }
+  // Multi-turn: hand the model the real conversation as `messages` (the prior
+  // turns plus the new instruction as the final user turn). This is the AI
+  // SDK's native shape, so the clarify→answer loop reads naturally with no
+  // string-mashing. Bounded by the client to the last few turns.
+  const messages: Array<ModelMessage> = [
+    ...input.history.map((t) => ({ role: t.role, content: t.text })),
+    { role: 'user' as const, content: input.instruction },
+  ]
+  return { ...base, messages }
 }
 
 /** The events the chat client consumes: streamed text, live week, final summary. */
