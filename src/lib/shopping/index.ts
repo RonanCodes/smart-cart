@@ -55,3 +55,5 @@ export {
   isZeroAmount,
 } from './clean-list'
 export type { CleanableRow } from './clean-list'
+
+export { isPantryStaple } from './pantry-staples'

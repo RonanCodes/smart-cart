@@ -4,6 +4,7 @@ import {
   planMerge,
   countMissing,
   backfillAmounts,
+  isPantryStaple,
 } from './shopping'
 import type { ShoppingItem, ShoppingItemSource } from './shopping'
 import type { getDb } from '../db/client'
@@ -132,7 +133,12 @@ export const addWeekToShoppingList = createServerFn({ method: 'POST' })
         // Inclusion model (#311): a newly added row lands IN the order, so the
         // user unticks what they don't want rather than ticking everything in.
         // Set explicitly (the DB column default stays false; no migration).
-        checked: true,
+        // Exception (#cart-staples): a recognised pantry staple (salt, oil,
+        // vanilla, ...) lands UNticked, so a EUR 8.99 vanilla bottle for "1 tsp"
+        // does not inflate the basket. The user ticks it in if they need to buy
+        // it; deriveLiveCartSet still keys off `checked`, so an unticked staple
+        // is simply not in the order set.
+        checked: !isPantryStaple(line.name),
         source: line.source,
       }))
       // D1 caps a statement at 100 bound parameters; each row binds 7, so insert
