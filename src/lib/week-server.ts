@@ -105,6 +105,15 @@ export const loadWeek = createServerFn({ method: 'GET' })
     const hh = householdRows[0]
     if (!hh) throw new Error('No household, onboard first')
 
+    // DEMO data mode: return the canned week instead of the DB-backed one, so a
+    // pitch account renders the polished week with fixed content. The UI is
+    // unchanged; only the data source swaps (see data-mode-resolve + #demo).
+    const { resolveDataMode } = await import('./data-mode-resolve')
+    if ((await resolveDataMode(db, hh.id)) === 'demo') {
+      const { demoWeekView } = await import('./demo/fixtures')
+      return demoWeekView()
+    }
+
     // The household's recipe-display locale (#310): 'en' shows the English
     // translation (Dutch fallback), 'nl' the Dutch source. Resolved once here so
     // every title below honours the same pick. normalizeLocale guards a junk /
@@ -391,6 +400,28 @@ export function composeWeekBootstrap(
 export const loadWeekBootstrap = createServerFn({ method: 'GET' })
   .validator((data: { planId: string }) => data)
   .handler(async ({ data }): Promise<WeekBootstrap> => {
+    // DEMO data mode: skip the three-read fan-out and return the canned week
+    // with no feedback + nothing missing from the list (see #demo).
+    const { getSessionUser } = await import('./server-auth')
+    const demoUser = await getSessionUser()
+    if (!demoUser) throw new Error('Not signed in')
+    const { getDb } = await import('../db/client')
+    const { household } = await import('../db/schema')
+    const { eq } = await import('drizzle-orm')
+    const { resolveDataMode } = await import('./data-mode-resolve')
+    const demoDb = await getDb()
+    const demoHh = (
+      await demoDb
+        .select({ id: household.id })
+        .from(household)
+        .where(eq(household.ownerId, demoUser.id))
+        .limit(1)
+    )[0]
+    if (demoHh && (await resolveDataMode(demoDb, demoHh.id)) === 'demo') {
+      const { demoWeekView } = await import('./demo/fixtures')
+      return composeWeekBootstrap(demoWeekView(), [], { missing: 0 })
+    }
+
     const { listMealFeedback } = await import('./meal-feedback-server')
     const { countMissingFromWeek } = await import('./shopping-list-server')
     const [week, feedback, missing] = await Promise.all([
@@ -464,6 +495,13 @@ export const loadWeekForOffset = createServerFn({ method: 'GET' })
 
     const weekStart = weekStartForOffset(offset)
 
+    // DEMO data mode: every offset renders the canned week (see #demo).
+    const { resolveDataMode } = await import('./data-mode-resolve')
+    if ((await resolveDataMode(db, hh.id)) === 'demo') {
+      const { demoWeekView } = await import('./demo/fixtures')
+      return { kind: 'week', offset, weekStart, week: demoWeekView() }
+    }
+
     const existing = (
       await db
         .select({ id: mealPlan.id })
@@ -535,6 +573,13 @@ export const generateWeekForOffset = createServerFn({ method: 'POST' })
       if (!hh) throw new Error('No household, onboard first')
 
       const weekStart = weekStartForOffset(offset)
+
+      // DEMO data mode: the canned week, no plan written (see #demo).
+      const { resolveDataMode } = await import('./data-mode-resolve')
+      if ((await resolveDataMode(db, hh.id)) === 'demo') {
+        const { demoWeekView } = await import('./demo/fixtures')
+        return { offset, weekStart, week: demoWeekView() }
+      }
 
       // Idempotent: if a plan already exists for that week (a double-tap, or it
       // was generated meanwhile), adopt it rather than writing a duplicate.

@@ -141,6 +141,13 @@
       "when": 1782100000000,
       "tag": "0019_launch_state",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1782100060000,
+      "tag": "0020_data_mode",
+      "breakpoints": true
     }
   ]
 }
