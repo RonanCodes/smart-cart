@@ -12,17 +12,17 @@ Every week, Dutch households face the same grind: decide what to eat, respect ev
 
 ## What we built
 
-| Feature | What it does |
-| -------- | ------------- |
-| **Swipe onboarding** | Tinder-style like/dislike on real recipes — fast taste intake, not a survey |
-| **Instant first week** | Seven dinners (one per day) generated immediately after onboarding |
-| **Household memory** | Learns allergies, dislikes, diet, budget, store preference, and feedback over time |
-| **Chat replan** | Plain-language changes ("eating out Wednesday", "no fish", "make it cheaper") replan the week |
-| **Real recipe catalogue** | ~40k scraped recipes (AH Allerhande, Jumbo, open datasets) — never invented by AI |
-| **AH basket fill** | Maps the week to real Albert Heijn products, ready to open in the AH app |
-| **Cross-store pricing** | Same basket costed across AH and Jumbo so users see where it's cheaper |
-| **Post-meal feedback** | Thumbs up/down + notes after meals; the planner stops repeating misses |
-| **Similar-meal swap** | Replace a dinner with something similar (embeddings) or next-best by preference |
+| Feature                   | What it does                                                                                  |
+| ------------------------- | --------------------------------------------------------------------------------------------- |
+| **Swipe onboarding**      | Tinder-style like/dislike on real recipes — fast taste intake, not a survey                   |
+| **Instant first week**    | Seven dinners (one per day) generated immediately after onboarding                            |
+| **Household memory**      | Learns allergies, dislikes, diet, budget, store preference, and feedback over time            |
+| **Chat replan**           | Plain-language changes ("eating out Wednesday", "no fish", "make it cheaper") replan the week |
+| **Real recipe catalogue** | ~40k scraped recipes (AH Allerhande, Jumbo, open datasets) — never invented by AI             |
+| **AH basket fill**        | Maps the week to real Albert Heijn products, ready to open in the AH app                      |
+| **Cross-store pricing**   | Same basket costed across AH and Jumbo so users see where it's cheaper                        |
+| **Post-meal feedback**    | Thumbs up/down + notes after meals; the planner stops repeating misses                        |
+| **Similar-meal swap**     | Replace a dinner with something similar (embeddings) or next-best by preference               |
 
 ### The core loop
 
@@ -50,7 +50,7 @@ learn  →  plan  →  fill basket  →  cook & rate
 
 ### Product & trust
 
-1. **No autonomous purchasing.** We never buy groceries for the user. Supermarkets don't support it, ~55% of users don't trust AI with their money, and it removes checkout/ToS complexity. Pitch: *"food planner that builds a ready-to-order basket"*, not *"AI that buys your groceries"*.
+1. **No autonomous purchasing.** We never buy groceries for the user. Supermarkets don't support it, ~55% of users don't trust AI with their money, and it removes checkout/ToS complexity. Pitch: _"food planner that builds a ready-to-order basket"_, not _"AI that buys your groceries"_.
 
 2. **No hallucinated recipes.** Meals come only from the scraped catalogue. Random LLM-invented recipes are a failure mode we explicitly reject.
 
@@ -103,4 +103,4 @@ Product name (Souso / Smart Cart provisional), exact demo replan scenarios, and 
 
 ---
 
-*Sources: `CONTEXT.md`, `docs/decisions.md`, `docs/PRD.md`*
+_Sources: `CONTEXT.md`, `docs/decisions.md`, `docs/PRD.md`_
