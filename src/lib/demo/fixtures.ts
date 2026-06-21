@@ -118,6 +118,10 @@ export function demoWeekView(): WeekView {
       out('Saturday'),
       out('Sunday'),
     ],
+    // A family household so the demo week shows the #373 composition label
+    // ("2 adults + 2 kids") rather than a bare "2".
+    adults: 2,
+    children: 2,
   }
 }
 

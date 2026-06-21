@@ -18,7 +18,7 @@ function day(over: Partial<WeekDayView> & { day: string }): WeekDayView {
 }
 
 function week(days: Array<WeekDayView>, planId = 'p1'): WeekView {
-  return { planId, weekStart: '2026-06-15', days }
+  return { planId, weekStart: '2026-06-15', days, adults: 2, children: 0 }
 }
 
 describe('mergeWeekPreservingIdentity', () => {
@@ -35,6 +35,23 @@ describe('mergeWeekPreservingIdentity', () => {
     expect(merged.days[1]).toBe(tue)
     // The week meta (planId) still comes from `next`.
     expect(merged.planId).toBe('p2')
+  })
+
+  it('carries the household composition through (#373 portions label)', () => {
+    const prev: WeekView = {
+      ...week([day({ day: 'Monday' })]),
+      adults: 1,
+      children: 0,
+    }
+    const next: WeekView = {
+      ...week([day({ day: 'Monday' })], 'p2'),
+      adults: 2,
+      children: 2,
+    }
+    const merged = mergeWeekPreservingIdentity(prev, next)
+    // The portions label is derived from these, so a replan must not lose them.
+    expect(merged.adults).toBe(2)
+    expect(merged.children).toBe(2)
   })
 
   it('replaces ONLY the changed day, keeping siblings stable', () => {

@@ -46,6 +46,7 @@ import type { MealRating } from '#/lib/meal-feedback'
 import { Button } from '#/components/ui/button'
 import { DayCard } from '#/components/week/DayCard'
 import { DayCardSkeleton } from '#/components/week/DayCardSkeleton'
+import { householdPortionsLabel } from '#/lib/household-label'
 import { ChatReplan } from '#/components/week/ChatReplan'
 import { VoiceButton } from '#/components/week/VoiceButton'
 import type { VoiceButtonHandle } from '#/components/week/VoiceButton'
@@ -1032,6 +1033,12 @@ function LoadedWeek({
         <div>
           {days.map((d) => {
             const cbs = dayCallbacks.get(d.day)!
+            // #373: the portions pill spells out who the week cooks for
+            // ("2 adults + 2 kids") so it's never misread as a bare head count.
+            const portionsLabel = householdPortionsLabel({
+              adults: week.adults,
+              children: week.children,
+            })
             return (
               // Anchor so the step-through review can scroll each changed day into
               // view by id (`day-Monday`, …). `scroll-mt` clears the sticky header.
@@ -1044,6 +1051,7 @@ function LoadedWeek({
                 ) : (
                   <DayCard
                     day={d}
+                    portionsLabel={portionsLabel}
                     swapOptions={decks.get(d.day)}
                     busy={busyDay === d.day}
                     locked={locked}

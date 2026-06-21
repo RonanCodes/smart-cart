@@ -66,6 +66,13 @@ export interface WeekView {
   weekStart: string
   /** Seven dinners, Monday first. */
   days: Array<WeekDayView>
+  /**
+   * The household this week was sized for (#373). Drives the per-card portions
+   * label so it reads as "2 adults + 2 kids", never a bare "2" the user mistakes
+   * for the whole head count. Always >= 1 adult.
+   */
+  adults: number
+  children: number
 }
 
 /**
@@ -99,6 +106,8 @@ export const loadWeek = createServerFn({ method: 'GET' })
         id: household.id,
         profile: household.profile,
         preferredLocale: household.preferredLocale,
+        adults: household.adults,
+        children: household.children,
       })
       .from(household)
       .where(eq(household.ownerId, user.id))
@@ -329,7 +338,13 @@ export const loadWeek = createServerFn({ method: 'GET' })
       }
     })
 
-    return { planId, weekStart: current.weekStart, days }
+    return {
+      planId,
+      weekStart: current.weekStart,
+      days,
+      adults: hh.adults,
+      children: hh.children,
+    }
   })
 
 /**
