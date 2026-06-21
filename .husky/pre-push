@@ -1,6 +1,24 @@
+set -e
+
+# Local CI gate. Mirrors the GitHub Actions `test` job so a green pre-push means a
+# green remote CI: same migrations, same checks. `set -e` aborts the push the moment
+# any step fails, not just the last one.
+#
+# SKIP_QUALITY_CHECKS is a deliberate, explicit escape hatch for the repo owner only.
+# Do NOT push with it set (or with `git push --no-verify`) on shared work: it bypasses
+# the entire gate and lets broken code reach a branch others build on.
 if [ -n "$SKIP_QUALITY_CHECKS" ]; then
   echo "⏭️  SKIP_QUALITY_CHECKS set, skipping pre-push quality gate"
   exit 0
 fi
-echo "🔍 Running quality gate before push (format + lint + typecheck + build + test)…"
+
+echo "🔍 Pre-push local CI gate (mirrors GitHub Actions)…"
+
+# Schema parity with CI: apply any new local D1 migrations. Idempotent (wrangler
+# tracks applied ones) and local-only, so no network and no remote writes.
+echo "→ applying local D1 migrations"
+pnpm db:migrate:local
+
+# The gate proper: format + lint + typecheck + build + test.
+echo "→ format + lint + typecheck + build + test"
 pnpm quality
