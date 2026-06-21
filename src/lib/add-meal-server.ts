@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import type { DayAlternative } from './week-server'
+import { pickTitle } from './recipe-locale'
 
 export interface AddMealAlternativesRequest {
   /** The plan id to add a meal into (the current week). */
@@ -73,6 +74,7 @@ export const addMealAlternatives = createServerFn({ method: 'GET' })
       .select({
         id: recipe.id,
         title: recipe.title,
+        titleEn: recipe.titleEn,
         cuisine: recipe.cuisine,
         category: recipe.category,
         dietaryTags: recipe.dietaryTags,
@@ -94,9 +96,10 @@ export const addMealAlternatives = createServerFn({ method: 'GET' })
       .from(recipeSwipe)
       .where(eq(recipeSwipe.householdId, hh.id))
 
+    // Default the picker cards to English (Dutch fallback) for the demo (#295).
     const catalogue = catalogueRows.map((r) => ({
       id: r.id,
-      title: r.title,
+      title: pickTitle(r.title, r.titleEn),
       cuisine: r.cuisine,
       category: r.category,
       dietaryTags: r.dietaryTags,

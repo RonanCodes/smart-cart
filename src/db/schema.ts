@@ -126,6 +126,20 @@ export const recipe = sqliteTable('recipe', {
     .$type<Array<string>>()
     .notNull()
     .$defaultFn(() => []),
+  /**
+   * English translation of `title`, baked at seed time for the demo recipe set
+   * (AH/Jumbo recipes with images). Null when not translated; the display falls
+   * back to the Dutch `title`. The Dutch source is never overwritten (#295).
+   */
+  titleEn: text('title_en'),
+  /** English ingredient lines, parallel to `ingredients` (same qty/unit, English name). */
+  ingredientsEn: text('ingredients_en', { mode: 'json' }).$type<
+    Array<{ name: string; qty?: string; unit?: string; productId?: string }>
+  >(),
+  /** English how-to steps, parallel to `instructions`. */
+  instructionsEn: text('instructions_en', { mode: 'json' }).$type<
+    Array<string>
+  >(),
   /** Full scraped blob, kept verbatim as the source of truth. */
   raw: text('raw', { mode: 'json' }).$type<Record<string, unknown>>(),
   createdAt: integer('created_at', { mode: 'timestamp' })

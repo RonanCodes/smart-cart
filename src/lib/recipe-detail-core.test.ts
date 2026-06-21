@@ -69,6 +69,34 @@ describe('mapRecipeDetail — the recipe row -> {ingredients, steps}', () => {
     ).toEqual({ ingredients: [], steps: [], prepMinutes: null, servings: null })
   })
 
+  it('defaults to the English ingredients + steps when present (#295)', () => {
+    const result = mapRecipeDetail({
+      ingredients: [{ name: 'aardappelen', qty: '500', unit: 'g' }],
+      instructions: ['Kook de aardappelen.'],
+      ingredientsEn: [{ name: 'potatoes', qty: '500', unit: 'g' }],
+      instructionsEn: ['Boil the potatoes.'],
+      prepMinutes: 20,
+      servings: 4,
+    })
+    expect(result.ingredients).toEqual([{ name: 'potatoes', amount: '500 g' }])
+    expect(result.steps).toEqual(['Boil the potatoes.'])
+  })
+
+  it('falls back to Dutch when the English fields are absent or empty (#295)', () => {
+    const result = mapRecipeDetail({
+      ingredients: [{ name: 'aardappelen', qty: '500', unit: 'g' }],
+      instructions: ['Kook de aardappelen.'],
+      ingredientsEn: null,
+      instructionsEn: [],
+      prepMinutes: 20,
+      servings: 4,
+    })
+    expect(result.ingredients).toEqual([
+      { name: 'aardappelen', amount: '500 g' },
+    ])
+    expect(result.steps).toEqual(['Kook de aardappelen.'])
+  })
+
   it('returns empty arrays when the row has empty arrays', () => {
     expect(
       mapRecipeDetail({
