@@ -3,6 +3,7 @@ import {
   timingSafeEqual,
   extractToolCalls,
   extractCallToken,
+  extractCallPlanId,
 } from './vapi-webhook'
 import { dispatchVapiTool } from './vapi-dispatch'
 
@@ -93,9 +94,62 @@ describe('extractCallToken', () => {
       'tok2',
     )
   })
+  it('reads call.assistantOverrides.metadata.token (web SDK start shape)', () => {
+    expect(
+      extractCallToken({
+        message: {
+          call: {
+            assistantOverrides: {
+              metadata: { token: 'from_overrides', planId: 'p1' },
+            },
+          },
+        },
+      }),
+    ).toBe('from_overrides')
+  })
+  it('prefers call.metadata over assistantOverrides on conflict', () => {
+    expect(
+      extractCallToken({
+        message: {
+          call: {
+            metadata: { token: 'direct' },
+            assistantOverrides: { metadata: { token: 'overrides' } },
+          },
+        },
+      }),
+    ).toBe('direct')
+  })
   it('is undefined when absent', () => {
     expect(extractCallToken({ message: {} })).toBeUndefined()
     expect(extractCallToken(null)).toBeUndefined()
+  })
+})
+
+describe('extractCallPlanId', () => {
+  it('reads planId from call metadata', () => {
+    expect(
+      extractCallPlanId({
+        message: { call: { metadata: { token: 't', planId: 'plan_1' } } },
+      }),
+    ).toBe('plan_1')
+  })
+  it('reads planId from assistantOverrides.metadata', () => {
+    expect(
+      extractCallPlanId({
+        message: {
+          call: {
+            assistantOverrides: {
+              metadata: { token: 't', planId: 'plan_2' },
+            },
+          },
+        },
+      }),
+    ).toBe('plan_2')
+  })
+  it('is undefined when absent', () => {
+    expect(
+      extractCallPlanId({ call: { metadata: { token: 't' } } }),
+    ).toBeUndefined()
   })
 })
 
@@ -110,7 +164,6 @@ describe('dispatchVapiTool', () => {
   })
   it('not-yet-wired tools say so', async () => {
     expect(await dispatchVapiTool('add_items', {}, 'hh_1')).toMatch(/wired/i)
-    expect(await dispatchVapiTool('get_week', {}, 'hh_1')).toMatch(/wired/i)
     expect(await dispatchVapiTool('generate_cart', {}, 'hh_1')).toMatch(
       /wired/i,
     )

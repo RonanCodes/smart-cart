@@ -61,6 +61,17 @@ async function mintToken(): Promise<string> {
 
 type CallState = 'idle' | 'connecting' | 'live' | 'error'
 
+export interface VoiceButtonProps {
+  /** The meal_plan revision open in the week view (voice edits this revision). */
+  planId: string
+  /** Disable starting a call while chat replan is in flight. */
+  disabled?: boolean
+  /** True while a call is connecting or live (locks the rest of the week UI). */
+  onLiveChange?: (live: boolean) => void
+  /** Runs when the call ends so the parent can reload the latest plan revision. */
+  onCallEnd?: () => void
+}
+
 /**
  * "Talk to Souso", in-app two-way voice via VAPI WebRTC (no phone number).
  *
@@ -72,7 +83,12 @@ type CallState = 'idle' | 'connecting' | 'live' | 'error'
  * The SDK is loaded + constructed lazily (see resolveVapiCtor) so a bad bundler
  * interop degrades to an inert button, never a page crash.
  */
-export function VoiceButton() {
+export function VoiceButton({
+  planId,
+  disabled = false,
+  onLiveChange,
+  onCallEnd,
+}: VoiceButtonProps) {
   const vapi = useRef<Vapi | null>(null)
   const [state, setState] = useState<CallState>('idle')
   const [reason, setReason] = useState<ErrorReason>('unknown')
@@ -101,8 +117,15 @@ export function VoiceButton() {
         try {
           const v = new VapiCtor(VAPI_PUBLIC_KEY)
           vapi.current = v
-          v.on('call-start', () => setState('live'))
-          v.on('call-end', () => setState('idle'))
+          v.on('call-start', () => {
+            onLiveChange?.(true)
+            setState('live')
+          })
+          v.on('call-end', () => {
+            onLiveChange?.(false)
+            setState('idle')
+            onCallEnd?.()
+          })
           v.on('error', (e: unknown) => {
             log.error('vapi.sdk_error', e)
             setReason('unknown')
@@ -129,7 +152,8 @@ export function VoiceButton() {
   }, [])
 
   async function start() {
-    if (!vapi.current) {
+    if (!vapi.current || disabled) {
+      if (disabled) return
       setReason('init')
       setState('error')
       return
@@ -140,10 +164,14 @@ export function VoiceButton() {
       return
     }
     setState('connecting')
+    onLiveChange?.(true)
     try {
       const token = await mintToken()
-      await vapi.current.start(VAPI_ASSISTANT_ID, { metadata: { token } })
+      await vapi.current.start(VAPI_ASSISTANT_ID, {
+        metadata: { token, planId },
+      })
     } catch (err) {
+      onLiveChange?.(false)
       const tagged = (err as { reason?: ErrorReason }).reason
       // A mic-permission rejection from vapi.start surfaces as a DOMException.
       const isMic =
@@ -158,11 +186,14 @@ export function VoiceButton() {
 
   function stop() {
     vapi.current?.stop()
+    onLiveChange?.(false)
     setState('idle')
+    onCallEnd?.()
   }
 
   const live = state === 'live'
   const connecting = state === 'connecting'
+  const inactive = disabled && !live && !connecting
 
   const errorLabel =
     reason === 'auth'
@@ -178,7 +209,7 @@ export function VoiceButton() {
       <Button
         type="button"
         onClick={() => (live ? stop() : start())}
-        disabled={connecting}
+        disabled={connecting || inactive}
         variant={live ? 'secondary' : 'default'}
         className="w-full gap-2"
         aria-label={live ? 'Stop talking to Souso' : 'Talk to Souso'}

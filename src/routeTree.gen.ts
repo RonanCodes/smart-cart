@@ -23,6 +23,7 @@ import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ApiSimilarRouteImport } from './routes/api/similar'
+import { Route as ApiReplanRouteImport } from './routes/api/replan'
 import { Route as ApiPlanRouteImport } from './routes/api/plan'
 import { Route as ApiLogRouteImport } from './routes/api/log'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
@@ -107,6 +108,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const ApiSimilarRoute = ApiSimilarRouteImport.update({
   id: '/api/similar',
   path: '/api/similar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReplanRoute = ApiReplanRouteImport.update({
+  id: '/api/replan',
+  path: '/api/replan',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPlanRoute = ApiPlanRouteImport.update({
@@ -207,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/api/log': typeof ApiLogRoute
   '/api/plan': typeof ApiPlanRoute
+  '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -237,6 +244,7 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/api/log': typeof ApiLogRoute
   '/api/plan': typeof ApiPlanRoute
+  '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/admin': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -269,6 +277,7 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/api/log': typeof ApiLogRoute
   '/api/plan': typeof ApiPlanRoute
+  '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -302,6 +311,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/log'
     | '/api/plan'
+    | '/api/replan'
     | '/api/similar'
     | '/admin/'
     | '/api/auth/$'
@@ -332,6 +342,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/log'
     | '/api/plan'
+    | '/api/replan'
     | '/api/similar'
     | '/admin'
     | '/api/auth/$'
@@ -363,6 +374,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/log'
     | '/api/plan'
+    | '/api/replan'
     | '/api/similar'
     | '/admin/'
     | '/api/auth/$'
@@ -389,6 +401,7 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   ApiLogRoute: typeof ApiLogRoute
   ApiPlanRoute: typeof ApiPlanRoute
+  ApiReplanRoute: typeof ApiReplanRoute
   ApiSimilarRoute: typeof ApiSimilarRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiMollieWebhookRoute: typeof ApiMollieWebhookRoute
@@ -496,6 +509,13 @@ declare module '@tanstack/react-router' {
       path: '/api/similar'
       fullPath: '/api/similar'
       preLoaderRoute: typeof ApiSimilarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/replan': {
+      id: '/api/replan'
+      path: '/api/replan'
+      fullPath: '/api/replan'
+      preLoaderRoute: typeof ApiReplanRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/plan': {
@@ -646,6 +666,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   ApiLogRoute: ApiLogRoute,
   ApiPlanRoute: ApiPlanRoute,
+  ApiReplanRoute: ApiReplanRoute,
   ApiSimilarRoute: ApiSimilarRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiMollieWebhookRoute: ApiMollieWebhookRoute,

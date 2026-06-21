@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   createFileRoute,
   redirect,
@@ -9,10 +9,11 @@ import { ShoppingBag } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { requireUserBeforeLoad } from '#/lib/route-guards'
 import { hasHousehold } from '#/lib/onboarding-server'
-import { loadWeek } from '#/lib/week-server'
+import { loadWeek, resolveLatestPlanId } from '#/lib/week-server'
 import { weekPlanUrl } from '#/lib/week-url'
 import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { replanWeek } from '#/lib/replan-server'
+import { applyStreamedWeek, streamReplan } from '#/lib/agent/replan-client'
 import { getSimilarRecipes } from '#/lib/similar-server'
 import { applySimilarSwapToPlan } from '#/lib/swap-server'
 import { addMealAlternatives } from '#/lib/add-meal-server'
@@ -89,8 +90,11 @@ function WeekPage() {
   const navigate = useNavigate()
   const [week, setWeek] = useState<WeekView>(initial)
   const [busyDay, setBusyDay] = useState<string | null>(null)
+  const [voiceLive, setVoiceLive] = useState(false)
   const [replanning, setReplanning] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  /** The agent's narration as it streams in during a chat replan. */
+  const [streamingText, setStreamingText] = useState('')
   /** The day whose edit sheet is open (tap-a-day -> ~5 alternatives). */
   const [editDay, setEditDay] = useState<string | null>(null)
   /**
@@ -146,7 +150,7 @@ function WeekPage() {
     }
   }
 
-  const locked = busyDay !== null || replanning
+  const locked = busyDay !== null || replanning || voiceLive
   const editing = editDay
     ? (week.days.find((d) => d.day === editDay) ?? null)
     : null
@@ -179,11 +183,7 @@ function WeekPage() {
     setMessage(null)
     try {
       const res = await replanWeek({
-        data: {
-          planId: week.planId,
-          instruction: `swap ${day}`,
-          focusedDay: day,
-        },
+        data: { planId: week.planId, action: 'swap', days: [day] },
       })
       const next = await loadWeek({ data: { planId: res.planId } })
       adopt(res.planId, next)
@@ -317,21 +317,111 @@ function WeekPage() {
     }
   }
 
+  /**
+   * After a voice call, adopt the newest plan revision for this week (voice
+   * persists server-side but has no stream to push plan ids to the browser).
+   */
+  async function syncAfterVoice() {
+    setMessage(null)
+    const anchorId = week.planId
+    try {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, 500))
+        }
+        const { planId: latestId } = await resolveLatestPlanId({
+          data: { planId: anchorId },
+        })
+        const next = await loadWeek({ data: { planId: latestId } })
+        adopt(next.planId, next)
+        if (latestId !== anchorId || attempt === 1) return
+      }
+    } catch {
+      setMessage('Could not refresh your week after voice, try again.')
+    }
+  }
+
+  const voicePollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  /** Poll for voice-driven plan revisions while a call is live (no stream). */
+  useEffect(() => {
+    if (!voiceLive) {
+      if (voicePollRef.current) {
+        clearInterval(voicePollRef.current)
+        voicePollRef.current = null
+      }
+      return
+    }
+    voicePollRef.current = setInterval(() => {
+      void (async () => {
+        try {
+          const { planId: latestId } = await resolveLatestPlanId({
+            data: { planId: week.planId },
+          })
+          if (latestId === week.planId) return
+          const next = await loadWeek({ data: { planId: latestId } })
+          adopt(next.planId, next)
+        } catch {
+          // best-effort; call-end sync is the fallback
+        }
+      })()
+    }, 2000)
+    return () => {
+      if (voicePollRef.current) {
+        clearInterval(voicePollRef.current)
+        voicePollRef.current = null
+      }
+    }
+  }, [voiceLive, week.planId])
+
+  /**
+   * Free-text replan through the streaming agent (`POST /api/replan`). The
+   * narration streams into the chat box, the grid reflows live as tools fire
+   * (optimistic, via `applyStreamedWeek`), and on `done` we reconcile with the
+   * authoritative enriched week (`loadWeek`) so images/alternatives are exact.
+   * Structured one-tap actions (swap, similar, alternatives) keep using the
+   * model-free `replanWeek` / swap-server paths so they work with no API key.
+   */
   async function replan(instruction: string) {
     if (locked) return
+    const startPlanId = week.planId
     setReplanning(true)
     setMessage(null)
+    setStreamingText('')
+    let finalPlanId = startPlanId
+    let changed = false
+    let finalMessage: string | null = null
     try {
-      const res = await replanWeek({
-        data: { planId: week.planId, instruction },
-      })
-      const next = await loadWeek({ data: { planId: res.planId } })
-      adopt(res.planId, next)
-      setMessage(res.message)
+      for await (const ev of streamReplan(startPlanId, instruction)) {
+        if (ev.type === 'text') {
+          setStreamingText((t) => t + ev.delta)
+        } else if (ev.type === 'week') {
+          setWeek((w) => applyStreamedWeek(w, ev.week))
+        } else if (ev.type === 'done') {
+          finalMessage = ev.message
+          finalPlanId = ev.planId
+          changed = ev.changed
+          if (ev.planId !== startPlanId) {
+            setWeek((w) => ({ ...w, planId: ev.planId }))
+          }
+          setReplanning(false)
+          setStreamingText('')
+        } else {
+          finalMessage = ev.message
+          setReplanning(false)
+          setStreamingText('')
+        }
+      }
+      if (changed) {
+        const next = await loadWeek({ data: { planId: finalPlanId } })
+        adopt(next.planId, next)
+      }
+      setMessage(finalMessage)
     } catch {
       setMessage('Could not adjust the week, try again.')
     } finally {
       setReplanning(false)
+      setStreamingText('')
     }
   }
 
@@ -353,8 +443,17 @@ function WeekPage() {
       />
 
       <div className="space-y-6 px-5 pt-2">
-        <ChatReplan busy={replanning} onSubmit={replan} />
-        <VoiceButton />
+        <ChatReplan
+          busy={replanning}
+          onSubmit={replan}
+          streamingText={streamingText}
+        />
+        <VoiceButton
+          planId={week.planId}
+          disabled={replanning}
+          onLiveChange={setVoiceLive}
+          onCallEnd={() => void syncAfterVoice()}
+        />
 
         <RatingReminders />
 

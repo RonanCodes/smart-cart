@@ -8,6 +8,8 @@ interface ChatReplanProps {
   busy: boolean
   /** Send the typed instruction to the replan engine. */
   onSubmit: (instruction: string) => void
+  /** The assistant's narration as it streams in (shown while busy). */
+  streamingText?: string
 }
 
 /**
@@ -23,7 +25,7 @@ const SUGGESTIONS = ['eating out Wednesday', 'no fish', 'more pasta']
  * tappable so the demo cases work on touch with no typing. No hover-only
  * affordances, mobile-first.
  */
-export function ChatReplan({ busy, onSubmit }: ChatReplanProps) {
+export function ChatReplan({ busy, onSubmit, streamingText }: ChatReplanProps) {
   const [text, setText] = useState('')
 
   function submit(value: string) {
@@ -72,6 +74,15 @@ export function ChatReplan({ busy, onSubmit }: ChatReplanProps) {
           </button>
         ))}
       </div>
+
+      {busy && streamingText ? (
+        <p
+          aria-live="polite"
+          className="text-muted-foreground border-border/60 border-t pt-3 text-sm whitespace-pre-wrap"
+        >
+          {streamingText}
+        </p>
+      ) : null}
     </div>
   )
 }
