@@ -14,7 +14,6 @@ import {
 } from '#/lib/week-server'
 import { weekPlanUrl } from '#/lib/week-url'
 import type { WeekView, DayAlternative } from '#/lib/week-server'
-import { replanWeek } from '#/lib/replan-server'
 import { applyStreamedWeek, streamReplan } from '#/lib/agent/replan-client'
 import { getSimilarRecipes } from '#/lib/similar-server'
 import { applySimilarSwapToPlan } from '#/lib/swap-server'
@@ -32,7 +31,8 @@ import { Button } from '#/components/ui/button'
 import { DayCard } from '#/components/week/DayCard'
 import { ChatReplan } from '#/components/week/ChatReplan'
 import { VoiceButton } from '#/components/week/VoiceButton'
-import { EditDaySheet } from '#/components/week/EditDaySheet'
+import { RecipeSheet } from '#/components/week/RecipeSheet'
+import { SwapSheet } from '#/components/week/SwapSheet'
 import { RatingReminders } from '#/components/week/RatingReminders'
 import { WeekSkeleton } from '#/components/week/WeekSkeleton'
 import { ReplanBanner } from '#/components/week/ReplanBanner'
@@ -97,12 +97,15 @@ function WeekPage() {
   const [changes, setChanges] = useState<Array<PlanDayChange>>([])
   /** The agent's narration as it streams in during a chat replan. */
   const [streamingText, setStreamingText] = useState('')
-  /** The day whose edit sheet is open (tap-a-day -> ~5 alternatives). */
-  const [editDay, setEditDay] = useState<string | null>(null)
+  /** The day whose recipe sheet is open (tap-a-planned-dish -> ingredients + steps). */
+  const [recipeDay, setRecipeDay] = useState<string | null>(null)
+  /** The day whose swap chooser pull-up is open (Swap button / "Add a meal"). */
+  const [swapDay, setSwapDay] = useState<string | null>(null)
   /**
-   * Whether the open sheet is in "add a meal" mode (#175): the day was eating-out
-   * / empty, so its alternatives are fetched on demand into `addAlternatives`
-   * instead of read from the day (an 'out' day ships none). null while loading.
+   * Whether the open swap sheet is in "add a meal" mode (#175): the day was
+   * eating-out / empty, so its alternatives are fetched on demand into
+   * `addAlternatives` instead of read from the day (an 'out' day ships none). null
+   * while loading.
    */
   const [adding, setAdding] = useState(false)
   const [addAlternatives, setAddAlternatives] =
@@ -190,8 +193,11 @@ function WeekPage() {
   }
 
   const locked = busyDay !== null || replanning || voiceLive
-  const editing = editDay
-    ? (week.days.find((d) => d.day === editDay) ?? null)
+  const recipeViewing = recipeDay
+    ? (week.days.find((d) => d.day === recipeDay) ?? null)
+    : null
+  const swapping = swapDay
+    ? (week.days.find((d) => d.day === swapDay) ?? null)
     : null
 
   /**
@@ -213,25 +219,6 @@ function WeekPage() {
     setWeek(next)
     if (typeof window !== 'undefined') {
       window.history.replaceState(window.history.state, '', weekPlanUrl(planId))
-    }
-  }
-
-  async function swap(day: string) {
-    if (locked) return
-    setBusyDay(day)
-    setMessage(null)
-    setChanges([])
-    try {
-      const res = await replanWeek({
-        data: { planId: week.planId, action: 'swap', days: [day] },
-      })
-      const next = await loadWeek({ data: { planId: res.planId } })
-      adopt(res.planId, next)
-      if (!res.changed) setMessage(res.message)
-    } catch {
-      setMessage('Could not swap that day, try again.')
-    } finally {
-      setBusyDay(null)
     }
   }
 
@@ -291,7 +278,7 @@ function WeekPage() {
       })
       const next = await loadWeek({ data: { planId: res.planId } })
       adopt(res.planId, next)
-      closeSheet()
+      closeSwapSheet()
     } catch {
       setMessage(
         adding
@@ -303,11 +290,22 @@ function WeekPage() {
     }
   }
 
-  /** Reset the edit/add sheet to closed and clear any fetched add alternatives. */
-  function closeSheet() {
-    setEditDay(null)
+  /** Close the swap / add chooser and clear any fetched add alternatives. */
+  function closeSwapSheet() {
+    setSwapDay(null)
     setAdding(false)
     setAddAlternatives(null)
+  }
+
+  /** Open the swap chooser pull-up for a planned day (the Swap button / the
+   * "Swap this dinner" action inside the recipe sheet). Closes the recipe sheet
+   * so the two pull-ups never stack. */
+  function startSwap(day: string) {
+    if (locked) return
+    setRecipeDay(null)
+    setAdding(false)
+    setAddAlternatives(null)
+    setSwapDay(day)
   }
 
   /**
@@ -328,7 +326,7 @@ function WeekPage() {
       })
       const next = await loadWeek({ data: { planId: res.planId } })
       adopt(res.planId, next)
-      closeSheet()
+      setRecipeDay(null)
     } catch {
       setMessage('Could not remove that dinner, try again.')
     } finally {
@@ -346,9 +344,10 @@ function WeekPage() {
    */
   async function startAdd(day: string) {
     if (locked) return
+    setRecipeDay(null)
     setAdding(true)
     setAddAlternatives(null)
-    setEditDay(day)
+    setSwapDay(day)
     setMessage(null)
     setChanges([])
     try {
@@ -393,7 +392,7 @@ function WeekPage() {
    * (optimistic, via `applyStreamedWeek`), and on `done` we reconcile with the
    * authoritative enriched week (`loadWeek`) so images/alternatives are exact.
    * Structured one-tap actions (swap, similar, alternatives) keep using the
-   * model-free `replanWeek` / swap-server paths so they work with no API key.
+   * model-free swap-server paths so they work with no API key.
    */
   async function replan(instruction: string) {
     if (locked) return
@@ -485,9 +484,9 @@ function WeekPage() {
               busy={busyDay === d.day}
               locked={locked}
               glowing={glowDays.has(d.day)}
-              onEdit={() => setEditDay(d.day)}
+              onEdit={() => setRecipeDay(d.day)}
               onAdd={() => void startAdd(d.day)}
-              onSwap={() => swap(d.day)}
+              onSwap={() => startSwap(d.day)}
               onLoadSimilar={(sort) => loadSimilar(d.day, sort)}
               onPickSimilar={(recipeId) => pickSimilar(d.day, recipeId)}
               rating={feedback.get(d.recipeRef)?.rating ?? null}
@@ -515,19 +514,31 @@ function WeekPage() {
         </div>
       </div>
 
-      <EditDaySheet
-        day={editing}
-        open={editDay !== null}
+      <RecipeSheet
+        day={recipeViewing}
+        open={recipeDay !== null}
         onOpenChange={(open) => {
-          if (!open) closeSheet()
+          if (!open) setRecipeDay(null)
+        }}
+        busy={busyDay !== null}
+        onSwap={() => {
+          if (recipeDay) startSwap(recipeDay)
+        }}
+        onRemove={recipeDay ? () => void removeDay(recipeDay) : undefined}
+      />
+
+      <SwapSheet
+        day={swapping}
+        open={swapDay !== null}
+        onOpenChange={(open) => {
+          if (!open) closeSwapSheet()
         }}
         picking={busyDay !== null}
         adding={adding}
         addAlternatives={addAlternatives}
         onPick={(recipeId) => {
-          if (editDay) void pickAlternative(editDay, recipeId)
+          if (swapDay) void pickAlternative(swapDay, recipeId)
         }}
-        onRemove={editDay ? () => void removeDay(editDay) : undefined}
       />
     </AppShell>
   )
