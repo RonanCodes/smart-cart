@@ -13,10 +13,11 @@ import { log } from '#/lib/log'
  * estimate from the matched item count. The fee floor (€0.50) bounds the low end. */
 const EUR_PER_ITEM = 2.5
 
-/** The two stores we actually fulfil a basket against (Picnic is the joke). */
-const SELECTABLE_STORES = STORE_OPTIONS.filter(
-  (o): o is typeof o & { slug: StoreSlug } => o.slug !== null,
-)
+/** The stores we can build a bulk-cart deep-link for today. Picnic is a
+ * selectable preference (#294) but its cart isn't wired yet (#293), so it's not
+ * offered as a cart target here. */
+const CART_STORES = new Set<StoreSlug>(['ah', 'jumbo'])
+const SELECTABLE_STORES = STORE_OPTIONS.filter((o) => CART_STORES.has(o.slug))
 
 /**
  * The bottom "Send everything to a store" action for the Shopping tab (#238).

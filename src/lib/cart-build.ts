@@ -52,6 +52,12 @@ export function buildAllItemsCartUrl(
   items: ReadonlyArray<ResolvedCartItem>,
 ): BuiltCartLink {
   const total = items.length
+  // Only AH + Jumbo have a bulk-cart deep-link today. Picnic is a selectable
+  // preference (#294) but its cart is not built yet (#293), so resolve nothing
+  // rather than silently firing the wrong store's cart.
+  if (store !== 'ah' && store !== 'jumbo') {
+    return { store, url: null, matched: 0, total }
+  }
   const skus: Array<{ sku: string; qty: number }> = []
   for (const item of items) {
     const sku = store === 'ah' ? ahProductId(item.slug) : jumboSku(item.slug)
