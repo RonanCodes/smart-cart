@@ -39,6 +39,7 @@ export {
   planMerge,
   shouldAutoSeed,
   countMissing,
+  backfillAmounts,
   addToListCta,
 } from './persist'
 export type {

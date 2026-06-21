@@ -1,5 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
-import { lineToNewItem, planMerge, countMissing } from './shopping'
+import {
+  lineToNewItem,
+  planMerge,
+  countMissing,
+  backfillAmounts,
+} from './shopping'
 import type { ShoppingItem, ShoppingItemSource } from './shopping'
 import type { getDb } from '../db/client'
 
@@ -148,6 +153,58 @@ export const addWeekToShoppingList = createServerFn({ method: 'POST' })
         )
     }
 
+    return reloadItems(db, householdId)
+  })
+
+/**
+ * Top up amounts on stale saved recipe rows from the current week (#292).
+ *
+ * A list saved before the Dutch-qty split shipped (#243) holds recipe rows with
+ * a null amount, because the unsplit "350 g" parsed as an unparsable note and
+ * the amount was dropped. This re-derives the week, finds every blank recipe row
+ * the plan can now supply an amount for (matched by normalised name), and writes
+ * just those, so the user never has to clear + regenerate. User-typed amounts
+ * and non-recipe rows are left untouched (see `backfillAmounts`).
+ *
+ * Returns the (possibly unchanged) list. A no-op when nothing is stale.
+ */
+export const backfillShoppingAmounts = createServerFn({ method: 'POST' })
+  .inputValidator((d?: { planId?: string }) => d ?? {})
+  .handler(async ({ data }): Promise<{ items: Array<ShoppingItem> }> => {
+    const householdId = await requireHouseholdId()
+    const { getDb } = await import('../db/client')
+    const db = await getDb()
+
+    const { items: existing } = await reloadItems(db, householdId)
+    // Cheap exit: if no recipe row is missing an amount there is nothing to do,
+    // and we can skip deriving the week entirely.
+    const anyBlank = existing.some(
+      (i) =>
+        i.source === 'recipe' && (i.amount === null || i.amount.trim() === ''),
+    )
+    if (!anyBlank) return { items: existing }
+
+    const { loadShoppingList } = await import('./shopping-server')
+    const view = await loadShoppingList({
+      data: data.planId ? { planId: data.planId } : {},
+    })
+    const derived = view.list.lines.map(lineToNewItem)
+    const updates = backfillAmounts(existing, derived)
+    if (updates.length === 0) return { items: existing }
+
+    const { shoppingListItem } = await import('../db/shopping-list-schema')
+    const { eq, and } = await import('drizzle-orm')
+    for (const u of updates) {
+      await db
+        .update(shoppingListItem)
+        .set({ amount: u.amount, unit: u.unit })
+        .where(
+          and(
+            eq(shoppingListItem.id, u.id),
+            eq(shoppingListItem.householdId, householdId),
+          ),
+        )
+    }
     return reloadItems(db, householdId)
   })
 
