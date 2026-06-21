@@ -31,12 +31,47 @@ export function isChunkLoadError(error: unknown): boolean {
 }
 
 /**
- * On a stale-chunk error, hard-reload ONCE so the tab picks up the new build.
- * Returns true if it triggered a reload (caller should stop). Guarded by
- * CHUNK_RELOAD_KEY so a chunk that is genuinely gone can't loop forever.
+ * The same-class sibling of a stale chunk, seen as Sentry SOUSO-T on /week (#416):
+ * a TanStack Router lazy-route MATCH resolved before its route entry's options
+ * chunk was ready, so the router's Match render read `route.options.component`
+ * with `route.options` momentarily undefined and threw
+ * `Cannot read properties of undefined (reading 'component')` (Chrome) /
+ * `route.options is undefined` (Firefox) / `undefined is not an object (evaluating
+ * 'route.options.component')` (Safari). It clusters with the SOUSO-D/M/P
+ * "Importing a module script failed" deploy-churn misses from the same window: a
+ * deploy re-hashes chunks, an open tab navigates to /week, and the match lands a
+ * tick before its component chunk. A one-time hard reload picks up the consistent
+ * new build and the route resolves cleanly, exactly like the chunk-miss self-heal.
+ *
+ * Matched narrowly (the read must be of `component`/`options`, optionally on
+ * `route`/`match`) so a genuine app bug reading some OTHER undefined property
+ * still surfaces the boundary rather than silently reload-looping.
+ */
+export function isRouteResolveRaceError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error ?? '')
+  return /reading '(?:component|options)'|(?:route|match)\.options(?:\.component)? is undefined|evaluating '(?:route|match)\.options(?:\.component)?'/i.test(
+    msg,
+  )
+}
+
+/**
+ * Both transient build/route-resolution faults that a one-time reload recovers:
+ * the stale code-split chunk (#369) and the lazy-route match-resolve race (#416).
+ * A genuine app error matches neither and stays on the boundary.
+ */
+export function isRecoverableLoadError(error: unknown): boolean {
+  return isChunkLoadError(error) || isRouteResolveRaceError(error)
+}
+
+/**
+ * On a transient stale-chunk OR route-resolve-race error, hard-reload ONCE so the
+ * tab picks up a consistent new build. Returns true if it triggered a reload
+ * (caller should stop). Guarded by CHUNK_RELOAD_KEY so a genuinely-gone chunk (or
+ * a race that doesn't clear on reload) can't loop forever.
  */
 export function reloadOnceForChunkError(error: unknown): boolean {
-  if (typeof window === 'undefined' || !isChunkLoadError(error)) return false
+  if (typeof window === 'undefined' || !isRecoverableLoadError(error))
+    return false
   try {
     if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return false
     sessionStorage.setItem(CHUNK_RELOAD_KEY, '1')
@@ -61,9 +96,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    // Stale code-split chunk after a deploy (the open tab references an old chunk
-    // hash the new build dropped): hard-reload once to the new build instead of
-    // looping on the boundary (#chunk-reload, the iOS-Safari "flashing" crash).
+    // Transient build/route-resolution fault: a stale code-split chunk after a
+    // deploy (#chunk-reload, the iOS-Safari "flashing" crash) OR a lazy-route
+    // match-resolve race where the router read `route.options.component` off an
+    // undefined options chunk (#416 SOUSO-T on /week). Both recover by hard-
+    // reloading ONCE to a consistent new build instead of looping on the boundary.
     if (reloadOnceForChunkError(error)) return
     // Ships to /api/log -> Workers Logs AND (now) server-side Sentry forward.
     // This is the path that ALWAYS reaches Sentry, even when the browser SDK is
