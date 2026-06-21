@@ -31,7 +31,11 @@ export function buildFactsQuestion(
   cuisine?: string | null,
 ): string {
   const dish = cuisine ? `${title} (${cuisine})` : title
+  // "Answer in English" forces English output even when the dish title is Dutch
+  // (Cala otherwise infers the language from the query). The app defaults to
+  // English; revisit when full per-user NL/EN i18n lands.
   return (
+    `Answer in English. ` +
     `Give one or two interesting, verifiable facts about the dish '${dish}' ` +
     `or its main ingredients. Note any Netherlands seasonality if relevant. ` +
     `Be concise: two short sentences at most.`
