@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ComponentType } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import {
@@ -12,13 +13,17 @@ import {
   Heart,
   CalendarOff,
   Languages,
+  Users,
+  Ban,
+  ChevronRight,
+  Sun,
 } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
-import { List, ListRow } from '#/components/ui/list'
 import { Sheet } from '#/components/ui/sheet'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
+import { StickyNote } from '#/components/ui/sticky-note'
 import { NotificationsSheet } from '#/components/profile/notifications-sheet'
 import { PlanReminderSection } from '#/components/profile/plan-reminder-section'
 import { StoreSheet } from '#/components/profile/store-sheet'
@@ -87,9 +92,78 @@ export const Route = createFileRoute('/profile')({
 })
 
 /**
- * Profile tab — account + settings. Signed-out visitors get a sign-in CTA;
- * signed-in users see their email and an iOS grouped settings list. Doubles as
- * the in-app showcase of the List + Sheet shell primitives.
+ * A single airy hairline row: an olive icon tile + label + optional trailing
+ * value + chevron, divided from the next by a hairline. Matches the settings
+ * prototype (/design/settings). Tappable when given an onClick.
+ */
+function HairlineRow({
+  icon: Icon,
+  label,
+  value,
+  onClick,
+}: {
+  icon: ComponentType<{ className?: string }>
+  label: string
+  value?: string
+  onClick?: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="border-hairline flex w-full items-center gap-3.5 border-b py-3.5 text-left last:border-b-0 active:opacity-70"
+    >
+      <span className="bg-secondary text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+        <Icon className="h-[1.15rem] w-[1.15rem]" />
+      </span>
+      <span className="flex-1 text-[0.95rem] font-semibold">{label}</span>
+      {value && (
+        <span className="text-muted-foreground max-w-[9rem] truncate text-sm">
+          {value}
+        </span>
+      )}
+      <ChevronRight className="text-muted-foreground/50 h-4 w-4 shrink-0" />
+    </button>
+  )
+}
+
+/** Section wrapper: a small uppercase caption over a group of hairline rows. */
+function SettingsSection({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="mt-6">
+      <h2 className="text-muted-foreground mb-1 text-[0.7rem] font-bold tracking-[0.16em] uppercase">
+        {title}
+      </h2>
+      <div>{children}</div>
+    </section>
+  )
+}
+
+/** "Souso since April" — the month the household was created. */
+function sousoSince(createdAtMs: number): string {
+  return new Date(createdAtMs).toLocaleDateString('en-US', { month: 'long' })
+}
+
+/** "2 adults", "2 adults + 1 child", "2 adults + 3 kids". */
+function householdSummaryLabel(adults: number, children: number): string {
+  const adultsPart = `${adults} ${adults === 1 ? 'adult' : 'adults'}`
+  if (children <= 0) return adultsPart
+  const childrenPart = `${children} ${children === 1 ? 'child' : 'kids'}`
+  return `${adultsPart} + ${childrenPart}`
+}
+
+/**
+ * Profile tab — account + settings, styled to the settings prototype: a profile
+ * header (avatar + name + "Souso since <month>" + Pro badge), a hand-written
+ * sticky note, then airy hairline rows grouped by section. Every value + action
+ * is the household's REAL data (store, language, diet, dislikes, skip-days,
+ * notifications, sign-out, …). Signed-out visitors get a sign-in CTA.
  */
 function Profile() {
   const { data: session } = authClient.useSession()
@@ -129,6 +203,20 @@ function Profile() {
     return days.map((d) => DAY_LABELS[d]).join(', ')
   })()
 
+  // Real values for the "Your preferences" rows. Diet + dislikes read the live
+  // editor draft first (so an edit reflects at once), falling back to the
+  // loader's summary. Dislikes is a count ("3 items") like the prototype.
+  const dietList = editor?.diet ?? summary?.diet ?? []
+  const dietValue = dietList.length ? dietList.join(', ') : 'No restrictions'
+  const dislikeCount = editor?.dislikes.length ?? summary?.dislikes.length ?? 0
+  const dislikesValue =
+    dislikeCount === 0
+      ? 'None'
+      : `${dislikeCount} ${dislikeCount === 1 ? 'item' : 'items'}`
+  const householdValue = summary
+    ? householdSummaryLabel(summary.adults, summary.children)
+    : undefined
+
   async function signOut() {
     // Best-effort client sign-out, then ALWAYS hard-navigate to the server-side
     // /sign-out route, which clears the session cookie server-side and redirects
@@ -160,135 +248,168 @@ function Profile() {
     )
   }
 
+  // The display name: the email's local-part, title-cased, as a friendly handle
+  // (we don't store a separate display name yet). Falls back to "You".
+  const displayName = (() => {
+    const local = session.user.email.split('@')[0]?.trim()
+    if (!local) return 'You'
+    return local.charAt(0).toUpperCase() + local.slice(1)
+  })()
+
   return (
     <AppShell>
-      <ScreenHeader title="Profile" subtitle={session.user.email} />
+      <ScreenHeader title="Profile" />
 
-      <div className="space-y-6 px-4 pt-2">
-        <List>
-          <ListRow
-            leading={<Store aria-hidden />}
-            title="Preferred store"
-            value={storeLabel(store)}
-            chevron
-            onClick={() => setStoreOpen(true)}
-          />
-          <ListRow
-            leading={<Languages aria-hidden />}
-            title="Language"
-            value={localeLabel(locale)}
-            chevron
-            onClick={() => setLanguageOpen(true)}
-          />
-          <ListRow
-            leading={<Bell aria-hidden />}
-            title="Notifications"
-            chevron
-            onClick={() => setNotificationsOpen(true)}
-          />
-          <ListRow
-            leading={<CircleHelp aria-hidden />}
-            title="How Souso works"
-            chevron
-            onClick={() => setHelpOpen(true)}
-          />
-        </List>
-
-        {/* Weekly planning reminder (Part B): pick a day + time to be nudged. */}
-        <PlanReminderSection />
-
-        {/* What Souso knows about you (#data-points): the taste summary (#268),
-            now with edit affordances. Everything here feeds the next week. */}
-        <section className="space-y-3">
-          <div>
-            <h2 className="text-lg font-semibold">
-              What Souso knows about you
-            </h2>
-            <p className="text-muted-foreground mt-0.5 text-sm">
-              These are the signals Souso plans with. They sharpen every week as
-              you cook and rate, and you can adjust any of them.
+      <div className="px-5">
+        {/* Profile header: avatar tile + name + "Souso since <month>" + Pro. */}
+        <div className="flex items-center gap-3.5 pb-2">
+          <div className="bg-secondary text-primary flex h-14 w-14 items-center justify-center rounded-full border-4 border-white shadow-md">
+            <User className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[1.1rem] font-bold">{displayName}</p>
+            <p className="text-muted-foreground truncate text-xs">
+              {summary
+                ? `Souso since ${sousoSince(summary.createdAtMs)}`
+                : session.user.email}
             </p>
           </div>
+          <span className="inline-flex items-center gap-1 rounded-full border border-[#f1ce8e] bg-[#fbe6c2] px-2.5 py-1 text-[0.7rem] font-extrabold text-[#7a4d10]">
+            <Sun className="h-3.5 w-3.5" /> Pro
+          </span>
+        </div>
 
-          {summary && summary.badges.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {summary.badges.map((b) => (
-                <span
-                  key={b.label}
-                  className="bg-secondary text-secondary-foreground inline-flex items-center rounded-full px-4 py-2 text-sm font-medium"
-                >
-                  {b.label}
-                </span>
-              ))}
-            </div>
-          )}
+        <div className="flex justify-end pt-1 pr-1">
+          <StickyNote tilt={-4}>set once, done ✶</StickyNote>
+        </div>
 
-          <div className="flex flex-wrap gap-2">
-            {summary?.lovedTastes.length ? (
-              summary.lovedTastes.map((t) => (
-                <Badge key={t} variant="primary">
-                  {t}
-                </Badge>
-              ))
-            ) : (
-              <span className="text-muted-foreground text-sm">
-                Tell us a few cuisines you love to sharpen this.
-              </span>
-            )}
-            {summary?.dislikes.map((t) => (
-              <Badge key={t} variant="outline">
-                no {t}
-              </Badge>
-            ))}
-          </div>
-
-          <List>
-            <ListRow
-              leading={<Heart aria-hidden />}
-              title="Your preferences"
-              value="Cuisines, avoid, diet, goals"
-              chevron
-              onClick={() => setPreferencesOpen(true)}
-            />
-            <ListRow
-              leading={<CalendarOff aria-hidden />}
-              title="Days you skip"
-              value={skipDaysValue}
-              chevron
-              onClick={() => setSkipDaysOpen(true)}
-            />
-          </List>
-        </section>
-
-        {isAdmin && (
-          <List>
-            <ListRow
-              leading={<Shield aria-hidden />}
-              title="Admin console"
-              chevron
-              onClick={() => {
-                window.location.href = '/admin/users'
-              }}
-            />
-          </List>
-        )}
-
-        <List>
-          <ListRow
-            leading={<RefreshCw aria-hidden />}
-            title="Redo onboarding"
-            chevron
+        {/* Your preferences — the real signals Souso plans with (#data-points).
+            Tapping a row opens the matching editor sheet. */}
+        <SettingsSection title="Your preferences">
+          <HairlineRow
+            icon={Users}
+            label="Household"
+            value={householdValue}
             onClick={() => {
               window.location.href = '/onboarding'
             }}
           />
-          <ListRow
-            leading={<LogOut aria-hidden />}
-            title="Sign out"
-            className="text-destructive [&_svg]:text-destructive"
-            onClick={signOut}
+          <HairlineRow
+            icon={Heart}
+            label="Taste & diet"
+            value={dietValue}
+            onClick={() => setPreferencesOpen(true)}
           />
-        </List>
+          <HairlineRow
+            icon={Ban}
+            label="Dislikes"
+            value={dislikesValue}
+            onClick={() => setPreferencesOpen(true)}
+          />
+          <HairlineRow
+            icon={Store}
+            label="Supermarket"
+            value={storeLabel(store)}
+            onClick={() => setStoreOpen(true)}
+          />
+          <HairlineRow
+            icon={CalendarOff}
+            label="Days you skip"
+            value={skipDaysValue}
+            onClick={() => setSkipDaysOpen(true)}
+          />
+        </SettingsSection>
+
+        {/* The taste summary badges (#268) — kept as the warm, glanceable proof
+            of what Souso has learned, beneath the editable rows. */}
+        {summary &&
+          (summary.lovedTastes.length > 0 ||
+            summary.dislikes.length > 0 ||
+            summary.badges.length > 0) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {summary.badges.map((b) => (
+                <span
+                  key={b.label}
+                  className="bg-secondary text-secondary-foreground inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium"
+                >
+                  {b.label}
+                </span>
+              ))}
+              {summary.lovedTastes.map((t) => (
+                <Badge key={t} variant="primary">
+                  {t}
+                </Badge>
+              ))}
+              {summary.dislikes.map((t) => (
+                <Badge key={t} variant="outline">
+                  no {t}
+                </Badge>
+              ))}
+            </div>
+          )}
+
+        {/* App — language, notifications, and how Souso works. */}
+        <SettingsSection title="App">
+          <HairlineRow
+            icon={Languages}
+            label="Language"
+            value={localeLabel(locale)}
+            onClick={() => setLanguageOpen(true)}
+          />
+          <HairlineRow
+            icon={Bell}
+            label="Notifications"
+            onClick={() => setNotificationsOpen(true)}
+          />
+          <HairlineRow
+            icon={CircleHelp}
+            label="How Souso works"
+            onClick={() => setHelpOpen(true)}
+          />
+        </SettingsSection>
+
+        {/* Weekly planning reminder (Part B): pick a day + time to be nudged. */}
+        <div className="mt-6">
+          <PlanReminderSection />
+        </div>
+
+        {/* Admin console — only for true admins (server-decided). */}
+        {isAdmin && (
+          <SettingsSection title="Admin">
+            <HairlineRow
+              icon={Shield}
+              label="Admin console"
+              onClick={() => {
+                window.location.href = '/admin/users'
+              }}
+            />
+          </SettingsSection>
+        )}
+
+        {/* Account — redo onboarding + sign out. */}
+        <SettingsSection title="Account">
+          <HairlineRow
+            icon={RefreshCw}
+            label="Redo onboarding"
+            onClick={() => {
+              window.location.href = '/onboarding'
+            }}
+          />
+          <button
+            type="button"
+            onClick={signOut}
+            className="border-hairline text-destructive flex w-full items-center gap-3.5 border-b py-3.5 text-left last:border-b-0 active:opacity-70"
+          >
+            <span className="bg-secondary text-destructive flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+              <LogOut className="h-[1.15rem] w-[1.15rem]" />
+            </span>
+            <span className="flex-1 text-[0.95rem] font-semibold">
+              Sign out
+            </span>
+          </button>
+        </SettingsSection>
+
+        <div aria-hidden className="h-8" />
       </div>
 
       <Sheet open={helpOpen} onOpenChange={setHelpOpen} title="How Souso works">
