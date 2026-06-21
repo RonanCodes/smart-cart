@@ -1,20 +1,24 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ShoppingBag } from 'lucide-react'
+import { Leaf, ShoppingBag, Sparkles } from 'lucide-react'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { Button } from '#/components/ui/button'
 import { loadShoppingBootstrap } from '#/lib/shopping-server'
 import type { ShoppingBootstrap } from '#/lib/shopping-server'
 import { EditableShoppingList } from '#/components/shopping/EditableShoppingList'
-import { CartLinks } from '#/components/shopping/CartLinks'
 import { StaplesSection } from '#/components/shopping/StaplesSection'
-import { WasteLine } from '#/components/shopping/WasteLine'
-import { PriceComparison } from '#/components/shopping/PriceComparison'
+import { CartStoreSwitch } from '#/components/shopping/CartStoreSwitch'
+import { FloatingOrderBar } from '#/components/shopping/FloatingOrderBar'
 import { ShoppingSkeleton } from '#/components/shopping/ShoppingSkeleton'
 import type { ShoppingItem } from '#/lib/shopping'
 import type { StapleLine } from '#/lib/staples-server'
 import { deriveLiveCartSet } from '#/lib/shopping/cart-set'
 import type { CartExtra } from '#/lib/shopping/cart-set'
+import {
+  priceMapForStore,
+  usePriceComparison,
+} from '#/lib/use-price-comparison'
+import type { StoreSlug } from '#/lib/store-pref-server'
 
 interface ShoppingSearch {
   /** Optional plan id, set when arriving from the week view's "Shopping list". */
@@ -49,15 +53,22 @@ export const Route = createFileRoute('/_authed/shopping')({
 })
 
 /**
- * Shopping tab — the week's recipes turned into ONE consolidated, editable list
- * with exact amounts (slice #79, PRD #77; redesign #178).
+ * Cart tab — the week's recipes turned into ONE consolidated, editable cart with
+ * exact amounts (slice #79, PRD #77; redesigns #178, #cart-align).
  *
- * The editable, persisted list is the DEFAULT view. The loader auto-seeds it
- * from the week when the household has a plan but no saved rows yet, so the
- * first visit lands straight on the real list, not a read-only preview. The
- * food-waste pitch is collapsed into one quiet line above the list rather than
- * the old stack of cards; the staples search sits secondary below it; the
- * "Add all to Albert Heijn / Jumbo" deep-links stay prominent at the top.
+ * The screen now reads as a single cart aligned to the design prototype:
+ *  - a heading "Cart" with a 3-way store switch (Albert Heijn / Jumbo / Picnic),
+ *    each showing that store's REAL basket total from the price comparison;
+ *  - the merged-from-N-recipes + ingredients-reused notes;
+ *  - airy hairline aisle groups (Produce, Dairy & cheese, ...) of die-cut
+ *    ingredient stickers, each row showing the SELECTED store's per-item price
+ *    and a checkbox;
+ *  - "Also on my list" extras / staples below;
+ *  - a floating total + "Order at <store>" CTA pinned above the tab bar.
+ *
+ * Picking a store reprices the whole screen at once (switch total, per-item
+ * prices, floating total + order button) from one shared comparison fetch. All
+ * the real behaviour is kept: check/uncheck, edit, add, remove, clear, order.
  */
 function Shopping() {
   const {
@@ -69,15 +80,15 @@ function Shopping() {
   } = Route.useLoaderData()
   const hasSavedItems = initialItems.length > 0
 
-  // The route OWNS the live list + extras + their checked state (#311), so the
-  // price comparison and the single cart action recompute from the UNCHECKED set
-  // as the user ticks rows off, with no full reload. EditableShoppingList and
-  // StaplesSection still own their server round-trips; they mirror their state up
-  // here through the on*Change callbacks.
+  // The route OWNS the live list + extras + their checked state (#311), plus the
+  // selected store (#cart-align), so the store switch, the per-item prices, the
+  // floating total and the order button all recompute together from the UNCHECKED
+  // set with no full reload.
   const [liveItems, setLiveItems] = useState<Array<ShoppingItem>>(initialItems)
   const [liveStaples, setLiveStaples] =
     useState<Array<StapleLine>>(initialStaples)
   const [checkedExtraIds, setCheckedExtraIds] = useState<Set<string>>(new Set())
+  const [store, setStore] = useState<StoreSlug>(preferredStore)
 
   // The extras as cart-set shape: a staple's saved slug already carries its
   // store, so a tick excludes it from that store's basket + cart.
@@ -92,11 +103,30 @@ function Shopping() {
     [liveStaples],
   )
 
-  // The single live UNCHECKED set both siblings consume.
+  // The single live UNCHECKED set the comparison + cart consume.
   const liveSet = useMemo(
     () => deriveLiveCartSet(liveItems, extras, checkedExtraIds),
     [liveItems, extras, checkedExtraIds],
   )
+
+  // ONE shared price comparison feeds the switch, the per-item prices and the
+  // floating bar (#cart-align). The 4 MB catalogue stays server-side.
+  const { data: priceData, loading: priceLoading } = usePriceComparison(
+    liveSet.compareLines,
+  )
+  const priceMap = useMemo(
+    () => priceMapForStore(priceData, store),
+    [priceData, store],
+  )
+
+  // "Merged automatically from N recipes": distinct meals the list draws on,
+  // counted from the real consolidated lines' usedInMeals (no hardcoding).
+  const recipeCount = useMemo(() => {
+    const meals = new Set<string>()
+    for (const line of view.list.lines)
+      for (const meal of line.usedInMeals) meals.add(meal)
+    return meals.size
+  }, [view.list.lines])
 
   // Nothing to shop for yet: no saved rows and no staples. The bare empty
   // state, but still let the user start a list from staples alone (a top-up
@@ -105,12 +135,12 @@ function Shopping() {
     return (
       <AppShell>
         <ScreenHeader
-          title="Shopping"
-          subtitle="Your week, turned into one shopping list with exact amounts."
+          title="Cart"
+          subtitle="Your week, turned into one cart with exact amounts."
         />
         <EmptyState
           icon={<ShoppingBag aria-hidden />}
-          title="No shopping list yet"
+          title="Your cart is empty"
           hint="Plan a week and Souso adds up every ingredient across your dinners, scaled to your household. Or add a few staples below to start a list."
           action={
             <Link to="/week">
@@ -130,33 +160,63 @@ function Shopping() {
 
   return (
     <AppShell>
-      <ScreenHeader
-        title="Shopping"
-        subtitle="One list for the week, with the exact amount you need."
-      />
+      <header className="px-5 pt-4 pb-2">
+        <h1 className="text-[2rem] leading-tight font-bold tracking-[-0.035em]">
+          Cart
+        </h1>
 
-      {/* One quiet line for the food-waste story, in place of the old card
-          stack. Hidden when there is nothing honest to claim. */}
-      <div className="px-5 pt-1">
-        <WasteLine waste={view.waste} estimated={view.amountsEstimated} />
-      </div>
+        {/* Store switch — the same basket priced across the three stores, real
+            totals from the comparison. Picking one reprices the whole screen. */}
+        {hasSavedItems && (
+          <div className="mt-3">
+            <CartStoreSwitch
+              data={priceData}
+              loading={priceLoading}
+              selected={store}
+              onSelect={setStore}
+            />
+          </div>
+        )}
 
-      {/* STORE-AGNOSTIC, TOP: the week's recipe ingredients WITH amounts, the
-          primary editable list. Tick, rename, re-amount, add, remove all survive
-          a reload. State mirrors up so the comparison + cart recompute on a tick
-          (#311). */}
+        {/* The merged / reused notes, from the real consolidated view. */}
+        {recipeCount > 0 && (
+          <p className="text-muted-foreground mt-3 flex items-center gap-1.5 text-xs">
+            <Sparkles
+              className="text-primary h-3.5 w-3.5 shrink-0"
+              aria-hidden
+            />
+            Merged automatically from {recipeCount}{' '}
+            {recipeCount === 1 ? 'recipe' : 'recipes'}
+          </p>
+        )}
+        {view.waste.hasSavings && view.waste.sharedIngredientCount > 0 && (
+          <p className="text-primary/90 mt-2 flex items-center gap-1.5 text-xs font-medium">
+            <Leaf className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {view.waste.sharedIngredientCount}{' '}
+            {view.waste.sharedIngredientCount === 1
+              ? 'ingredient'
+              : 'ingredients'}{' '}
+            reused, nothing left over
+            {view.amountsEstimated && ' (amounts approx)'}
+          </p>
+        )}
+      </header>
+
+      {/* The week's recipe ingredients WITH amounts, the primary editable list,
+          grouped into airy hairline aisle sections with the selected store's
+          per-item price per row. Tick, rename, re-amount, add, remove all survive
+          a reload; state mirrors up so the totals + cart recompute on a tick. */}
       {hasSavedItems && (
         <div className="px-5 pt-3 pb-2">
           <EditableShoppingList
             initialItems={initialItems}
             onItemsChange={setLiveItems}
+            priceMap={priceMap}
           />
         </div>
       )}
 
-      {/* STORE-AGNOSTIC, BELOW THAT: "Also on my list" extras / staples. No
-          AH / Jumbo branding drives the order here; the store comparison is the
-          next block down. State mirrors up so a ticked extra leaves the basket +
+      {/* "Also on my list" extras / staples. A ticked extra leaves the basket +
           cart (#311). */}
       <div className="px-5 pt-2 pb-2">
         <StaplesSection
@@ -167,28 +227,18 @@ function Shopping() {
         />
       </div>
 
-      {/* PER-STORE COMPARISON, BELOW THE STORE-AGNOSTIC SECTIONS (#293, #311).
-          Each store's basket = the UNCHECKED recipe ingredients PLUS the
-          unchecked extras, priced with waste + unavailable over the COMBINED set.
-          Ticking an item off (recipe line or extra) recomputes it live. */}
-      {hasSavedItems && (
-        <div className="px-5 pt-2 pb-2">
-          <PriceComparison lines={liveSet.compareLines} />
-        </div>
-      )}
+      {/* Clear the floating order bar at the bottom of the scroll. */}
+      <div aria-hidden className="h-32" />
 
-      {/* The store selector + single "Send to <store>" action, at the VERY
-          bottom so it reads as "everything above goes in the cart" (#238).
-          Sends the UNCHECKED recipe items AND the unchecked extras to the chosen
-          store, reacting to ticks with no DB lag (#311). */}
+      {/* Floating total + "Order at <store>" CTA, pinned above the tab bar. Reads
+          the SELECTED store's real total, sends the UNCHECKED set to its cart. */}
       {hasSavedItems && (
-        <div className="border-border/60 mt-2 border-t px-5 pt-4 pb-6">
-          <CartLinks
-            preferredStore={preferredStore}
-            itemNames={liveSet.itemNames}
-            extras={extras.filter((e) => !checkedExtraIds.has(e.id))}
-          />
-        </div>
+        <FloatingOrderBar
+          store={store}
+          data={priceData}
+          itemNames={liveSet.itemNames}
+          extras={extras.filter((e) => !checkedExtraIds.has(e.id))}
+        />
       )}
     </AppShell>
   )

@@ -270,6 +270,15 @@ export interface HouseholdSummary {
   dislikedCuisines: Array<string>
   dislikes: Array<string>
   badges: Array<Badge>
+  /** Adults in the household (drives the "Household" profile row). */
+  adults: number
+  /** Children in the household. */
+  children: number
+  /** Diet labels (multi-select), for the "Diet" profile row. Falls back to the
+   * single legacy `diet` string for pre-editor households. */
+  diet: Array<string>
+  /** Epoch ms the household was created, for the "Souso since <month>" header. */
+  createdAtMs: number
 }
 
 /** Title-case a cuisine token for display ('italian' -> 'Italian'). */
@@ -297,15 +306,28 @@ export const getHouseholdSummary = createServerFn({ method: 'GET' }).handler(
     const { eq } = await import('drizzle-orm')
     const db = await getDb()
     const rows = await db
-      .select({ profile: household.profile })
+      .select({
+        profile: household.profile,
+        adults: household.adults,
+        children: household.children,
+        createdAt: household.createdAt,
+      })
       .from(household)
       .where(eq(household.ownerId, user.id))
       .limit(1)
-    const profile = rows[0]?.profile
-    if (!profile) return null
+    const row = rows[0]
+    const profile = row?.profile
+    if (!row || !profile) return null
 
     const formLiked = profile.cuisinesLiked ?? []
     const formDisliked = profile.cuisinesDisliked ?? []
+    // Diet for display reads the multi-select `dietLabels` (the editor writes
+    // it), falling back to the single legacy `diet` string. Cast through the
+    // record shape since `dietLabels` isn't on the typed profile column yet.
+    const profileRecord = profile as Record<string, unknown>
+    const dietLabels = Array.isArray(profileRecord.dietLabels)
+      ? (profileRecord.dietLabels as Array<string>)
+      : []
     return {
       lovedTastes: formLiked.length
         ? formLiked.map(titleCase)
@@ -315,6 +337,10 @@ export const getHouseholdSummary = createServerFn({ method: 'GET' }).handler(
         : (profile.dislikedCuisines ?? []),
       dislikes: profile.dislikes ?? [],
       badges: deriveBadges(profile),
+      adults: row.adults,
+      children: row.children,
+      diet: dietLabels.length ? dietLabels : profile.diet ? [profile.diet] : [],
+      createdAtMs: row.createdAt.getTime(),
     }
   },
 )
