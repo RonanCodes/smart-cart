@@ -1,9 +1,11 @@
 import { Resend } from 'resend'
 import { readEnv } from './env'
 
-// Sends from the verified ronanconnolly.dev Resend account (the RESEND_API_KEY
-// secret holds that key).
-const FROM = 'Souso <hello@ronanconnolly.dev>'
+// Sends from the souso.app domain (Verified in Resend, with DKIM/SPF/DMARC in
+// Cloudflare). The branded From matching the brand + domain auth is what keeps
+// these out of spam. noreply@ (not hello@): receiving is OFF on the domain, so a
+// reply would bounce; noreply signals the mailbox is unmonitored. No Reply-To.
+const FROM = 'Souso <noreply@souso.app>'
 // Where waitlist-signup pings land.
 const ADMIN_NOTIFY_TO = 'tech@discopenguin.com'
 // The full Souso brand mark (chef's toque + "Souso" wordmark) rendered cream on
