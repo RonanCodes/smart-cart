@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { runMatchScenario } from '#/lib/pricing/match-server'
 import type { MatchScenarioResult } from '#/lib/pricing/match-server'
+import { StoreBadge } from '#/components/shopping/StoreBadge'
 
 /**
  * Admin "Matching" scenario runner (ADR-0004). Type an ingredient (or pick a
@@ -126,8 +127,16 @@ export function MatchingPanel() {
             </p>
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Pick title="Cheap tier (cosine top-1)" hit={result.cheap} />
-            <Pick title="Accurate tier (LLM rerank)" hit={result.reranked} />
+            <Pick
+              title="Cheap tier (cosine top-1)"
+              hit={result.cheap}
+              store={result.store}
+            />
+            <Pick
+              title="Accurate tier (LLM rerank)"
+              hit={result.reranked}
+              store={result.store}
+            />
           </div>
 
           <div>
@@ -173,9 +182,12 @@ export function MatchingPanel() {
 function Pick({
   title,
   hit,
+  store,
 }: {
   title: string
   hit: MatchScenarioResult['cheap'] | null
+  /** The store the scenario ran against ('ah'), so the badge / link can resolve. */
+  store: string
 }) {
   return (
     <div className="border-border rounded-lg border p-3">
@@ -199,7 +211,10 @@ function Pick({
         </>
       ) : (
         <>
-          <p className="text-foreground text-sm font-medium">{hit.name}</p>
+          <div className="flex items-center gap-2">
+            <StoreBadge store={store} slug={hit.slug} productName={hit.name} />
+            <p className="text-foreground text-sm font-medium">{hit.name}</p>
+          </div>
           <p className="text-muted-foreground mt-0.5 text-sm tabular-nums">
             {euro(hit.priceCents)} &middot;{' '}
             <span className={confColor(hit.confidence)}>{hit.confidence}</span>{' '}
