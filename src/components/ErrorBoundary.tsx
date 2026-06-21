@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
+import { UtensilsCrossed } from 'lucide-react'
 import { log } from '#/lib/log'
 
 interface Props {
@@ -31,8 +32,11 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.hasError) return this.props.children
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="text-4xl" aria-hidden>
-          🍳
+        <div
+          className="bg-secondary text-primary flex h-16 w-16 items-center justify-center rounded-full"
+          aria-hidden
+        >
+          <UtensilsCrossed className="h-7 w-7" />
         </div>
         <p className="text-sm font-medium">Something went wrong.</p>
         <p className="text-muted-foreground text-xs">

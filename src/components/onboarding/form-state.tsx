@@ -40,6 +40,8 @@ export interface OnboardingDraft {
   cuisinesDisliked: Array<string>
   /** Preferred store: 'ah' | 'jumbo' | 'picnic'. */
   store: string | null
+  /** Recipe-content language: 'en' | 'nl'. Defaults to English (#310). */
+  locale: 'en' | 'nl'
 }
 
 export const EMPTY_DRAFT: OnboardingDraft = {
@@ -54,6 +56,7 @@ export const EMPTY_DRAFT: OnboardingDraft = {
   cuisinesLiked: [],
   cuisinesDisliked: [],
   store: null,
+  locale: 'en',
 }
 
 export type OnboardingAction = {

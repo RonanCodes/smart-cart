@@ -58,3 +58,48 @@ describe('pickIngredients', () => {
     expect(out[0]).toEqual({ name: 'potatoes', qty: '500', unit: 'g' })
   })
 })
+
+describe('locale toggle (#310)', () => {
+  const nl = [{ name: 'aardappelen', qty: '500', unit: 'g' }]
+  const en = [{ name: 'potatoes', qty: '500', unit: 'g' }]
+
+  it("defaults to 'en' when no locale is passed (back-compatible)", () => {
+    expect(pickTitle('Risotto van bloemkool', 'Cauliflower risotto')).toBe(
+      'Cauliflower risotto',
+    )
+    expect(pickInstructions(['Kook de rijst.'], ['Cook the rice.'])).toEqual([
+      'Cook the rice.',
+    ])
+    expect(pickIngredients(nl, en)).toEqual(en)
+  })
+
+  it("'en' shows the English translation when present", () => {
+    expect(
+      pickTitle('Risotto van bloemkool', 'Cauliflower risotto', 'en'),
+    ).toBe('Cauliflower risotto')
+    expect(
+      pickInstructions(['Kook de rijst.'], ['Cook the rice.'], 'en'),
+    ).toEqual(['Cook the rice.'])
+    expect(pickIngredients(nl, en, 'en')).toEqual(en)
+  })
+
+  it("'nl' forces the Dutch source even when a translation exists", () => {
+    expect(
+      pickTitle('Risotto van bloemkool', 'Cauliflower risotto', 'nl'),
+    ).toBe('Risotto van bloemkool')
+    expect(
+      pickInstructions(['Kook de rijst.'], ['Cook the rice.'], 'nl'),
+    ).toEqual(['Kook de rijst.'])
+    expect(pickIngredients(nl, en, 'nl')).toEqual(nl)
+  })
+
+  it("'en' still falls back to Dutch when there is no translation", () => {
+    expect(pickTitle('Risotto van bloemkool', null, 'en')).toBe(
+      'Risotto van bloemkool',
+    )
+    expect(pickInstructions(['Kook de rijst.'], null, 'en')).toEqual([
+      'Kook de rijst.',
+    ])
+    expect(pickIngredients(nl, null, 'en')).toEqual(nl)
+  })
+})

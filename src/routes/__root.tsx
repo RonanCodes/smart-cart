@@ -7,7 +7,6 @@ import {
   Scripts,
 } from '@tanstack/react-router'
 import appCss from '../styles.css?url'
-import { DevBanner } from '../components/DevBanner'
 import { registerServiceWorker } from '../lib/push-client'
 import { QueryClientProvider } from '../lib/query-client'
 import { ErrorBoundary } from '../components/ErrorBoundary'
@@ -39,7 +38,7 @@ export const Route = createRootRoute({
       // warm tone from the manifest theme_color.
       {
         name: 'theme-color',
-        content: '#FBF7EF',
+        content: '#F5F1E7',
       },
       // Translucent status bar on an installed iOS PWA so the safe-area inset
       // background (set in SafeArea) shows through under the notch.
@@ -61,6 +60,20 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
+      {
+        rel: 'preload',
+        as: 'font',
+        type: 'font/woff2',
+        href: '/fonts/outfit.woff2',
+        crossOrigin: 'anonymous',
+      },
+      {
+        rel: 'preload',
+        as: 'font',
+        type: 'font/woff2',
+        href: '/fonts/schoolbell.woff2',
+        crossOrigin: 'anonymous',
+      },
       { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
       {
         rel: 'icon',
@@ -93,7 +106,6 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
-        <DevBanner />
         <Scripts />
       </body>
     </html>

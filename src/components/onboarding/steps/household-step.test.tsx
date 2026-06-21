@@ -31,13 +31,11 @@ function renderStep() {
 }
 
 describe('HouseholdStep', () => {
-  it('renders adults, children and pet steppers', () => {
+  it('renders adults and children steppers', () => {
     renderStep()
     expect(screen.getByTestId('household-step')).toBeTruthy()
     expect(screen.getByText('Adults')).toBeTruthy()
     expect(screen.getByText('Children')).toBeTruthy()
-    expect(screen.getByText('Cats')).toBeTruthy()
-    expect(screen.getByText('Dogs')).toBeTruthy()
   })
 
   it('floors adults at 1 (remove disables once you reach the floor)', () => {
@@ -57,16 +55,5 @@ describe('HouseholdStep', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add one children' }))
     expect(screen.getByTestId('children-ages')).toBeTruthy()
     expect(screen.getByLabelText('Age of child 1')).toBeTruthy()
-  })
-
-  it('increments a pet counter on tap', () => {
-    renderStep()
-    fireEvent.click(screen.getByRole('button', { name: 'Add one cats' }))
-    // The cats stepper now reads 1.
-    const value = screen
-      .getByText('Cats')
-      .closest('div')
-      ?.parentElement?.querySelector('[aria-live="polite"]')
-    expect(value?.textContent).toBe('1')
   })
 })

@@ -67,6 +67,12 @@ describe('draftToHousehold mapping', () => {
     ).toBeUndefined()
   })
 
+  it("defaults preferredLocale to 'en' and carries 'nl' when picked (#310)", () => {
+    expect(draftToHousehold(EMPTY_DRAFT).preferredLocale).toBe('en')
+    expect(draftToHousehold(draft({ locale: 'nl' })).preferredLocale).toBe('nl')
+    expect(draftToHousehold(draft({ locale: 'en' })).preferredLocale).toBe('en')
+  })
+
   it('maps cuisine likes/hates onto the profile (normalised, deduped)', () => {
     const m = draftToHousehold(
       draft({

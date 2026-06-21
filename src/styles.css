@@ -2,6 +2,23 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Souso brand fonts. Outfit = all UI text + headings; Schoolbell = the
+   handwritten recipe-note plakkertjes only. Self-hosted woff2 in public/fonts. */
+@font-face {
+  font-family: 'Outfit';
+  src: url('/fonts/outfit.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Schoolbell';
+  src: url('/fonts/schoolbell.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /*
   Smart Cart design tokens. Fresh-grocery palette: a ripe leaf-green primary,
   a warm tomato accent for moments that should feel appetising, on a clean
@@ -10,69 +27,78 @@
 :root {
   --radius: 0.75rem;
 
-  --background: oklch(0.99 0.006 120);
-  --foreground: oklch(0.24 0.02 150);
+  /* Souso palette: cream ground, dark-olive ink, one olive accent.
+     Hex straight from the design system (020-projecten/slimmandje/design-system). */
+  --background: #f5f1e7;
+  --foreground: #16341f;
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.02 150);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.02 150);
+  --card: #ffffff;
+  --card-foreground: #16341f;
+  --popover: #ffffff;
+  --popover-foreground: #16341f;
 
-  /* leaf green */
-  --primary: oklch(0.62 0.14 149);
-  --primary-foreground: oklch(0.99 0.01 120);
+  /* olive — the single brand accent / primary action */
+  --primary: #6f9135;
+  --primary-foreground: #ffffff;
 
-  --secondary: oklch(0.95 0.02 140);
-  --secondary-foreground: oklch(0.3 0.03 150);
+  --secondary: #ebefdc;
+  --secondary-foreground: #16341f;
 
-  --muted: oklch(0.96 0.01 130);
-  --muted-foreground: oklch(0.52 0.02 150);
+  --muted: #efe9da;
+  --muted-foreground: #7c8473;
 
-  /* warm tomato accent */
-  --accent: oklch(0.7 0.17 40);
-  --accent-foreground: oklch(0.99 0.01 80);
+  /* warm amber, used sparingly for bonus / appetising moments */
+  --accent: #e8a33d;
+  --accent-foreground: #16341f;
 
   --destructive: oklch(0.58 0.22 27);
-  --destructive-foreground: oklch(0.99 0.01 80);
+  --destructive-foreground: #ffffff;
 
-  --border: oklch(0.9 0.01 140);
-  --input: oklch(0.9 0.01 140);
-  --ring: oklch(0.62 0.14 149);
+  --border: #e6e0d1;
+  --input: #e6e0d1;
+  --ring: #6f9135;
 
-  --chart-1: oklch(0.62 0.14 149);
-  --chart-2: oklch(0.7 0.17 40);
-  --chart-3: oklch(0.75 0.12 90);
-  --chart-4: oklch(0.55 0.12 230);
-  --chart-5: oklch(0.6 0.16 320);
+  /* Souso extras */
+  --note: #f8efcb;
+  --lime: #a7c552;
+
+  --chart-1: #6f9135;
+  --chart-2: #e8a33d;
+  --chart-3: #a7c552;
+  --chart-4: #16341f;
+  --chart-5: #7c8473;
 }
 
 .dark {
-  --background: oklch(0.2 0.02 150);
-  --foreground: oklch(0.95 0.01 120);
+  --background: #11261a;
+  --foreground: #f1ede0;
 
-  --card: oklch(0.24 0.02 150);
-  --card-foreground: oklch(0.95 0.01 120);
-  --popover: oklch(0.24 0.02 150);
-  --popover-foreground: oklch(0.95 0.01 120);
+  --card: #16341f;
+  --card-foreground: #f1ede0;
+  --popover: #16341f;
+  --popover-foreground: #f1ede0;
 
-  --primary: oklch(0.7 0.15 149);
-  --primary-foreground: oklch(0.18 0.02 150);
+  --primary: #8bb04a;
+  --primary-foreground: #11261a;
 
-  --secondary: oklch(0.3 0.03 150);
-  --secondary-foreground: oklch(0.95 0.01 120);
+  --secondary: #1d3a26;
+  --secondary-foreground: #f1ede0;
 
-  --muted: oklch(0.3 0.02 150);
-  --muted-foreground: oklch(0.7 0.02 140);
+  --muted: #1d3a26;
+  --muted-foreground: #a7b3a0;
 
-  --accent: oklch(0.72 0.17 40);
-  --accent-foreground: oklch(0.18 0.02 80);
+  --accent: #e8a33d;
+  --accent-foreground: #1a1405;
 
   --destructive: oklch(0.62 0.2 27);
-  --destructive-foreground: oklch(0.98 0.01 80);
+  --destructive-foreground: #ffffff;
 
-  --border: oklch(0.34 0.02 150);
-  --input: oklch(0.34 0.02 150);
-  --ring: oklch(0.7 0.15 149);
+  --border: #2a4632;
+  --input: #2a4632;
+  --ring: #8bb04a;
+
+  --note: #2e3a1c;
+  --lime: #a7c552;
 }
 
 @theme inline {
@@ -107,7 +133,10 @@
   --color-chart-5: var(--chart-5);
 
   --font-sans:
-    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    'Outfit', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-handwriting: 'Schoolbell', ui-rounded, cursive;
+  --color-note: var(--note);
+  --color-lime: var(--lime);
 }
 
 /*
@@ -142,13 +171,13 @@
 
   /* The translucent material behind the tab bar + sheet headers. A near-white
      wash so light mode stays clean (flagged: light mode needs work). */
-  --material: oklch(0.99 0.006 120 / 0.78);
-  --hairline: oklch(0.86 0.01 140 / 0.9);
+  --material: rgba(245, 241, 231, 0.82);
+  --hairline: rgba(230, 224, 209, 0.9);
 }
 
 .dark {
-  --material: oklch(0.2 0.02 150 / 0.78);
-  --hairline: oklch(0.4 0.02 150 / 0.9);
+  --material: rgba(17, 38, 26, 0.82);
+  --hairline: rgba(42, 70, 50, 0.9);
 }
 
 @theme inline {
@@ -482,4 +511,16 @@ body {
     animation: none;
     background: none;
   }
+}
+
+/* ── Die-cut food/product sticker ─────────────────────────────────────────────
+   Applied to a transparent product/recipe PNG so it reads as a peeled sticker:
+   a thick white outline traced around the cut-out shape + a soft green-tinted
+   drop shadow. Pair with a small rotation utility for the hand-placed feel.
+   The signature treatment from the Souso design system. */
+.souso-sticker {
+  filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff)
+    drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff)
+    drop-shadow(2px 2px 0 #fff) drop-shadow(-2px 2px 0 #fff)
+    drop-shadow(0 8px 11px rgba(22, 52, 31, 0.2));
 }

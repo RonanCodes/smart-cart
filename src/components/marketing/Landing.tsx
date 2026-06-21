@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Clock, PiggyBank, Sparkles, Leaf } from 'lucide-react'
+import { Clock, PiggyBank, Sparkles, Leaf, PartyPopper } from 'lucide-react'
 import { joinWaitlist } from '#/lib/waitlist-server'
 import { SafeArea } from '#/components/ui/safe-area'
 import { Button, buttonVariants } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
+import { StickyNote } from '#/components/ui/sticky-note'
 
 /**
  * Souso marketing landing: conversion-focused, mobile-first (390px), built for
- * a TikTok launch. Hero + mascot reference brand assets by URL (committed by the
- * mascot agent, not here). A prominent waitlist email capture is the primary CTA;
- * a small, discrete 'Log in' link at the very bottom lets already-approved users
- * reach /login without the waitlist drowning it out.
+ * a TikTok launch. In the Souso / Julienne look now: the wordmark, a row of
+ * die-cut dish stickers as the hero, a hand-written note, cream + olive. The
+ * waitlist email capture is the primary CTA; a quiet 'Log in' link at the bottom
+ * lets already-approved users reach /login.
  *
  * Once the app is live (`launched`), the waitlist capture is replaced by a
  * "get started" CTA into /sign-in, since anyone can now sign in.
@@ -19,7 +20,12 @@ import { Input } from '#/components/ui/input'
  * Mounted at the public entry route / (the swipe-deck opener is retired).
  */
 
-const MASCOT_IMAGE = '/brand/souso-v3-hello.png'
+/** Hero dish stickers (slug, sticker height class, tilt deg). */
+const HERO = [
+  { img: 'chicken-orzo', h: 'h-24', rot: -8 },
+  { img: 'gnocchi-romesco', h: 'h-32', rot: 4 },
+  { img: 'roast-veg', h: 'h-24', rot: 8 },
+]
 
 interface Benefit {
   icon: typeof Clock
@@ -75,28 +81,52 @@ export function Landing({ launched = false }: { launched?: boolean }) {
     >
       <div className="mx-auto flex w-full max-w-md flex-col px-6 pb-16">
         {/* Hero */}
-        <section className="flex flex-col items-center pt-10 text-center">
+        <section className="pt-8 text-center">
           <img
-            src={MASCOT_IMAGE}
-            alt="Souso, your sous-chef helper"
-            className="mb-5 h-24 w-24 object-contain"
+            src="/souso-mark.svg"
+            alt="Souso"
+            className="mx-auto h-11 w-auto"
           />
-          <h1 className="text-3xl leading-tight font-extrabold tracking-tight">
-            Your sous-chef for the whole week
+
+          {/* A little board of dishes. */}
+          <div className="relative mt-7 flex items-end justify-center gap-2">
+            {HERO.map((s) => (
+              <img
+                key={s.img}
+                src={`/stickers/recipes/${s.img}.png`}
+                alt=""
+                aria-hidden
+                className={`souso-sticker ${s.h} w-auto object-contain`}
+                style={{ transform: `rotate(${s.rot}deg)` }}
+              />
+            ))}
+            <StickyNote tilt={6} className="absolute -top-3 right-0">
+              no more &ldquo;what&rsquo;s for dinner?&rdquo;
+            </StickyNote>
+          </div>
+
+          <h1
+            className="mt-8 text-[2.5rem] leading-[1.02] font-bold"
+            style={{ letterSpacing: '-0.03em' }}
+          >
+            Groceries, sorted.
           </h1>
           <p className="text-muted-foreground mt-3 text-base">
-            Souso turns real recipes into a done-for-you meal plan and shopping
-            list. Save time, save money, waste less food.
+            Souso plans your whole week of dinners and fills a ready-to-order
+            basket. Save time, spend less, waste less food.
           </p>
         </section>
 
         {/* Primary CTA: once live, a "get started" button into sign-in; before
             launch, the waitlist capture. */}
-        <section className="bg-card mt-8 rounded-[var(--radius-ios)] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_-12px_rgba(0,0,0,0.12)]">
+        <section className="border-hairline bg-card mt-8 rounded-[var(--radius-ios)] border p-6 shadow-[0_1px_3px_rgba(22,52,31,0.05),0_14px_34px_-18px_rgba(22,52,31,0.25)]">
           {launched ? (
-            <div className="space-y-3 text-center">
-              <h2 className="text-xl font-bold">We&apos;re live 🎉</h2>
-              <p className="text-muted-foreground text-sm">
+            <div className="flex flex-col items-center text-center">
+              <div className="bg-secondary text-primary flex h-14 w-14 items-center justify-center rounded-full">
+                <PartyPopper className="h-7 w-7" />
+              </div>
+              <p className="mt-4 text-lg font-bold">We&apos;re live</p>
+              <p className="text-muted-foreground mt-2 text-sm">
                 Souso is open. Plan your week and build your shopping list in
                 minutes.
               </p>
@@ -104,15 +134,18 @@ export function Landing({ launched = false }: { launched?: boolean }) {
                 to="/sign-in"
                 className={buttonVariants({
                   size: 'pill',
-                  className: 'w-full',
+                  className: 'mt-4 w-full',
                 })}
               >
                 Get started
               </Link>
             </div>
           ) : status === 'done' ? (
-            <div className="text-center">
-              <p className="text-lg font-semibold">You are on the list 🎉</p>
+            <div className="flex flex-col items-center text-center">
+              <div className="bg-secondary text-primary flex h-14 w-14 items-center justify-center rounded-full">
+                <Leaf className="h-7 w-7" />
+              </div>
+              <p className="mt-4 text-lg font-bold">You are on the list</p>
               <p className="text-muted-foreground mt-2 text-sm">
                 We will email you the moment your spot opens. Souso is cooking
                 up something good.
@@ -121,7 +154,12 @@ export function Landing({ launched = false }: { launched?: boolean }) {
           ) : (
             <form onSubmit={submit} className="space-y-3">
               <div className="text-center">
-                <h2 className="text-xl font-bold">Join the waitlist</h2>
+                <h2
+                  className="text-xl font-bold"
+                  style={{ letterSpacing: '-0.02em' }}
+                >
+                  Join the waitlist
+                </h2>
                 <p className="text-muted-foreground mt-1 text-sm">
                   Be first in line when Souso opens. No spam, just your invite.
                 </p>
@@ -134,7 +172,7 @@ export function Landing({ launched = false }: { launched?: boolean }) {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-12 text-base"
+                className="h-12 rounded-full text-base"
                 disabled={status === 'busy'}
               />
               <Button
@@ -153,16 +191,16 @@ export function Landing({ launched = false }: { launched?: boolean }) {
         </section>
 
         {/* Benefits */}
-        <section className="mt-10 space-y-5">
+        <section className="mt-10 space-y-6">
           {BENEFITS.map((b) => {
             const Icon = b.icon
             return (
               <div key={b.title} className="flex gap-4">
-                <div className="bg-secondary text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+                <div className="bg-secondary text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl">
                   <Icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">{b.title}</h3>
+                  <h3 className="font-bold">{b.title}</h3>
                   <p className="text-muted-foreground mt-1 text-sm">{b.body}</p>
                 </div>
               </div>
@@ -171,16 +209,16 @@ export function Landing({ launched = false }: { launched?: boolean }) {
         </section>
 
         {/* The learning loop, told simply */}
-        <section className="bg-secondary/50 mt-10 rounded-[var(--radius-ios)] p-6 text-center">
-          <Leaf className="text-primary mx-auto mb-2 h-6 w-6" />
-          <p className="text-sm font-medium">
-            The more you cook with Souso, the better it knows you. Recipes
-            first, guesswork last.
+        <section className="border-hairline mt-10 border-t pt-8 text-center">
+          <p className="font-handwriting text-primary text-[1.4rem] leading-snug">
+            Recipes first, guesswork last.
+          </p>
+          <p className="text-muted-foreground mx-auto mt-2 max-w-xs text-sm">
+            The more you cook with Souso, the better it knows you.
           </p>
         </section>
 
-        {/* Discrete entry for already-approved users. Kept quiet so the
-            waitlist stays the primary CTA. */}
+        {/* Discrete entry for already-approved users. */}
         <div className="mt-10 text-center">
           <Link
             to="/login"

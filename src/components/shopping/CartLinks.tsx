@@ -3,6 +3,7 @@ import { Check, Loader2, ShoppingCart } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { buildCartLinks } from '#/lib/cart-links-server'
 import type { CartLinkResult } from '#/lib/cart-links-server'
+import type { CartExtra } from '#/lib/shopping/cart-set'
 import { STORE_OPTIONS, storeLabel } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
 import { TipSheet } from '#/components/shopping/TipSheet'
@@ -40,9 +41,20 @@ const SELECTABLE_STORES = STORE_OPTIONS.filter((o) => CART_STORES.has(o.slug))
  */
 export function CartLinks({
   preferredStore,
+  itemNames,
+  extras,
 }: {
   /** The household's preferred store (#212), pre-selected in the selector. */
   preferredStore: StoreSlug
+  /**
+   * The live UNCHECKED recipe + manual item names from the list above. Passed so
+   * a tick the user just made is honoured immediately (#311): a ticked item is
+   * "already have" and is not re-bought, with no DB round-trip lag. Undefined
+   * keeps the legacy behaviour (the server reads the unchecked rows itself).
+   */
+  itemNames?: Array<string>
+  /** The live UNCHECKED extras (staples), with their store + saved slug. */
+  extras?: Array<CartExtra>
 }) {
   const [store, setStore] = useState<StoreSlug>(preferredStore)
   const [link, setLink] = useState<CartLinkResult | null>(null)
@@ -71,7 +83,20 @@ export function CartLinks({
     setLoading(true)
     setError(false)
     try {
-      const res = await buildCartLinks({ data: { store } })
+      // Hand the server the live unchecked set when the route lifted it up, so
+      // ticks made since load are honoured with no DB lag (#311). When it is not
+      // supplied, omit `live` and the server reads the unchecked rows itself.
+      const live =
+        itemNames !== undefined
+          ? {
+              itemNames,
+              staples: (extras ?? []).map((e) => ({
+                slug: e.slug,
+                store: e.store,
+              })),
+            }
+          : undefined
+      const res = await buildCartLinks({ data: { store, live } })
       setLink(res)
       if (!res.url) {
         setError(true)

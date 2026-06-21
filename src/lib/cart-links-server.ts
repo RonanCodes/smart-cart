@@ -32,6 +32,19 @@ import type { StoreSlug } from './store-pref-server'
 /** The resolved cart link for the one selected store. */
 export type CartLinkResult = BuiltCartLink
 
+/**
+ * The live, client-supplied UNCHECKED set the page wants in the cart, so the
+ * cart action reacts to ticks the user just made without waiting on the DB to
+ * settle (#311). When omitted, the handler falls back to reading the household's
+ * unchecked rows + saved staples straight from the DB.
+ */
+export interface CartLinksLiveSet {
+  /** Recipe + manual item NAMES to resolve against the selected store. */
+  itemNames: Array<string>
+  /** Staple product SLUGS already saved for a store, with the store they belong to. */
+  staples: Array<{ slug: string | null; store: string }>
+}
+
 /** Resolve the signed-in user's household id, or throw. Server-only. */
 async function requireHouseholdId(): Promise<string> {
   const { getSessionUser } = await import('./server-auth')
@@ -58,13 +71,43 @@ async function requireHouseholdId(): Promise<string> {
  * Already-ticked items are nothing left to buy, so they are excluded.
  */
 export const buildCartLinks = createServerFn({ method: 'GET' })
-  .inputValidator((d: { store: unknown }): { store: StoreSlug } => {
-    const slug = String(d.store ?? '')
-      .toLowerCase()
-      .trim()
-    if (slug !== 'ah' && slug !== 'jumbo') throw new Error('Unknown store')
-    return { store: slug }
-  })
+  .inputValidator(
+    (d: {
+      store: unknown
+      live?: unknown
+    }): { store: StoreSlug; live: CartLinksLiveSet | null } => {
+      const slug = String(d.store ?? '')
+        .toLowerCase()
+        .trim()
+      if (slug !== 'ah' && slug !== 'jumbo') throw new Error('Unknown store')
+
+      // The optional live set: validated defensively so a malformed payload
+      // simply falls back to the DB read rather than throwing.
+      let live: CartLinksLiveSet | null = null
+      const raw = d.live as
+        | { itemNames?: unknown; staples?: unknown }
+        | undefined
+        | null
+      if (raw && typeof raw === 'object') {
+        const itemNames = Array.isArray(raw.itemNames)
+          ? raw.itemNames.map((n) => String(n)).filter((n) => n.trim() !== '')
+          : []
+        const staples = Array.isArray(raw.staples)
+          ? raw.staples.map((s) => {
+              const o = s as { slug?: unknown; store?: unknown }
+              return {
+                slug: o.slug == null ? null : String(o.slug),
+                store: String(o.store ?? '')
+                  .toLowerCase()
+                  .trim(),
+              }
+            })
+          : []
+        live = { itemNames, staples }
+      }
+      return { store: slug, live }
+    },
+  )
   .handler(async ({ data }): Promise<CartLinkResult> => {
     const householdId = await requireHouseholdId()
     const store = data.store
@@ -75,25 +118,42 @@ export const buildCartLinks = createServerFn({ method: 'GET' })
     const { eq, and } = await import('drizzle-orm')
     const db = await getDb()
 
-    // The week + manual items: still-to-buy only. These need name -> product
-    // resolution for the selected store.
-    const itemRows = await db
-      .select({ name: shoppingListItem.name })
-      .from(shoppingListItem)
-      .where(
-        and(
-          eq(shoppingListItem.householdId, householdId),
-          eq(shoppingListItem.checked, false),
-        ),
-      )
-    const names = itemRows.map((r) => r.name)
+    let names: Array<string>
+    let stapleRows: Array<{ slug: string | null }>
 
-    // The staples / extras: each already carries a saved store-specific slug, so
-    // we take the ones saved for the SELECTED store directly (no re-matching).
-    const stapleRows = await db
-      .select({ slug: staple.productSlug })
-      .from(staple)
-      .where(and(eq(staple.householdId, householdId), eq(staple.store, store)))
+    if (data.live) {
+      // Live (client-supplied) set: the unchecked items + staples exactly as the
+      // page shows them right now, so a tick the user just made is honoured with
+      // no DB round-trip lag. Staples are filtered to the SELECTED store, mirroring
+      // the DB path (a staple saved for Jumbo never goes to AH's cart).
+      names = data.live.itemNames
+      stapleRows = data.live.staples
+        .filter((s) => s.store === store)
+        .map((s) => ({ slug: s.slug }))
+    } else {
+      // Fallback: read the household's still-to-buy items + saved staples from the
+      // DB. The week + manual items: still-to-buy only. These need name -> product
+      // resolution for the selected store.
+      const itemRows = await db
+        .select({ name: shoppingListItem.name })
+        .from(shoppingListItem)
+        .where(
+          and(
+            eq(shoppingListItem.householdId, householdId),
+            eq(shoppingListItem.checked, false),
+          ),
+        )
+      names = itemRows.map((r) => r.name)
+
+      // The staples / extras: each already carries a saved store-specific slug, so
+      // we take the ones saved for the SELECTED store directly (no re-matching).
+      stapleRows = await db
+        .select({ slug: staple.productSlug })
+        .from(staple)
+        .where(
+          and(eq(staple.householdId, householdId), eq(staple.store, store)),
+        )
+    }
 
     // Semantic resolution (ADR-0004) for the recipe lines: embed each name once
     // for the selected store and take the nearest product by cosine, so
