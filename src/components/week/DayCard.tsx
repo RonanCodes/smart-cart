@@ -13,6 +13,7 @@ import type { WeekDayView } from '#/lib/week-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
+import { PlayableRecipeImage } from '#/components/recipe/PlayableRecipeImage'
 import { SimilarSwap } from './SimilarSwap'
 import type { SimilarNeighbour } from './SimilarSwap'
 import { MealRating } from './MealRating'
@@ -121,10 +122,11 @@ function DayCardImpl({
       >
         <div className="bg-secondary aspect-[4/3] w-full">
           {!skipped && day.imageUrl ? (
-            <img
-              src={day.imageUrl}
+            <PlayableRecipeImage
+              imageSrc={day.imageUrl}
+              videoUrl={day.videoUrl}
               alt={day.meal}
-              className="h-full w-full object-cover"
+              className="h-full w-full"
             />
           ) : (
             <div className="text-muted-foreground flex h-full items-center justify-center">

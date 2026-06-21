@@ -45,6 +45,8 @@ export interface WeekDayView {
   protein: number | null
   /** Hero image URL, when the source recipe carried one. */
   imageUrl: string | null
+  /** Cached living-photo cooking video URL (recipe_media), null when none yet. */
+  videoUrl: string | null
   /**
    * ~5 ready alternatives for this day, pre-ranked for the household and already
    * excluding the current pick + the rest of the week (no dupes). Shipped with
@@ -82,6 +84,7 @@ export const loadWeek = createServerFn({ method: 'GET' })
     const { household, recipe, recipeSwipe, mealPlan } =
       await import('../db/schema')
     const { eq, and, inArray } = await import('drizzle-orm')
+    const { recipeMedia } = await import('../db/recipe-media-schema')
     const { hasImage } = await import('../db/recipe-filters')
     const { topNForDay } = await import('./planner/planner')
     const { healWeekPlan } = await import('./heal/heal-week-plan')
@@ -227,6 +230,20 @@ export const loadWeek = createServerFn({ method: 'GET' })
 
     const detail = new Map(detailRows.map((r) => [r.id, r]))
 
+    // Cached living-photo videos for this week's recipes (recipe_media), so the
+    // week cards can autoplay them. One batched read; recipes with no clip map to
+    // null and render as a plain photo.
+    const mediaRows = ids.length
+      ? await db
+          .select({
+            recipeId: recipeMedia.recipeId,
+            videoUrl: recipeMedia.videoUrl,
+          })
+          .from(recipeMedia)
+          .where(inArray(recipeMedia.recipeId, ids))
+      : []
+    const videoById = new Map(mediaRows.map((m) => [m.recipeId, m.videoUrl]))
+
     // Every recipe placed in the week is off-limits as an alternative, so picking
     // one can never create a duplicate. Includes each day's current pick.
     const weekRecipeIds = ids
@@ -261,6 +278,7 @@ export const loadWeek = createServerFn({ method: 'GET' })
         calories: r?.calories ?? null,
         protein: r?.protein ?? null,
         imageUrl: raw?.imageUrl ?? null,
+        videoUrl: (d.recipeRef ? videoById.get(d.recipeRef) : null) ?? null,
         alternatives,
       }
     })

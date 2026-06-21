@@ -25,6 +25,7 @@ const WEEK: WeekView = {
       calories: 500,
       protein: 18,
       imageUrl: 'https://img/r1.jpg',
+      videoUrl: null,
       alternatives: [],
     },
   ],
