@@ -50,7 +50,8 @@ function loadServiceWorker(selfStub: Record<string, unknown>): SwListeners {
     listeners[type] = fn
   }
 
-  const context = vm.createContext({ self: swSelf })
+  // sw.js uses `new URL(url, self.location.origin)`, so the sandbox needs both.
+  const context = vm.createContext({ self: swSelf, URL })
   vm.runInContext(source, context)
   return listeners
 }
@@ -72,6 +73,7 @@ describe('service worker notificationclick (#249)', () => {
 
     listeners = loadServiceWorker({
       skipWaiting: vi.fn(),
+      location: { origin: 'https://souso.app' },
       registration: { showNotification },
       clients: {
         claim: vi.fn().mockResolvedValue(undefined),
@@ -113,8 +115,9 @@ describe('service worker notificationclick (#249)', () => {
     expect(waited).toBeInstanceOf(Promise)
   })
 
-  it('a tap FOCUSES an open Souso tab and navigates it to the deep link', async () => {
-    matchAllResult = [{ focus, navigate }]
+  it('a tap FOCUSES an open Souso tab and asks it to route (postMessage; iOS-safe)', async () => {
+    const postMessage = vi.fn()
+    matchAllResult = [{ focus, navigate, postMessage }]
 
     let waited: Promise<unknown> | undefined
     listeners.notificationclick?.({
@@ -126,7 +129,13 @@ describe('service worker notificationclick (#249)', () => {
     await waited
 
     expect(focus).toHaveBeenCalledTimes(1)
-    expect(navigate).toHaveBeenCalledWith('/rate/p1/Monday')
+    // The app is told to route client-side (client.navigate is unreliable on iOS).
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'souso-navigate',
+      url: '/rate/p1/Monday',
+    })
+    // Best-effort native navigate too, with the absolute URL.
+    expect(navigate).toHaveBeenCalledWith('https://souso.app/rate/p1/Monday')
     expect(openWindow).not.toHaveBeenCalled()
   })
 
@@ -142,7 +151,7 @@ describe('service worker notificationclick (#249)', () => {
     })
     await waited
 
-    expect(openWindow).toHaveBeenCalledWith('/rate/p1/Monday')
+    expect(openWindow).toHaveBeenCalledWith('https://souso.app/rate/p1/Monday')
     expect(focus).not.toHaveBeenCalled()
   })
 
@@ -158,7 +167,7 @@ describe('service worker notificationclick (#249)', () => {
     })
     await waited
 
-    expect(openWindow).toHaveBeenCalledWith('/')
+    expect(openWindow).toHaveBeenCalledWith('https://souso.app/')
   })
 
   it('closes the notification on tap', () => {

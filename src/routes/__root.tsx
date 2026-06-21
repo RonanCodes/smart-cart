@@ -120,6 +120,19 @@ function RootComponent() {
       initObservability(),
     )
     void registerServiceWorker()
+    // The service worker asks us to deep-link when a push notification is tapped
+    // (client.navigate is unreliable on iOS PWAs, so the SW postMessages instead).
+    // Hard-navigate so the gated /rate route loads with the session — bulletproof
+    // across browsers vs. a client-side router push from a cold tap.
+    const onSwMessage = (e: MessageEvent) => {
+      const data = e.data as { type?: string; url?: string } | null
+      if (data?.type === 'souso-navigate' && typeof data.url === 'string') {
+        window.location.assign(data.url)
+      }
+    }
+    const swContainer =
+      'serviceWorker' in navigator ? navigator.serviceWorker : null
+    swContainer?.addEventListener('message', onSwMessage)
     // Global client error catchers -> logger -> /api/log -> Workers Logs.
     const onError = (e: ErrorEvent) =>
       log.error('window.error', e.error ?? e.message, {
@@ -131,6 +144,7 @@ function RootComponent() {
     window.addEventListener('error', onError)
     window.addEventListener('unhandledrejection', onRejection)
     return () => {
+      swContainer?.removeEventListener('message', onSwMessage)
       window.removeEventListener('error', onError)
       window.removeEventListener('unhandledrejection', onRejection)
     }
