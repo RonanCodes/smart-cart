@@ -23,7 +23,7 @@ const resolveSessionUser = createServerFn({ method: 'GET' }).handler(
 /**
  * Resolve the signed-in user, or null when signed out, without redirecting.
  * Used by the public opener (index route) to decide whether an already-onboarded
- * visitor should skip straight to /app, while still letting signed-out visitors
+ * visitor should skip straight to /week, while still letting signed-out visitors
  * through to swipe anonymously. Fails open to null so a transient session error
  * never blocks the public deck.
  */
@@ -38,7 +38,7 @@ export async function resolveSessionUserOrNull(): Promise<GuardUser | null> {
 /**
  * Pure entry-routing decision for `/`. Keeps the branch logic out of the route's
  * async beforeLoad so it can be unit-tested without the server-fn/session chain:
- *   - signed-in + onboarded  -> redirect to /app
+ *   - signed-in + onboarded  -> redirect to /week (auto-plans + shows recipes)
  *   - signed-in + NOT onboarded -> redirect to /onboarding (the Jow form)
  *   - signed out             -> stay (render the marketing Landing)
  * Returns the redirect target, or null to render the Landing in place.
@@ -46,9 +46,9 @@ export async function resolveSessionUserOrNull(): Promise<GuardUser | null> {
 export function entryRedirectTarget(input: {
   signedIn: boolean
   onboarded: boolean
-}): '/app' | '/onboarding' | null {
+}): '/week' | '/onboarding' | null {
   if (!input.signedIn) return null
-  return input.onboarded ? '/app' : '/onboarding'
+  return input.onboarded ? '/week' : '/onboarding'
 }
 
 /**

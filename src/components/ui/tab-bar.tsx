@@ -25,7 +25,7 @@ interface TabDef {
 
 const TABS: Array<TabDef> = [
   { to: '/discover', label: 'Discover', icon: Compass },
-  { to: '/week', label: 'Week', icon: CalendarDays, match: ['/app'] },
+  { to: '/week', label: 'Week', icon: CalendarDays },
   { to: '/shopping', label: 'Shopping', icon: ShoppingBag },
   { to: '/profile', label: 'Profile', icon: User },
 ]

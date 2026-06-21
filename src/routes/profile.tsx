@@ -15,18 +15,40 @@ import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { List, ListRow } from '#/components/ui/list'
 import { Sheet } from '#/components/ui/sheet'
 import { Button } from '#/components/ui/button'
+import { Badge } from '#/components/ui/badge'
 import { NotificationsSheet } from '#/components/profile/notifications-sheet'
 import { StoreSheet } from '#/components/profile/store-sheet'
 import { storeLabel, loadProfileBootstrap } from '#/lib/store-pref-server'
 import type { StoreSlug, ProfileBootstrap } from '#/lib/store-pref-server'
+import { getHouseholdSummary } from '#/lib/onboarding-server'
+import type { HouseholdSummary } from '#/lib/onboarding-server'
 import { ProfileSkeleton } from '#/components/profile/ProfileSkeleton'
+
+/** The profile route's data: the settings bootstrap plus the taste summary (#268). */
+interface ProfileData extends ProfileBootstrap {
+  summary: HouseholdSummary | null
+}
+
+/**
+ * Compose the settings bootstrap (admin + store) with the taste summary in ONE
+ * loader (#268). The taste profile moved here from the retired /app pre-plan
+ * home; the data source (getHouseholdSummary) is unchanged, only the surface.
+ */
+async function loadProfileData(): Promise<ProfileData> {
+  const [bootstrap, summary] = await Promise.all([
+    loadProfileBootstrap(),
+    getHouseholdSummary(),
+  ])
+  return { ...bootstrap, summary }
+}
 
 export const Route = createFileRoute('/profile')({
   // Server-decide admin status so the 'Admin console' row only renders for true
-  // admins, and read the current preferred store so its row shows the real
-  // value. ONE round-trip (#251): loadProfileBootstrap composes isAdmin +
-  // getStore server-side, replacing the two separate calls.
-  loader: (): Promise<ProfileBootstrap> => loadProfileBootstrap(),
+  // admins, read the current preferred store so its row shows the real value,
+  // and read the taste summary for the 'Your taste' section (#268). ONE
+  // round-trip (#251 + #268): loadProfileData composes isAdmin + getStore +
+  // getHouseholdSummary server-side, replacing separate calls.
+  loader: (): Promise<ProfileData> => loadProfileData(),
   // Reuse the loader result on back-nav within 30s (#251). The useQuery below
   // already keeps the tab instant once mounted; route staleTime stops the loader
   // itself re-firing on a Back into /profile.
@@ -52,10 +74,10 @@ function Profile() {
   // SSR; the query only refetches in the background once it goes stale (30s).
   const { data } = useQuery({
     queryKey: ['profile'],
-    queryFn: () => loadProfileBootstrap(),
+    queryFn: () => loadProfileData(),
     initialData: loaderData,
   })
-  const { isAdmin, store: initialStore } = data
+  const { isAdmin, store: initialStore, summary } = data
   const [helpOpen, setHelpOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [storeOpen, setStoreOpen] = useState(false)
@@ -118,6 +140,50 @@ function Profile() {
             onClick={() => setHelpOpen(true)}
           />
         </List>
+
+        {/* Your taste (#268): moved here from the retired /app pre-plan home. */}
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">Your taste</h2>
+            <p className="text-muted-foreground mt-0.5 text-sm">
+              Built from what you told us in onboarding. It sharpens every week
+              as you cook and rate.
+            </p>
+          </div>
+
+          {summary && summary.badges.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {summary.badges.map((b) => (
+                <span
+                  key={b.label}
+                  className="bg-secondary text-secondary-foreground inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
+                >
+                  <span className="text-lg">{b.emoji}</span>
+                  {b.label}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {summary?.lovedTastes.length ? (
+              summary.lovedTastes.map((t) => (
+                <Badge key={t} variant="primary">
+                  {t}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-muted-foreground text-sm">
+                Tell us a few cuisines you love to sharpen this.
+              </span>
+            )}
+            {summary?.dislikes.map((t) => (
+              <Badge key={t} variant="outline">
+                no {t}
+              </Badge>
+            ))}
+          </div>
+        </section>
 
         {isAdmin && (
           <List>
