@@ -4,9 +4,11 @@
  * - **Server (Cloudflare Worker):** emits one JSON line per event to the console,
  *   which Cloudflare Workers Logs captures (`observability.enabled` in
  *   wrangler.jsonc). Query them in the CF dashboard or `wrangler tail`.
- * - **Client (browser):** logs to the console AND ships `warn`/`error` events to
- *   `/api/log`, so real-user failures land in the same Workers Logs (we have no
- *   Sentry/PostHog wired yet). Uses `sendBeacon` so it survives a navigation.
+ * - **Client (browser):** logs to the console, fans `warn`/`error` to Sentry and
+ *   every event to PostHog (via the lazy sinks below), AND ships `warn`/`error`
+ *   to `/api/log` so real-user failures also land in Workers Logs. Every client
+ *   line carries the per-session `traceId`. Uses `sendBeacon` so it survives a
+ *   navigation.
  *
  * Pluggable: add a Sentry/PostHog sink in `emit()` when those are wired (see the
  * SINKS note). Keep call sites using `log.*` and the backend can change underneath.
