@@ -36,11 +36,12 @@ export async function generatePlanForHousehold(
   householdId: string,
 ): Promise<GeneratePlanResult> {
   const { getDb } = await import('../db/client')
-  const { household, recipe, recipeSwipe, mealPlan } =
+  const { household, recipe, recipeSwipe, mealPlan, mealFeedback } =
     await import('../db/schema')
   const { generateWeek } = await import('./planner/planner')
   const { hasImage } = await import('../db/recipe-filters')
-  const { eq } = await import('drizzle-orm')
+  const { foldRealFeedback } = await import('./recsys/feedback-fold')
+  const { eq, asc } = await import('drizzle-orm')
   const db = await getDb()
 
   const householdRows = await db
@@ -89,9 +90,26 @@ export async function generatePlanForHousehold(
     mealType: r.mealType,
   }))
 
-  const swipes = swipeRows
+  const onboardingSwipes = swipeRows
     .filter((s) => s.direction === 'like' || s.direction === 'dislike')
     .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
+
+  // Close the learning loop (#126): fold post-meal thumbs onto the onboarding
+  // swipes. A thumbs-down on a cooked dish is a stronger, more recent signal
+  // than a swipe, so it overrides per recipe (foldRealFeedback, last-wins). Read
+  // oldest-first so the most recent rating wins. With no feedback this is the
+  // identity, so a fresh household's week is unchanged.
+  const feedbackRows = await db
+    .select({ recipeId: mealFeedback.recipeId, rating: mealFeedback.rating })
+    .from(mealFeedback)
+    .where(eq(mealFeedback.householdId, hh.id))
+    .orderBy(asc(mealFeedback.createdAt))
+  const feedback = feedbackRows
+    .filter(
+      (f): f is { recipeId: string; rating: string } => f.recipeId != null,
+    )
+    .map((f) => ({ recipeId: f.recipeId, rating: f.rating }))
+  const swipes = foldRealFeedback(onboardingSwipes, feedback)
 
   const week = generateWeek(recipes, hh.profile, swipes)
 
