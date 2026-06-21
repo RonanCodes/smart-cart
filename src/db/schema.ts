@@ -179,6 +179,61 @@ export const mealFeedback = sqliteTable('meal_feedback', {
 })
 
 /**
+ * Per-household long-term memory: the durable taste/context notes the chat + voice
+ * agents recall before acting and write to when they learn something. This is the
+ * shared memory that makes the loop the moat: it persists across every surface
+ * (chat, voice, plan generation, post-meal feedback) and is read alongside
+ * `household.profile` rather than overwriting it, so nuance survives.
+ *
+ * Why a free-text `content` plus LIGHT typing (not a rigid enum of facts): a note
+ * like "not pizza every week" is a VARIETY/frequency wish, not a dislike. Storing
+ * the natural-language content with a `kind` + optional `cuisine`/`term` +
+ * `polarity` lets the planner treat it as a soft recency penalty (eat pizza less
+ * often) instead of a hard "never pizza" ban, while the agents still read the
+ * original words.
+ */
+export const householdMemory = sqliteTable('household_memory', {
+  id: text('id').primaryKey(),
+  householdId: text('household_id')
+    .notNull()
+    .references(() => household.id, { onDelete: 'cascade' }),
+  /**
+   * What kind of memory this is, which decides how the planner uses it:
+   *  - 'preference': a soft like/dislike of a cuisine or ingredient.
+   *  - 'constraint': a harder "do not serve X" (still soft in the planner so the
+   *    week never empties, but weighted strongly).
+   *  - 'variety': a frequency wish ("not pizza every week") -> recency penalty.
+   *  - 'context': background the agents should know (household, schedule, taste).
+   *  - 'logistics': cooking-time / equipment / shopping notes.
+   */
+  kind: text('kind').notNull(),
+  /** The memory in the household's own words ("not pizza every week"). */
+  content: text('content').notNull(),
+  /** Cuisine this memory is about, lowercased, when one was detected. */
+  cuisine: text('cuisine'),
+  /** Ingredient/food term this memory is about, lowercased, when detected. */
+  term: text('term'),
+  /** 'like' | 'dislike' | 'neutral' — the direction of the signal, if any. */
+  polarity: text('polarity').notNull().default('neutral'),
+  /** 'persistent' (always applies) | 'week' (this week only, then expires). */
+  scope: text('scope').notNull().default('persistent'),
+  /** How strong/important this memory is. Re-stating a fact bumps this. */
+  salience: integer('salience').notNull().default(1),
+  /** Where it came from: 'chat' | 'voice' | 'feedback' | 'system'. */
+  source: text('source').notNull(),
+  /** When a week-scoped memory stops applying (null for persistent memories). */
+  expiresAt: integer('expires_at', { mode: 'timestamp' }),
+  /** Soft-delete flag so "forgetting" never loses the audit trail. */
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .$defaultFn(() => new Date())
+    .notNull(),
+})
+
+/**
  * Audit log: the history of what users do (page views, swipes, plan generated,
  * replan, order, feedback). The admin console reads this; the presence Durable
  * Object streams it live during the demo. Live presence lives in the DO; this

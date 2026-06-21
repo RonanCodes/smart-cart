@@ -130,7 +130,6 @@ describe('dispatchVapiTool', () => {
   })
   it('not-yet-wired tools say so', async () => {
     expect(await dispatchVapiTool('add_items', {}, 'hh_1')).toMatch(/wired/i)
-    expect(await dispatchVapiTool('get_week', {}, 'hh_1')).toMatch(/wired/i)
     expect(await dispatchVapiTool('generate_cart', {}, 'hh_1')).toMatch(
       /wired/i,
     )

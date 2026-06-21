@@ -30,6 +30,7 @@ import type {
   mealPlan as mealPlanTable,
   recipeSwipe as recipeSwipeTable,
   mealFeedback as mealFeedbackTable,
+  householdMemory as householdMemoryTable,
 } from '../db/schema'
 import type { shoppingListItem as shoppingListItemTable } from '../db/shopping-list-schema'
 import type { staple as stapleTable } from '../db/staples-schema'
@@ -575,6 +576,7 @@ interface ResetTables {
   mealPlan: typeof mealPlanTable
   recipeSwipe: typeof recipeSwipeTable
   mealFeedback: typeof mealFeedbackTable
+  householdMemory: typeof householdMemoryTable
   shoppingListItem: typeof shoppingListItemTable
   staple: typeof stapleTable
   pushSubscription: typeof pushSubscriptionTable
@@ -582,7 +584,7 @@ interface ResetTables {
 
 /** Load every household-scoped table the reset deletes from. */
 async function loadResetTables(): Promise<ResetTables> {
-  const { household, mealPlan, recipeSwipe, mealFeedback } =
+  const { household, mealPlan, recipeSwipe, mealFeedback, householdMemory } =
     await import('../db/schema')
   const { shoppingListItem } = await import('../db/shopping-list-schema')
   const { staple } = await import('../db/staples-schema')
@@ -592,6 +594,7 @@ async function loadResetTables(): Promise<ResetTables> {
     mealPlan,
     recipeSwipe,
     mealFeedback,
+    householdMemory,
     shoppingListItem,
     staple,
     pushSubscription,
@@ -626,6 +629,10 @@ async function makeResetExecutor(
     meal_feedback: {
       table: tables.mealFeedback,
       householdId: tables.mealFeedback.householdId,
+    },
+    household_memory: {
+      table: tables.householdMemory,
+      householdId: tables.householdMemory.householdId,
     },
     meal_plan: {
       table: tables.mealPlan,

@@ -116,9 +116,18 @@ export const replanWeek = createServerFn({ method: 'POST' })
       mealType: r.mealType,
     }))
 
-    const swipes = swipeRows
+    const onboardingSwipes = swipeRows
       .filter((s) => s.direction === 'like' || s.direction === 'dislike')
       .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
+
+    // Close the loop: fold post-meal feedback onto the onboarding swipes + apply
+    // memory-derived soft penalties, so a chat replan learns from thumbs + memory
+    // exactly like plan generation does.
+    const { loadPlannerSignals } = await import('./planner-signals')
+    const { swipes, penalties } = await loadPlannerSignals(
+      hh.id,
+      onboardingSwipes,
+    )
 
     // The current week, normalised to the engine's shape. A focused day with no
     // named day in the instruction lets a "swap this one" target the right day.
@@ -144,7 +153,7 @@ export const replanWeek = createServerFn({ method: 'POST' })
 
     const result = await replan(
       decorateInstruction(data.instruction, data.focusedDay, week),
-      { week, recipes, profile: hh.profile, swipes },
+      { week, recipes, profile: hh.profile, swipes, penalties },
       aiDeps,
       termMatch,
     )

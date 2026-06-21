@@ -427,3 +427,66 @@ describe('cuisine bias (explicit like/hate, #122)', () => {
     expect(hated).toBeLessThanOrEqual(baseline)
   })
 })
+
+describe('soft penalties (memory / variety / recency)', () => {
+  // A flat catalogue: equal recipes per cuisine, no other signal, so penalties
+  // are the only thing that can reshuffle the ranking.
+  function flat(): Array<PlannerRecipe> {
+    const out: Array<PlannerRecipe> = []
+    let id = 0
+    for (const cuisine of ['Italian', 'Thai', 'Mexican', 'Japanese']) {
+      for (let i = 0; i < 8; i++) {
+        out.push({
+          id: `p${id++}`,
+          title: `${cuisine} ${i}`,
+          cuisine,
+          category: 'Main',
+          mealType: 'dinner',
+          dietaryTags: [],
+          ingredients: [{ name: 'onion' }],
+          calories: null,
+          protein: null,
+          prepMinutes: null,
+        })
+      }
+    }
+    return out
+  }
+
+  it('an empty penalties object leaves the week unchanged', () => {
+    const recipes = flat()
+    const base = generateWeek(recipes, {}, [], { seed: 7 })
+    const withEmpty = generateWeek(recipes, {}, [], { seed: 7, penalties: {} })
+    expect(withEmpty.days.map((d) => d.recipeRef)).toEqual(
+      base.days.map((d) => d.recipeRef),
+    )
+  })
+
+  it('a cuisine penalty never increases how often that cuisine lands', () => {
+    const recipes = flat()
+    const byId = new Map(recipes.map((r) => [r.id, r]))
+    const countThai = (w: ReturnType<typeof generateWeek>) =>
+      w.days.filter((d) => byId.get(d.recipeRef)?.cuisine === 'Thai').length
+
+    const base = countThai(generateWeek(recipes, {}, [], { seed: 3 }))
+    const penalised = countThai(
+      generateWeek(recipes, {}, [], {
+        seed: 3,
+        penalties: { cuisine: { thai: 5 } },
+      }),
+    )
+    expect(penalised).toBeLessThanOrEqual(base)
+  })
+
+  it('a recipe recency penalty pushes that exact recipe out of the week', () => {
+    const recipes = flat()
+    const base = generateWeek(recipes, {}, [], { seed: 1 })
+    const target = base.days[0]!.recipeRef
+    // A penalty far larger than the rank gap (1 per slot) evicts the recipe.
+    const penalised = generateWeek(recipes, {}, [], {
+      seed: 1,
+      penalties: { recipe: { [target]: 50 } },
+    })
+    expect(penalised.days.map((d) => d.recipeRef)).not.toContain(target)
+  })
+})

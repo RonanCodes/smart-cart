@@ -29,6 +29,7 @@
 export const HOUSEHOLD_SCOPED_TABLES = [
   'recipe_swipe',
   'meal_feedback',
+  'household_memory',
   'meal_plan',
   'shopping_list_item',
   'staple',

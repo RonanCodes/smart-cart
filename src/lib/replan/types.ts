@@ -3,6 +3,7 @@ import type {
   PlannerProfile,
   PlannerRecipe,
   PlannerSwipe,
+  SoftPenalties,
 } from '../planner/types'
 
 /**
@@ -89,6 +90,12 @@ export interface ReplanContext {
   swipes: Array<PlannerSwipe>
   /** Optional planner seed so a replan is deterministic in tests. */
   seed?: number
+  /**
+   * Soft penalties from learned memory + recent week history (variety / dislikes
+   * / recently-served), so a replan respects the same memory the first week does.
+   * Absent/empty leaves ranking unchanged. Threaded into every re-rank below.
+   */
+  penalties?: SoftPenalties
   /**
    * Semantic term matcher for exclude / more-of, built upstream from embeddings
    * (the term embedded once, cosine vs each recipe's precomputed vector). Absent

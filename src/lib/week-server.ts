@@ -158,9 +158,17 @@ export const loadWeek = createServerFn({ method: 'GET' })
       ]),
     )
 
-    const swipes = swipeRows
+    const onboardingSwipes = swipeRows
       .filter((s) => s.direction === 'like' || s.direction === 'dislike')
       .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
+
+    // Close the loop: fold post-meal feedback onto swipes + apply memory penalties
+    // so the suggested alternatives + any heal reflect learned taste + variety.
+    const { loadPlannerSignals } = await import('./planner-signals')
+    const { swipes, penalties } = await loadPlannerSignals(
+      hh.id,
+      onboardingSwipes,
+    )
 
     // Auto-heal stale days. A plan built before the #161 AH/Jumbo + image filter
     // can reference an old foodcom / themealdb recipe that no longer surfaces as a
@@ -182,6 +190,7 @@ export const loadWeek = createServerFn({ method: 'GET' })
           weekRecipeIds: Array.from(excludeIds),
           dayType: day.type ?? 'home',
           n: 1,
+          penalties,
         })[0]
         return pick ? { id: pick.id, title: pick.title } : null
       },
@@ -240,6 +249,7 @@ export const loadWeek = createServerFn({ method: 'GET' })
         weekRecipeIds,
         dayType: d.type ?? 'home',
         n: 5,
+        penalties,
       })
 
       const alternatives: Array<DayAlternative> = alts.map((a) => ({

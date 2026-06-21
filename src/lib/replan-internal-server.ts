@@ -82,9 +82,17 @@ export async function replanForHousehold(
     mealType: r.mealType,
   }))
 
-  const swipes = swipeRows
+  const onboardingSwipes = swipeRows
     .filter((s) => s.direction === 'like' || s.direction === 'dislike')
     .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
+
+  // Close the loop: fold post-meal feedback onto swipes + apply memory penalties,
+  // so a voice/agent replan respects the same learned taste the planner does.
+  const { loadPlannerSignals } = await import('./planner-signals')
+  const { swipes, penalties } = await loadPlannerSignals(
+    hh.id,
+    onboardingSwipes,
+  )
 
   const week: PlannedWeek = {
     days: current.plan.days.map((d) => ({
@@ -97,7 +105,7 @@ export async function replanForHousehold(
   const { deps: aiDeps } = await buildAiDeps()
   const result = await replan(
     instruction,
-    { week, recipes, profile: hh.profile, swipes },
+    { week, recipes, profile: hh.profile, swipes, penalties },
     aiDeps,
   )
 

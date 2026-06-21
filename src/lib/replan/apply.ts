@@ -7,6 +7,7 @@ import type {
   PlannerProfile,
   PlannerRecipe,
   PlannerSwipe,
+  SoftPenalties,
 } from '../planner/types'
 import type {
   ReplanContext,
@@ -63,6 +64,7 @@ function rankedPool(
   profile: PlannerProfile,
   swipes: Array<PlannerSwipe>,
   seed?: number,
+  penalties?: SoftPenalties,
 ): Array<PlannerRecipe> {
   const byRef = new Map(recipes.map((r) => [r.id, r]))
   // Ask for far more days than the catalogue has; the planner caps at the pool
@@ -70,6 +72,7 @@ function rankedPool(
   const longWeek = generateWeek(recipes, profile, swipes, {
     days: recipes.length,
     seed,
+    penalties,
   })
   return longWeek.days
     .map((d) => byRef.get(d.recipeRef))
@@ -193,7 +196,7 @@ export function applyReplan(
   ctx: ReplanContext,
   source: 'deterministic' | 'ai-fallback' = 'deterministic',
 ): ReplanResult {
-  const { week, recipes, profile, swipes, seed } = ctx
+  const { week, recipes, profile, swipes, seed, penalties } = ctx
 
   switch (edit.type) {
     case 'needs-pricing':
@@ -262,7 +265,7 @@ export function applyReplan(
                 Boolean,
               ) as Array<string>,
             )
-      const pool = rankedPool(recipes, profile, swipes, seed)
+      const pool = rankedPool(recipes, profile, swipes, seed, penalties)
       const { week: next, changed } = repickDays(week, targets, pool, true)
       return {
         edit,
@@ -294,7 +297,7 @@ export function applyReplan(
       // re-rank with the planner over the reduced catalogue. Affected days (those
       // whose current pick matches the term) get the next-best non-matching pick.
       const filtered = recipes.filter((r) => !matches(r))
-      const pool = rankedPool(filtered, profile, swipes, seed)
+      const pool = rankedPool(filtered, profile, swipes, seed, penalties)
       // Affected days = currently-filled days whose pick matches the term.
       const byRef = new Map(recipes.map((r) => [r.id, r]))
       const affected = new Set(
@@ -355,7 +358,7 @@ export function applyReplan(
       // (not a few synthetic swipes the recommender may drown out), and it never
       // touches the ranking maths or the hard filters: a matching recipe that is
       // hard-filtered out (allergy/diet) is simply absent from the pool.
-      const ranked = rankRecipes(recipes, profile, swipes, { seed })
+      const ranked = rankRecipes(recipes, profile, swipes, { seed, penalties })
       const matchingPool = ranked.filter((r) => matches(r))
 
       // Honest "none found": the catalogue (after hard filters) has nothing that

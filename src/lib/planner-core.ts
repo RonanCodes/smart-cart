@@ -89,11 +89,19 @@ export async function generatePlanForHousehold(
     mealType: r.mealType,
   }))
 
-  const swipes = swipeRows
+  const onboardingSwipes = swipeRows
     .filter((s) => s.direction === 'like' || s.direction === 'dislike')
     .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
 
-  const week = generateWeek(recipes, hh.profile, swipes)
+  // Close the loop: fold post-meal feedback onto the onboarding swipes and apply
+  // memory-derived soft penalties (variety / dislikes / recently-served).
+  const { loadPlannerSignals } = await import('./planner-signals')
+  const { swipes, penalties } = await loadPlannerSignals(
+    hh.id,
+    onboardingSwipes,
+  )
+
+  const week = generateWeek(recipes, hh.profile, swipes, { penalties })
 
   const weekStart = mondayOf(new Date())
   const planId = crypto.randomUUID()

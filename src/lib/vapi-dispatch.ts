@@ -5,8 +5,11 @@
  * spoofable). Unknown or not-yet-wired tools return an honest string rather than
  * failing the call, so the assistant never claims a success the app did not make.
  *
- * Server-only collaborators are dynamically imported so none of them (nor the D1
- * binding) leaks into the client bundle (the planner-server pattern).
+ * The memory + replan tools are the SHARED agent surface (src/lib/agent/tools.ts),
+ * so the voice assistant and the chat agent behave identically: same names, same
+ * schemas, same handlers. The voice path stamps `source: 'voice'` on any memory
+ * it writes. Server-only collaborators are dynamically imported so none of them
+ * (nor the D1 binding) leaks into the client bundle (the planner-server pattern).
  */
 export async function dispatchVapiTool(
   name: string,
@@ -17,23 +20,20 @@ export async function dispatchVapiTool(
     case 'ping':
       return 'pong'
 
+    // The shared agent tools: read memory + week, save a durable fact, replan.
+    // These are the SAME handlers the chat agent uses, so voice and chat stay in
+    // lockstep. `recall_memory` lets the assistant ground itself before acting;
+    // `remember` lets it keep nuance like "not pizza every week" as a variety
+    // wish (not a dislike) for future weeks.
+    case 'recall_memory':
+    case 'get_week':
+    case 'remember':
     case 'replan_week': {
-      const instruction =
-        typeof args.instruction === 'string' ? args.instruction.trim() : ''
-      if (!instruction) {
-        return 'Tell me what to change, for example "eating out Wednesday".'
-      }
-      const { replanForHousehold } = await import('./replan-internal-server')
-      const res = await replanForHousehold(householdId, instruction)
-      if (!res) {
-        return "You don't have a week planned yet, so there's nothing to change."
-      }
-      return res.message
+      const { dispatchAgentTool } = await import('./agent/tools')
+      return dispatchAgentTool(name, args, { householdId, source: 'voice' })
     }
 
     // Wired in later slices (PRD §6). Honest "not wired yet" until then.
-    case 'get_week':
-      return "Reading your week back by voice isn't wired up yet."
     case 'add_items':
       return "Adding items by voice isn't wired up yet."
     case 'generate_cart':

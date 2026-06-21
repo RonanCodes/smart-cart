@@ -9,7 +9,7 @@ import type {
   PlannerProfile,
   PlannerRecipe,
 } from './types'
-import { BUSY_PREP_CAP_MINUTES } from './types'
+import { BUSY_PREP_CAP_MINUTES, penaltyFor } from './types'
 
 /** Monday first, the week always starts Monday (CONTEXT.md hard rule). */
 const WEEK_DAYS = [
@@ -186,7 +186,10 @@ export function rankRecipes(
   recipes: Array<PlannerRecipe>,
   profile: PlannerProfile,
   swipes: Array<{ recipeId: string; like: boolean }>,
-  options: Pick<PlanOptions, 'seed' | 'algorithm' | 'weights'> = {},
+  options: Pick<
+    PlanOptions,
+    'seed' | 'algorithm' | 'weights' | 'penalties'
+  > = {},
 ): Array<PlannerRecipe> {
   const seed = options.seed ?? 42
   const algorithm = options.algorithm ?? DEFAULT_ALGORITHM
@@ -218,8 +221,14 @@ export function rankRecipes(
   // the nudge only ever reshuffles recipes already adjacent in preference.
   const scored = ranked.map((r, i) => ({
     recipe: r,
-    // Higher is better. Rank 0 -> ranked.length, last -> 1.
-    score: ranked.length - i + softScore(r, profile, weights.soft),
+    // Higher is better. Rank 0 -> ranked.length, last -> 1. The soft nudge and
+    // the learned penalties (memory / variety / recency) are both small relative
+    // to the per-slot rank gap of 1, so they only reshuffle adjacent recipes.
+    score:
+      ranked.length -
+      i +
+      softScore(r, profile, weights.soft) -
+      penaltyFor(r, options.penalties),
     index: i,
   }))
 
@@ -267,6 +276,7 @@ export function topNForDay(
     seed?: number
     algorithm?: string
     weights?: PlanOptions['weights']
+    penalties?: PlanOptions['penalties']
   } = {},
 ): Array<PlannerRecipe> {
   const n = params.n ?? 5

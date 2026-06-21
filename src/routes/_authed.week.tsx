@@ -11,6 +11,7 @@ import { loadWeek, loadWeekBootstrap, latestPlanId } from '#/lib/week-server'
 import { weekPlanUrl } from '#/lib/week-url'
 import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { replanWeek } from '#/lib/replan-server'
+import { chatAgent } from '#/lib/agent-server'
 import { getSimilarRecipes } from '#/lib/similar-server'
 import { applySimilarSwapToPlan } from '#/lib/swap-server'
 import { clearDayInPlan } from '#/lib/week-clear-server'
@@ -375,11 +376,14 @@ function WeekPage() {
     setReplanning(true)
     setMessage(null)
     try {
-      const res = await replanWeek({
-        data: { planId: week.planId, instruction },
-      })
-      const next = await loadWeek({ data: { planId: res.planId } })
-      adopt(res.planId, next)
+      // The chat box talks to the tool-calling agent (shared with voice): it
+      // recalls memory, may remember new facts, and replans via the same engine.
+      // It returns a new plan id only when the week actually changed.
+      const res = await chatAgent({ data: { instruction } })
+      if (res.planId && res.changed) {
+        const next = await loadWeek({ data: { planId: res.planId } })
+        adopt(res.planId, next)
+      }
       setMessage(res.message)
     } catch {
       setMessage('Could not adjust the week, try again.')
