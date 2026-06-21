@@ -4,6 +4,8 @@ import { Input } from '#/components/ui/input'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
 import { ingredientSticker } from '#/lib/ingredient-sticker'
+import { groupByCategory } from '#/lib/ingredient-category'
+import { formatCents } from '#/lib/pricing'
 import {
   addShoppingItem,
   updateShoppingItem,
@@ -34,6 +36,7 @@ export function EditableShoppingList({
   initialItems,
   onCleared,
   onItemsChange,
+  priceMap,
 }: {
   initialItems: Array<ShoppingItem>
   /**
@@ -50,6 +53,13 @@ export function EditableShoppingList({
    * mirror for the siblings below it.
    */
   onItemsChange?: (items: Array<ShoppingItem>) => void
+  /**
+   * Per-item price for the SELECTED store, keyed on the item name, in cents
+   * (#cart-align). When supplied a row shows its line price; a name with no
+   * entry shows no price (no match at this store). Undefined = no pricing yet
+   * (still loading, or no comparison available), so rows show name + amount only.
+   */
+  priceMap?: Map<string, number>
 }) {
   const [items, setItems] = useState<Array<ShoppingItem>>(initialItems)
 
@@ -72,10 +82,12 @@ export function EditableShoppingList({
 
   const remaining = items.filter((i) => !i.checked).length
   const allChecked = items.length > 0 && remaining === 0
-  // Light grouping: still-to-buy first, ticked-off collapsed beneath. Order
-  // within each group is preserved (the loader returns oldest-first).
+  // Still-to-buy first, ticked-off collapsed beneath. Order within each group is
+  // preserved (the loader returns oldest-first). The still-to-buy rows are then
+  // grouped into aisle sections for the airy hairline layout (#cart-align).
   const unchecked = items.filter((i) => !i.checked)
   const checked = items.filter((i) => i.checked)
+  const uncheckedGroups = groupByCategory(unchecked, (i) => i.name)
 
   async function toggle(item: ShoppingItem) {
     setBusyId(item.id)
@@ -236,32 +248,44 @@ export function EditableShoppingList({
         </p>
       )}
 
-      {unchecked.length > 0 && (
-        <div className="bg-card border-border divide-border divide-y overflow-hidden rounded-[var(--radius-ios)] border">
-          {unchecked.map((item) => (
-            <ItemRow
-              key={item.id}
-              item={item}
-              busy={busyId === item.id}
-              onToggle={() => toggle(item)}
-              onSaveName={(v) => saveField(item.id, 'name', v)}
-              onSaveAmount={(v) => saveField(item.id, 'amount', v)}
-              onRemove={() => remove(item.id)}
-            />
-          ))}
-        </div>
-      )}
+      {/* Airy hairline GROUPS by aisle (Produce, Dairy & cheese, ...), derived
+          from the real item names (#cart-align). Each group is a quiet uppercase
+          heading over hairline-separated rows: die-cut sticker, name + amount,
+          per-store price, checkbox. Still-to-buy first; ticked-off collapsed
+          beneath. Grouping preserves order within each aisle. */}
+      {uncheckedGroups.map((group) => (
+        <section key={group.category} className="mb-4">
+          <h3 className="text-muted-foreground mb-1 px-1 text-[0.7rem] font-bold tracking-[0.16em] uppercase">
+            {group.category}
+          </h3>
+          <div>
+            {group.items.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                price={priceMap?.get(item.name)}
+                busy={busyId === item.id}
+                onToggle={() => toggle(item)}
+                onSaveName={(v) => saveField(item.id, 'name', v)}
+                onSaveAmount={(v) => saveField(item.id, 'amount', v)}
+                onRemove={() => remove(item.id)}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
 
       {checked.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-1">
           <p className="text-muted-foreground/80 px-1 text-xs font-medium">
             In the trolley ({checked.length})
           </p>
-          <div className="bg-card/60 border-border divide-border divide-y overflow-hidden rounded-[var(--radius-ios)] border">
+          <div className="opacity-70">
             {checked.map((item) => (
               <ItemRow
                 key={item.id}
                 item={item}
+                price={priceMap?.get(item.name)}
                 busy={busyId === item.id}
                 onToggle={() => toggle(item)}
                 onSaveName={(v) => saveField(item.id, 'name', v)}
@@ -315,9 +339,15 @@ export function EditableShoppingList({
   )
 }
 
-/** One editable row. Name + amount edit inline; the round box ticks it off. */
+/**
+ * One editable hairline row (#cart-align): die-cut sticker, inline-editable name
+ * + amount, the selected store's per-item price, and the round tick box. Name +
+ * amount still edit inline; the round box ticks it off; the trash button
+ * removes it. A bottom hairline (last:border-b-0) gives the airy grouped look.
+ */
 function ItemRow({
   item,
+  price,
   busy,
   onToggle,
   onSaveName,
@@ -325,6 +355,8 @@ function ItemRow({
   onRemove,
 }: {
   item: ShoppingItem
+  /** Line price in cents for the selected store, or undefined when no match. */
+  price?: number
   busy: boolean
   onToggle: () => void
   onSaveName: (value: string) => void
@@ -333,23 +365,7 @@ function ItemRow({
 }) {
   const sticker = ingredientSticker(item.name)
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={item.checked}
-        aria-label={`Tick off ${item.name}`}
-        disabled={busy}
-        onClick={onToggle}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
-          item.checked
-            ? 'bg-primary border-primary text-primary-foreground'
-            : 'border-border bg-transparent'
-        }`}
-      >
-        {item.checked && <Check className="h-4 w-4" aria-hidden />}
-      </button>
-
+    <div className="border-hairline flex items-center gap-3 border-b py-3 last:border-b-0">
       {/* Cut-out product sticker (or a neutral tile when we have no match). */}
       <div
         className={`bg-secondary flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
@@ -380,13 +396,10 @@ function ItemRow({
           onSave={onSaveName}
           className={
             item.checked
-              ? 'text-muted-foreground font-medium line-through'
-              : 'font-medium'
+              ? 'text-muted-foreground text-[0.95rem] font-semibold line-through'
+              : 'text-[0.95rem] font-semibold'
           }
         />
-      </div>
-
-      <div className="w-20 shrink-0 text-right">
         <InlineEdit
           value={item.amount ?? ''}
           ariaLabel={
@@ -398,13 +411,40 @@ function ItemRow({
           // "Amount", so most rows are just a clean name (#178 de-noise).
           placeholder="+"
           onSave={onSaveAmount}
-          className={`text-sm font-semibold tabular-nums ${
-            item.checked ? 'text-muted-foreground' : 'text-foreground'
-          }`}
-          emptyClassName="text-muted-foreground/35 text-base font-normal"
-          align="right"
+          className="text-muted-foreground text-xs"
+          emptyClassName="text-muted-foreground/35 text-sm font-normal"
         />
       </div>
+
+      {/* The selected store's per-item price (#cart-align). No price = no match
+          at this store, so the slot stays empty rather than inventing one. */}
+      {price !== undefined && (
+        <span
+          className={`shrink-0 text-sm font-bold tabular-nums ${
+            item.checked ? 'text-muted-foreground' : 'text-foreground'
+          }`}
+        >
+          {formatCents(price)}
+        </span>
+      )}
+
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={item.checked}
+        aria-label={`Tick off ${item.name}`}
+        disabled={busy}
+        onClick={onToggle}
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition active:scale-90 ${
+          item.checked
+            ? 'bg-primary border-primary text-primary-foreground'
+            : 'border-border bg-card'
+        }`}
+      >
+        {item.checked && (
+          <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+        )}
+      </button>
 
       <Button
         variant="ghost"

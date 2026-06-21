@@ -1,0 +1,87 @@
+import { Loader2, Sparkles } from 'lucide-react'
+import { formatCents } from '#/lib/pricing'
+import type { BasketComparison } from '#/lib/pricing'
+import { STORE_OPTIONS } from '#/lib/store-pref-server'
+import type { StoreSlug } from '#/lib/store-pref-server'
+import { cn } from '#/lib/utils'
+
+/**
+ * The 3-way store switch at the top of the Cart screen (#cart-align).
+ *
+ * The design prototype faked this with hardcoded per-store prices. Here the
+ * prices are REAL: each store's total comes from the shared price comparison
+ * (usePriceComparison -> comparePrices, the vendored catalogue priced
+ * server-side). Picking a store drives the per-item prices in the list, the
+ * floating total, and the order button all at once, so the whole screen reprices
+ * in a tap.
+ *
+ * All three stores are selectable preferences (#294). Albert Heijn + Jumbo can
+ * also receive the cart deep-link; Picnic shows its price but its cart isn't
+ * wired yet (#293), which the floating order bar communicates.
+ */
+export function CartStoreSwitch({
+  data,
+  loading,
+  selected,
+  onSelect,
+}: {
+  data: BasketComparison | null
+  loading: boolean
+  selected: StoreSlug
+  onSelect: (store: StoreSlug) => void
+}) {
+  const cheapest = data?.cheapest?.store ?? null
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Compare stores"
+      className="border-border bg-card grid grid-cols-3 gap-1 rounded-2xl border p-1 shadow-sm"
+    >
+      {STORE_OPTIONS.map((option) => {
+        const on = option.slug === selected
+        const basket = data?.baskets.find((b) => b.store === option.slug)
+        const total =
+          basket && basket.lineItems.length > 0 ? basket.totalCents : null
+        const isCheapest = cheapest === option.slug
+        return (
+          <button
+            key={option.slug}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => onSelect(option.slug)}
+            className={cn(
+              'flex flex-col items-center rounded-xl px-2 py-2 transition active:scale-95',
+              on ? 'bg-primary text-primary-foreground' : 'text-foreground',
+            )}
+          >
+            <span className="flex items-center gap-1 text-[0.78rem] font-bold">
+              {option.name}
+              {isCheapest && !on && (
+                <Sparkles
+                  className="text-primary h-2.5 w-2.5"
+                  aria-label="Cheapest"
+                />
+              )}
+            </span>
+            <span
+              className={cn(
+                'mt-0.5 text-[0.72rem] font-semibold tabular-nums',
+                on ? 'text-primary-foreground/85' : 'text-muted-foreground',
+              )}
+            >
+              {loading ? (
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+              ) : total !== null ? (
+                formatCents(total)
+              ) : (
+                'no match'
+              )}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
