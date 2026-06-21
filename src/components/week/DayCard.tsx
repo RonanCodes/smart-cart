@@ -135,7 +135,17 @@ function DayCardImpl({
     const dx = e.clientX - startX.current
     if (Math.abs(dx) > 6) {
       dragged.current = true
-      e.currentTarget.setPointerCapture(e.pointerId)
+      // Pointer capture keeps the drag glued to the dish even if the finger
+      // strays off it. It is a nice-to-have, NOT load-bearing: some in-app
+      // webviews (and a stray pointer state) throw from setPointerCapture, and
+      // an unguarded throw here aborted the whole move handler so the swipe
+      // never tracked and silently never committed (#409 — "swipe doesn't
+      // work"). Swallow the failure; the swipe still commits without capture.
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+      } catch {
+        // no-op: capture is optional, the swipe works without it
+      }
     }
     // Left-only; a touch of give to the right so it feels physical.
     const clamped = dx < 0 ? Math.max(dx, -SWIPE_MAX) : Math.min(dx * 0.3, 12)
