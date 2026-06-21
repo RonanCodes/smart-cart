@@ -38,6 +38,7 @@ export {
   mergeAmount,
   planMerge,
   shouldAutoSeed,
+  shouldReplaceRecipeItemsOnSeed,
   countMissing,
   backfillAmounts,
   addToListCta,

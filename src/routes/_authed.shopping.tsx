@@ -131,6 +131,33 @@ function Shopping() {
   // Nothing to shop for yet: no saved rows and no staples. The bare empty
   // state, but still let the user start a list from staples alone (a top-up
   // shop without a meal plan).
+  if (view.missingPlanId) {
+    return (
+      <AppShell>
+        <ScreenHeader
+          title="Cart"
+          subtitle="This meal plan is not in your account."
+        />
+        <EmptyState
+          icon={<ShoppingBag aria-hidden />}
+          title="Plan not found"
+          hint="That week belongs to another account or was removed. Open your week from the Week tab, or start a list from staples below."
+          action={
+            <Link to="/week">
+              <Button size="pill">Go to my week</Button>
+            </Link>
+          }
+        />
+        <div className="px-5 pt-6 pb-4">
+          <StaplesSection
+            initialStaples={initialStaples}
+            frequentlyBought={frequentlyBought}
+          />
+        </div>
+      </AppShell>
+    )
+  }
+
   if (!hasSavedItems && initialStaples.length === 0) {
     return (
       <AppShell>

@@ -100,7 +100,9 @@ export const listShoppingItems = createServerFn({ method: 'GET' }).handler(
  * adding a duplicate, so pressing the CTA twice does not double the list.
  */
 export const addWeekToShoppingList = createServerFn({ method: 'POST' })
-  .inputValidator((d?: { planId?: string }) => d ?? {})
+  .inputValidator(
+    (d?: { planId?: string; replaceRecipeItems?: boolean }) => d ?? {},
+  )
   .handler(async ({ data }): Promise<{ items: Array<ShoppingItem> }> => {
     const householdId = await requireHouseholdId()
     const { getDb } = await import('../db/client')
@@ -116,11 +118,22 @@ export const addWeekToShoppingList = createServerFn({ method: 'POST' })
 
     if (incoming.length === 0) return reloadItems(db, householdId)
 
-    const { items: existing } = await reloadItems(db, householdId)
-    const plan = planMerge(existing, incoming)
-
     const { shoppingListItem } = await import('../db/shopping-list-schema')
     const { eq, and } = await import('drizzle-orm')
+
+    if (data.replaceRecipeItems) {
+      await db
+        .delete(shoppingListItem)
+        .where(
+          and(
+            eq(shoppingListItem.householdId, householdId),
+            eq(shoppingListItem.source, 'recipe'),
+          ),
+        )
+    }
+
+    const { items: existing } = await reloadItems(db, householdId)
+    const plan = planMerge(existing, incoming)
 
     if (plan.inserts.length > 0) {
       const rows = plan.inserts.map((line) => ({

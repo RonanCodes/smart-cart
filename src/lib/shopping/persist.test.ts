@@ -7,6 +7,7 @@ import {
   mergeAmount,
   planMerge,
   shouldAutoSeed,
+  shouldReplaceRecipeItemsOnSeed,
   countMissing,
   backfillAmounts,
   addToListCta,
@@ -86,6 +87,35 @@ describe('shouldAutoSeed', () => {
     expect(
       shouldAutoSeed({ planId: 'plan-2', lastSeededPlanId: 'plan-1' }),
     ).toBe(true)
+  })
+})
+
+describe('shouldReplaceRecipeItemsOnSeed', () => {
+  it('replaces recipe rows when switching to a new plan', () => {
+    expect(
+      shouldReplaceRecipeItemsOnSeed({
+        planId: 'plan-2',
+        lastSeededPlanId: 'plan-1',
+      }),
+    ).toBe(true)
+  })
+
+  it('does not replace on the first seed', () => {
+    expect(
+      shouldReplaceRecipeItemsOnSeed({
+        planId: 'plan-1',
+        lastSeededPlanId: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('does not replace when revisiting the same seeded plan', () => {
+    expect(
+      shouldReplaceRecipeItemsOnSeed({
+        planId: 'plan-1',
+        lastSeededPlanId: 'plan-1',
+      }),
+    ).toBe(false)
   })
 })
 

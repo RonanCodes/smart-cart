@@ -22,6 +22,12 @@ import { pickTitle, pickIngredients } from './recipe-locale'
 export interface ShoppingListView {
   /** The plan id the list was built from (null = no plan yet). */
   planId: string | null
+  /**
+   * When the caller passed an explicit `?plan=` id that does not belong to this
+   * household, so the consolidated view is empty and the persisted list must not
+   * be shown as if it were that plan.
+   */
+  missingPlanId: string | null
   /** Monday of the planned week, ISO date string (null = no plan). */
   weekStart: string | null
   /** The household portions the quantities were scaled to. */
@@ -201,6 +207,7 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
       const empty = emptyList()
       return {
         planId: null,
+        missingPlanId: data.planId ?? null,
         weekStart: null,
         portions,
         list: empty,
@@ -252,6 +259,7 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
 
     return {
       planId: current.id,
+      missingPlanId: null,
       weekStart: current.weekStart,
       portions,
       list,
@@ -261,7 +269,6 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
     }
   })
 
-/** Everything the /shopping route's loader needs, in one round-trip (#251). */
 export interface ShoppingBootstrap {
   view: ShoppingListView
   staples: Array<StapleLine>
@@ -314,6 +321,7 @@ export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
         return {
           view: {
             planId: 'demo-plan',
+            missingPlanId: null,
             weekStart: null,
             portions: { adults: hh.adults, children: hh.children },
             list: empty,
@@ -339,7 +347,8 @@ export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
       markPlanSeeded,
     } = await import('./shopping-list-server')
     const { getStore } = await import('./store-pref-server')
-    const { shouldAutoSeed } = await import('./shopping')
+    const { shouldAutoSeed, shouldReplaceRecipeItemsOnSeed } =
+      await import('./shopping')
 
     const planArg = data.planId ? { planId: data.planId } : {}
     const [view, staplesRes, frequentRes, itemsRes, preferredStore, seedState] =
@@ -352,6 +361,18 @@ export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
         getLastSeededPlanId(),
       ])
 
+    // A deep-link to someone else's plan id must not show this household's stale
+    // saved list as if it were that week (#plan-cart-mismatch).
+    if (view.missingPlanId) {
+      return {
+        view,
+        staples: staplesRes.staples,
+        frequentlyBought: frequentRes.items,
+        items: [],
+        preferredStore,
+      }
+    }
+
     let items = itemsRes.items
     if (
       shouldAutoSeed({
@@ -359,7 +380,13 @@ export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
         lastSeededPlanId: seedState.lastSeededPlanId,
       })
     ) {
-      const seeded = await addWeekToShoppingList({ data: planArg })
+      const replaceRecipeItems = shouldReplaceRecipeItemsOnSeed({
+        planId: view.planId,
+        lastSeededPlanId: seedState.lastSeededPlanId,
+      })
+      const seeded = await addWeekToShoppingList({
+        data: { ...planArg, replaceRecipeItems },
+      })
       items = seeded.items
       if (view.planId) await markPlanSeeded({ data: { planId: view.planId } })
     } else {

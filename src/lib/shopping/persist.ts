@@ -97,6 +97,22 @@ export function shouldAutoSeed(input: {
 }
 
 /**
+ * When auto-seeding a NEW plan (not the first seed, not a re-visit to the same
+ * plan), drop prior `source: 'recipe'` rows first so the cart matches the week
+ * the user opened, not an accumulated mix of old weeks.
+ */
+export function shouldReplaceRecipeItemsOnSeed(input: {
+  planId: string | null
+  lastSeededPlanId: string | null
+}): boolean {
+  return (
+    input.planId !== null &&
+    input.lastSeededPlanId !== null &&
+    input.planId !== input.lastSeededPlanId
+  )
+}
+
+/**
  * Try to sum two amount strings that share a single trailing unit, e.g.
  * '450 g' + '200 g' => '650 g', '2' + '3' => '5'. Returns null when either side
  * is compound ('2 + 15 g'), carries unparsed notes, or the units differ, in

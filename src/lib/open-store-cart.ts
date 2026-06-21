@@ -1,20 +1,43 @@
 /**
  * Client-only helper for opening a resolved store cart link (#293).
  *
- * Large AH / Jumbo bulk-add requests silently truncate, so the server may return
- * several chunk URLs. Earlier chunks open in the background; the last chunk opens
- * in the focused tab (AH add-multiple → mijnlijst, Jumbo mandje).
+ * Large AH / Jumbo bulk-add requests are chunked (~25 SKUs). We pre-open one tab
+ * per chunk during the user's click (so popups are allowed), then navigate each
+ * tab to its add URL with a short gap so AH's basketItemsAdd mutations don't race.
  */
 
 import type { BuiltCartLink } from './cart-build'
 
 const TAB_OPTS = 'noopener,noreferrer'
 
-/** Open every chunk URL; only the last tab stays in focus for the shopper. */
+/** Gap between chunk navigations — tuned from AH cart race observations. */
+export const CART_CHUNK_OPEN_MS = 1500
+
+function navigateTab(tab: Window | null, url: string): void {
+  if (!tab || tab.closed) return
+  ;(tab.location as { href: string }).href = url
+}
+
+/**
+ * Open every chunk URL automatically. Single-chunk carts open one tab; multi-chunk
+ * carts reserve tabs on the click gesture, then load each add-multiple URL in
+ * sequence {@link CART_CHUNK_OPEN_MS} apart.
+ */
 export function openStoreCart(link: BuiltCartLink): void {
-  if (link.urls.length === 0) return
-  for (let i = 0; i < link.urls.length - 1; i++) {
-    window.open(link.urls[i], '_blank', TAB_OPTS)
+  const { urls } = link
+  if (urls.length === 0) return
+
+  if (urls.length === 1) {
+    window.open(urls[0], '_blank', TAB_OPTS)
+    return
   }
-  window.open(link.urls[link.urls.length - 1], '_blank', TAB_OPTS)
+
+  // Reserve tabs synchronously (popup-safe), navigate with a stagger.
+  const tabs = urls.map(() => window.open('about:blank', '_blank', TAB_OPTS))
+
+  urls.forEach((url, index) => {
+    const run = () => navigateTab(tabs[index] ?? null, url)
+    if (index === 0) run()
+    else window.setTimeout(run, index * CART_CHUNK_OPEN_MS)
+  })
 }
