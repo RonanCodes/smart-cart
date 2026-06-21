@@ -40,6 +40,9 @@ export function Sheet({
   const [mounted, setMounted] = React.useState(open)
   const [drag, setDrag] = React.useState(0)
   const startY = React.useRef<number | null>(null)
+  // Latest `open`, read in the deferred unmount without a stale closure (#383).
+  const openRef = React.useRef(open)
+  openRef.current = open
 
   // Keep mounted through the exit animation.
   React.useEffect(() => {
@@ -63,8 +66,14 @@ export function Sheet({
 
   const state = open ? 'open' : 'closed'
 
+  // Unmount only when STILL closed (#383). The exit animation fires on both the
+  // backdrop and the panel; if `open` flipped back to true in between (reopened
+  // fast), unmounting here would tear down a now-open sheet and React could try
+  // to remove a node the browser had already moved, throwing NotFoundError ("the
+  // object can not be found here"). Re-checking the latest `open` via a ref (not
+  // the closed-over `open`) means a reopen wins and the live sheet stays mounted.
   function onAnimationEnd() {
-    if (!open) setMounted(false)
+    if (!openRef.current) setMounted(false)
   }
 
   function onPointerDown(e: React.PointerEvent) {
