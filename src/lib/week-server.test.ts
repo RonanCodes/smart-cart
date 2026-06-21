@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { composeWeekBootstrap } from './week-server'
+import { composeWeekBootstrap, shouldGenerateForOffset } from './week-server'
 import type { WeekView } from './week-server'
 import type { MealFeedbackState } from './meal-feedback-server'
 
@@ -78,5 +78,26 @@ describe('composeWeekBootstrap (#251 batched /week loader shape)', () => {
   it('preserves an empty feedback list', () => {
     const out = composeWeekBootstrap(WEEK, [], { missing: 1 })
     expect(out.feedback).toEqual([])
+  })
+})
+
+describe('shouldGenerateForOffset (#week-nav generate-on-demand policy)', () => {
+  it('generates ONLY this week (offset 0) on demand', () => {
+    expect(shouldGenerateForOffset(0)).toBe(true)
+  })
+
+  it('does NOT auto-generate a future week (bug 1: was a clone of this week)', () => {
+    expect(shouldGenerateForOffset(1)).toBe(false)
+    expect(shouldGenerateForOffset(3)).toBe(false)
+  })
+
+  it('never back-fills a past week', () => {
+    expect(shouldGenerateForOffset(-1)).toBe(false)
+    expect(shouldGenerateForOffset(-5)).toBe(false)
+  })
+
+  it('truncates fractional offsets before deciding', () => {
+    expect(shouldGenerateForOffset(0.9)).toBe(true)
+    expect(shouldGenerateForOffset(1.2)).toBe(false)
   })
 })

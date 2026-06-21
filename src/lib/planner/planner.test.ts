@@ -427,3 +427,55 @@ describe('cuisine bias (explicit like/hate, #122)', () => {
     expect(hated).toBeLessThanOrEqual(baseline)
   })
 })
+
+describe('generateWeek variety exclusion (#week-nav)', () => {
+  const recipes = catalogue()
+
+  it('an empty/absent excludeRecipeIds is a strict no-op', () => {
+    const base = generateWeek(recipes, {}, swipes)
+    const withEmpty = generateWeek(recipes, {}, swipes, {
+      excludeRecipeIds: [],
+    })
+    expect(withEmpty.days).toEqual(base.days)
+  })
+
+  it('excluded recipes never reappear in the generated week', () => {
+    const first = generateWeek(recipes, {}, swipes)
+    const lastWeekIds = first.days.map((d) => d.recipeRef).filter(Boolean)
+    const next = generateWeek(recipes, {}, swipes, {
+      excludeRecipeIds: lastWeekIds,
+    })
+    const nextIds = next.days.map((d) => d.recipeRef).filter(Boolean)
+    // None of last week's dinners appear in next week (variety).
+    for (const id of nextIds) {
+      expect(lastWeekIds).not.toContain(id)
+    }
+    // And the week still fills (the catalogue is large enough).
+    expect(nextIds.length).toBe(7)
+  })
+})
+
+describe('generateWeek skip-day override (#week-nav)', () => {
+  const recipes = catalogue()
+
+  it('a sparse dayTypes override clears only the named day, rhythm fills the rest', () => {
+    // Skip Friday (index 4), leave the rest as holes -> the profile rhythm
+    // (every-day-home here) fills the other six.
+    const override = [
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'out' as const,
+      undefined,
+      undefined,
+    ]
+    const week = generateWeek(recipes, {}, swipes, { dayTypes: override })
+    const friday = week.days[4]!
+    expect(friday.type).toBe('out')
+    expect(friday.recipeRef).toBe('')
+    // The other six days are real dinners.
+    const cooked = week.days.filter((d) => d.recipeRef)
+    expect(cooked).toHaveLength(6)
+  })
+})

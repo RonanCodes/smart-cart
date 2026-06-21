@@ -35,6 +35,13 @@ function mondayOf(d: Date): string {
  * `targetWeekStart` (a YYYY-MM-DD Monday) stamps the plan to a specific week; it
  * defaults to the current week's Monday. Week navigation (Part A) passes a
  * future Monday to generate next week's plan on demand.
+ *
+ * Smarter generation (#week-nav): when the household ALREADY has a most-recent
+ * plan, the new week is generated with that plan's dinners excluded from the
+ * pool (variety, so next week is not a clone) and with the household's
+ * consistently-skipped weekdays defaulted to 'out' (skip-day learning). Both are
+ * strict no-ops for a fresh household with no prior plan, so the first week (and
+ * the recsys benchmark fixture) is byte-for-byte unchanged.
  */
 export async function generatePlanForHousehold(
   householdId: string,
@@ -44,9 +51,11 @@ export async function generatePlanForHousehold(
   const { household, recipe, recipeSwipe, mealPlan, mealFeedback } =
     await import('../db/schema')
   const { generateWeek } = await import('./planner/planner')
+  const { inferSkipDays, skipDaysToOverride } =
+    await import('./planner/skip-days')
   const { hasImage } = await import('../db/recipe-filters')
   const { foldRealFeedback } = await import('./recsys/feedback-fold')
-  const { eq, asc } = await import('drizzle-orm')
+  const { eq, asc, desc } = await import('drizzle-orm')
   const db = await getDb()
 
   const householdRows = await db
@@ -116,7 +125,35 @@ export async function generatePlanForHousehold(
     .map((f) => ({ recipeId: f.recipeId, rating: f.rating }))
   const swipes = foldRealFeedback(onboardingSwipes, feedback)
 
-  const week = generateWeek(recipes, hh.profile, swipes)
+  // Smarter future-week generation (#week-nav). Look at the household's recent
+  // plans (newest first). With NO prior plan this stays empty -> both knobs are
+  // no-ops and the week is generated exactly as before (fresh household + the
+  // benchmark fixture unchanged).
+  const recentPlanRows = await db
+    .select({ weekStart: mealPlan.weekStart, plan: mealPlan.plan })
+    .from(mealPlan)
+    .where(eq(mealPlan.householdId, hh.id))
+    .orderBy(desc(mealPlan.createdAt))
+    .limit(8)
+
+  // Variety: exclude the MOST-RECENT plan's dinners so the new week brings
+  // different meals instead of cloning last week. Hard filters (diet/allergies)
+  // still apply on top inside the planner.
+  const excludeRecipeIds = (recentPlanRows[0]?.plan.days ?? [])
+    .map((d) => d.recipeRef)
+    .filter((r): r is string => !!r)
+
+  // Skip-day learning: infer the weekdays the household consistently skips from
+  // their recent plans, and default those days to 'out' in the new week. Only
+  // the days array (Monday-first) is needed; the helper is pure + conservative
+  // (needs a small history before it infers anything).
+  const skip = inferSkipDays(recentPlanRows.map((p) => p.plan.days))
+  const dayTypes = skipDaysToOverride(skip)
+
+  const week = generateWeek(recipes, hh.profile, swipes, {
+    excludeRecipeIds,
+    dayTypes,
+  })
 
   const weekStart = targetWeekStart ?? mondayOf(new Date())
   const planId = crypto.randomUUID()
