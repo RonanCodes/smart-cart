@@ -81,23 +81,14 @@ describe('composeWeekBootstrap (#251 batched /week loader shape)', () => {
   })
 })
 
-describe('shouldGenerateForOffset (#week-nav generate-on-demand policy)', () => {
-  it('generates ONLY this week (offset 0) on demand', () => {
-    expect(shouldGenerateForOffset(0)).toBe(true)
-  })
-
-  it('does NOT auto-generate a future week (bug 1: was a clone of this week)', () => {
+describe('shouldGenerateForOffset (#week-control: never auto-generate)', () => {
+  it('never auto-generates any week — the user builds explicitly', () => {
+    // #week-control: /week shows the empty state with a "Build my week" CTA
+    // instead of auto-generating, so clearing the week / a "Start fresh" reset
+    // sticks. Onboarding builds the first week explicitly (completeOnboarding).
+    expect(shouldGenerateForOffset(0)).toBe(false)
     expect(shouldGenerateForOffset(1)).toBe(false)
-    expect(shouldGenerateForOffset(3)).toBe(false)
-  })
-
-  it('never back-fills a past week', () => {
     expect(shouldGenerateForOffset(-1)).toBe(false)
-    expect(shouldGenerateForOffset(-5)).toBe(false)
-  })
-
-  it('truncates fractional offsets before deciding', () => {
-    expect(shouldGenerateForOffset(0.9)).toBe(true)
-    expect(shouldGenerateForOffset(1.2)).toBe(false)
+    expect(shouldGenerateForOffset(0.9)).toBe(false)
   })
 })
