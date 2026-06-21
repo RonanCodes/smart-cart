@@ -53,7 +53,18 @@ export type ProfilePatch = Partial<EditableProfile>
 const EXCLUSION_DIETS: Record<string, ReadonlyArray<string>> = {
   'dairy free': ['milk', 'cheese', 'butter', 'cream', 'yoghurt', 'yogurt'],
   'gluten free': ['wheat', 'flour', 'bread', 'pasta', 'noodle', 'couscous'],
-  porkless: ['pork', 'ham', 'bacon', 'prosciutto', 'chorizo'],
+  // Kept in sync with onboarding-mapping: every pork form, EN + NL (#422).
+  porkless: [
+    'pork',
+    'ham',
+    'bacon',
+    'gammon',
+    'chorizo',
+    'lardon',
+    'pancetta',
+    'prosciutto',
+    'spek',
+  ],
 }
 
 /** Tag-diets the planner's veg gate understands, strictest first. */

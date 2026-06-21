@@ -64,6 +64,87 @@ function isNonDinnerCategory(r: PlannerRecipe): boolean {
   return NON_DINNER_CATEGORY_TERMS.some((t) => cat.includes(t))
 }
 
+/**
+ * Non-dinner TITLE keywords (#424). The category gate (#375) only fires when the
+ * imported row HAS a telling category; a sauce / cracker / dessert mis-tagged
+ * `mealType: 'dinner'` with a null or generic category (e.g. "Main") still leaked
+ * onto the dinner plan ("gado-gado sauce", "low-carb crackers"). This is the
+ * defensive net: a recipe whose TITLE contains one of these as a WHOLE WORD is
+ * never a dinner candidate, even if a single mis-tag says otherwise. Both EN and
+ * NL forms, deliberately tight + word-boundary matched (see `titleIsNonDinner`)
+ * so a legitimate dinner is never dropped ("barbecue" keeps "bar", "scrambled"
+ * keeps "ramble", "snackbar fries" keeps the compound).
+ */
+const NON_DINNER_TITLE_TERMS: ReadonlyArray<string> = [
+  'sauce',
+  'saus', // NL sauce
+  'crackers',
+  'cracker',
+  'bar', // coconut bar, protein bar — 'bars' caught by the optional plural
+  'crumble',
+  'dip',
+  'snack',
+  'dessert',
+  'toetje', // NL dessert
+  'reep', // NL bar (e.g. mueslireep)
+]
+
+/**
+ * Whole-word non-dinner term match. We anchor each term on word boundaries so a
+ * non-dinner word only fires when it stands alone, not as a fragment of a real
+ * dinner's name. "bars" / "reep" are matched as their own words too. NL compounds
+ * (satésaus, mueslireep, kwarktoetje) glue the term to the preceding word with no
+ * separator, so we also accept the term at the END of a longer token — but NEVER
+ * in the middle (which would catch "barbecue" / "scrambled").
+ */
+function titleHasNonDinnerWord(title: string): boolean {
+  const t = normalise(title)
+  for (const term of NON_DINNER_TITLE_TERMS) {
+    // \b...\b catches the standalone word and trailing-s plural via the explicit
+    // 'crackers'/'cracker' entries. (?:^|[^a-z]) + term + ($|[^a-z]) for EN; the
+    // term-at-token-end branch catches the glued NL compounds.
+    const standalone = new RegExp(`(?:^|[^a-z])${term}(?:s)?(?:$|[^a-z])`)
+    if (standalone.test(t)) return true
+    // Glued NL compound: the term sits at the end of a token (preceded by
+    // letters, e.g. "satésaus", "mueslireep", "kwarktoetje").
+    const gluedEnd = new RegExp(`[a-zé]${term}(?:$|[^a-z])`)
+    if (
+      (term === 'saus' || term === 'toetje' || term === 'reep') &&
+      gluedEnd.test(t)
+    )
+      return true
+  }
+  return false
+}
+
+/** True when a recipe's title marks it as an obvious non-dinner item (#424). */
+function isNonDinnerTitle(r: PlannerRecipe): boolean {
+  return r.title ? titleHasNonDinnerWord(r.title) : false
+}
+
+/**
+ * Pork in all the forms it shows up as in a Dutch/English catalogue. A household
+ * that excludes "pork" (the Porkless diet toggle, or "pork"/"bacon"/etc. as a
+ * dislike) means ALL of these — onboarding's derived list missed the Dutch "spek"
+ * plus gammon / lardons / pancetta, so a "smoked bacon" risotto leaked into a
+ * porkless week (#422). Any excluded token that IS one of these (or the trigger
+ * word "pork"/"porkless") expands to the whole set, so excluding any single pork
+ * form excludes them all. Matched as a substring of an ingredient name, so
+ * "smoked bacon" and "gerookt spek" both hit.
+ */
+const PORK_FORMS: ReadonlyArray<string> = [
+  'pork',
+  'bacon',
+  'ham',
+  'gammon',
+  'chorizo',
+  'lardon', // lardon(s)
+  'pancetta',
+  'prosciutto',
+  'spek', // NL bacon, incl. "gerookt spek"
+]
+const PORK_TRIGGERS = new Set([...PORK_FORMS, 'porkless'])
+
 function normalise(s: string): string {
   return s.toLowerCase().trim()
 }
@@ -77,10 +158,15 @@ function ingredientText(r: PlannerRecipe): string {
  * Hard filter. A recipe is a candidate only if it clears EVERY gate:
  *  - dinner only: the planner plans dinners. A recipe must have mealType
  *    'dinner' AND a category that is not a known non-dinner (snack / dessert /
- *    side / drink …). The category check exists because the DB defaults
- *    mealType to 'dinner', so an imported snack still reads as a dinner unless
- *    its category gives it away (#375).
- *  - allergies: no allergen string appears in any ingredient name.
+ *    side / drink …) AND a title that is not an obvious non-dinner (sauce /
+ *    crackers / crumble / dip / dessert …, EN + NL). The category check exists
+ *    because the DB defaults mealType to 'dinner', so an imported snack still
+ *    reads as a dinner unless its category gives it away (#375); the title check
+ *    is the net for a mis-tagged item with a null/generic category (#424).
+ *  - excluded ingredients (#422): no excluded ingredient/protein string appears
+ *    in any ingredient name. Fed by the derived `allergies` list AND the raw
+ *    `dislikes` words; a pork exclusion expands to every pork form (bacon, ham,
+ *    gammon, chorizo, lardons, pancetta, spek …). A HARD filter, not a nudge.
  *  - diet: if the household is vegetarian or vegan, the recipe must carry the
  *    matching dietary tag.
  *  - disliked cuisine (#374): a recipe whose cuisine the household explicitly
@@ -95,7 +181,22 @@ export function hardFilter(
   recipes: Array<PlannerRecipe>,
   profile: PlannerProfile,
 ): Array<PlannerRecipe> {
-  const allergies = (profile.allergies ?? []).map(normalise).filter(Boolean)
+  // Excluded ingredients/proteins are a HARD filter (#422). Both the derived
+  // `allergies` list (what onboarding folds dislikes + Porkless into) AND the raw
+  // `dislikes` words feed it, so a profile written by any path is protected. Any
+  // pork trigger (pork / porkless / a single pork form) expands to every pork
+  // form, so "smoked bacon" and "gerookt spek" are caught even when the user only
+  // said "pork".
+  const excludeRaw = [...(profile.allergies ?? []), ...(profile.dislikes ?? [])]
+    .map(normalise)
+    .filter(Boolean)
+  const excludeIngredients = new Set<string>()
+  for (const term of excludeRaw) {
+    if (PORK_TRIGGERS.has(term))
+      for (const f of PORK_FORMS) excludeIngredients.add(f)
+    else excludeIngredients.add(term)
+  }
+  const excludeTerms = [...excludeIngredients]
   const diet = profile.diet ? normalise(profile.diet) : null
   const needsVegTag = diet && VEG_DIETS.has(diet) ? diet : null
   const dislikedCuisines = new Set(
@@ -105,6 +206,7 @@ export function hardFilter(
   return recipes.filter((r) => {
     if (r.mealType !== 'dinner') return false
     if (isNonDinnerCategory(r)) return false
+    if (isNonDinnerTitle(r)) return false
     if (dislikedCuisines.size && r.cuisine) {
       if (dislikedCuisines.has(normalise(r.cuisine))) return false
     }
@@ -117,9 +219,9 @@ export function hardFilter(
           : tags.includes('vegetarian') || tags.includes('vegan')
       if (!ok) return false
     }
-    if (allergies.length) {
+    if (excludeTerms.length) {
       const text = ingredientText(r)
-      if (allergies.some((a) => text.includes(a))) return false
+      if (excludeTerms.some((a) => text.includes(a))) return false
     }
     return true
   })
