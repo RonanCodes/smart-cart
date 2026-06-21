@@ -53,12 +53,14 @@ describe('buildPersonaFirstMessage', () => {
 })
 
 describe('buildPersonaOverrides', () => {
-  it('assembles a VAPI-shaped override object', () => {
+  it('assembles a VAPI-shaped override object (safe fields only, no model)', () => {
     const o = buildPersonaOverrides({ weekLabel: 'Next week', days })
     expect(o.firstMessage).toContain('Souso')
     expect(o.variableValues.weekLabel).toBe('Next week')
     expect(o.variableValues.weekPlan).toContain('Tuesday: Chicken Curry')
-    expect(o.model.messages[0]?.role).toBe('system')
-    expect(o.model.messages[0]?.content).toContain('You are Souso')
+    // No partial `model` override: VAPI hangs on `{ messages }` without a
+    // provider, which broke the connection. The system prompt lives in the
+    // dashboard; we only send the mergeable firstMessage + variableValues.
+    expect('model' in o).toBe(false)
   })
 })
