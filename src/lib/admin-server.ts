@@ -353,6 +353,29 @@ export function waitlistRowActions(row: {
   return { ...none, approveAsUser: true, makeAdmin: true }
 }
 
+/**
+ * The set of waitlist emails an "Approve all" action should grant. A row is
+ * approvable iff its derived actions offer "Approve as user", i.e. it has no DB
+ * grant yet and is not a config/owner admin. Already-approved users, admins, and
+ * config admins are skipped. Pure (derives purely from each row's flags via the
+ * same `waitlistRowActions` matrix the UI uses), so the count the button shows
+ * and the emails the server grants stay in lock-step and are unit-testable.
+ */
+export function pendingApprovableEmails(
+  rows: ReadonlyArray<WaitlistRowView>,
+): Array<string> {
+  return rows
+    .filter(
+      (r) =>
+        waitlistRowActions({
+          grant: r.grant,
+          configAdmin: r.configAdmin,
+          revocable: r.revocable,
+        }).approveAsUser,
+    )
+    .map((r) => r.email)
+}
+
 export const listWaitlist = createServerFn({ method: 'GET' }).handler(
   async (): Promise<WaitlistView> => {
     const viewer = await adminViewer()
@@ -478,6 +501,56 @@ export const grantAdmin = createServerFn({ method: 'POST' })
       })
     return { email, grant: 'admin' }
   })
+
+/**
+ * Approve EVERY pending waitlist email at once: admin-gated. Re-derives the
+ * waitlist view server-side (never trusts a client-supplied list), selects the
+ * approvable emails via the same pure `pendingApprovableEmails` rule the button
+ * counts with, then upserts a 'user' grant for each. Reuses the exact single-
+ * approve write path (onConflictDoUpdate keyed on the normalised email), so it
+ * is idempotent and never downgrades an existing admin (admins aren't approvable,
+ * so they're excluded up front). Returns how many emails were newly approvable.
+ */
+export const approveAllWaitlist = createServerFn({ method: 'POST' }).handler(
+  async (): Promise<{ ok: true; approved: number }> => {
+    const viewer = await adminViewer()
+    if (!viewer) throw new Error('forbidden')
+    const { getDb } = await import('../db/client')
+    const { waitlist } = await import('../db/waitlist-schema')
+    const { accessGrant } = await import('../db/access-grant-schema')
+    const db = await getDb()
+
+    const rows = await db
+      .select({ email: waitlist.email, createdAt: waitlist.createdAt })
+      .from(waitlist)
+    const grants = await loadAdminGrantMap()
+    const { envAdmins } = await loadEnvAdmins()
+    const view = shapeWaitlist(rows, grants, {
+      email: viewer.email,
+      isSuperAdmin: viewer.isSuperAdmin,
+      envAdmins,
+    })
+    const emails = pendingApprovableEmails(view.rows)
+    if (emails.length === 0) return { ok: true, approved: 0 }
+
+    const { normalizeEmail } = await import('./access-rules')
+    const now = new Date()
+    // One upsert per email (each is a tiny single-row write, well under D1's
+    // bound-param limit). Same write the single "Approve as user" uses.
+    for (const raw of emails) {
+      const email = normalizeEmail(raw)
+      if (!email) continue
+      await db
+        .insert(accessGrant)
+        .values({ email, role: 'user', createdAt: now })
+        .onConflictDoUpdate({
+          target: accessGrant.email,
+          set: { role: 'user', createdAt: now },
+        })
+    }
+    return { ok: true, approved: emails.length }
+  },
+)
 
 // ---------------------------------------------------------------------------
 // Reset to fresh: wipe a user's (or every user's) household data so they
