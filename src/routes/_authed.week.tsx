@@ -6,10 +6,11 @@ import {
   Link,
 } from '@tanstack/react-router'
 import {
-  ShoppingBag,
+  ShoppingBasket,
   ChevronLeft,
   ChevronRight,
   CalendarPlus,
+  Sparkles,
 } from 'lucide-react'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import {
@@ -42,6 +43,8 @@ import { ChatReplan } from '#/components/week/ChatReplan'
 import { VoiceButton } from '#/components/week/VoiceButton'
 import { RecipeSheet } from '#/components/week/RecipeSheet'
 import { SwapSheet } from '#/components/week/SwapSheet'
+import { Sheet } from '#/components/ui/sheet'
+import { StickyNote } from '#/components/ui/sticky-note'
 import { RatingReminders } from '#/components/week/RatingReminders'
 import { WeekSkeleton } from '#/components/week/WeekSkeleton'
 import { ReplanBanner } from '#/components/week/ReplanBanner'
@@ -687,6 +690,10 @@ function LoadedWeek({
     // the day set changes (added/removed/reordered days, essentially never).
   }, [dayKeys, startAdd, startSwap, loadSimilar, pickSimilar, rate])
 
+  // The AI replan + voice live behind one subtle "Ask Souso" button that opens a
+  // sheet, keeping the week screen calm and Julienne-quiet by default (#design).
+  const [aiOpen, setAiOpen] = useState(false)
+
   return (
     <AppShell>
       <ScreenHeader
@@ -698,7 +705,7 @@ function LoadedWeek({
             search={{ plan: week.planId }}
             className="text-primary inline-flex items-center gap-1.5 text-sm font-medium"
           >
-            <ShoppingBag className="h-4 w-4" aria-hidden />
+            <ShoppingBasket className="h-4 w-4" aria-hidden />
             Shopping list
           </Link>
         }
@@ -706,18 +713,26 @@ function LoadedWeek({
 
       <div className="space-y-6 px-5 pt-2">
         <WeekNav offset={offset} />
-        <ChatReplan
-          busy={replanning}
-          onSubmit={replan}
-          streamingText={streamingText}
-          working={replanning && workingDays.size === 0}
-        />
-        <VoiceButton
-          planId={week.planId}
-          disabled={replanning}
-          onLiveChange={setVoiceLive}
-          onActed={() => void syncFromVoice()}
-        />
+        <div className="-mb-3 flex justify-end pr-1">
+          <StickyNote tilt={4}>
+            no more &ldquo;what&rsquo;s for dinner?&rdquo;
+          </StickyNote>
+        </div>
+        <button
+          type="button"
+          onClick={() => setAiOpen(true)}
+          className="border-border bg-card text-muted-foreground flex w-full items-center gap-2.5 rounded-full border px-4 py-3 text-sm shadow-sm transition active:scale-[0.99]"
+        >
+          <Sparkles className="text-primary h-4 w-4" aria-hidden />
+          <span className="flex-1 text-left">Ask Souso to tweak your week</span>
+          {replanning ? (
+            <span className="text-primary text-xs font-semibold">working…</span>
+          ) : (
+            <span className="text-muted-foreground/70 text-xs">
+              eating out? cheaper?
+            </span>
+          )}
+        </button>
 
         <RatingReminders />
 
@@ -748,22 +763,45 @@ function LoadedWeek({
           })}
         </div>
 
-        <div className="pt-2 pb-2">
-          {(() => {
-            const cta = addToListCta(missingFromList)
-            return (
-              <Button
-                size="pill"
-                disabled={addingToList || locked || cta.disabled}
-                onClick={() => void addToShoppingList()}
-              >
-                <ShoppingBag className="h-5 w-5" aria-hidden />
-                {addingToList ? 'Adding...' : cta.label}
-              </Button>
-            )
-          })()}
-        </div>
+        {/* Spacer so the last card clears the floating "make basket" button. */}
+        <div aria-hidden className="h-16" />
       </div>
+
+      {/* Floating primary action: build the basket. Sits above the tab bar so it
+          stays in reach while scrolling the week. */}
+      <div className="fixed bottom-[calc(var(--tab-bar-space)+0.75rem)] left-1/2 z-40 w-[calc(100%-2.5rem)] max-w-md -translate-x-1/2">
+        {(() => {
+          const cta = addToListCta(missingFromList)
+          return (
+            <Button
+              size="pill"
+              className="shadow-lg"
+              disabled={addingToList || locked || cta.disabled}
+              onClick={() => void addToShoppingList()}
+            >
+              <ShoppingBasket className="h-5 w-5" aria-hidden />
+              {addingToList ? 'Adding...' : cta.label}
+            </Button>
+          )
+        })()}
+      </div>
+
+      <Sheet open={aiOpen} onOpenChange={setAiOpen} title="Ask Souso">
+        <div className="flex flex-col gap-4 pb-2">
+          <ChatReplan
+            busy={replanning}
+            onSubmit={replan}
+            streamingText={streamingText}
+            working={replanning && workingDays.size === 0}
+          />
+          <VoiceButton
+            planId={week.planId}
+            disabled={replanning}
+            onLiveChange={setVoiceLive}
+            onActed={() => void syncFromVoice()}
+          />
+        </div>
+      </Sheet>
 
       <RecipeSheet
         day={recipeViewing}

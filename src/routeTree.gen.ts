@@ -20,6 +20,12 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as DesignWeekRouteImport } from './routes/design.week'
+import { Route as DesignShoppingRouteImport } from './routes/design.shopping'
+import { Route as DesignSettingsRouteImport } from './routes/design.settings'
+import { Route as DesignRecipeRouteImport } from './routes/design.recipe'
+import { Route as DesignOnboardingRouteImport } from './routes/design.onboarding'
+import { Route as DesignDiscoverRouteImport } from './routes/design.discover'
 import { Route as ApiSimilarRouteImport } from './routes/api/similar'
 import { Route as ApiReplanRouteImport } from './routes/api/replan'
 import { Route as ApiPlanRouteImport } from './routes/api/plan'
@@ -96,6 +102,36 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRouteRoute,
+} as any)
+const DesignWeekRoute = DesignWeekRouteImport.update({
+  id: '/design/week',
+  path: '/design/week',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignShoppingRoute = DesignShoppingRouteImport.update({
+  id: '/design/shopping',
+  path: '/design/shopping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignSettingsRoute = DesignSettingsRouteImport.update({
+  id: '/design/settings',
+  path: '/design/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignRecipeRoute = DesignRecipeRouteImport.update({
+  id: '/design/recipe',
+  path: '/design/recipe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignOnboardingRoute = DesignOnboardingRouteImport.update({
+  id: '/design/onboarding',
+  path: '/design/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignDiscoverRoute = DesignDiscoverRouteImport.update({
+  id: '/design/discover',
+  path: '/design/discover',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSimilarRoute = ApiSimilarRouteImport.update({
   id: '/api/similar',
@@ -234,6 +270,12 @@ export interface FileRoutesByFullPath {
   '/api/plan': typeof ApiPlanRoute
   '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
+  '/design/discover': typeof DesignDiscoverRoute
+  '/design/onboarding': typeof DesignOnboardingRoute
+  '/design/recipe': typeof DesignRecipeRoute
+  '/design/settings': typeof DesignSettingsRoute
+  '/design/shopping': typeof DesignShoppingRoute
+  '/design/week': typeof DesignWeekRoute
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
@@ -267,6 +309,12 @@ export interface FileRoutesByTo {
   '/api/plan': typeof ApiPlanRoute
   '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
+  '/design/discover': typeof DesignDiscoverRoute
+  '/design/onboarding': typeof DesignOnboardingRoute
+  '/design/recipe': typeof DesignRecipeRoute
+  '/design/settings': typeof DesignSettingsRoute
+  '/design/shopping': typeof DesignShoppingRoute
+  '/design/week': typeof DesignWeekRoute
   '/admin': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
@@ -303,6 +351,12 @@ export interface FileRoutesById {
   '/api/plan': typeof ApiPlanRoute
   '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
+  '/design/discover': typeof DesignDiscoverRoute
+  '/design/onboarding': typeof DesignOnboardingRoute
+  '/design/recipe': typeof DesignRecipeRoute
+  '/design/settings': typeof DesignSettingsRoute
+  '/design/shopping': typeof DesignShoppingRoute
+  '/design/week': typeof DesignWeekRoute
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
@@ -339,6 +393,12 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/replan'
     | '/api/similar'
+    | '/design/discover'
+    | '/design/onboarding'
+    | '/design/recipe'
+    | '/design/settings'
+    | '/design/shopping'
+    | '/design/week'
     | '/admin/'
     | '/api/auth/$'
     | '/api/mollie/webhook'
@@ -372,6 +432,12 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/replan'
     | '/api/similar'
+    | '/design/discover'
+    | '/design/onboarding'
+    | '/design/recipe'
+    | '/design/settings'
+    | '/design/shopping'
+    | '/design/week'
     | '/admin'
     | '/api/auth/$'
     | '/api/mollie/webhook'
@@ -407,6 +473,12 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/replan'
     | '/api/similar'
+    | '/design/discover'
+    | '/design/onboarding'
+    | '/design/recipe'
+    | '/design/settings'
+    | '/design/shopping'
+    | '/design/week'
     | '/admin/'
     | '/api/auth/$'
     | '/api/mollie/webhook'
@@ -432,6 +504,12 @@ export interface RootRouteChildren {
   ApiPlanRoute: typeof ApiPlanRoute
   ApiReplanRoute: typeof ApiReplanRoute
   ApiSimilarRoute: typeof ApiSimilarRoute
+  DesignDiscoverRoute: typeof DesignDiscoverRoute
+  DesignOnboardingRoute: typeof DesignOnboardingRoute
+  DesignRecipeRoute: typeof DesignRecipeRoute
+  DesignSettingsRoute: typeof DesignSettingsRoute
+  DesignShoppingRoute: typeof DesignShoppingRoute
+  DesignWeekRoute: typeof DesignWeekRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiMollieWebhookRoute: typeof ApiMollieWebhookRoute
   ApiVapiTokenRoute: typeof ApiVapiTokenRoute
@@ -518,6 +596,48 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRouteRoute
+    }
+    '/design/week': {
+      id: '/design/week'
+      path: '/design/week'
+      fullPath: '/design/week'
+      preLoaderRoute: typeof DesignWeekRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/design/shopping': {
+      id: '/design/shopping'
+      path: '/design/shopping'
+      fullPath: '/design/shopping'
+      preLoaderRoute: typeof DesignShoppingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/design/settings': {
+      id: '/design/settings'
+      path: '/design/settings'
+      fullPath: '/design/settings'
+      preLoaderRoute: typeof DesignSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/design/recipe': {
+      id: '/design/recipe'
+      path: '/design/recipe'
+      fullPath: '/design/recipe'
+      preLoaderRoute: typeof DesignRecipeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/design/onboarding': {
+      id: '/design/onboarding'
+      path: '/design/onboarding'
+      fullPath: '/design/onboarding'
+      preLoaderRoute: typeof DesignOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/design/discover': {
+      id: '/design/discover'
+      path: '/design/discover'
+      fullPath: '/design/discover'
+      preLoaderRoute: typeof DesignDiscoverRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/similar': {
       id: '/api/similar'
@@ -735,6 +855,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPlanRoute: ApiPlanRoute,
   ApiReplanRoute: ApiReplanRoute,
   ApiSimilarRoute: ApiSimilarRoute,
+  DesignDiscoverRoute: DesignDiscoverRoute,
+  DesignOnboardingRoute: DesignOnboardingRoute,
+  DesignRecipeRoute: DesignRecipeRoute,
+  DesignSettingsRoute: DesignSettingsRoute,
+  DesignShoppingRoute: DesignShoppingRoute,
+  DesignWeekRoute: DesignWeekRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiMollieWebhookRoute: ApiMollieWebhookRoute,
   ApiVapiTokenRoute: ApiVapiTokenRoute,

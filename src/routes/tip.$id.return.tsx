@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
+import { Heart } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { Button } from '#/components/ui/button'
 import { buildCartLinks } from '#/lib/cart-links-server'
@@ -41,8 +42,11 @@ function TipReturn() {
     <AppShell>
       <ScreenHeader title="Thanks!" />
       <div className="flex flex-col items-center gap-4 px-5 pt-10 text-center">
-        <div className="text-6xl" aria-hidden>
-          🥳
+        <div
+          className="bg-secondary text-primary flex h-20 w-20 items-center justify-center rounded-full"
+          aria-hidden
+        >
+          <Heart className="h-9 w-9" fill="currentColor" />
         </div>
         <p className="text-sm font-medium">Thanks for supporting Souso!</p>
         <p className="text-muted-foreground text-xs">

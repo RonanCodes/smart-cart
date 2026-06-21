@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Compass, CalendarDays, ShoppingBag, User } from 'lucide-react'
+import { CalendarDays, Search, ShoppingBasket, User } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '#/lib/utils'
 
@@ -24,9 +24,9 @@ interface TabDef {
 }
 
 const TABS: Array<TabDef> = [
-  { to: '/discover', label: 'Discover', icon: Compass },
   { to: '/week', label: 'Week', icon: CalendarDays },
-  { to: '/shopping', label: 'Shopping', icon: ShoppingBag },
+  { to: '/discover', label: 'Search', icon: Search },
+  { to: '/shopping', label: 'Cart', icon: ShoppingBasket },
   { to: '/profile', label: 'Profile', icon: User },
 ]
 

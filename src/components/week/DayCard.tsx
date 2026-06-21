@@ -1,258 +1,269 @@
-import { memo, useState } from 'react'
+import { memo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   UtensilsCrossed,
-  Shuffle,
-  Sparkles,
-  Clock,
-  Flame,
-  Beef,
+  Utensils,
+  RefreshCw,
   Plus,
+  ChevronLeft,
 } from 'lucide-react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { WeekDayView } from '#/lib/week-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
-import { Badge } from '#/components/ui/badge'
-import { Button } from '#/components/ui/button'
-import { SimilarSwap } from './SimilarSwap'
 import type { SimilarNeighbour } from './SimilarSwap'
-import { MealRating } from './MealRating'
 import type { MealRating as Rating } from '#/lib/meal-feedback'
+import { StickyNote } from '#/components/ui/sticky-note'
 
 interface DayCardProps {
   day: WeekDayView
-  /** Whether a swap is in flight for this day (button shows a busy state). */
   busy: boolean
-  /** Whether any action anywhere is in flight (disables this card's button). */
   locked: boolean
-  /** A voice/chat replan just changed this day: play the AI "magic" glow. */
   glowing?: boolean
-  /**
-   * Souso is actively working on THIS day (a replan naming it is in flight):
-   * play the looping "working" glow until the result lands (#replan-ux).
-   */
   working?: boolean
-  /** Tap the card to open the recipe sheet (ingredients + steps, titled by name). */
   onEdit: () => void
-  /**
-   * Add a meal to this (eating-out / empty) day: opens the same picker so the user
-   * can drop a dinner in (#175). Only called for a skipped day.
-   */
   onAdd: () => void
-  /** Open the swap chooser pull-up: ~5 pre-ranked alternatives for this day (#291). */
   onSwap: () => void
-  /** Load similar recipes for this day's dinner under the given re-rank. */
   onLoadSimilar: (sort: SimilarSort) => Promise<Array<SimilarNeighbour>>
-  /** The user picked a similar recipe for this day: write it into the plan. */
   onPickSimilar: (recipeId: string) => Promise<void>
-  /** The saved post-meal rating for this day's dinner (null = not rated). */
   rating: Rating
-  /** The saved post-meal note for this day's dinner, if any. */
   ratingNote: string | null
-  /** Whether a rating write is in flight for this day. */
   ratingBusy: boolean
-  /** Submit a post-meal rating + note for this day's dinner (#126). */
   onRate: (next: { rating: Rating; note: string | null }) => Promise<void>
+  /** Optional comma-list of key ingredients (kept for callers; not rendered). */
+  ingredients?: Array<string>
+  /** Optional hand-written tag for a special meal, placed by the photo. */
+  note?: string
+  /**
+   * Optional alternatives for this day (design demo). When given (>1), the dish
+   * becomes a little deck: the NEXT option sits ready behind the current one and
+   * swiping the dish left brings it straight forward, no "Replace" step. Without
+   * it, a swipe simply fires onSwap (the real server-side replace).
+   */
+  swapOptions?: Array<WeekDayView>
 }
 
+/** Drag the dish this far left (px) to commit to the next one. */
+const SWIPE_TRIGGER = 64
+const SWIPE_MAX = 130
+
 /**
- * One day's dinner card. Image (or a fallback glyph), title, cuisine, and the
- * prep / calories / protein chips when the recipe carries them. A skipped day
- * (eating out) renders an empty state instead of a recipe.
- *
- * Tapping the card itself opens the recipe sheet (#291): the dish's ingredients,
- * steps, and "Souso knows" facts, titled by the recipe name. Two swap actions
- * sit below, both full-width tappable (no hover-only affordance, works on touch
- * at 390px):
- *  - "Swap" opens the alternatives chooser pull-up (#291): ~5 ready alternatives,
- *    pre-ranked for the household and shipped with the week, so it opens instantly.
- *  - "Similar" expands an inline chooser of the dish's nearest neighbours (#31), so
- *    the replacement stays close to what is already planned ("like this, but a
- *    different night"), with a faster / lighter re-rank toggle.
+ * One day's dinner — Souso / Julienne. A light, card-less row built around a big
+ * free-standing die-cut dish sticker on the left and, on the right, the title, a
+ * compact meta line (time · kcal · protein) and a quiet action row. The dish is a
+ * little swipe-deck: the next option waits ready behind it, and dragging the dish
+ * left swaps straight to it. A special meal can carry a hand-written note by its
+ * photo. Tapping the dish opens the recipe.
  */
 function DayCardImpl({
   day,
-  busy,
-  locked,
   glowing = false,
   working = false,
+  locked,
   onEdit,
   onAdd,
   onSwap,
-  onLoadSimilar,
-  onPickSimilar,
-  rating,
-  ratingNote,
-  ratingBusy,
-  onRate,
+  note,
+  swapOptions,
 }: DayCardProps) {
   const skipped = !day.recipeRef
-  const [showSimilar, setShowSimilar] = useState(false)
-  const [picking, setPicking] = useState(false)
+  const options = swapOptions && swapOptions.length > 1 ? swapOptions : null
 
-  async function pick(recipeId: string) {
-    setPicking(true)
-    try {
-      await onPickSimilar(recipeId)
-      setShowSimilar(false)
-    } finally {
-      setPicking(false)
-    }
+  const [idx, setIdx] = useState(0)
+  const current = options ? (options[idx % options.length] ?? day) : day
+  const next = options ? (options[(idx + 1) % options.length] ?? null) : null
+
+  // Pointer-driven horizontal swipe on the dish. We track it ourselves so a drag
+  // never registers as a tap (which opens the recipe) and so vertical scroll is
+  // never hijacked.
+  const [dragX, setDragX] = useState(0)
+  const [settling, setSettling] = useState(false)
+  const startX = useRef<number | null>(null)
+  const dragged = useRef(false)
+  // Mirror dragX in a ref so pointerup reads the latest offset synchronously,
+  // independent of React's state-batching / render timing.
+  const dragXRef = useRef(0)
+
+  const swipeable = !skipped && !locked
+
+  function onPointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
+    if (!swipeable) return
+    startX.current = e.clientX
+    dragged.current = false
+    setSettling(false)
   }
+  function onPointerMove(e: ReactPointerEvent<HTMLButtonElement>) {
+    if (startX.current === null) return
+    const dx = e.clientX - startX.current
+    if (Math.abs(dx) > 6) {
+      dragged.current = true
+      e.currentTarget.setPointerCapture(e.pointerId)
+    }
+    // Left-only; a touch of give to the right so it feels physical.
+    const clamped = dx < 0 ? Math.max(dx, -SWIPE_MAX) : Math.min(dx * 0.3, 12)
+    dragXRef.current = clamped
+    setDragX(clamped)
+  }
+  // Swap to the next dish — cycles the staged options in the design demo, or
+  // fires the real server-side replace. Used by both the swipe and the switch
+  // button.
+  function commitSwap() {
+    if (options) setIdx((i) => i + 1)
+    else onSwap()
+  }
+  function endSwipe() {
+    if (startX.current === null) return
+    const commit = dragXRef.current <= -SWIPE_TRIGGER
+    startX.current = null
+    dragXRef.current = 0
+    setSettling(true)
+    setDragX(0)
+    if (commit) commitSwap()
+  }
+
+  const openRecipe = () => {
+    if (dragged.current) return
+    ;(skipped ? onAdd : onEdit)()
+  }
+
+  // How far the current dish has been dragged toward committing, 0..1. Drives the
+  // cross-fade with the staged-behind next dish.
+  const progress = Math.min(1, -dragX / SWIPE_MAX)
 
   return (
     <div
       className={clsx(
-        'bg-card border-border flex flex-col overflow-hidden rounded-xl border shadow-sm',
-        glowing && 'ai-glow',
-        working && !glowing && 'ai-glow-pulse',
+        'border-hairline relative border-b border-dashed py-5 last:border-b-0',
+        glowing && 'ai-glow rounded-2xl',
+        working && !glowing && 'ai-glow-pulse rounded-2xl',
       )}
     >
-      {/* The whole dish (image + title + macros) is one big tap target that opens
-          the recipe sheet (ingredients + steps). A skipped day has no recipe, so
-          it taps through to "Add a meal" instead. */}
-      <button
-        type="button"
-        disabled={locked || picking}
-        onClick={skipped ? onAdd : onEdit}
-        aria-label={
-          skipped ? `Add a meal to ${day.day}` : `Edit ${day.day}: ${day.meal}`
-        }
-        className="flex flex-col text-left disabled:cursor-default"
-      >
-        <div className="bg-secondary aspect-[4/3] w-full">
-          {!skipped && day.imageUrl ? (
+      <div className="flex items-center gap-4">
+        {/* Left: the dish as a tiny swipe-deck. */}
+        <div className="relative h-32 w-32 shrink-0">
+          {/* The next option, already waiting behind the current dish. */}
+          {next?.imageUrl && (
             <img
-              src={day.imageUrl}
-              alt={day.meal}
-              className="h-full w-full object-cover"
+              src={next.imageUrl}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="souso-sticker pointer-events-none absolute inset-0 h-32 w-32 object-contain"
+              style={{
+                transform: `rotate(-2deg) scale(${0.84 + progress * 0.16}) translateX(${8 - progress * 8}px)`,
+                opacity: 0.45 + progress * 0.55,
+              }}
             />
-          ) : (
-            <div className="text-muted-foreground flex h-full items-center justify-center">
-              <UtensilsCrossed className="h-9 w-9" />
-            </div>
           )}
+
+          <button
+            type="button"
+            disabled={locked}
+            onClick={openRecipe}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endSwipe}
+            onPointerCancel={endSwipe}
+            aria-label={
+              skipped
+                ? `Add a meal to ${day.day}`
+                : `Open ${day.day}: ${current.meal}`
+            }
+            style={{ touchAction: 'pan-y' }}
+            className="relative block h-32 w-32"
+          >
+            {!skipped && current.imageUrl ? (
+              <>
+                <img
+                  src={current.imageUrl}
+                  alt={current.meal}
+                  draggable={false}
+                  className="souso-sticker h-32 w-32 object-contain"
+                  style={{
+                    transform: `translateX(${dragX}px) rotate(${-4 + dragX / 22}deg)`,
+                    opacity: 1 - progress * 0.7,
+                    transition: settling
+                      ? 'transform 0.25s ease-out, opacity 0.25s ease-out'
+                      : 'none',
+                  }}
+                />
+                {swipeable && (
+                  <ChevronLeft className="text-muted-foreground/35 absolute top-1/2 -left-1.5 h-4 w-4 -translate-y-1/2" />
+                )}
+              </>
+            ) : (
+              <div className="bg-secondary text-muted-foreground/60 flex h-28 w-28 items-center justify-center rounded-2xl">
+                <UtensilsCrossed className="h-8 w-8" />
+              </div>
+            )}
+            {note && idx === 0 && (
+              <StickyNote
+                tilt={6}
+                className="absolute -top-2 -right-3 z-10 text-[0.85rem]"
+              >
+                {note}
+              </StickyNote>
+            )}
+          </button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-2 px-4 pt-4">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+        {/* Right: title, compact meta, quiet actions. */}
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            disabled={locked}
+            onClick={openRecipe}
+            className="block w-full text-left"
+          >
+            <span className="text-primary text-[0.64rem] font-bold tracking-[0.16em] uppercase">
               {day.day}
             </span>
-            {!skipped && day.cuisine && <Badge>{day.cuisine}</Badge>}
-          </div>
+            {skipped ? (
+              <p className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-[1.05rem] font-bold">
+                <Plus className="h-4 w-4" /> Add a dinner
+              </p>
+            ) : (
+              <>
+                <h3
+                  className="mt-0.5 line-clamp-2 text-[1.1rem] leading-tight font-bold"
+                  style={{ letterSpacing: '-0.02em' }}
+                >
+                  {current.meal}
+                </h3>
+                <p className="text-muted-foreground mt-1 text-[0.78rem]">
+                  {[
+                    current.prepMinutes != null && `${current.prepMinutes} min`,
+                    current.calories != null && `${current.calories} kcal`,
+                    current.protein != null && `${current.protein} g protein`,
+                    current.price && current.price,
+                  ]
+                    .filter(Boolean)
+                    .join('  ·  ')}
+                </p>
+              </>
+            )}
+          </button>
 
-          {skipped ? (
-            <p className="text-muted-foreground flex-1 text-sm">
-              Eating out, no dinner planned.
-            </p>
-          ) : (
-            <>
-              {/* Clamp to 2 lines + reserve that height so a swap to a shorter
-                  or longer title never reflows the card height and shifts its
-                  siblings (#replan-ux). `min-h` keeps a one-line title's box the
-                  same height as a two-line one. */}
-              <h3 className="line-clamp-2 min-h-[2.75rem] flex-1 text-base leading-snug font-semibold">
-                {day.meal}
-              </h3>
-              {/* Reserve the macro row's height so a recipe missing a chip (e.g.
-                  no protein) doesn't make the card shorter than its neighbours. */}
-              <div className="text-muted-foreground flex min-h-[1.25rem] flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                {day.prepMinutes != null && (
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    {day.prepMinutes} min
-                  </span>
-                )}
-                {day.calories != null && (
-                  <span className="inline-flex items-center gap-1">
-                    <Flame className="h-3.5 w-3.5" />
-                    {day.calories} kcal
-                  </span>
-                )}
-                {day.protein != null && (
-                  <span className="inline-flex items-center gap-1">
-                    <Beef className="h-3.5 w-3.5" />
-                    {day.protein}g protein
-                  </span>
-                )}
-              </div>
-            </>
+          {!skipped && (
+            <div className="mt-2.5 flex items-center gap-2">
+              <span className="border-border bg-card text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm">
+                <Utensils className="h-3.5 w-3.5" />2
+              </span>
+              <button
+                type="button"
+                disabled={locked}
+                onClick={commitSwap}
+                aria-label="Swap this dinner"
+                className="border-border bg-card text-muted-foreground flex h-[1.95rem] w-[1.95rem] items-center justify-center rounded-full border shadow-sm transition active:scale-95"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            </div>
           )}
         </div>
-      </button>
-
-      <div className="flex flex-col gap-2 px-4 pb-4">
-        {skipped ? (
-          // An eating-out / empty day is not a dead end: a primary action drops a
-          // household-ranked dinner in (#175), reusing the same picker the edit
-          // flow uses. The card body taps through to the same sheet.
-          <Button
-            size="sm"
-            className="mt-2 w-full"
-            disabled={locked || picking}
-            onClick={onAdd}
-          >
-            <Plus className="h-4 w-4" />
-            {busy ? 'Adding…' : 'Add a meal'}
-          </Button>
-        ) : (
-          <>
-            <p className="text-muted-foreground pt-2 text-center text-xs">
-              Tap the dish for the recipe, or swap for{' '}
-              {day.alternatives.length || '5'} ready alternatives
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={locked || picking}
-                onClick={onSwap}
-              >
-                <Shuffle className="h-4 w-4" />
-                {busy ? 'Swapping…' : 'Swap'}
-              </Button>
-              <Button
-                variant={showSimilar ? 'default' : 'outline'}
-                size="sm"
-                disabled={locked || picking}
-                aria-expanded={showSimilar}
-                onClick={() => setShowSimilar((s) => !s)}
-              >
-                <Sparkles className="h-4 w-4" />
-                Similar
-              </Button>
-            </div>
-          </>
-        )}
-
-        {showSimilar && !skipped && (
-          <SimilarSwap
-            onLoad={onLoadSimilar}
-            onPick={(recipeId) => void pick(recipeId)}
-            picking={picking}
-          />
-        )}
-
-        {!skipped && (
-          <MealRating
-            rating={rating}
-            note={ratingNote}
-            busy={ratingBusy}
-            onSubmit={onRate}
-          />
-        )}
       </div>
     </div>
   )
 }
 
-/**
- * Memoised so a replan that touches one day re-renders only that day's card, not
- * all seven (#replan-ux). This holds because the parent now (a) preserves the
- * `day` object's identity for unchanged days (see `mergeWeekPreservingIdentity`)
- * and (b) passes STABLE per-day callbacks (`useCallback` + a memoised per-day
- * map), so the default shallow prop comparison sees no change for a steady day.
- * Combined with consistent card heights, a Friday swap can't shift Thursday or
- * Saturday on screen.
- */
+/** Memoised so a replan that touches one day re-renders only that day's card. */
 export const DayCard = memo(DayCardImpl)

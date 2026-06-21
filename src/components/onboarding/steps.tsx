@@ -2,10 +2,8 @@ import { HouseholdStep } from './steps/household-step'
 import { DislikesStep } from './steps/dislikes-step'
 import { DietStep } from './steps/diet-step'
 import { CuisineStep } from './steps/cuisine-step'
-import { StoreStep } from './steps/store-step'
 import { KitchenStep } from './steps/kitchen-step'
 import { GoalsStep } from './steps/goals-step'
-import { NotificationsStep } from './steps/notifications-step'
 
 /**
  * Step registry — the ordered list of screens the stepped flow renders after the
@@ -36,13 +34,14 @@ export const STEPS: Array<OnboardingStep> = [
   {
     id: 'household',
     title: 'Who is eating?',
-    subtitle: 'Adults, children and any pets, so we can size your portions.',
+    subtitle: 'Adults and children, so we can size your portions.',
     Component: HouseholdStep,
   },
   {
     id: 'dislikes',
-    title: 'Dislikes',
-    subtitle: 'Choose the ingredients you would like to avoid.',
+    // Title + hero live inside the step so it can own the centred Julienne
+    // composition; the shell renders just the back arrow + progress here.
+    title: '',
     Component: DislikesStep,
   },
   {
@@ -68,17 +67,5 @@ export const STEPS: Array<OnboardingStep> = [
     title: 'Your goals',
     subtitle: 'What matters most? We weight the week toward it.',
     Component: GoalsStep,
-  },
-  {
-    id: 'store',
-    title: 'Where do you shop?',
-    subtitle: 'We build a ready-to-order basket here.',
-    Component: StoreStep,
-  },
-  {
-    id: 'notifications',
-    title: 'Stay in the loop',
-    subtitle: 'One last optional thing before we build your week.',
-    Component: NotificationsStep,
   },
 ]

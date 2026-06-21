@@ -1,4 +1,4 @@
-import { Minus, Plus, User, Baby, Cat, Dog } from 'lucide-react'
+import { Minus, Plus, User, Baby } from 'lucide-react'
 import { useOnboardingForm } from '../form-state'
 
 /**
@@ -19,7 +19,6 @@ import { useOnboardingForm } from '../form-state'
 
 const ADULT_FLOOR = 1
 const CHILD_FLOOR = 0
-const PET_FLOOR = 0
 /** A sane default age for a freshly added child, editable inline. */
 const DEFAULT_CHILD_AGE = 6
 const MAX_CHILD_AGE = 17
@@ -79,7 +78,7 @@ function Stepper({
 
 export function HouseholdStep() {
   const { draft, patch } = useOnboardingForm()
-  const { adults, children, childrenAges, pets } = draft
+  const { adults, children, childrenAges } = draft
 
   function setAdults(next: number) {
     patch({ adults: Math.max(ADULT_FLOOR, next) })
@@ -98,14 +97,6 @@ export function HouseholdStep() {
     const clamped = Math.max(0, Math.min(MAX_CHILD_AGE, age))
     const ages = childrenAges.map((a, i) => (i === index ? clamped : a))
     patch({ childrenAges: ages })
-  }
-
-  function setCats(next: number) {
-    patch({ pets: { ...pets, cats: Math.max(PET_FLOOR, next) } })
-  }
-
-  function setDogs(next: number) {
-    patch({ pets: { ...pets, dogs: Math.max(PET_FLOOR, next) } })
   }
 
   return (
@@ -161,28 +152,6 @@ export function HouseholdStep() {
           </div>
         </div>
       )}
-
-      <div className="pt-2">
-        <p className="text-muted-foreground mb-3 text-sm font-medium">
-          Any pets?
-        </p>
-        <div className="space-y-3">
-          <Stepper
-            label="Cats"
-            icon={<Cat className="h-5 w-5" />}
-            value={pets.cats}
-            min={PET_FLOOR}
-            onChange={setCats}
-          />
-          <Stepper
-            label="Dogs"
-            icon={<Dog className="h-5 w-5" />}
-            value={pets.dogs}
-            min={PET_FLOOR}
-            onChange={setDogs}
-          />
-        </div>
-      </div>
     </div>
   )
 }

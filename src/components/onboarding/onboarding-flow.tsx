@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { Button } from '#/components/ui/button'
-import { IntroCarousel } from './intro-carousel'
+import { WelcomeBoard } from './welcome-board'
 import { STEPS } from './steps'
 import {
   EMPTY_DRAFT,
@@ -29,13 +29,17 @@ type Phase = 'intro' | 'steps'
 export function OnboardingFlow({
   onComplete,
   onSignIn,
+  skipIntro = false,
 }: {
   /** Called with the final draft when the last step is advanced. #110 persists. */
   onComplete: (draft: OnboardingDraft) => void
   /** 'I have an account' on the intro carousel. */
   onSignIn?: () => void
+  /** Start directly on the stepped form, skipping the built-in intro carousel
+   * (used when the host already shows its own welcome screen). */
+  skipIntro?: boolean
 }) {
-  const [phase, setPhase] = React.useState<Phase>('intro')
+  const [phase, setPhase] = React.useState<Phase>(skipIntro ? 'steps' : 'intro')
   const [stepIndex, setStepIndex] = React.useState(0)
   const [draft, dispatch] = React.useReducer(onboardingReducer, EMPTY_DRAFT)
 
@@ -50,7 +54,7 @@ export function OnboardingFlow({
 
   if (phase === 'intro') {
     return (
-      <IntroCarousel
+      <WelcomeBoard
         onGetStarted={() => {
           setStepIndex(0)
           setPhase('steps')
@@ -123,15 +127,17 @@ export function OnboardingFlow({
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-6">
-          <h1 className="text-[1.6rem] leading-tight font-bold tracking-tight">
-            {step.title}
-          </h1>
+          {step.title && (
+            <h1 className="text-[1.6rem] leading-tight font-bold tracking-tight">
+              {step.title}
+            </h1>
+          )}
           {step.subtitle && (
             <p className="text-muted-foreground mt-1 text-[0.95rem]">
               {step.subtitle}
             </p>
           )}
-          <div className="mt-6 flex-1">
+          <div className={step.title ? 'mt-6 flex-1' : 'flex-1'}>
             <Component />
           </div>
         </div>

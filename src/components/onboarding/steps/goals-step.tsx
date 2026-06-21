@@ -1,4 +1,13 @@
-import { Check } from 'lucide-react'
+import {
+  Check,
+  Salad,
+  PiggyBank,
+  Brain,
+  ChefHat,
+  ShoppingCart,
+  Sprout,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '#/lib/utils'
 import { useOnboardingForm } from '../form-state'
 
@@ -20,16 +29,16 @@ import { useOnboardingForm } from '../form-state'
 interface GoalOption {
   /** The label stored in draft.goals verbatim. */
   label: string
-  emoji: string
+  icon: LucideIcon
 }
 
 const OPTIONS: ReadonlyArray<GoalOption> = [
-  { label: 'Eat a more balanced diet', emoji: '🥗' },
-  { label: 'Pay less for my groceries', emoji: '💸' },
-  { label: 'Lighten the mental load', emoji: '🧠' },
-  { label: 'Cook and discover new recipes', emoji: '👩‍🍳' },
-  { label: 'Avoid unnecessary purchases', emoji: '🛒' },
-  { label: 'Eat less meat', emoji: '🌱' },
+  { label: 'Eat a more balanced diet', icon: Salad },
+  { label: 'Pay less for my groceries', icon: PiggyBank },
+  { label: 'Lighten the mental load', icon: Brain },
+  { label: 'Cook and discover new recipes', icon: ChefHat },
+  { label: 'Avoid unnecessary purchases', icon: ShoppingCart },
+  { label: 'Eat less meat', icon: Sprout },
 ]
 
 export function GoalsStep() {
@@ -56,7 +65,7 @@ export function GoalsStep() {
         role="group"
         aria-label="Your goals"
       >
-        {OPTIONS.map(({ label, emoji }) => {
+        {OPTIONS.map(({ label, icon: Icon }) => {
           const isOn = selected.includes(label)
           return (
             <button
@@ -71,8 +80,11 @@ export function GoalsStep() {
                   : 'border-border bg-card text-foreground',
               )}
             >
-              <span aria-hidden className="text-2xl leading-none">
-                {emoji}
+              <span
+                aria-hidden
+                className="bg-secondary text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+              >
+                <Icon className="h-[1.15rem] w-[1.15rem]" />
               </span>
               <span className="flex-1">{label}</span>
               <span

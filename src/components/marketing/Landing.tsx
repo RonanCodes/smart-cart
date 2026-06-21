@@ -91,7 +91,7 @@ export function Landing() {
         <section className="bg-card mt-8 rounded-[var(--radius-ios)] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_-12px_rgba(0,0,0,0.12)]">
           {status === 'done' ? (
             <div className="text-center">
-              <p className="text-lg font-semibold">You are on the list 🎉</p>
+              <p className="text-lg font-semibold">You are on the list</p>
               <p className="text-muted-foreground mt-2 text-sm">
                 We will email you the moment your spot opens. Souso is cooking
                 up something good.
