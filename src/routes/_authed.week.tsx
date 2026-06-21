@@ -16,6 +16,7 @@ import {
   loadWeekBootstrap,
   loadWeekForOffset,
   generateWeekForOffset,
+  clearWeekForOffset,
   resolveLatestPlanId,
 } from '#/lib/week-server'
 import { weekLabel, offsetForWeekStart } from '#/lib/week-offset'
@@ -214,6 +215,7 @@ function EmptyWeek({ offset }: { offset: number }) {
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const isFuture = offset > 0
+  const canBuild = offset >= 0
 
   // Future: generate the plan for THIS offset, then navigate to it (the loader
   // now finds the freshly-written plan). Past: drop back to this week.
@@ -221,7 +223,7 @@ function EmptyWeek({ offset }: { offset: number }) {
     if (busy) return
     setBusy(true)
     try {
-      if (isFuture) {
+      if (canBuild) {
         await generateWeekForOffset({ data: { offset } })
         await navigate({ to: '/week', search: { week: offset } })
       } else {
@@ -239,19 +241,31 @@ function EmptyWeek({ offset }: { offset: number }) {
         <WeekNav offset={offset} />
         <EmptyState
           icon={<CalendarPlus aria-hidden />}
-          title={isFuture ? weekLabel(offset) : 'No plan for this week'}
+          title={
+            offset === 0
+              ? 'No plan for this week yet'
+              : isFuture
+                ? weekLabel(offset)
+                : 'No plan for this week'
+          }
           hint={
-            isFuture
-              ? `Nothing planned for ${weekLabel(offset).toLowerCase()} yet. Generate it when you're ready.`
-              : "You didn't plan this week. Jump back to this week to keep cooking."
+            offset === 0
+              ? 'Build your dinners for this week, tuned to how your household eats.'
+              : isFuture
+                ? `Nothing planned for ${weekLabel(offset).toLowerCase()} yet. Generate it when you're ready.`
+                : "You didn't plan this week. Jump back to this week to keep cooking."
           }
           action={
             <Button size="pill" disabled={busy} onClick={() => void act()}>
-              {isFuture
+              {offset === 0
                 ? busy
-                  ? 'Generating...'
-                  : 'Generate next week'
-                : 'Go to this week'}
+                  ? 'Building...'
+                  : 'Build my week'
+                : isFuture
+                  ? busy
+                    ? 'Generating...'
+                    : 'Generate next week'
+                  : 'Go to this week'}
             </Button>
           }
         />
@@ -852,10 +866,38 @@ function LoadedWeek({
   // The AI replan + voice live behind one subtle "Ask Souso" button that opens a
   // sheet, keeping the week screen calm and Julienne-quiet by default (#design).
   const [aiOpen, setAiOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
+
+  // #week-control: wipe this week's plan so it returns to the empty state with a
+  // "Build my week" CTA (a clean slate for a demo). Hard-nav so the loader
+  // re-runs against the now-deleted plan.
+  async function clearThisWeek() {
+    if (clearing) return
+    setClearing(true)
+    try {
+      await clearWeekForOffset({ data: { offset } })
+      window.location.href = `/week?week=${offset}`
+    } catch {
+      setClearing(false)
+    }
+  }
 
   return (
     <AppShell>
-      <ScreenHeader title="Your week" subtitle="Swipe a dish to swap it." />
+      <ScreenHeader
+        title="Your week"
+        subtitle="Swipe a dish to swap it."
+        action={
+          <button
+            type="button"
+            onClick={() => void clearThisWeek()}
+            disabled={clearing}
+            className="text-muted-foreground text-sm font-medium disabled:opacity-50"
+          >
+            {clearing ? 'Clearing…' : 'Clear week'}
+          </button>
+        }
+      />
 
       <div className="space-y-6 px-5 pt-2">
         <WeekNav offset={offset} />

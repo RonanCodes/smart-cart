@@ -467,8 +467,13 @@ export type WeekForOffsetResult =
  *     are opt-in via the explicit "Generate next week" CTA (so a future week is
  *     no longer auto-generated into a deterministic clone of this week, bug 1).
  */
-export function shouldGenerateForOffset(offset: number): boolean {
-  return Math.trunc(offset) === 0
+export function shouldGenerateForOffset(_offset: number): boolean {
+  // #week-control: never auto-generate. /week shows the empty state (with a
+  // "Build my week" CTA) until the user explicitly builds, so clearing the week
+  // or a "Start fresh" reset actually sticks instead of being re-generated on the
+  // next visit. Onboarding still builds the first week explicitly
+  // (completeOnboarding) and lands on it via ?plan=.
+  return false
 }
 
 /**
@@ -622,6 +627,41 @@ export const generateWeekForOffset = createServerFn({ method: 'POST' })
       return { offset, weekStart, week }
     },
   )
+
+/**
+ * Clear the plan(s) for a week OFFSET (#week-control): deletes every meal_plan
+ * the household has stamped to that week's Monday, so the week reads as unplanned
+ * (the empty state with a "Build my week" CTA). Backs the "Clear this week"
+ * action. Server-only deps dynamically imported (the week-server pattern).
+ */
+export const clearWeekForOffset = createServerFn({ method: 'POST' })
+  .validator((data: { offset: number }) => data)
+  .handler(async ({ data }): Promise<{ ok: true }> => {
+    const offset = Math.trunc(data.offset)
+    const { getSessionUser } = await import('./server-auth')
+    const user = await getSessionUser()
+    if (!user) throw new Error('Not signed in')
+    const { getDb } = await import('../db/client')
+    const { household, mealPlan } = await import('../db/schema')
+    const { eq, and } = await import('drizzle-orm')
+    const { weekStartForOffset } = await import('./week-offset')
+    const db = await getDb()
+    const hh = (
+      await db
+        .select({ id: household.id })
+        .from(household)
+        .where(eq(household.ownerId, user.id))
+        .limit(1)
+    )[0]
+    if (!hh) throw new Error('No household, onboard first')
+    const weekStart = weekStartForOffset(offset)
+    await db
+      .delete(mealPlan)
+      .where(
+        and(eq(mealPlan.householdId, hh.id), eq(mealPlan.weekStart, weekStart)),
+      )
+    return { ok: true }
+  })
 
 /**
  * The household's newest meal_plan id (by createdAt). Used by the in-app voice
