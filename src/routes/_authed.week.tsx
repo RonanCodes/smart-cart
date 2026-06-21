@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   createFileRoute,
   redirect,
@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CalendarPlus,
   Sparkles,
+  Mic,
   Plus,
   ChefHat,
 } from 'lucide-react'
@@ -44,6 +45,8 @@ import { Button } from '#/components/ui/button'
 import { DayCard } from '#/components/week/DayCard'
 import { ChatReplan } from '#/components/week/ChatReplan'
 import { VoiceButton } from '#/components/week/VoiceButton'
+import type { VoiceButtonHandle } from '#/components/week/VoiceButton'
+import { ReplanReview } from '#/components/week/ReplanReview'
 import { RecipeSheet } from '#/components/week/RecipeSheet'
 import { SwapSheet } from '#/components/week/SwapSheet'
 import { Sheet } from '#/components/ui/sheet'
@@ -336,6 +339,49 @@ function LoadedWeek({
   /** Days whose dinner a voice replan just changed, glowing for ~3s (#17). */
   const [glowDays, setGlowDays] = useState<ReadonlySet<string>>(() => new Set())
   /**
+   * Step-through replan review (#souso-voice). After a replan changes the week,
+   * the user can walk the changed days one at a time. `reviewDays` is the ordered
+   * list of changed day labels; `reviewIndex` is the cursor. The active day glows
+   * and is scrolled into view. Empty list = no review in progress.
+   */
+  const [reviewDays, setReviewDays] = useState<Array<string>>([])
+  const [reviewIndex, setReviewIndex] = useState(0)
+  /** Imperative handle to the always-mounted voice control (start from the sheet). */
+  const voiceRef = useRef<VoiceButtonHandle>(null)
+
+  /**
+   * Open the step-through review for a set of changed days (calendar order). Glow
+   * the first day and scroll it into view. Replaces any in-progress review.
+   */
+  const startReview = useCallback((changedDays: Array<string>) => {
+    if (changedDays.length === 0) return
+    setReviewDays(changedDays)
+    setReviewIndex(0)
+  }, [])
+
+  const nextReview = useCallback(() => {
+    setReviewIndex((i) => Math.min(i + 1, reviewDays.length - 1))
+  }, [reviewDays.length])
+
+  const endReview = useCallback(() => {
+    setReviewDays([])
+    setReviewIndex(0)
+    setGlowDays(new Set())
+  }, [])
+
+  // While a review is in progress, glow ONLY the active changed day and scroll it
+  // into view, so the highlight moves day-by-day as the user taps Next.
+  useEffect(() => {
+    if (reviewDays.length === 0) return
+    const day = reviewDays[reviewIndex]
+    if (!day) return
+    setGlowDays(new Set([day]))
+    if (typeof document !== 'undefined') {
+      const el = document.getElementById(`day-${day}`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [reviewDays, reviewIndex])
+  /**
    * Days that Souso is actively working on WHILE a replan is in flight
    * (#replan-ux). Driven by the day name(s) in the chat instruction, or a
    * single-day voice swap. Empty set + `replanning` true means "target not known
@@ -379,8 +425,12 @@ function LoadedWeek({
         .map((d) => d.day)
       adopt(next.planId, next)
       if (changed.length > 0) {
-        setGlowDays(new Set(changed))
-        window.setTimeout(() => setGlowDays(new Set()), 3200)
+        // Order the changed days in calendar order and open the step-through
+        // review so the user can walk each change one at a time.
+        const ordered = next.days
+          .map((d) => d.day)
+          .filter((day) => changed.includes(day))
+        startReview(ordered)
       }
     } catch {
       // Best-effort live sync; the chat path + a manual reload still work.
@@ -690,13 +740,13 @@ function LoadedWeek({
       if (changed) {
         const next = await loadWeek({ data: { planId: finalPlanId } })
         adopt(next.planId, next)
-        // Play the per-changed-day "magic" glow on exactly the days the diff
-        // says moved, so the post-change confirmation matches the real result.
-        const changedDays = finalChanges.map((c) => c.day)
-        if (changedDays.length > 0) {
-          setGlowDays(new Set(changedDays))
-          window.setTimeout(() => setGlowDays(new Set()), 3200)
-        }
+        // Open the step-through review on exactly the days the diff says moved,
+        // in calendar order, so the user can walk each change one at a time.
+        const changedSet = new Set(finalChanges.map((c) => c.day))
+        const changedDays = next.days
+          .map((d) => d.day)
+          .filter((day) => changedSet.has(day))
+        if (changedDays.length > 0) startReview(changedDays)
       }
       setMessage(finalMessage)
       setChanges(finalChanges)
@@ -861,25 +911,28 @@ function LoadedWeek({
           {week.days.map((d) => {
             const cbs = dayCallbacks.get(d.day)!
             return (
-              <DayCard
-                key={d.day}
-                day={d}
-                swapOptions={decks.get(d.day)}
-                busy={busyDay === d.day}
-                locked={locked}
-                glowing={glowDays.has(d.day)}
-                working={workingDays.has(d.day)}
-                onEdit={cbs.onEdit}
-                onAdd={cbs.onAdd}
-                onSwap={cbs.onSwap}
-                onSwapTo={cbs.onSwapTo}
-                onLoadSimilar={cbs.onLoadSimilar}
-                onPickSimilar={cbs.onPickSimilar}
-                rating={feedback.get(d.recipeRef)?.rating ?? null}
-                ratingNote={feedback.get(d.recipeRef)?.note ?? null}
-                ratingBusy={ratingBusy === d.recipeRef}
-                onRate={cbs.onRate}
-              />
+              // Anchor so the step-through review can scroll each changed day into
+              // view by id (`day-Monday`, …). `scroll-mt` clears the sticky header.
+              <div key={d.day} id={`day-${d.day}`} className="scroll-mt-20">
+                <DayCard
+                  day={d}
+                  swapOptions={decks.get(d.day)}
+                  busy={busyDay === d.day}
+                  locked={locked}
+                  glowing={glowDays.has(d.day)}
+                  working={workingDays.has(d.day)}
+                  onEdit={cbs.onEdit}
+                  onAdd={cbs.onAdd}
+                  onSwap={cbs.onSwap}
+                  onSwapTo={cbs.onSwapTo}
+                  onLoadSimilar={cbs.onLoadSimilar}
+                  onPickSimilar={cbs.onPickSimilar}
+                  rating={feedback.get(d.recipeRef)?.rating ?? null}
+                  ratingNote={feedback.get(d.recipeRef)?.note ?? null}
+                  ratingBusy={ratingBusy === d.recipeRef}
+                  onRate={cbs.onRate}
+                />
+              </div>
             )
           })}
         </div>
@@ -990,14 +1043,50 @@ function LoadedWeek({
             streamingText={streamingText}
             working={replanning && workingDays.size === 0}
           />
-          <VoiceButton
-            planId={week.planId}
+          {/* Voice trigger only. The live call lives in the always-mounted root
+              VoiceButton below, so starting here and closing the sheet keeps the
+              call running as a floating control. */}
+          <Button
+            type="button"
+            variant="default"
+            className="w-full gap-2"
             disabled={replanning}
-            onLiveChange={setVoiceLive}
-            onActed={() => void syncFromVoice()}
-          />
+            onClick={() => {
+              setAiOpen(false)
+              voiceRef.current?.start()
+            }}
+            aria-label="Talk to Souso"
+          >
+            <Mic className="h-4 w-4" aria-hidden />
+            Talk to Souso
+          </Button>
+          <p className="text-muted-foreground/80 text-center text-xs">
+            Souso stays open while you watch your week change — no need to press
+            Stop to keep talking.
+          </p>
         </div>
       </Sheet>
+
+      {/* Always-mounted voice control: keeps the SDK call alive across the sheet
+          closing and minimising. Renders nothing while idle (hideTrigger); shows
+          the live card / floating pill while a call runs. */}
+      <VoiceButton
+        ref={voiceRef}
+        hideTrigger
+        planId={week.planId}
+        disabled={replanning}
+        onLiveChange={setVoiceLive}
+        onActed={() => void syncFromVoice()}
+      />
+
+      {reviewDays.length > 0 && (
+        <ReplanReview
+          days={reviewDays}
+          index={reviewIndex}
+          onNext={nextReview}
+          onDone={endReview}
+        />
+      )}
 
       <RecipeSheet
         day={recipeViewing}
