@@ -51,7 +51,7 @@ export async function generatePlanForHousehold(
   const { household, recipe, recipeSwipe, mealPlan, mealFeedback } =
     await import('../db/schema')
   const { generateWeek } = await import('./planner/planner')
-  const { inferSkipDays, skipDaysToOverride } =
+  const { inferSkipDays, resolveSkipDays, skipDaysToOverride } =
     await import('./planner/skip-days')
   const { hasImage } = await import('../db/recipe-filters')
   const { foldRealFeedback } = await import('./recsys/feedback-fold')
@@ -147,7 +147,15 @@ export async function generatePlanForHousehold(
   // their recent plans, and default those days to 'out' in the new week. Only
   // the days array (Monday-first) is needed; the helper is pure + conservative
   // (needs a small history before it infers anything).
-  const skip = inferSkipDays(recentPlanRows.map((p) => p.plan.days))
+  //
+  // A MANUAL skipDays override on the profile (#data-points) WINS over the
+  // inference: when the household has set their own skip-days in the profile
+  // editor we honour those verbatim; otherwise we fall back to the inferred set.
+  // Both are strict no-ops for a fresh household (no override + no history ->
+  // empty set -> no dayTypes override), so the first week + benchmark fixture
+  // stay byte-for-byte unchanged.
+  const inferred = inferSkipDays(recentPlanRows.map((p) => p.plan.days))
+  const skip = resolveSkipDays(hh.profile.skipDays, inferred)
   const dayTypes = skipDaysToOverride(skip)
 
   const week = generateWeek(recipes, hh.profile, swipes, {
