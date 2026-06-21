@@ -217,3 +217,27 @@ export async function sendWaitlistSignupNotice(
   })
   return { sent: !error }
 }
+
+/**
+ * Tell ONE admin a NEW account was just created (a real sign-up completing OTP
+ * verify), with the running total of accounts. Same best-effort contract as
+ * sendWaitlistSignupNotice: callers swallow errors so a Resend outage can never
+ * break the sign-up. `to` defaults to the owner; the notifier passes each
+ * opted-in admin individually so recipients never see each other's addresses.
+ */
+export async function sendNewUserNotice(
+  newEmail: string,
+  totalUsers: number,
+  to: string = ADMIN_NOTIFY_TO,
+): Promise<{ sent: boolean }> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) return { sent: false }
+  const resend = new Resend(apiKey)
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `New Souso signup: ${newEmail}`,
+    text: `${newEmail} just created a Souso account. Total accounts: ${totalUsers}.`,
+  })
+  return { sent: !error }
+}

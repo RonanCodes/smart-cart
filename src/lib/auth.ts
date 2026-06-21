@@ -135,6 +135,28 @@ async function buildAuth() {
         }
       }),
     },
+    databaseHooks: {
+      user: {
+        create: {
+          // Fires exactly once when a brand-new account row is created, in ANY
+          // sign-up flow (anonymous onboarding ending in OTP verify, or a
+          // first-time approved email signing in). This is the central, correct
+          // place to notify admins of a real sign-up: the old waitlist-only
+          // notifier never fired here, so admins got no emails for real users.
+          after: async (newUser) => {
+            try {
+              if (newUser.email) {
+                const { notifyAdminsOfNewUser } =
+                  await import('./waitlist-notify')
+                await notifyAdminsOfNewUser(newUser.email)
+              }
+            } catch {
+              // Non-fatal: a notification failure must never break sign-up.
+            }
+          },
+        },
+      },
+    },
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     // Passwordless: no password to manage. Sign-in is a 6-digit code by email.
     emailAndPassword: { enabled: false },
