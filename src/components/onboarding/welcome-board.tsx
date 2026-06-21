@@ -75,7 +75,7 @@ export function WelcomeBoard({
       />
 
       {/* Menu over the board. */}
-      <div className="relative mt-auto flex flex-col items-center px-7 pb-10 text-center">
+      <div className="relative mt-auto flex flex-col items-center px-7 pb-16 text-center">
         <img src="/souso-mark.svg" alt="Souso" className="h-14 w-auto" />
         <h1
           className="mt-4 text-[2.1rem] leading-[1.04] font-bold"
