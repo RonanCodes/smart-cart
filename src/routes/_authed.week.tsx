@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  createFileRoute,
-  redirect,
-  useNavigate,
-  Link,
-} from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import {
   ShoppingBasket,
   ChevronLeft,
@@ -50,7 +45,6 @@ import { ReplanReview } from '#/components/week/ReplanReview'
 import { RecipeSheet } from '#/components/week/RecipeSheet'
 import { SwapSheet } from '#/components/week/SwapSheet'
 import { Sheet } from '#/components/ui/sheet'
-import { StickyNote } from '#/components/ui/sticky-note'
 import { RatingReminders } from '#/components/week/RatingReminders'
 import { WeekSkeleton } from '#/components/week/WeekSkeleton'
 import { ReplanBanner } from '#/components/week/ReplanBanner'
@@ -861,28 +855,10 @@ function LoadedWeek({
 
   return (
     <AppShell>
-      <ScreenHeader
-        title="Your week"
-        subtitle="Seven dinners, planned for you. Swipe a dish to swap it."
-        action={
-          <Link
-            to="/shopping"
-            search={{ plan: week.planId }}
-            className="text-primary inline-flex items-center gap-1.5 text-sm font-medium"
-          >
-            <ShoppingBasket className="h-4 w-4" aria-hidden />
-            Shopping list
-          </Link>
-        }
-      />
+      <ScreenHeader title="Your week" subtitle="Swipe a dish to swap it." />
 
       <div className="space-y-6 px-5 pt-2">
         <WeekNav offset={offset} />
-        <div className="-mb-3 flex justify-end pr-1">
-          <StickyNote tilt={4}>
-            no more &ldquo;what&rsquo;s for dinner?&rdquo;
-          </StickyNote>
-        </div>
         <button
           type="button"
           onClick={() => setAiOpen(true)}
