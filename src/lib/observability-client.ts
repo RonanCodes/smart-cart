@@ -91,13 +91,46 @@ export function setObservabilityUser(
   })
 }
 
-/** Forward an error to Sentry (called by log.ts). No-op until init. */
+/**
+ * Rebuild a real Error from whatever was logged. `log.ts` serialises thrown
+ * values to a plain `{ name, message, stack }` before they reach here, and
+ * `Sentry.captureException` on a plain object produces a useless
+ * "Object captured as exception with keys: message, name, stack" issue with no
+ * message, stack, or grouping. Reconstructing an Error restores the title, stack,
+ * and fingerprint so Sentry issues are readable again.
+ */
+function materialiseError(value: unknown): Error {
+  if (value instanceof Error) return value
+  if (value && typeof value === 'object') {
+    const o = value as { name?: unknown; message?: unknown; stack?: unknown }
+    const message =
+      typeof o.message === 'string' && o.message
+        ? o.message
+        : JSON.stringify(value)
+    const err = new Error(message)
+    if (typeof o.name === 'string' && o.name) err.name = o.name
+    if (typeof o.stack === 'string' && o.stack) err.stack = o.stack
+    return err
+  }
+  return new Error(typeof value === 'string' ? value : String(value))
+}
+
+/**
+ * Forward an error to Sentry (called by log.ts). No-op until init. The dotted
+ * `event` name from the log call (e.g. "auth.otp_magiclink_error") is attached as
+ * a `log_event` tag so you can filter Sentry by it, and the error is materialised
+ * into a real Error so it groups and reads correctly.
+ */
 export function captureError(
   error: unknown,
   context?: Record<string, unknown>,
 ): void {
   if (!started) return
-  Sentry.captureException(error, context ? { extra: context } : undefined)
+  const event = context?.event
+  Sentry.captureException(materialiseError(error), {
+    ...(context ? { extra: context } : {}),
+    ...(typeof event === 'string' ? { tags: { log_event: event } } : {}),
+  })
 }
 
 /** Forward a named event to PostHog (called by log.ts). No-op until init. */
