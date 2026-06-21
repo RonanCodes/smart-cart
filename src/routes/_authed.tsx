@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { requireAuthedBeforeLoad } from '#/lib/route-guards'
+import { FeedbackBubble } from '#/components/feedback/FeedbackBubble'
 
 /**
  * Shared auth + onboarding guard for the gated app routes (#251).
@@ -21,5 +22,12 @@ import { requireAuthedBeforeLoad } from '#/lib/route-guards'
  */
 export const Route = createFileRoute('/_authed')({
   beforeLoad: () => requireAuthedBeforeLoad(),
-  component: () => <Outlet />,
+  // The persistent feedback bubble (#404) is mounted once here so it follows the
+  // user across every gated screen, above the children's Outlet.
+  component: () => (
+    <>
+      <Outlet />
+      <FeedbackBubble />
+    </>
+  ),
 })
