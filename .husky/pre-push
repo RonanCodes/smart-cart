@@ -1,8 +1,8 @@
 set -e
 
-# Local CI gate. Mirrors the GitHub Actions `test` job so a green pre-push means a
-# green remote CI: same migrations, same checks. `set -e` aborts the push the moment
-# any step fails, not just the last one.
+# Local CI gate. This is the ONLY CI we run: GitHub Actions is CD-only (deploy on
+# merge to main), so a green pre-push is what guarantees main is good. `set -e`
+# aborts the push the moment any step fails, not just the last one.
 #
 # SKIP_QUALITY_CHECKS is a deliberate, explicit escape hatch for the repo owner only.
 # Do NOT push with it set (or with `git push --no-verify`) on shared work: it bypasses
@@ -12,13 +12,29 @@ if [ -n "$SKIP_QUALITY_CHECKS" ]; then
   exit 0
 fi
 
-echo "🔍 Pre-push local CI gate (mirrors GitHub Actions)…"
+echo "🔍 Pre-push local CI gate…"
 
-# Schema parity with CI: apply any new local D1 migrations. Idempotent (wrangler
-# tracks applied ones) and local-only, so no network and no remote writes.
+# Schema parity with what CD applies: apply any new local D1 migrations. Idempotent
+# (wrangler tracks applied ones) and local-only, so no network and no remote writes.
 echo "→ applying local D1 migrations"
 pnpm db:migrate:local
 
 # The gate proper: format + lint + typecheck + build + test.
 echo "→ format + lint + typecheck + build + test"
 pnpm quality
+
+# Agent eval gate (Braintrust). Runs the eval suite ONLY when this push changes the
+# agent (replan / matching / embeddings), so a regression there blocks the push, but
+# a design/docs push never pays for it. Guards keep it from blocking the wrong people:
+#   - skips unless a `pnpm eval` script exists (so it's inert until the suite lands),
+#   - skips unless agent files actually changed (cost + Braintrust quota control).
+# CONTRACT for `pnpm eval`: it MUST exit non-zero ONLY on a real regression (score
+# below baseline), and MUST exit 0 (self-skip) when OPENAI_API_KEY is absent, so a
+# keyless contributor is never blocked. That key/threshold logic lives in the script.
+if node -e "var s=require('./package.json').scripts||{};process.exit(s.eval?0:1)" 2>/dev/null; then
+  CHANGED="$(git diff --name-only origin/main...HEAD 2>/dev/null || true)"
+  if printf '%s\n' "$CHANGED" | grep -qE 'src/lib/(replan|pricing|embeddings)/|src/lib/(braintrust-ai|models)\.ts'; then
+    echo "→ agent files changed: running evals (no regressions allowed)"
+    pnpm eval
+  fi
+fi
