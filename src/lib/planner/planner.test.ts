@@ -453,6 +453,33 @@ describe('generateWeek variety exclusion (#week-nav)', () => {
     // And the week still fills (the catalogue is large enough).
     expect(nextIds.length).toBe(7)
   })
+
+  it('a small pool still fills next week instead of going all-empty (#320)', () => {
+    // Pool smaller than a week (5 servable dinners), like a vegan/tight-allergy
+    // household. Week 1 places all 5 (the two extra days are inherently "eating
+    // out"). The bug: excluding week 1's dinners emptied the diet-filtered pool,
+    // so EVERY next-week day came back empty. With a SOFT exclusion, next week
+    // re-uses them and fills the same five days.
+    const small: Array<PlannerRecipe> = Array.from({ length: 5 }, (_, i) => ({
+      id: `s${i}`,
+      title: `Dinner ${i}`,
+      cuisine: 'Italian',
+      category: 'Main',
+      mealType: 'dinner',
+      dietaryTags: [],
+      ingredients: [{ name: 'pasta' }, { name: 'tomato' }],
+      calories: 500,
+      protein: 20,
+      prepMinutes: 30,
+    }))
+    const first = generateWeek(small, {}, [])
+    const firstIds = first.days.map((d) => d.recipeRef).filter(Boolean)
+    expect(firstIds.length).toBe(5)
+    const next = generateWeek(small, {}, [], { excludeRecipeIds: firstIds })
+    const nextIds = next.days.map((d) => d.recipeRef).filter(Boolean)
+    // Was 0 before the fix; must now match week 1's fill.
+    expect(nextIds.length).toBe(firstIds.length)
+  })
 })
 
 describe('generateWeek skip-day override (#week-nav)', () => {
