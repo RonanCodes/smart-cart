@@ -3,6 +3,7 @@ import { DislikesStep } from './steps/dislikes-step'
 import { DietStep } from './steps/diet-step'
 import { CuisineStep } from './steps/cuisine-step'
 import { StoreStep } from './steps/store-step'
+import { LanguageStep } from './steps/language-step'
 import { KitchenStep } from './steps/kitchen-step'
 import { GoalsStep } from './steps/goals-step'
 import { NotificationsStep } from './steps/notifications-step'
@@ -74,6 +75,13 @@ export const STEPS: Array<OnboardingStep> = [
     title: 'Where do you shop?',
     subtitle: 'We build a ready-to-order basket here.',
     Component: StoreStep,
+  },
+  {
+    id: 'language',
+    title: 'Recipe language',
+    subtitle:
+      'Show your recipes in English or Dutch. You can change this later.',
+    Component: LanguageStep,
   },
   {
     id: 'notifications',

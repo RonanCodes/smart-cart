@@ -1,5 +1,6 @@
 import type { OnboardingDraft } from '#/components/onboarding/form-state'
 import type { StoreSlug } from './store-pref-server'
+import type { Locale } from './recipe-locale'
 import { clampHouseholdCount } from './onboarding-rhythm'
 
 /**
@@ -43,6 +44,9 @@ export interface MappedHousehold {
    * 'picnic'). An unanswered step (draft.store === null) and anything else are
    * left undefined so the caller keeps the existing/default store. */
   preferredStore?: StoreSlug
+  /** The recipe-content language ('en' | 'nl', #310). Always set: the draft
+   * defaults to 'en', so onboarding always carries a valid locale through. */
+  preferredLocale: Locale
   profile: MappedProfile
 }
 
@@ -88,6 +92,11 @@ export function draftToHousehold(draft: OnboardingDraft): MappedHousehold {
       ? (store as StoreSlug)
       : undefined
 
+  // The recipe-content language. The draft defaults to 'en'; anything other
+  // than the one known alternative ('nl') falls back to English, so a junk
+  // value never reaches the column.
+  const preferredLocale: Locale = draft.locale === 'nl' ? 'nl' : 'en'
+
   const dietLabels = draft.diet.map(normalise)
 
   // The single diet string the planner's tag gate reads: strictest tag-diet the
@@ -117,6 +126,7 @@ export function draftToHousehold(draft: OnboardingDraft): MappedHousehold {
     adults,
     children,
     preferredStore,
+    preferredLocale,
     profile: {
       allergies,
       // Keep the user's own dislike words for display ("no anchovies"); the

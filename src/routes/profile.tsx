@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import {
   User,
   LogOut,
@@ -13,7 +13,6 @@ import {
   CalendarOff,
   Languages,
 } from 'lucide-react'
-import { useRouter } from '@tanstack/react-router'
 import { authClient } from '#/lib/auth-client'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { List, ListRow } from '#/components/ui/list'
