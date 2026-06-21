@@ -25,6 +25,7 @@ import { Route as DesignShoppingRouteImport } from './routes/design.shopping'
 import { Route as DesignSettingsRouteImport } from './routes/design.settings'
 import { Route as DesignRecipeRouteImport } from './routes/design.recipe'
 import { Route as DesignOnboardingRouteImport } from './routes/design.onboarding'
+import { Route as DesignLandingRouteImport } from './routes/design.landing'
 import { Route as DesignDiscoverRouteImport } from './routes/design.discover'
 import { Route as ApiSimilarRouteImport } from './routes/api/similar'
 import { Route as ApiReplanRouteImport } from './routes/api/replan'
@@ -126,6 +127,11 @@ const DesignRecipeRoute = DesignRecipeRouteImport.update({
 const DesignOnboardingRoute = DesignOnboardingRouteImport.update({
   id: '/design/onboarding',
   path: '/design/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignLandingRoute = DesignLandingRouteImport.update({
+  id: '/design/landing',
+  path: '/design/landing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DesignDiscoverRoute = DesignDiscoverRouteImport.update({
@@ -271,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/design/discover': typeof DesignDiscoverRoute
+  '/design/landing': typeof DesignLandingRoute
   '/design/onboarding': typeof DesignOnboardingRoute
   '/design/recipe': typeof DesignRecipeRoute
   '/design/settings': typeof DesignSettingsRoute
@@ -310,6 +317,7 @@ export interface FileRoutesByTo {
   '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/design/discover': typeof DesignDiscoverRoute
+  '/design/landing': typeof DesignLandingRoute
   '/design/onboarding': typeof DesignOnboardingRoute
   '/design/recipe': typeof DesignRecipeRoute
   '/design/settings': typeof DesignSettingsRoute
@@ -352,6 +360,7 @@ export interface FileRoutesById {
   '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
   '/design/discover': typeof DesignDiscoverRoute
+  '/design/landing': typeof DesignLandingRoute
   '/design/onboarding': typeof DesignOnboardingRoute
   '/design/recipe': typeof DesignRecipeRoute
   '/design/settings': typeof DesignSettingsRoute
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/api/replan'
     | '/api/similar'
     | '/design/discover'
+    | '/design/landing'
     | '/design/onboarding'
     | '/design/recipe'
     | '/design/settings'
@@ -433,6 +443,7 @@ export interface FileRouteTypes {
     | '/api/replan'
     | '/api/similar'
     | '/design/discover'
+    | '/design/landing'
     | '/design/onboarding'
     | '/design/recipe'
     | '/design/settings'
@@ -474,6 +485,7 @@ export interface FileRouteTypes {
     | '/api/replan'
     | '/api/similar'
     | '/design/discover'
+    | '/design/landing'
     | '/design/onboarding'
     | '/design/recipe'
     | '/design/settings'
@@ -505,6 +517,7 @@ export interface RootRouteChildren {
   ApiReplanRoute: typeof ApiReplanRoute
   ApiSimilarRoute: typeof ApiSimilarRoute
   DesignDiscoverRoute: typeof DesignDiscoverRoute
+  DesignLandingRoute: typeof DesignLandingRoute
   DesignOnboardingRoute: typeof DesignOnboardingRoute
   DesignRecipeRoute: typeof DesignRecipeRoute
   DesignSettingsRoute: typeof DesignSettingsRoute
@@ -630,6 +643,13 @@ declare module '@tanstack/react-router' {
       path: '/design/onboarding'
       fullPath: '/design/onboarding'
       preLoaderRoute: typeof DesignOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/design/landing': {
+      id: '/design/landing'
+      path: '/design/landing'
+      fullPath: '/design/landing'
+      preLoaderRoute: typeof DesignLandingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/design/discover': {
@@ -856,6 +876,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReplanRoute: ApiReplanRoute,
   ApiSimilarRoute: ApiSimilarRoute,
   DesignDiscoverRoute: DesignDiscoverRoute,
+  DesignLandingRoute: DesignLandingRoute,
   DesignOnboardingRoute: DesignOnboardingRoute,
   DesignRecipeRoute: DesignRecipeRoute,
   DesignSettingsRoute: DesignSettingsRoute,
