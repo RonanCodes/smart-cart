@@ -9,6 +9,7 @@ import {
   Sparkles,
   CreditCard,
   BookOpen,
+  Rocket,
   ChevronLeft,
 } from 'lucide-react'
 import { requireAdminBeforeLoad } from '#/lib/admin-server'
@@ -116,6 +117,11 @@ function AdminLayout() {
               to="/admin/recipes"
               icon={<BookOpen className="h-4 w-4" />}
               label="Recipes"
+            />
+            <TabLink
+              to="/admin/launch"
+              icon={<Rocket className="h-4 w-4" />}
+              label="Launch"
             />
           </nav>
         </div>

@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Clock, PiggyBank, Sparkles, Leaf } from 'lucide-react'
 import { joinWaitlist } from '#/lib/waitlist-server'
 import { SafeArea } from '#/components/ui/safe-area'
-import { Button } from '#/components/ui/button'
+import { Button, buttonVariants } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 
 /**
@@ -12,6 +12,9 @@ import { Input } from '#/components/ui/input'
  * mascot agent, not here). A prominent waitlist email capture is the primary CTA;
  * a small, discrete 'Log in' link at the very bottom lets already-approved users
  * reach /login without the waitlist drowning it out.
+ *
+ * Once the app is live (`launched`), the waitlist capture is replaced by a
+ * "get started" CTA into /sign-in, since anyone can now sign in.
  *
  * Mounted at the public entry route / (the swipe-deck opener is retired).
  */
@@ -42,7 +45,7 @@ const BENEFITS: Array<Benefit> = [
   },
 ]
 
-export function Landing() {
+export function Landing({ launched = false }: { launched?: boolean }) {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'busy' | 'done' | 'error'>(
     'idle',
@@ -87,9 +90,27 @@ export function Landing() {
           </p>
         </section>
 
-        {/* Primary CTA: waitlist */}
+        {/* Primary CTA: once live, a "get started" button into sign-in; before
+            launch, the waitlist capture. */}
         <section className="bg-card mt-8 rounded-[var(--radius-ios)] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_-12px_rgba(0,0,0,0.12)]">
-          {status === 'done' ? (
+          {launched ? (
+            <div className="space-y-3 text-center">
+              <h2 className="text-xl font-bold">We&apos;re live 🎉</h2>
+              <p className="text-muted-foreground text-sm">
+                Souso is open. Plan your week and build your shopping list in
+                minutes.
+              </p>
+              <Link
+                to="/sign-in"
+                className={buttonVariants({
+                  size: 'pill',
+                  className: 'w-full',
+                })}
+              >
+                Get started
+              </Link>
+            </div>
+          ) : status === 'done' ? (
             <div className="text-center">
               <p className="text-lg font-semibold">You are on the list 🎉</p>
               <p className="text-muted-foreground mt-2 text-sm">
