@@ -13,6 +13,13 @@ import {
   saveDraft,
 } from './form-state'
 import type { OnboardingDraft } from './form-state'
+import {
+  historyStateFor,
+  indexToPosition,
+  positionToIndex,
+  readHistoryIndex,
+} from './onboarding-history'
+import type { OnboardingPhase } from './onboarding-history'
 
 /**
  * OnboardingFlow — the Jow-style form shell that replaces the swipe deck as the
@@ -40,7 +47,7 @@ import type { OnboardingDraft } from './form-state'
  * Mobile first at 390px. The parent route supplies the safe-area frame.
  */
 
-type Phase = 'intro' | 'steps' | 'auth'
+type Phase = OnboardingPhase
 
 export function OnboardingFlow({
   onComplete,
@@ -87,6 +94,63 @@ export function OnboardingFlow({
     [draft],
   )
 
+  const total = STEPS.length
+
+  // #371: the whole flow is ONE route, so the browser/OS Back button used to pop
+  // the entire route — jumping past every step back to the intro/home. Fix: push
+  // a history entry per forward move (keyed to the linear flow position) and map
+  // popstate back onto phase/stepIndex, so Back walks the flow one position at a
+  // time and Forward re-advances. All history work is client-only and guarded.
+  /**
+   * Move the shell to a position. `push` adds a history entry (forward moves);
+   * popstate-driven moves pass push=false so we just mirror the browser's state.
+   */
+  const go = React.useCallback(
+    (phaseTo: Phase, stepTo: number, push: boolean) => {
+      setPhase(phaseTo)
+      setStepIndex(stepTo)
+      if (typeof window === 'undefined') return
+      const index = positionToIndex(
+        { phase: phaseTo, stepIndex: stepTo },
+        total,
+      )
+      if (push) {
+        window.history.pushState(historyStateFor(index), '')
+      } else {
+        window.history.replaceState(historyStateFor(index), '')
+      }
+    },
+    [total],
+  )
+
+  // Stamp the current entry with our baseline position on mount so the first Back
+  // has somewhere to return to, then listen for popstate (browser/OS Back/Forward)
+  // and re-derive phase/stepIndex from the entry the browser moved to.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const startIndex = positionToIndex(
+      { phase: skipIntro ? 'steps' : 'intro', stepIndex: 0 },
+      total,
+    )
+    // replaceState (not push) so we don't add a phantom entry the user must Back
+    // through; we only annotate the entry the route already created.
+    window.history.replaceState(historyStateFor(startIndex), '')
+
+    const onPopState = (event: PopStateEvent) => {
+      const index = readHistoryIndex(event.state)
+      // A foreign/empty state means the user is leaving the flow entirely (e.g.
+      // Back past the intro): let the browser navigate, don't swallow it.
+      if (index === null) return
+      const pos = indexToPosition(index, total)
+      setPhase(pos.phase)
+      setStepIndex(pos.stepIndex)
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+    // Mount-only: skipIntro/total are stable for a given flow instance, so the
+    // baseline stamp + listener wire up exactly once.
+  }, [skipIntro, total])
+
   function complete() {
     // The flow is done: drop the sessionStorage backup so a later visit starts
     // clean, then hand the draft to the parent to persist + build the week.
@@ -96,13 +160,45 @@ export function OnboardingFlow({
     onComplete(draft)
   }
 
+  // The in-app Back arrow defers to the BROWSER's back so it and the OS/browser
+  // Back button share one path (#371): history.back() pops the entry the matching
+  // forward move pushed, and our popstate listener re-derives phase/stepIndex. SSR
+  // / no-window falls back to a direct position move.
+  function back() {
+    if (typeof window !== 'undefined') {
+      window.history.back()
+      return
+    }
+    if (phase === 'auth') {
+      go('steps', total - 1, false)
+      return
+    }
+    if (stepIndex === 0) {
+      go('intro', 0, false)
+      return
+    }
+    go('steps', stepIndex - 1, false)
+  }
+
+  function next() {
+    if (phase !== 'steps') return
+    if (stepIndex === total - 1) {
+      // A signed-out visitor goes to the email/OTP phase to create their account
+      // before we persist; a signed-in redo (requireAuth=false) completes now.
+      if (requireAuth) {
+        go('auth', stepIndex, true)
+        return
+      }
+      complete()
+      return
+    }
+    go('steps', stepIndex + 1, true)
+  }
+
   if (phase === 'intro') {
     return (
       <WelcomeBoard
-        onGetStarted={() => {
-          setStepIndex(0)
-          setPhase('steps')
-        }}
+        onGetStarted={() => go('steps', 0, true)}
         onSignIn={onSignIn}
       />
     )
@@ -118,7 +214,7 @@ export function OnboardingFlow({
           <button
             type="button"
             aria-label="Back"
-            onClick={() => setPhase('steps')}
+            onClick={() => back()}
             className="border-border flex h-10 w-10 items-center justify-center rounded-full border transition active:scale-95"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -139,7 +235,6 @@ export function OnboardingFlow({
     )
   }
 
-  const total = STEPS.length
   const step = STEPS[stepIndex]
   // stepIndex is always clamped to [0, total) by the nav below; the guard keeps
   // the type checker honest under noUncheckedIndexedAccess.
@@ -147,28 +242,6 @@ export function OnboardingFlow({
   const isLast = stepIndex === total - 1
   const canAdvance = step.canAdvance ? step.canAdvance(draft) : true
   const progressPct = ((stepIndex + 1) / total) * 100
-
-  function back() {
-    if (stepIndex === 0) {
-      setPhase('intro')
-      return
-    }
-    setStepIndex((i) => i - 1)
-  }
-
-  function next() {
-    if (isLast) {
-      // A signed-out visitor goes to the email/OTP phase to create their account
-      // before we persist; a signed-in redo (requireAuth=false) completes now.
-      if (requireAuth) {
-        setPhase('auth')
-        return
-      }
-      complete()
-      return
-    }
-    setStepIndex((i) => i + 1)
-  }
 
   const { Component } = step
 
