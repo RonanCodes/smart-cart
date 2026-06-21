@@ -46,11 +46,13 @@ export const applySimilarSwapToPlan = createServerFn({ method: 'POST' })
     const { eq, and } = await import('drizzle-orm')
     const { applySimilarSwap, planHasDay } =
       await import('./swap/apply-similar-swap')
+    const { ensureDistinctSwap } = await import('./swap/ensure-distinct-swap')
+    const { topNForDay } = await import('./planner')
     const { recordPickDataPoint } = await import('./swap/pick-to-data-point')
     const db = await getDb()
 
     const householdRows = await db
-      .select({ id: household.id })
+      .select({ id: household.id, profile: household.profile })
       .from(household)
       .where(eq(household.ownerId, user.id))
       .limit(1)
@@ -83,9 +85,89 @@ export const applySimilarSwapToPlan = createServerFn({ method: 'POST' })
     const chosen = recipeRows[0]
     if (!chosen) throw new Error('Recipe not found')
 
+    // A swap must ALWAYS move the day to a DIFFERENT recipe (#256). Normally the
+    // chosen recipe already differs (the similar list drops the query recipe, the
+    // per-day alternatives exclude the current pick), so this is a no-op fast path.
+    // Only when the chosen recipe collides with the day's current dish do we resolve
+    // the next-best DISTINCT candidate, using the SAME store filter + taste ranking
+    // the week view uses (topNForDay), and only keep the current dish if there is
+    // genuinely no other recipe to swap in (a degenerate one-recipe catalogue).
+    const targetDay = current.plan.days.find((d) => d.day === data.day)
+    const currentRecipeId = targetDay?.recipeRef ?? ''
+    const otherDayRecipeIds = current.plan.days
+      .filter((d) => d.day !== data.day && d.recipeRef)
+      .map((d) => d.recipeRef as string)
+
+    let resolvedId = chosen.id
+    let resolvedTitle = chosen.title
+
+    if (chosen.id === currentRecipeId) {
+      const { hasImage } = await import('../db/recipe-filters')
+      const catalogueRows = await db
+        .select({
+          id: recipe.id,
+          title: recipe.title,
+          cuisine: recipe.cuisine,
+          category: recipe.category,
+          dietaryTags: recipe.dietaryTags,
+          ingredients: recipe.ingredients,
+          calories: recipe.calories,
+          protein: recipe.protein,
+          prepMinutes: recipe.prepMinutes,
+          mealType: recipe.mealType,
+        })
+        .from(recipe)
+        // Only swap in servable (imaged) recipes, mirroring the week view.
+        .where(hasImage)
+
+      const catalogue = catalogueRows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        cuisine: r.cuisine,
+        category: r.category,
+        dietaryTags: r.dietaryTags,
+        ingredients: r.ingredients.map((i) => ({ name: i.name })),
+        calories: r.calories,
+        protein: r.protein,
+        prepMinutes: r.prepMinutes,
+        mealType: r.mealType,
+      }))
+
+      const swipeRows = await db
+        .select({
+          recipeId: recipeSwipe.recipeId,
+          direction: recipeSwipe.direction,
+        })
+        .from(recipeSwipe)
+        .where(eq(recipeSwipe.householdId, hh.id))
+      const swipes = swipeRows
+        .filter((s) => s.direction === 'like' || s.direction === 'dislike')
+        .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
+
+      // Same hard filter + preference ranking as the week, excluding the current
+      // pick and every other day's recipe so the fallback never duplicates a day.
+      const ranked = topNForDay(catalogue, hh.profile, swipes, {
+        excludeRecipeId: currentRecipeId || null,
+        weekRecipeIds: otherDayRecipeIds,
+        n: catalogue.length,
+      })
+
+      const { recipeId } = ensureDistinctSwap({
+        chosenId: chosen.id,
+        currentRecipeId,
+        rankedCandidateIds: ranked.map((r) => r.id),
+        avoidIds: otherDayRecipeIds,
+      })
+
+      resolvedId = recipeId
+      const resolved = catalogue.find((r) => r.id === recipeId)
+      // Fall back to the chosen title only in the degenerate same-id case.
+      resolvedTitle = resolved?.title ?? chosen.title
+    }
+
     const nextDays = applySimilarSwap(current.plan.days, data.day, {
-      id: chosen.id,
-      title: chosen.title,
+      id: resolvedId,
+      title: resolvedTitle,
     })
 
     // Persist a new revision. We keep the old row so a swap is reversible, exactly
@@ -135,7 +217,7 @@ export const applySimilarSwapToPlan = createServerFn({ method: 'POST' })
             })
           },
         },
-        { householdId: hh.id, chosenRecipeId: chosen.id },
+        { householdId: hh.id, chosenRecipeId: resolvedId },
         () => crypto.randomUUID(),
       )
     } catch (err) {
