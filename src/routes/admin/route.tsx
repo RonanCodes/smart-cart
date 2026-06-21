@@ -10,6 +10,7 @@ import {
   CreditCard,
   BookOpen,
   ChevronLeft,
+  Palette,
 } from 'lucide-react'
 import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import { ScreenHeader } from '#/components/ui/app-shell'
@@ -116,6 +117,14 @@ function AdminLayout() {
               to="/admin/recipes"
               icon={<BookOpen className="h-4 w-4" />}
               label="Recipes"
+            />
+            {/* Souso design prototype (PR #320). Admin-gated so the throwaway
+                /design/* preview is reachable for demos without shipping it as
+                a public route. */}
+            <TabLink
+              to="/design/onboarding"
+              icon={<Palette className="h-4 w-4" />}
+              label="Design preview"
             />
           </nav>
         </div>

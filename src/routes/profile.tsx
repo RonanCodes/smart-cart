@@ -215,9 +215,8 @@ function Profile() {
               {summary.badges.map((b) => (
                 <span
                   key={b.label}
-                  className="bg-secondary text-secondary-foreground inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
+                  className="bg-secondary text-secondary-foreground inline-flex items-center rounded-full px-4 py-2 text-sm font-medium"
                 >
-                  <span className="text-lg">{b.emoji}</span>
                   {b.label}
                 </span>
               ))}

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Check, Plus, Trash2 } from 'lucide-react'
+import { Check, Plus, Trash2, ShoppingBasket } from 'lucide-react'
 import { Input } from '#/components/ui/input'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
+import { ingredientSticker } from '#/lib/ingredient-sticker'
 import {
   addShoppingItem,
   updateShoppingItem,
@@ -312,6 +313,7 @@ function ItemRow({
   onSaveAmount: (value: string) => void
   onRemove: () => void
 }) {
+  const sticker = ingredientSticker(item.name)
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <button
@@ -329,6 +331,28 @@ function ItemRow({
       >
         {item.checked && <Check className="h-4 w-4" aria-hidden />}
       </button>
+
+      {/* Cut-out product sticker (or a neutral tile when we have no match). */}
+      <div
+        className={`bg-secondary flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+          item.checked ? 'opacity-50' : ''
+        }`}
+      >
+        {sticker ? (
+          <img
+            src={sticker}
+            alt=""
+            aria-hidden
+            className="souso-sticker h-8 w-8 object-contain"
+            style={{ transform: 'rotate(-3deg)' }}
+          />
+        ) : (
+          <ShoppingBasket
+            className="text-muted-foreground/50 h-5 w-5"
+            aria-hidden
+          />
+        )}
+      </div>
 
       <div className="min-w-0 flex-1">
         <InlineEdit

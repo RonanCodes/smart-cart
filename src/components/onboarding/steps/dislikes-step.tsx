@@ -1,22 +1,19 @@
 import * as React from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Search, UtensilsCrossed } from 'lucide-react'
 import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 import { suggestDislikes } from '#/lib/onboarding/common-dislikes'
 import { useOnboardingForm } from '../form-state'
 
 /**
- * DislikesStep — the 'ingredients to avoid' screen of the Jow-style onboarding
- * (parent PRD #104, slice #107). The user toggles a grid of common-allergen and
- * disliked-ingredient pills, and can type any other ingredient into the search
- * box to add it. Everything selected becomes a HARD filter in the planner, so
- * the wording is deliberately about avoidance, not preference.
+ * DislikesStep — the 'ingredients to avoid' screen of the Jow-style onboarding.
+ * Souso / Julienne styling: one centred focus (a die-cut hero mark), generous
+ * whitespace, and airy outline pills. Default pill = paper + hairline + plus;
+ * selected pill = olive fill + struck-through label + x. The user can search any
+ * ingredient to add it. Everything selected becomes a HARD filter in the planner.
  *
- * Reads + writes `draft.dislikes` (a string array) via useOnboardingForm. Labels
- * are stored verbatim; matching against recipes is the planner's job.
- *
- * Mobile first at 390px: pills are tap-sized, wrap freely, and a tapped pill
- * shows a remove affordance so the whole interaction stays thumb-driven.
+ * Reads + writes `draft.dislikes` via useOnboardingForm. No emoji: the hero is a
+ * Lucide mark and the chips are text, in line with the Souso icon set.
  */
 
 /** The default pill set, the common avoid-list from the Jow reference. */
@@ -36,6 +33,27 @@ const SUGGESTED: ReadonlyArray<string> = [
   'Pepper',
   'Coriander',
 ]
+
+/** Avoid-chips that ship with a cut-out product sticker (public/stickers). */
+const STICKER_SLUGS = new Set([
+  'shellfish',
+  'nuts',
+  'egg',
+  'soy',
+  'mushroom',
+  'cilantro',
+  'fish',
+  'tomato',
+  'dairy',
+  'onion',
+  'garlic',
+  'pepper',
+  'coriander',
+])
+function stickerSrc(label: string): string | null {
+  const slug = label.trim().toLowerCase()
+  return STICKER_SLUGS.has(slug) ? `/stickers/ingredients/${slug}.png` : null
+}
 
 /** Case-insensitive membership so 'Egg' and 'egg' never double up. */
 function includesCI(list: ReadonlyArray<string>, value: string): boolean {
@@ -97,14 +115,40 @@ export function DislikesStep() {
   )
 
   return (
-    <div className="flex flex-col gap-5" data-testid="dislikes-step">
+    <div
+      className="flex flex-col items-center gap-5 pt-2"
+      data-testid="dislikes-step"
+    >
+      {/* Centred hero — a die-cut mark with an olive "avoid" badge. */}
+      <div className="relative">
+        <div className="bg-secondary flex h-20 w-20 items-center justify-center rounded-full border-4 border-white shadow-md">
+          <UtensilsCrossed className="text-primary h-8 w-8" />
+        </div>
+        <span className="bg-primary border-background absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full border-[3px] text-white">
+          <X className="h-3.5 w-3.5" strokeWidth={2.6} />
+        </span>
+      </div>
+
+      <div className="px-2 text-center">
+        <h1
+          className="text-[1.7rem] leading-tight font-bold"
+          style={{ letterSpacing: '-0.03em' }}
+        >
+          Dislikes
+        </h1>
+        <p className="text-muted-foreground mx-auto mt-1.5 max-w-[20rem] text-sm">
+          Choose what we leave out. We tune your week around it.
+        </p>
+      </div>
+
       <div
-        className="flex flex-wrap gap-2"
+        className="flex flex-wrap justify-center gap-2"
         role="group"
         aria-label="Ingredients to avoid"
       >
         {pills.map((label) => {
           const isOn = includesCI(selected, label)
+          const src = stickerSrc(label)
           return (
             <button
               key={label}
@@ -112,42 +156,63 @@ export function DislikesStep() {
               aria-pressed={isOn}
               onClick={() => toggle(label)}
               className={cn(
-                'inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition active:scale-95',
+                'inline-flex h-10 items-center gap-1.5 rounded-full border text-sm font-medium shadow-sm transition active:scale-95',
+                src ? 'py-1 pr-4 pl-1.5' : 'px-4',
                 isOn
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-card text-foreground',
               )}
             >
-              {label}
-              {isOn && <X aria-hidden className="h-3.5 w-3.5" />}
+              {src && (
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-sm">
+                  <img
+                    src={src}
+                    alt=""
+                    aria-hidden
+                    className="h-5 w-5 object-contain"
+                  />
+                </span>
+              )}
+              <span className={cn(isOn && 'line-through')}>{label}</span>
+              {isOn ? (
+                <X aria-hidden className="h-3.5 w-3.5" />
+              ) : (
+                <Plus aria-hidden className="h-3.5 w-3.5 opacity-50" />
+              )}
             </button>
           )
         })}
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex w-full max-w-sm flex-col gap-2">
         <div className="flex items-center gap-2">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Search an ingredient"
-            aria-label="Search an ingredient"
-            role="combobox"
-            aria-expanded={suggestions.length > 0}
-            aria-autocomplete="list"
-            aria-controls="dislikes-suggestions"
-            autoComplete="off"
-            autoCapitalize="off"
-            autoCorrect="off"
-            className="h-11"
-          />
+          <div className="relative flex-1">
+            <Search
+              aria-hidden
+              className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2"
+            />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Search an ingredient"
+              aria-label="Search an ingredient"
+              role="combobox"
+              aria-expanded={suggestions.length > 0}
+              aria-autocomplete="list"
+              aria-controls="dislikes-suggestions"
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              className="h-11 rounded-full pl-10"
+            />
+          </div>
           <button
             type="button"
             onClick={addCustom}
             disabled={!query.trim()}
             aria-label="Add ingredient"
-            className="border-border bg-card flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition active:scale-95 disabled:opacity-40"
+            className="border-border bg-card flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-40"
           >
             <Plus className="h-5 w-5" />
           </button>
@@ -158,7 +223,7 @@ export function DislikesStep() {
             id="dislikes-suggestions"
             role="listbox"
             aria-label="Suggested ingredients"
-            className="border-border bg-card flex flex-col overflow-hidden rounded-lg border"
+            className="border-border bg-card flex flex-col overflow-hidden rounded-2xl border"
           >
             {suggestions.map((label) => (
               <li key={label} role="presentation">

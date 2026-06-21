@@ -46,6 +46,8 @@ export interface WeekDayView {
   protein: number | null
   /** Hero image URL, when the source recipe carried one. */
   imageUrl: string | null
+  /** Estimated price per serving as a display string (e.g. "€2,80"), optional. */
+  price?: string
   /** Cached living-photo cooking video URL (recipe_media), null when none yet. */
   videoUrl: string | null
   /**
