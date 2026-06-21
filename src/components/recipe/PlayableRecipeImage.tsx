@@ -32,7 +32,11 @@ export function PlayableRecipeImage({
   alt,
   className,
 }: PlayableRecipeImageProps) {
-  const box = 'h-full w-full object-cover'
+  const sticker = imageSrc.includes('/stickers/recipes/')
+  const box = cn(
+    'h-full w-full',
+    sticker ? 'souso-sticker object-contain' : 'object-cover',
+  )
 
   return (
     <div className={cn('relative overflow-hidden', className)}>

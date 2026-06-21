@@ -88,11 +88,12 @@ export async function loadCatalogue(): Promise<{
       ingredients: r.ingredients.map((i) => ({ name: i.name })),
     })
     const raw = r.raw as { imageUrl?: string | null } | null
+    const { recipeImageUrl } = await import('./recipe-sticker')
     cards.set(r.id, {
       id: r.id,
       title: r.title,
       cuisine: r.cuisine,
-      imageUrl: raw?.imageUrl ?? null,
+      imageUrl: recipeImageUrl(r.id, raw?.imageUrl ?? null),
       prepMinutes: r.prepMinutes,
       ingredients: keyIngredients(r.ingredients),
     })

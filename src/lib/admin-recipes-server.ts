@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { recipeImageUrl } from './recipe-sticker'
 
 /**
  * Admin recipe-inspector data fns: list every recipe for the browse grid, and
@@ -18,11 +19,15 @@ export interface AdminRecipeCard {
   imageUrl: string | null
 }
 
-/** Pull the recipe image out of the verbatim scraped blob (recipe.raw.imageUrl). */
-function imageFromRaw(raw: Record<string, unknown> | null): string | null {
+/** Pull the hero image out of recipe.raw (sticker path for AH/Jumbo). */
+function imageFromRaw(
+  recipeId: string,
+  raw: Record<string, unknown> | null,
+): string | null {
   if (!raw) return null
   const url = raw.imageUrl
-  return typeof url === 'string' && url.trim() ? url.trim() : null
+  const rawUrl = typeof url === 'string' && url.trim() ? url.trim() : null
+  return recipeImageUrl(recipeId, rawUrl)
 }
 
 /** List every recipe, newest first, shaped for the browse grid. */
@@ -49,7 +54,7 @@ export const listAdminRecipes = createServerFn({ method: 'GET' }).handler(
       title: r.title,
       source: r.source,
       cuisine: r.cuisine,
-      imageUrl: imageFromRaw(r.raw),
+      imageUrl: imageFromRaw(r.id, r.raw),
     }))
   },
 )
@@ -114,7 +119,7 @@ export const getRecipeDetail = createServerFn({ method: 'GET' })
       title: rec.title,
       source: rec.source,
       cuisine: rec.cuisine,
-      imageUrl: imageFromRaw(rec.raw),
+      imageUrl: imageFromRaw(rec.id, rec.raw),
       servings: rec.servings,
       prepMinutes: rec.prepMinutes,
       instructions: rec.instructions,

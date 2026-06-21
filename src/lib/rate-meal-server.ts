@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import type { MealRating } from './meal-feedback'
+import { recipeImageUrl } from './recipe-sticker'
 
 /**
  * Read-only loader for the FOCUSED rate-this-meal view (#214).
@@ -152,7 +153,7 @@ export const loadRateMeal = createServerFn({ method: 'GET' })
       prepMinutes: r.prepMinutes ?? null,
       calories: r.calories ?? null,
       protein: r.protein ?? null,
-      imageUrl: raw?.imageUrl ?? null,
+      imageUrl: recipeImageUrl(recipeId, raw?.imageUrl ?? null),
       rating,
       note: rating ? (fb?.note ?? null) : null,
     }
