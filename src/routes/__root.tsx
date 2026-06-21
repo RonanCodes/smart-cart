@@ -27,6 +27,29 @@ export const Route = createRootRoute({
         content:
           'width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1',
       },
+      // Status-bar / notch theming. iOS Safari (the browser PWA tab, before an
+      // app is installed) paints the top safe-area from <meta name="theme-color">,
+      // NOT the manifest theme_color. Without this the notch rendered pure white.
+      // #FBF7EF is the warm off-white the app canvas uses (the --background token,
+      // oklch(0.99 0.006 120)); matching it here means the notch reads as part of
+      // the app chrome instead of a white bar. One meta only: the app defaults to
+      // light, and TanStack's HeadContent dedupes metas by `name`, so a second
+      // media-scoped theme-color is unreliable. Installed/dark PWAs still get the
+      // warm tone from the manifest theme_color.
+      {
+        name: 'theme-color',
+        content: '#FBF7EF',
+      },
+      // Translucent status bar on an installed iOS PWA so the safe-area inset
+      // background (set in SafeArea) shows through under the notch.
+      {
+        name: 'apple-mobile-web-app-capable',
+        content: 'yes',
+      },
+      {
+        name: 'apple-mobile-web-app-status-bar-style',
+        content: 'default',
+      },
       { title: SITE_TITLE },
       { name: 'description', content: SITE_DESCRIPTION },
       { property: 'og:title', content: SITE_TITLE },

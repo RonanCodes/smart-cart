@@ -244,7 +244,12 @@ body {
    repaint path, and `animation-fill-mode: forwards` pins it at the end opacity
    instead of snapping back to the element default for a frame. */
 .sheet-backdrop {
-  opacity: 1;
+  /* Start transparent. The backdrop is only ever rendered with a data-state, so
+     an animation always drives it; basing it at 0 means the single paint frame
+     before the open animation's first computed frame is transparent, not a full
+     opaque dim snapping in (a perceptible flash on slower first paints). The
+     [data-state] rules below set the real end opacity with fill-mode forwards. */
+  opacity: 0;
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
