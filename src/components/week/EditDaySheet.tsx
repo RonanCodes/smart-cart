@@ -2,6 +2,7 @@ import { UtensilsCrossed, Clock, Flame, Beef, Loader2, X } from 'lucide-react'
 import type { WeekDayView, DayAlternative } from '#/lib/week-server'
 import { Sheet } from '#/components/ui/sheet'
 import { RecipeFacts } from '#/components/week/RecipeFacts'
+import { RecipeDetail } from '#/components/week/RecipeDetail'
 
 interface EditDaySheetProps {
   /** The day being edited; null closes the sheet. */
@@ -71,13 +72,21 @@ export function EditDaySheet({
       }
     >
       <div className="pb-2">
+        {/* The dish itself: ingredients + written-out steps. This is the primary
+            content when tapping a planned dish, so it sits ABOVE the swap list
+            and the facts card. Lazy-loads once the sheet is open. Only on a
+            planned day (an empty 'add' day has no dish to show). */}
+        {!adding && day?.recipeRef && (
+          <RecipeDetail recipeId={day.recipeRef} active={open} />
+        )}
+
         {day && (
           <p className="text-muted-foreground mb-3 text-center text-sm">
             {adding ? (
               <>Pick a dinner for {day.day}.</>
             ) : (
               <>
-                Pick a dinner to replace{' '}
+                Or pick a dinner to replace{' '}
                 <span className="text-foreground font-medium">{day.meal}</span>.
               </>
             )}
