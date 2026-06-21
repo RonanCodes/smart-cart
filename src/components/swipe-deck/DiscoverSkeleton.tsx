@@ -2,20 +2,15 @@ import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { Skeleton } from '#/components/ui/skeleton'
 
 /**
- * DiscoverSkeleton — the /discover route's pendingComponent (#229). Discover is
- * currently a static placeholder (the swipe deck lands in a later slice), so this
- * skeleton mainly future-proofs the route: it holds a centred card-shaped frame
- * (the recipe deck's eventual shape) so when the deck's data read arrives the
- * skeleton already mirrors the layout. The header text matches the live page so
- * only the card animates in.
+ * DiscoverSkeleton — the /discover (Search) route's pendingComponent (#229).
+ * The Search screen fetches client-side (browse rows on mount, results as you
+ * type), so this only fires for a future loader. The header text matches the
+ * live page ("Search") so only the body animates in.
  */
 export function DiscoverSkeleton() {
   return (
     <AppShell>
-      <ScreenHeader
-        title="Discover"
-        subtitle="Swipe through dinners to teach Souso your taste."
-      />
+      <ScreenHeader title="Search" />
       <div
         className="flex flex-col items-center px-5 pt-6"
         aria-busy="true"
