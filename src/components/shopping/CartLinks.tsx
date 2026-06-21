@@ -50,6 +50,10 @@ export function CartLinks({
   const [error, setError] = useState(false)
   const [tipOpen, setTipOpen] = useState(false)
   const [tipBusy, setTipBusy] = useState(false)
+  // The friendly message from a failed Mollie payment (#307). Shown after the
+  // cart opens, so the user knows the charge didn't go through (e.g. live
+  // payments not enabled), never a silent no-op.
+  const [tipError, setTipError] = useState<string | null>(null)
 
   // Switching store invalidates a previously-resolved link (it was for the old
   // store), so the next tap re-resolves for the now-selected store.
@@ -90,6 +94,7 @@ export function CartLinks({
    * the hosted checkout. No-tip is a normal, unpunished outcome (#18). */
   async function confirmTip(percent: number) {
     setTipBusy(true)
+    setTipError(null)
     const items = link?.matched ?? 0
     try {
       // No tip: nothing to pay, just open the cart.
@@ -117,10 +122,17 @@ export function CartLinks({
         setTipOpen(false)
       }
     } catch (err) {
-      // Never block the cart on a tip failure (#18): just open it.
+      // Never block the cart on a tip failure (#18): open it anyway. But surface
+      // the friendly message (#307) so the failure isn't silent. startTip
+      // rethrows a user-safe message; fall back to a generic line.
       log.error('tip.start_failed', err, { percent, store })
       openCart()
       setTipOpen(false)
+      setTipError(
+        err instanceof Error && err.message
+          ? err.message
+          : "We couldn't start that payment. Your cart still opened, no charge was made.",
+      )
     } finally {
       setTipBusy(false)
     }
@@ -212,6 +224,12 @@ export function CartLinks({
           {link && !link.url
             ? `None of your items matched a ${storeLabel(store)} product yet.`
             : 'Could not build the cart link. Try again.'}
+        </p>
+      )}
+
+      {tipError && (
+        <p className="text-destructive text-xs" role="alert">
+          {tipError}
         </p>
       )}
 

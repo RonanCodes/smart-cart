@@ -31,6 +31,82 @@ export interface MolliePayment {
   _links: { checkout?: { href: string } }
 }
 
+/**
+ * A structured Mollie API failure. The old code threw a bare string
+ * (`Mollie create failed: 422 {json blob}`), which landed in Workers Logs as an
+ * opaque trace with no queryable fields. This carries the parsed pieces so a
+ * caller can log `{ status, detail, field }` and branch on them (e.g. the 422
+ * "method not activated" case gets a user-friendly message). `.message` stays
+ * readable for any code that just logs the error text.
+ */
+export class MollieError extends Error {
+  /** HTTP status from Mollie (e.g. 422, 401). */
+  readonly status: number
+  /** Mollie's `title` (e.g. "Unprocessable Entity"), if present. */
+  readonly title?: string
+  /** Mollie's human `detail` (e.g. "The payment method is not activated..."). */
+  readonly detail?: string
+  /** The offending field, from Mollie's `field` or `_links`/`extra`, if present. */
+  readonly field?: string
+
+  constructor(args: {
+    status: number
+    title?: string
+    detail?: string
+    field?: string
+    operation: string
+  }) {
+    const { status, title, detail, field, operation } = args
+    const parts = [`${operation} failed: ${status}`]
+    if (title) parts.push(title)
+    if (detail) parts.push(detail)
+    super(parts.join(' '))
+    this.name = 'MollieError'
+    this.status = status
+    this.title = title
+    this.detail = detail
+    this.field = field
+  }
+}
+
+/**
+ * Build a {@link MollieError} from a failed response. Mollie returns a JSON error
+ * body shaped `{ status, title, detail, field?, extra? }`; we parse what we can
+ * and fall back to the raw text when the body is not JSON. Never throws while
+ * building the error (a parse failure must not mask the original failure).
+ */
+async function mollieErrorFromResponse(
+  res: Response,
+  operation: string,
+): Promise<MollieError> {
+  const text = await res.text().catch(() => '')
+  let title: string | undefined
+  let detail: string | undefined
+  let field: string | undefined
+  if (text) {
+    try {
+      const body = JSON.parse(text) as {
+        title?: unknown
+        detail?: unknown
+        field?: unknown
+      }
+      if (typeof body.title === 'string') title = body.title
+      if (typeof body.detail === 'string') detail = body.detail
+      if (typeof body.field === 'string') field = body.field
+    } catch {
+      // Body was not JSON (rare); keep the raw text as the detail.
+      detail = text
+    }
+  }
+  return new MollieError({
+    status: res.status,
+    title,
+    detail,
+    field,
+    operation,
+  })
+}
+
 export interface CreatePaymentParams {
   /** Amount as a 2-decimal STRING ("0.50", "12.00"). Numbers are rejected. */
   amount: string
@@ -61,7 +137,7 @@ export async function createPayment(
     }),
   })
   if (!res.ok) {
-    throw new Error(`Mollie create failed: ${res.status} ${await res.text()}`)
+    throw await mollieErrorFromResponse(res, 'Mollie create')
   }
   return res.json()
 }
@@ -74,6 +150,6 @@ export async function getPayment(
   const res = await fetch(`${BASE}/payments/${id}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
   })
-  if (!res.ok) throw new Error(`Mollie get failed: ${res.status}`)
+  if (!res.ok) throw await mollieErrorFromResponse(res, 'Mollie get')
   return res.json()
 }

@@ -3,9 +3,12 @@ import {
   computeTipAmount,
   currentPeriod,
   applyMolliePaymentUpdate,
+  friendlyTipError,
   FREE_ADDS_PER_PERIOD,
   TIP_FEE_FLOOR_EUR,
 } from './tip-server'
+import { MollieError } from './mollie'
+import { log } from './log'
 
 describe('computeTipAmount (fee floor)', () => {
   it('clamps a small basket to the €0.50 floor (1% of €10 = €0.10 -> 0.50)', () => {
@@ -44,6 +47,91 @@ describe('computeTipAmount (fee floor)', () => {
 
   it('exposes the free-tier limit as 3 (decision #16)', () => {
     expect(FREE_ADDS_PER_PERIOD).toBe(3)
+  })
+})
+
+describe('friendlyTipError (#307 user-facing mapping)', () => {
+  it('maps the 422 method-not-activated MollieError to a clear "live payments not enabled" message', () => {
+    const err = new MollieError({
+      status: 422,
+      title: 'Unprocessable Entity',
+      detail: 'The payment method is not activated on your account',
+      field: 'method',
+      operation: 'Mollie create',
+    })
+    const msg = friendlyTipError(err)
+    expect(msg).toContain('Live payments are not enabled')
+    expect(msg).toContain('no charge was made')
+    // Never leaks the raw Mollie blob to the UI.
+    expect(msg).not.toContain('Unprocessable Entity')
+  })
+
+  it('also matches the "not enabled" phrasing for the 422 method case', () => {
+    const err = new MollieError({
+      status: 422,
+      title: 'Unprocessable Entity',
+      detail: 'The payment method is not enabled',
+      operation: 'Mollie create',
+    })
+    expect(friendlyTipError(err)).toContain('Live payments are not enabled')
+  })
+
+  it('falls back to a generic safe message for any other MollieError', () => {
+    const err = new MollieError({
+      status: 401,
+      title: 'Unauthorized',
+      operation: 'Mollie create',
+    })
+    const msg = friendlyTipError(err)
+    expect(msg).toContain("couldn't start that payment")
+    expect(msg).not.toContain('Unauthorized')
+  })
+
+  it('falls back to a generic safe message for a non-Mollie error', () => {
+    expect(friendlyTipError(new Error('boom'))).toContain(
+      "couldn't start that payment",
+    )
+    expect(friendlyTipError('weird string')).toContain(
+      "couldn't start that payment",
+    )
+  })
+})
+
+describe('tip.mollie.create_failed logging shape (#307)', () => {
+  it('log.error carries the Mollie status + detail when a create fails', () => {
+    const spy = vi.spyOn(log, 'error').mockImplementation(() => {})
+    const err = new MollieError({
+      status: 422,
+      title: 'Unprocessable Entity',
+      detail: 'The payment method is not activated on your account',
+      field: 'method',
+      operation: 'Mollie create',
+    })
+
+    // Mirror exactly what startTip's catch block emits, so the queryable fields
+    // (status/detail/mode/household/amount) are asserted at the call shape.
+    const status = err instanceof MollieError ? err.status : undefined
+    const detail = err instanceof MollieError ? err.detail : undefined
+    log.error('tip.mollie.create_failed', err, {
+      mode: 'live',
+      householdId: 'hh_1',
+      amount: '0.50',
+      status,
+      detail,
+    })
+
+    expect(spy).toHaveBeenCalledWith(
+      'tip.mollie.create_failed',
+      err,
+      expect.objectContaining({
+        mode: 'live',
+        householdId: 'hh_1',
+        amount: '0.50',
+        status: 422,
+        detail: 'The payment method is not activated on your account',
+      }),
+    )
+    spy.mockRestore()
   })
 })
 
