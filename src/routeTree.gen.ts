@@ -16,6 +16,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DiscoverRouteImport } from './routes/discover'
+import { Route as DesignsRouteImport } from './routes/designs'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -86,6 +87,11 @@ const LoginRoute = LoginRouteImport.update({
 const DiscoverRoute = DiscoverRouteImport.update({
   id: '/discover',
   path: '/discover',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignsRoute = DesignsRouteImport.update({
+  id: '/designs',
+  path: '/designs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedRoute = AuthedRouteImport.update({
@@ -271,6 +277,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/designs': typeof DesignsRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -314,6 +321,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/designs': typeof DesignsRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -360,6 +368,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/_authed': typeof AuthedRouteWithChildren
+  '/designs': typeof DesignsRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -406,6 +415,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/designs'
     | '/discover'
     | '/login'
     | '/onboarding'
@@ -449,6 +459,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/designs'
     | '/discover'
     | '/login'
     | '/onboarding'
@@ -494,6 +505,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/_authed'
+    | '/designs'
     | '/discover'
     | '/login'
     | '/onboarding'
@@ -540,6 +552,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AuthedRoute: typeof AuthedRouteWithChildren
+  DesignsRoute: typeof DesignsRoute
   DiscoverRoute: typeof DiscoverRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -616,6 +629,13 @@ declare module '@tanstack/react-router' {
       path: '/discover'
       fullPath: '/discover'
       preLoaderRoute: typeof DiscoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/designs': {
+      id: '/designs'
+      path: '/designs'
+      fullPath: '/designs'
+      preLoaderRoute: typeof DesignsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed': {
@@ -926,6 +946,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
   AuthedRoute: AuthedRouteWithChildren,
+  DesignsRoute: DesignsRoute,
   DiscoverRoute: DiscoverRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,

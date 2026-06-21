@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import {
   Check,
   Sparkles,
@@ -90,7 +89,6 @@ const STORES = [
 ] as const
 
 export const Route = createFileRoute('/design/shopping')({
-  beforeLoad: requireAdminBeforeLoad,
   validateSearch: (s: Record<string, unknown>): { state?: string } =>
     typeof s.state === 'string' ? { state: s.state } : {},
   component: DesignShopping,

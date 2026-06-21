@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import {
   Users,
   Salad,
@@ -47,7 +46,6 @@ const GROUPS: Array<{ title: string; rows: Array<Row> }> = [
 ]
 
 export const Route = createFileRoute('/design/settings')({
-  beforeLoad: requireAdminBeforeLoad,
   component: DesignSettings,
 })
 
