@@ -6,6 +6,7 @@ import {
   User,
   LogOut,
   RefreshCw,
+  Eraser,
   Store,
   Bell,
   CircleHelp,
@@ -34,8 +35,9 @@ import { storeLabel, loadProfileBootstrap } from '#/lib/store-pref-server'
 import type { StoreSlug, ProfileBootstrap } from '#/lib/store-pref-server'
 import { getLocale, localeLabel } from '#/lib/locale-pref-server'
 import type { Locale } from '#/lib/locale-pref-server'
-import { getHouseholdSummary } from '#/lib/onboarding-server'
+import { getHouseholdSummary, resetWeekAndCart } from '#/lib/onboarding-server'
 import type { HouseholdSummary } from '#/lib/onboarding-server'
+import { ConfirmDialog } from '#/components/ui/confirm-dialog'
 import {
   getProfileEditor,
   getInferredSkipDays,
@@ -187,6 +189,8 @@ function Profile() {
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const [preferencesOpen, setPreferencesOpen] = useState(false)
   const [skipDaysOpen, setSkipDaysOpen] = useState(false)
+  const [resetOpen, setResetOpen] = useState(false)
+  const [resetting, setResetting] = useState(false)
   // Local mirrors so an edit reflects immediately without a route reload. Seeded
   // from the loader; updated by each sheet's onSaved with the server's result.
   const [editor, setEditor] = useState<EditableProfile | null>(data.editor)
@@ -227,6 +231,17 @@ function Profile() {
       await authClient.signOut()
     } finally {
       window.location.href = '/sign-out'
+    }
+  }
+
+  async function startFresh() {
+    setResetting(true)
+    try {
+      await resetWeekAndCart()
+      // Hard-nav to the week so it regenerates a clean plan + an empty cart.
+      window.location.href = '/week'
+    } catch {
+      setResetting(false)
     }
   }
 
@@ -395,6 +410,12 @@ function Profile() {
               window.location.href = '/onboarding'
             }}
           />
+          <HairlineRow
+            icon={Eraser}
+            label="Start fresh"
+            value="Clear week + cart"
+            onClick={() => setResetOpen(true)}
+          />
           <button
             type="button"
             onClick={signOut}
@@ -474,6 +495,16 @@ function Profile() {
             prev ? { ...prev, manual: next.skipDays } : prev,
           )
         }}
+      />
+
+      <ConfirmDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title="Start fresh?"
+        description="Clears your weekly plans and empties your cart so you can demo from scratch. Your household + preferences stay. This can't be undone."
+        confirmLabel="Clear week + cart"
+        busy={resetting}
+        onConfirm={() => void startFresh()}
       />
     </AppShell>
   )
