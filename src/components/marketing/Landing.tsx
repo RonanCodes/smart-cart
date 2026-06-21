@@ -8,6 +8,7 @@ import { Input } from '#/components/ui/input'
 import { StickyNote } from '#/components/ui/sticky-note'
 import { BetaBadge } from '#/components/ui/beta-badge'
 import { BETA_NOTE } from '#/lib/beta'
+import { useLiveUserCount } from './use-user-count'
 
 /**
  * Souso marketing landing: conversion-focused, mobile-first (390px), built for
@@ -86,6 +87,10 @@ export function Landing({
     'idle',
   )
   const [error, setError] = useState<string | null>(null)
+  // Poll the public count every few seconds and animate it up, so a visitor on
+  // the page watches "N home cooks" climb as people sign up (the real-time DO
+  // push was reverted; this is the safe, zero-infra equivalent). SSR-seeded.
+  const liveCount = useLiveUserCount(userCount)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -145,9 +150,12 @@ export function Landing({
             Souso plans your whole week of dinners and fills a ready-to-order
             basket. Save time, spend less, waste less food.
           </p>
-          {userCount >= SOCIAL_PROOF_MIN && (
-            <p className="text-primary mt-4 text-sm font-semibold">
-              {userCount.toLocaleString('en')} home cooks planning with Souso
+          {liveCount >= SOCIAL_PROOF_MIN && (
+            <p
+              className="text-primary mt-4 text-sm font-semibold"
+              aria-live="polite"
+            >
+              {liveCount.toLocaleString('en')} home cooks planning with Souso
             </p>
           )}
           <p className="text-muted-foreground mx-auto mt-4 max-w-sm text-xs">
