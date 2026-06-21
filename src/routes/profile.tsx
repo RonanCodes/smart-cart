@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import {
   User,
   LogOut,
@@ -11,6 +11,7 @@ import {
   Shield,
   Heart,
   CalendarOff,
+  Languages,
 } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
@@ -21,10 +22,13 @@ import { Badge } from '#/components/ui/badge'
 import { NotificationsSheet } from '#/components/profile/notifications-sheet'
 import { PlanReminderSection } from '#/components/profile/plan-reminder-section'
 import { StoreSheet } from '#/components/profile/store-sheet'
+import { LanguageSheet } from '#/components/profile/language-sheet'
 import { PreferencesSheet } from '#/components/profile/preferences-sheet'
 import { SkipDaysSheet } from '#/components/profile/skip-days-sheet'
 import { storeLabel, loadProfileBootstrap } from '#/lib/store-pref-server'
 import type { StoreSlug, ProfileBootstrap } from '#/lib/store-pref-server'
+import { getLocale, localeLabel } from '#/lib/locale-pref-server'
+import type { Locale } from '#/lib/locale-pref-server'
 import { getHouseholdSummary } from '#/lib/onboarding-server'
 import type { HouseholdSummary } from '#/lib/onboarding-server'
 import {
@@ -44,6 +48,8 @@ interface ProfileData extends ProfileBootstrap {
   summary: HouseholdSummary | null
   editor: EditableProfile | null
   inferredSkip: InferredSkipDays | null
+  /** The household's recipe-display locale for the Language row (#310). */
+  locale: Locale
 }
 
 /**
@@ -52,13 +58,14 @@ interface ProfileData extends ProfileBootstrap {
  * inferred skip-days feed the "What Souso knows about you" editing surface.
  */
 async function loadProfileData(): Promise<ProfileData> {
-  const [bootstrap, summary, editor, inferredSkip] = await Promise.all([
+  const [bootstrap, summary, editor, inferredSkip, locale] = await Promise.all([
     loadProfileBootstrap(),
     getHouseholdSummary(),
     getProfileEditor(),
     getInferredSkipDays(),
+    getLocale(),
   ])
-  return { ...bootstrap, summary, editor, inferredSkip }
+  return { ...bootstrap, summary, editor, inferredSkip, locale }
 }
 
 export const Route = createFileRoute('/profile')({
@@ -96,11 +103,14 @@ function Profile() {
     queryFn: () => loadProfileData(),
     initialData: loaderData,
   })
-  const { isAdmin, store: initialStore, summary } = data
+  const router = useRouter()
+  const { isAdmin, store: initialStore, summary, locale: initialLocale } = data
   const [helpOpen, setHelpOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [storeOpen, setStoreOpen] = useState(false)
   const [store, setStore] = useState<StoreSlug>(initialStore)
+  const [languageOpen, setLanguageOpen] = useState(false)
+  const [locale, setLocale] = useState<Locale>(initialLocale)
   const [preferencesOpen, setPreferencesOpen] = useState(false)
   const [skipDaysOpen, setSkipDaysOpen] = useState(false)
   // Local mirrors so an edit reflects immediately without a route reload. Seeded
@@ -162,6 +172,13 @@ function Profile() {
             value={storeLabel(store)}
             chevron
             onClick={() => setStoreOpen(true)}
+          />
+          <ListRow
+            leading={<Languages aria-hidden />}
+            title="Language"
+            value={localeLabel(locale)}
+            chevron
+            onClick={() => setLanguageOpen(true)}
           />
           <ListRow
             leading={<Bell aria-hidden />}
@@ -302,6 +319,18 @@ function Profile() {
         onOpenChange={setStoreOpen}
         current={store}
         onChange={setStore}
+      />
+
+      <LanguageSheet
+        open={languageOpen}
+        onOpenChange={setLanguageOpen}
+        current={locale}
+        onChange={(next) => {
+          setLocale(next)
+          // Re-run the route loaders so the week cards + recipe detail re-fetch
+          // and render in the newly-picked language immediately (#310).
+          void router.invalidate()
+        }}
       />
 
       {editor && (

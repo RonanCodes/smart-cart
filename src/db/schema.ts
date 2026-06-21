@@ -19,6 +19,10 @@ export const household = sqliteTable('household', {
   children: integer('children').notNull().default(0),
   /** Preferred supermarket for the one-click cart: 'ah' | 'jumbo'. */
   preferredStore: text('preferred_store').notNull().default('ah'),
+  /** Display language for recipe content: 'en' | 'nl'. Defaults to English
+   * (matching the demo default in recipe-locale); 'nl' shows the Dutch source
+   * (#310). App chrome stays English in v1. */
+  preferredLocale: text('preferred_locale').notNull().default('en'),
   /** Soft weekly grocery budget in euro cents (null = no cap). */
   weeklyBudgetCents: integer('weekly_budget_cents'),
   /** The plan id whose week we last auto-seeded into the shopping list. A plan

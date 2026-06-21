@@ -94,12 +94,23 @@ export const loadWeek = createServerFn({ method: 'GET' })
     const db = await getDb()
 
     const householdRows = await db
-      .select({ id: household.id, profile: household.profile })
+      .select({
+        id: household.id,
+        profile: household.profile,
+        preferredLocale: household.preferredLocale,
+      })
       .from(household)
       .where(eq(household.ownerId, user.id))
       .limit(1)
     const hh = householdRows[0]
     if (!hh) throw new Error('No household, onboard first')
+
+    // The household's recipe-display locale (#310): 'en' shows the English
+    // translation (Dutch fallback), 'nl' the Dutch source. Resolved once here so
+    // every title below honours the same pick. normalizeLocale guards a junk /
+    // missing value back to 'en'.
+    const { normalizeLocale } = await import('./locale-pref-server')
+    const locale = normalizeLocale(hh.preferredLocale) ?? 'en'
 
     const planRows = await db
       .select({
@@ -149,7 +160,7 @@ export const loadWeek = createServerFn({ method: 'GET' })
     // so resolving the locale once here covers both surfaces (#295).
     const catalogue = catalogueRows.map((r) => ({
       id: r.id,
-      title: pickTitle(r.title, r.titleEn),
+      title: pickTitle(r.title, r.titleEn, locale),
       cuisine: r.cuisine,
       category: r.category,
       dietaryTags: r.dietaryTags,
