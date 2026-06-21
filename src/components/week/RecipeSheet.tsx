@@ -4,6 +4,7 @@ import type { WeekDayView } from '#/lib/week-server'
 import { getRecipeVideo } from '#/lib/recipe-media-server'
 import { Sheet } from '#/components/ui/sheet'
 import { Button } from '#/components/ui/button'
+import { StickyNote } from '#/components/ui/sticky-note'
 import { RecipeFacts } from '#/components/week/RecipeFacts'
 import { RecipeDetail } from '#/components/week/RecipeDetail'
 import { PlayableRecipeImage } from '#/components/recipe/PlayableRecipeImage'
@@ -78,22 +79,37 @@ export function RecipeSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={day?.meal}>
       <div className="pb-2">
-        {/* The dish photo, which becomes the cooking video on tap (seamless: the
-            video's poster is this same photo). No video cached -> just the photo,
-            no play badge. */}
+        {/* Hero: the die-cut dish sticker (the recipeImageUrl-resolved sticker
+            from the week row) with a hand-written keeper note tucked at the
+            corner, the Souso "personal recipe-book" touch. The same photo
+            becomes the cooking video on tap (seamless: the video's poster is
+            this photo). No video cached -> just the still, no play badge. */}
         {day?.recipeRef && day.imageUrl && (
-          <PlayableRecipeImage
-            imageSrc={day.imageUrl}
-            videoUrl={videoUrl}
-            alt={day.meal}
-            className="bg-secondary mb-4 aspect-[4/3] w-full rounded-xl"
-          />
+          <div className="relative -mt-1 flex justify-center pb-1">
+            <PlayableRecipeImage
+              imageSrc={day.imageUrl}
+              videoUrl={videoUrl}
+              alt={day.meal}
+              className="h-48 w-48 -rotate-3"
+            />
+            <StickyNote
+              tilt={6}
+              className="absolute top-2 right-1 text-[0.9rem]"
+            >
+              a household favourite ✶
+            </StickyNote>
+          </div>
         )}
 
-        {/* The dish itself: ingredients + written-out steps + time / servings.
-            Lazy-loads once the sheet is open. */}
+        {/* The dish itself: facts strip, ingredient stickers + amounts, and the
+            numbered steps. Lazy-loads once the sheet is open. */}
         {day?.recipeRef && (
-          <RecipeDetail recipeId={day.recipeRef} active={open} />
+          <RecipeDetail
+            recipeId={day.recipeRef}
+            active={open}
+            calories={day.calories}
+            protein={day.protein}
+          />
         )}
 
         {/* "Souso knows" — source-cited Cala facts about this day's dish. Fetches
