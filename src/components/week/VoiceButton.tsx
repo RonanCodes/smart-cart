@@ -72,10 +72,20 @@ type CallState = 'idle' | 'connecting' | 'live' | 'error'
  * The SDK is loaded + constructed lazily (see resolveVapiCtor) so a bad bundler
  * interop degrades to an inert button, never a page crash.
  */
-export function VoiceButton() {
+export function VoiceButton({ onActed }: { onActed?: () => void } = {}) {
   const vapi = useRef<Vapi | null>(null)
   const [state, setState] = useState<CallState>('idle')
   const [reason, setReason] = useState<ErrorReason>('unknown')
+  // Latest callback, so the effect's long-lived event handlers never go stale.
+  const onActedRef = useRef(onActed)
+  onActedRef.current = onActed
+  // Debounce the "something happened, resync the week" signal: a call emits many
+  // messages, but we only need one cheap refetch shortly after.
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleSync = () => {
+    if (syncTimer.current) clearTimeout(syncTimer.current)
+    syncTimer.current = setTimeout(() => onActedRef.current?.(), 600)
+  }
 
   useEffect(() => {
     if (!VAPI_PUBLIC_KEY) return
@@ -102,13 +112,22 @@ export function VoiceButton() {
           const v = new VapiCtor(VAPI_PUBLIC_KEY)
           vapi.current = v
           v.on('call-start', () => setState('live'))
-          v.on('call-end', () => setState('idle'))
+          v.on('call-end', () => {
+            setState('idle')
+            // Final resync once the call ends (catches the last replan).
+            onActedRef.current?.()
+          })
           v.on('error', (e: unknown) => {
             log.error('vapi.sdk_error', e)
             setReason('unknown')
             setState('error')
           })
-          v.on('message', (m: unknown) => log.debug('vapi.message', { m }))
+          v.on('message', (m: unknown) => {
+            log.debug('vapi.message', { m })
+            // A tool ran (or the conversation advanced) -> the week may have
+            // changed server-side. Debounced refetch + glow on the week page.
+            scheduleSync()
+          })
         } catch (e) {
           log.error('vapi.init_failed', e)
           setReason('init')

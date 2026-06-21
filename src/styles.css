@@ -342,3 +342,72 @@ body {
       );
   }
 }
+
+/* AI "magic" glow for a day card that a voice/chat replan just changed (#17).
+   An iOS-style sweep: a soft animated gradient ring + a shimmer that sweeps
+   across the card a few times, then fades. Applied via the `.ai-glow` class for
+   ~3s after the day's recipe changes, then removed. Respects reduced-motion. */
+@keyframes ai-glow-ring {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(99, 102, 241, 0),
+      0 0 0 1px rgba(99, 102, 241, 0.35);
+  }
+  35% {
+    box-shadow:
+      0 0 22px 4px rgba(99, 102, 241, 0.45),
+      0 0 0 1.5px rgba(168, 85, 247, 0.55);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(99, 102, 241, 0),
+      0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+@keyframes ai-glow-sweep {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+.ai-glow {
+  position: relative;
+  border-radius: inherit;
+  animation: ai-glow-ring 3s ease-out forwards;
+}
+.ai-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  overflow: hidden;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(168, 85, 247, 0.18) 45%,
+    rgba(99, 102, 241, 0.28) 50%,
+    rgba(168, 85, 247, 0.18) 55%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: ai-glow-sweep 1.5s ease-in-out 2;
+  mix-blend-mode: screen;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-glow {
+    animation: none;
+    box-shadow: 0 0 0 1.5px rgba(99, 102, 241, 0.5);
+  }
+  .ai-glow::after {
+    animation: none;
+    background: none;
+  }
+}
