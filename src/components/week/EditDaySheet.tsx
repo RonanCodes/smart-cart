@@ -1,6 +1,7 @@
 import { UtensilsCrossed, Clock, Flame, Beef, Loader2, X } from 'lucide-react'
 import type { WeekDayView, DayAlternative } from '#/lib/week-server'
 import { Sheet } from '#/components/ui/sheet'
+import { RecipeFacts } from '#/components/week/RecipeFacts'
 
 interface EditDaySheetProps {
   /** The day being edited; null closes the sheet. */
@@ -147,6 +148,19 @@ export function EditDaySheet({
               </li>
             ))}
           </ul>
+        )}
+
+        {/* "Souso knows" — source-cited Cala facts about this day's dish. Only on
+            a planned day (an empty 'add' day has no dish to look up). Fetches
+            lazily once the sheet is open and hides itself when there's nothing
+            (unconfigured key / no facts), so it never shows an empty box. */}
+        {!adding && day?.recipeRef && (
+          <RecipeFacts
+            recipeId={day.recipeRef}
+            title={day.meal}
+            cuisine={day.cuisine}
+            active={open}
+          />
         )}
 
         {/* "Not cooking that night" escape hatch (#255). Only on a planned day:
