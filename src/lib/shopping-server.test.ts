@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { deriveShoppingView } from './shopping-server'
 import type { PlanDayRef, PlanRecipe } from './shopping-server'
+import { clearDay } from './swap/clear-day'
 
 /**
  * Tests for the pure derivation glue between the DB shapes and the shopping
@@ -166,6 +167,38 @@ describe('deriveShoppingView', () => {
 
     const naan = list.lines.find((l) => l.name === 'naan')
     expect(naan?.totalQty).toBe(4)
+  })
+
+  it('excludes a removed/skipped day from the list (the #255 contract)', () => {
+    // The shopping list + cart are derived from the same view. After a household
+    // removes Tuesday (clearDay), Tuesday's recipe must not contribute a single
+    // ingredient: its line is gone, and only Monday's survives.
+    const recipes = mapOf(
+      recipe({
+        id: 'r1',
+        title: 'Pasta',
+        servings: 2,
+        ingredients: [{ name: 'Onion', qty: '1' }],
+      }),
+      recipe({
+        id: 'r2',
+        title: 'Soup',
+        servings: 2,
+        ingredients: [{ name: 'Leek', qty: '3' }],
+      }),
+    )
+    const planDays = [
+      { day: 'Monday', meal: 'Pasta', recipeRef: 'r1' },
+      { day: 'Tuesday', meal: 'Soup', recipeRef: 'r2' },
+    ]
+    const skipped = clearDay(planDays, 'Tuesday')
+    const { list } = deriveShoppingView(skipped, recipes, { adults: 2 })
+
+    // Leek came only from the skipped Tuesday, so it must be absent.
+    expect(list.lines.find((l) => l.name === 'Leek')).toBeUndefined()
+    // Monday's Onion still there.
+    expect(list.lines.find((l) => l.name === 'Onion')).toBeDefined()
+    expect(list.lines.map((l) => l.name)).toEqual(['Onion'])
   })
 
   it('treats a recipe cooked on two days as two contributions', () => {

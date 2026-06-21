@@ -1,4 +1,4 @@
-import { UtensilsCrossed, Clock, Flame, Beef, Loader2 } from 'lucide-react'
+import { UtensilsCrossed, Clock, Flame, Beef, Loader2, X } from 'lucide-react'
 import type { WeekDayView, DayAlternative } from '#/lib/week-server'
 import { Sheet } from '#/components/ui/sheet'
 
@@ -11,6 +11,12 @@ interface EditDaySheetProps {
   picking: boolean
   /** The user tapped an alternative: swap it into this day. */
   onPick: (recipeId: string) => void
+  /**
+   * The user chose "Remove this dinner": clear the day so the household is not
+   * cooking that night (#255). Only shown when swapping a planned day (not while
+   * adding to an already-empty day). When omitted the action is not rendered.
+   */
+  onRemove?: () => void
   /**
    * "Add a meal" to an eating-out / empty day (#175) rather than swap a planned
    * one. Changes the copy ("pick a dinner for X" instead of "replace X") and, when
@@ -42,6 +48,7 @@ export function EditDaySheet({
   onOpenChange,
   picking,
   onPick,
+  onRemove,
   adding = false,
   addAlternatives = null,
 }: EditDaySheetProps) {
@@ -140,6 +147,23 @@ export function EditDaySheet({
               </li>
             ))}
           </ul>
+        )}
+
+        {/* "Not cooking that night" escape hatch (#255). Only on a planned day:
+            an empty day has nothing to remove (it offers "Add a meal" instead).
+            Clearing the day flips its card to the empty "No dinner, Add one"
+            state and drops it from the shopping list + cart. Full-width tappable
+            (no hover-only affordance, works on touch at 390px). */}
+        {!adding && onRemove && day && (
+          <button
+            type="button"
+            disabled={picking}
+            onClick={onRemove}
+            className="text-muted-foreground hover:bg-secondary/60 active:bg-secondary border-border mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-3 text-sm font-medium transition-colors disabled:opacity-60"
+          >
+            <X className="h-4 w-4" />
+            Remove this dinner (eating out)
+          </button>
         )}
       </div>
     </Sheet>
