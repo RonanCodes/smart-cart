@@ -27,6 +27,12 @@ export interface RecipeMediaView {
   sousoAt: string | null
 }
 
+/** The consumer-side video read: only the URL + status, nothing else. */
+export interface RecipeVideoView {
+  videoUrl: string | null
+  videoStatus: string | null
+}
+
 /** Result of a generate-video attempt. `error` is set when nothing was cached. */
 export interface GenerateVideoResult {
   videoUrl: string | null
@@ -91,6 +97,43 @@ export const getRecipeMedia = createServerFn({ method: 'GET' })
       souso: parseSouso(row.sousoKnows),
       sousoAt: iso(row.sousoKnowsAt),
     }
+  })
+
+/**
+ * Read-only, NON-admin: the cached cooking-video URL (+ status) for one recipe,
+ * for the signed-in consumer app (the "tap the photo, it becomes the video"
+ * hero). Deliberately narrow: it returns ONLY videoUrl + videoStatus, never the
+ * prompt, the Souso blurb, or anything else in recipe_media, so the consumer
+ * side gets exactly what it needs and no more. Gated on a signed-in user (the
+ * recipe catalogue is shared, so there's no per-row ownership), and never
+ * generates anything: a missing row or unset URL just degrades to image-only.
+ */
+export const getRecipeVideo = createServerFn({ method: 'GET' })
+  .inputValidator((d: { recipeId: string }) => d)
+  .handler(async ({ data }): Promise<RecipeVideoView> => {
+    const empty: RecipeVideoView = { videoUrl: null, videoStatus: null }
+    if (!data.recipeId) return empty
+
+    const { getSessionUser } = await import('./server-auth')
+    const user = await getSessionUser()
+    if (!user) throw new Error('Not signed in')
+
+    const { getDb } = await import('../db/client')
+    const { recipeMedia } = await import('../db/recipe-media-schema')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+    const row = (
+      await db
+        .select({
+          videoUrl: recipeMedia.videoUrl,
+          videoStatus: recipeMedia.videoStatus,
+        })
+        .from(recipeMedia)
+        .where(eq(recipeMedia.recipeId, data.recipeId))
+        .limit(1)
+    )[0]
+    if (!row) return empty
+    return { videoUrl: row.videoUrl, videoStatus: row.videoStatus }
   })
 
 /**
