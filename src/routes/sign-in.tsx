@@ -2,6 +2,11 @@ import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { authClient } from '#/lib/auth-client'
 import { log } from '#/lib/log'
+import {
+  mapVerifyError,
+  verifyErrorMessage,
+  isExpectedOtpError,
+} from '#/lib/otp-error'
 import { promptForNotifications } from '#/lib/push-client'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -14,42 +19,6 @@ import {
 } from '#/components/ui/card'
 
 export const Route = createFileRoute('/sign-in')({ component: SignIn })
-
-/** Reason codes for an OTP verify failure, mapped from Better Auth's error. */
-type VerifyReason = 'expired' | 'rate_limited' | 'invalid' | 'unknown'
-
-/**
- * Classify a Better Auth verify error into a reason. Better Auth surfaces a
- * `code`/`status` plus a human message; we key off both. A 403 / "too many
- * attempts" is rate-limiting, an expired/invalid OTP is the common case.
- */
-function mapVerifyError(err: unknown): VerifyReason {
-  const e = err as { code?: string; status?: number; message?: string }
-  const msg = (e.message ?? '').toLowerCase()
-  if (e.code === 'OTP_EXPIRED' || msg.includes('expired')) return 'expired'
-  if (e.status === 403 || msg.includes('too many')) return 'rate_limited'
-  if (
-    e.code === 'INVALID_OTP' ||
-    msg.includes('invalid') ||
-    msg.includes('incorrect')
-  )
-    return 'invalid'
-  return 'unknown'
-}
-
-/** User-facing copy for each verify reason. Falls back to the raw message. */
-function verifyErrorMessage(reason: VerifyReason, err: unknown): string {
-  switch (reason) {
-    case 'expired':
-      return 'That code expired. Tap resend to get a new one.'
-    case 'rate_limited':
-      return 'Too many tries. Request a fresh code and try again.'
-    case 'invalid':
-      return "That code isn't right. Re-enter the 6 digits (no spaces)."
-    default:
-      return (err as { message?: string }).message ?? 'That code did not work.'
-  }
-}
 
 function SignIn() {
   const [step, setStep] = useState<'email' | 'code'>('email')
@@ -114,13 +83,21 @@ function SignIn() {
     setBusy(false)
     if (signErr) {
       const reason = mapVerifyError(signErr)
-      log.error('auth.client_verify_failed', signErr, {
+      const detail = {
         email,
         status: (signErr as { status?: number }).status,
         code: (signErr as { code?: string }).code,
         reason,
         origin: typeof window !== 'undefined' ? window.location.origin : null,
-      })
+      }
+      // #387: a wrong / expired / rate-limited OTP is EXPECTED (a handled 4xx);
+      // log a warn breadcrumb, not a Sentry exception. Only an unexpected / 5xx
+      // failure stays log.error -> Sentry.
+      if (isExpectedOtpError(signErr)) {
+        log.warn('auth.client_verify_failed', detail)
+      } else {
+        log.error('auth.client_verify_failed', signErr, detail)
+      }
       return setError(verifyErrorMessage(reason, signErr))
     }
     // Fire the push opt-in inside this click-driven success handler so the

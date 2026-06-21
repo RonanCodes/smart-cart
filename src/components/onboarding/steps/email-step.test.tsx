@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { LoginForm } from './LoginForm'
+import { EmailStep } from './email-step'
 
-// Better Auth client + the logger are the two collaborators we assert on: the
-// form should ALWAYS log the entered email when an OTP is requested (not only on
-// failure), so an OTP delivery issue (e.g. Android autofill) is traceable.
+// #387 (the exact Sentry report): onboarding's email-step logged a wrong OTP
+// (INVALID_OTP 400) as a Sentry exception. It must instead log a warn breadcrumb
+// and surface the error inline; only an unexpected 5xx stays a Sentry error.
+
 const sendVerificationOtp = vi.fn()
 const signInEmailOtp = vi.fn()
 vi.mock('#/lib/auth-client', () => ({
@@ -40,55 +41,31 @@ beforeEach(() => {
   logError.mockReset()
 })
 
-/** Drive the form to the code substep and submit `otp`. */
 async function submitOtp(otp: string) {
   fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
     target: { value: 'torben@example.com' },
   })
-  fireEvent.click(screen.getByRole('button', { name: /Email me a code/i }))
+  fireEvent.click(screen.getByTestId('onboarding-email-send'))
   const codeInput = await screen.findByPlaceholderText('123456')
   fireEvent.change(codeInput, { target: { value: otp } })
-  fireEvent.click(screen.getByRole('button', { name: /^Sign in$/i }))
+  fireEvent.click(screen.getByTestId('onboarding-email-verify'))
 }
 
-describe('LoginForm OTP request logging', () => {
-  it('logs the entered email on a successful OTP request', async () => {
-    render(<LoginForm />)
-    fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
-      target: { value: 'torben@example.com' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /Email me a code/i }))
-
-    await waitFor(() =>
-      expect(logInfo).toHaveBeenCalledWith(
-        'auth.otp_requested',
-        expect.objectContaining({ email: 'torben@example.com' }),
-      ),
-    )
-    // The send itself still fired with the same email.
-    expect(sendVerificationOtp).toHaveBeenCalledWith(
-      expect.objectContaining({ email: 'torben@example.com' }),
-    )
-  })
-})
-
-describe('LoginForm verify-error classification (#387)', () => {
+describe('EmailStep verify-error classification (#387)', () => {
   it('logs a WRONG OTP (INVALID_OTP 400) as a warn breadcrumb, NOT a Sentry error', async () => {
     signInEmailOtp.mockResolvedValue({
       error: { code: 'INVALID_OTP', status: 400, message: 'Invalid OTP' },
     })
-    render(<LoginForm />)
+    render(<EmailStep onVerified={vi.fn()} />)
     await submitOtp('000000')
 
     await waitFor(() =>
       expect(logWarn).toHaveBeenCalledWith(
-        'auth.client_verify_failed',
+        'onboarding.otp_verify_failed',
         expect.objectContaining({ reason: 'invalid', status: 400 }),
       ),
     )
-    // A handled 400 must NOT reach Sentry as an exception.
     expect(logError).not.toHaveBeenCalled()
-    // Still surfaced inline to the user.
     expect(await screen.findByText(/code isn't right/i)).toBeTruthy()
   })
 
@@ -96,12 +73,12 @@ describe('LoginForm verify-error classification (#387)', () => {
     signInEmailOtp.mockResolvedValue({
       error: { status: 500, message: 'Internal Server Error' },
     })
-    render(<LoginForm />)
+    render(<EmailStep onVerified={vi.fn()} />)
     await submitOtp('123456')
 
     await waitFor(() =>
       expect(logError).toHaveBeenCalledWith(
-        'auth.client_verify_failed',
+        'onboarding.otp_verify_failed',
         expect.objectContaining({ status: 500 }),
         expect.objectContaining({ reason: 'unknown', status: 500 }),
       ),
