@@ -1,5 +1,18 @@
 import * as React from 'react'
-import { Heart, ThumbsDown, Plus, X, Check } from 'lucide-react'
+import {
+  Heart,
+  ThumbsDown,
+  Plus,
+  X,
+  Check,
+  Salad,
+  PiggyBank,
+  Brain,
+  ChefHat,
+  ShoppingCart,
+  Sprout,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Sheet } from '#/components/ui/sheet'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -60,13 +73,15 @@ const DIET_OPTIONS: ReadonlyArray<string> = [
   'Pescatarian',
 ]
 
-const GOAL_OPTIONS: ReadonlyArray<{ label: string; emoji: string }> = [
-  { label: 'Eat a more balanced diet', emoji: '🥗' },
-  { label: 'Pay less for my groceries', emoji: '💸' },
-  { label: 'Lighten the mental load', emoji: '🧠' },
-  { label: 'Cook and discover new recipes', emoji: '👩‍🍳' },
-  { label: 'Avoid unnecessary purchases', emoji: '🛒' },
-  { label: 'Eat less meat', emoji: '🌱' },
+// Lucide icons (no emoji), matching the onboarding goals-step so the profile
+// editor and onboarding read identically.
+const GOAL_OPTIONS: ReadonlyArray<{ label: string; icon: LucideIcon }> = [
+  { label: 'Eat a more balanced diet', icon: Salad },
+  { label: 'Pay less for my groceries', icon: PiggyBank },
+  { label: 'Lighten the mental load', icon: Brain },
+  { label: 'Cook and discover new recipes', icon: ChefHat },
+  { label: 'Avoid unnecessary purchases', icon: ShoppingCart },
+  { label: 'Eat less meat', icon: Sprout },
 ]
 
 function includesCI(list: ReadonlyArray<string>, value: string): boolean {
@@ -357,7 +372,7 @@ export function PreferencesSheet({
             </p>
           </div>
           <div className="flex flex-col gap-2.5">
-            {GOAL_OPTIONS.map(({ label, emoji }) => {
+            {GOAL_OPTIONS.map(({ label, icon: Icon }) => {
               const isOn = goals.includes(label)
               return (
                 <button
@@ -372,8 +387,11 @@ export function PreferencesSheet({
                       : 'border-border bg-card text-foreground',
                   )}
                 >
-                  <span aria-hidden className="text-xl leading-none">
-                    {emoji}
+                  <span
+                    aria-hidden
+                    className="bg-secondary text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                  >
+                    <Icon className="h-[1.15rem] w-[1.15rem]" />
                   </span>
                   <span className="flex-1">{label}</span>
                   <span
