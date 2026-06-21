@@ -75,12 +75,11 @@ describe('KitchenStep', () => {
 })
 
 describe('GoalsStep', () => {
-  it('renders all six goal options', () => {
+  it('renders all five goal options', () => {
     withForm(<GoalsStep />)
     for (const label of [
       'Eat a more balanced diet',
       'Pay less for my groceries',
-      'Lighten the mental load',
       'Cook and discover new recipes',
       'Avoid unnecessary purchases',
       'Eat less meat',
@@ -105,11 +104,13 @@ describe('GoalsStep', () => {
 
   it('toggles a goal off when tapped twice', () => {
     const latest = withForm(<GoalsStep />)
-    const goal = screen.getByRole('button', { name: /Lighten the mental load/ })
+    const goal = screen.getByRole('button', {
+      name: /Cook and discover new recipes/,
+    })
     fireEvent.click(goal)
-    expect(latest.draft.goals).toContain('Lighten the mental load')
+    expect(latest.draft.goals).toContain('Cook and discover new recipes')
     fireEvent.click(goal)
-    expect(latest.draft.goals).not.toContain('Lighten the mental load')
+    expect(latest.draft.goals).not.toContain('Cook and discover new recipes')
   })
 
   it('shows already-selected goals as pressed', () => {

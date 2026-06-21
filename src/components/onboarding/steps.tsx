@@ -2,7 +2,6 @@ import { HouseholdStep } from './steps/household-step'
 import { DislikesStep } from './steps/dislikes-step'
 import { DietStep } from './steps/diet-step'
 import { CuisineStep } from './steps/cuisine-step'
-import { LanguageStep } from './steps/language-step'
 import { KitchenStep } from './steps/kitchen-step'
 import { GoalsStep } from './steps/goals-step'
 
@@ -68,12 +67,5 @@ export const STEPS: Array<OnboardingStep> = [
     title: 'Your goals',
     subtitle: 'What matters most? We weight the week toward it.',
     Component: GoalsStep,
-  },
-  {
-    id: 'language',
-    title: 'Recipe language',
-    subtitle:
-      'Show your recipes in English or Dutch. You can change this later.',
-    Component: LanguageStep,
   },
 ]

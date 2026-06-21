@@ -2,7 +2,6 @@ import {
   Check,
   Salad,
   PiggyBank,
-  Brain,
   ChefHat,
   ShoppingCart,
   Sprout,
@@ -35,7 +34,6 @@ interface GoalOption {
 const OPTIONS: ReadonlyArray<GoalOption> = [
   { label: 'Eat a more balanced diet', icon: Salad },
   { label: 'Pay less for my groceries', icon: PiggyBank },
-  { label: 'Lighten the mental load', icon: Brain },
   { label: 'Cook and discover new recipes', icon: ChefHat },
   { label: 'Avoid unnecessary purchases', icon: ShoppingCart },
   { label: 'Eat less meat', icon: Sprout },

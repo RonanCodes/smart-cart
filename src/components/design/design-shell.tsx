@@ -4,6 +4,7 @@ import { CalendarDays, Search, ShoppingBasket, User } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '#/lib/utils'
 import { SafeArea } from '#/components/ui/safe-area'
+import { DesignBadge } from '#/components/design/design-badge'
 
 /**
  * DESIGN PREVIEW shell (throwaway). A clone of AppShell whose bottom tab bar
@@ -42,6 +43,7 @@ export function DesignShell({
         className,
       )}
     >
+      <DesignBadge />
       <div className="app-frame flex flex-1 flex-col">
         <main
           className="mx-auto w-full max-w-md flex-1"

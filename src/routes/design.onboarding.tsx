@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import { SafeArea } from '#/components/ui/safe-area'
 import { OnboardingFlow } from '#/components/onboarding/onboarding-flow'
+import { DesignBadge } from '#/components/design/design-badge'
 
 /**
  * DESIGN PREVIEW (throwaway) — /design/onboarding. The real OnboardingFlow (now
@@ -11,7 +11,6 @@ import { OnboardingFlow } from '#/components/onboarding/onboarding-flow'
  * routes. Delete with the design.* routes before shipping.
  */
 export const Route = createFileRoute('/design/onboarding')({
-  beforeLoad: requireAdminBeforeLoad,
   component: DesignOnboarding,
 })
 
@@ -23,6 +22,7 @@ function DesignOnboarding() {
       edges={['top', 'bottom', 'left', 'right']}
       className="bg-background mx-auto flex h-[100dvh] w-full max-w-md flex-col overflow-hidden"
     >
+      <DesignBadge />
       <OnboardingFlow onComplete={toWeek} onSignIn={toWeek} />
     </SafeArea>
   )

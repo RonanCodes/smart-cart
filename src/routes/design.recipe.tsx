@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import { ChevronLeft, Plus, Minus, ChefHat } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { StickyNote } from '#/components/ui/sticky-note'
+import { DesignBadge } from '#/components/design/design-badge'
 
 /**
  * DESIGN PREVIEW (throwaway) — /design/recipe. The Julienne recipe sheet against
@@ -30,7 +30,6 @@ const STEPS = [
 ]
 
 export const Route = createFileRoute('/design/recipe')({
-  beforeLoad: requireAdminBeforeLoad,
   component: DesignRecipe,
 })
 
@@ -40,6 +39,7 @@ function DesignRecipe() {
 
   return (
     <div className="bg-background text-foreground mx-auto flex min-h-dvh max-w-md flex-col">
+      <DesignBadge />
       <div className="flex-1 overflow-y-auto px-5 pb-32">
         {/* Top bar */}
         <div className="flex items-center justify-between pt-4">

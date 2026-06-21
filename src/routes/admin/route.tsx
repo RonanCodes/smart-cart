@@ -131,16 +131,15 @@ function AdminLayout() {
               icon={<Beaker className="h-4 w-4" />}
               label="Demo data"
             />
-            {/* Souso design prototype (PR #320). Admin-gated so the throwaway
-                /design/* preview is reachable for demos without shipping it as
-                a public route. */}
             <TabLink
               to="/admin/design-system"
               icon={<SwatchBook className="h-4 w-4" />}
               label="Design system"
             />
+            {/* Souso design prototype. Now a PUBLIC, noindexed index (/designs)
+                so TJ can click the screens for review without logging in. */}
             <TabLink
-              to="/design/onboarding"
+              to="/designs"
               icon={<Palette className="h-4 w-4" />}
               label="Design preview"
             />

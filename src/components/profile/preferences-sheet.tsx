@@ -7,7 +7,6 @@ import {
   Check,
   Salad,
   PiggyBank,
-  Brain,
   ChefHat,
   ShoppingCart,
   Sprout,
@@ -78,7 +77,6 @@ const DIET_OPTIONS: ReadonlyArray<string> = [
 const GOAL_OPTIONS: ReadonlyArray<{ label: string; icon: LucideIcon }> = [
   { label: 'Eat a more balanced diet', icon: Salad },
   { label: 'Pay less for my groceries', icon: PiggyBank },
-  { label: 'Lighten the mental load', icon: Brain },
   { label: 'Cook and discover new recipes', icon: ChefHat },
   { label: 'Avoid unnecessary purchases', icon: ShoppingCart },
   { label: 'Eat less meat', icon: Sprout },

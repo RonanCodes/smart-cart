@@ -51,7 +51,18 @@ const BENEFITS: Array<Benefit> = [
   },
 ]
 
-export function Landing({ launched = false }: { launched?: boolean }) {
+export function Landing({
+  launched = false,
+  signInTo = '/sign-in',
+  loginTo = '/login',
+}: {
+  launched?: boolean
+  /** Where the "Get started" CTA points. Overridden by the design prototype so
+   * the walkthrough stays inside /design/* instead of jumping to real auth. */
+  signInTo?: string
+  /** Where the "Already have access? Log in" link points (same reason). */
+  loginTo?: string
+}) {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'busy' | 'done' | 'error'>(
     'idle',
@@ -131,7 +142,7 @@ export function Landing({ launched = false }: { launched?: boolean }) {
                 minutes.
               </p>
               <Link
-                to="/sign-in"
+                to={signInTo}
                 className={buttonVariants({
                   size: 'pill',
                   className: 'mt-4 w-full',
@@ -221,7 +232,7 @@ export function Landing({ launched = false }: { launched?: boolean }) {
         {/* Discrete entry for already-approved users. */}
         <div className="mt-10 text-center">
           <Link
-            to="/login"
+            to={loginTo}
             className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 transition hover:underline"
           >
             Already have access? Log in
