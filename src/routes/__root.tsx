@@ -12,6 +12,7 @@ import { registerServiceWorker } from '../lib/push-client'
 import { QueryClientProvider } from '../lib/query-client'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { log } from '../lib/log'
+import { useSession } from '../lib/auth-client'
 
 const SITE_URL = 'https://smartcart.ronanconnolly.dev'
 const SITE_TITLE = 'Souso: your sous chef for recipes and the weekly shop'
@@ -100,6 +101,16 @@ function RootDocument({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  // Attach the signed-in user (id + email) to Sentry so every client event shows
+  // WHO hit it; clear to anonymous when signed out. The setter is a no-op until
+  // initObservability() has run and a no-op in dev where Sentry is off (#284).
+  const { data: session } = useSession()
+  useEffect(() => {
+    void import('../lib/observability-client').then(
+      ({ setObservabilityUser }) => setObservabilityUser(session?.user ?? null),
+    )
+  }, [session?.user.id, session?.user.email])
+
   // Register the PWA service worker once on the client (guarded; no-op in SSR or
   // browsers without service workers). It powers Web Push rating reminders (#149)
   // and makes the manifest-declared app installable.

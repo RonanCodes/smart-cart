@@ -6,6 +6,8 @@ import {
   POSTHOG_HOST,
   OBSERVABILITY_ENABLED,
 } from '#/config/observability'
+import type { SessionLike } from './observability-user'
+import { toObservabilityUser } from './observability-user'
 
 /**
  * Browser observability: Sentry (errors) + PostHog (product analytics + session
@@ -56,6 +58,36 @@ export function initObservability(): void {
         // get_session_replay_url is best-effort; ignore if unavailable.
       }
     },
+  })
+}
+
+/**
+ * Set (or clear) the Sentry user from the auth session, so every client event
+ * shows WHO hit it instead of being anonymous. Call with the resolved session
+ * when signed in, and with `null` on sign-out / the signed-out state.
+ *
+ * We keep the PostHog `distinct_id` Sentry already grouped on (set in `init`'s
+ * `loaded` callback) and layer the email on top, so an error still pivots to the
+ * session replay AND shows the email. A signed-out call clears to anonymous but
+ * preserves the distinct_id link if PostHog had set one.
+ */
+export function setObservabilityUser(
+  session: SessionLike | null | undefined,
+): void {
+  if (!started) return
+  const user = toObservabilityUser(session)
+  if (!user) {
+    // Signed out: drop email/id but keep the PostHog distinct_id link if any,
+    // so an anonymous error still reaches the right session replay.
+    const distinctId = posthog.get_distinct_id()
+    Sentry.setUser(distinctId ? { id: distinctId } : null)
+    return
+  }
+  const distinctId = posthog.get_distinct_id()
+  Sentry.setUser({
+    // Prefer the real user id; fall back to the PostHog distinct_id link.
+    id: user.id || distinctId,
+    email: user.email || undefined,
   })
 }
 
