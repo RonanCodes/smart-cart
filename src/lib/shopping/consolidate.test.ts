@@ -6,6 +6,7 @@ import {
   sharedAcrossMeals,
   targetServings,
 } from './consolidate'
+import { splitQtyAndUnit } from './parse'
 import type { ShoppingRecipe } from './types'
 
 function recipe(
@@ -192,5 +193,60 @@ describe('consolidate — selectors + determinism', () => {
     const r = recipe('r1', 'A', 1, [{ name: '  ', qty: '1', unit: '' }])
     const list = consolidate([r], { adults: 1 })
     expect(list.lines).toHaveLength(0)
+  })
+})
+
+describe('consolidate — Dutch packed-qty path (the #292 bug)', () => {
+  // The seeded AH / Jumbo recipes pack the amount AND the unit into ONE `qty`
+  // field with no separate unit ("300 g", "1 el", "1 teen", "snufje"). The
+  // server splits that with `splitQtyAndUnit` before consolidating; mirror that
+  // here so the end-to-end shape (amounts present, never blank-when-known) is
+  // locked, not just the individual helpers.
+  function dutch(
+    id: string,
+    title: string,
+    servings: number | null,
+    raw: Array<{ name: string; qty?: string }>,
+  ): ShoppingRecipe {
+    return recipe(
+      id,
+      title,
+      servings,
+      raw.map((i) => {
+        const s = splitQtyAndUnit(i.qty)
+        return { name: i.name, qty: s.qty, unit: s.unit }
+      }),
+    )
+  }
+
+  it('produces a real amount for every ingredient that has a packed one', () => {
+    const r = dutch('r1', 'Broccoli-pasta', 4, [
+      { name: 'broccoli', qty: '300 g' },
+      { name: 'citroen', qty: '1' },
+      { name: 'dijonmosterd', qty: '1 el' },
+      { name: 'knoflook', qty: '1 teen' },
+      { name: 'melk', qty: '200 ml' },
+      { name: 'zout', qty: 'snufje' },
+    ])
+    const list = consolidate([r], { adults: 4 })
+    const byName = Object.fromEntries(
+      list.lines.map((l) => [l.name, l.displayAmount]),
+    )
+    expect(byName['broccoli']).toBe('300 g')
+    expect(byName['citroen']).toBe('1')
+    expect(byName['dijonmosterd']).toBe('1 tbsp') // 1 el normalises to 1 tbsp
+    expect(byName['knoflook']).toBe('1 teen')
+    expect(byName['melk']).toBe('200 ml')
+    // 'snufje' has no number, so the line stays unspecified (the '+' affordance
+    // at the persist layer), never an invented amount.
+    expect(byName['zout']).toBe('(unspecified amount)')
+  })
+
+  it('sums a packed amount across recipes that share an ingredient', () => {
+    const r1 = dutch('r1', 'Pasta', 4, [{ name: 'broccoli', qty: '300 g' }])
+    const r2 = dutch('r2', 'Stamppot', 4, [{ name: 'broccoli', qty: '200 g' }])
+    const list = consolidate([r1, r2], { adults: 4 })
+    expect(list.lines).toHaveLength(1)
+    expect(list.lines[0]!.displayAmount).toBe('500 g')
   })
 })

@@ -239,6 +239,54 @@ export function countMissing(
 }
 
 /**
+ * Backfill amounts onto stale saved rows from a freshly derived week (#292).
+ *
+ * The bug: a list saved BEFORE the Dutch-qty split shipped (#243) holds recipe
+ * rows whose `amount` is null, because the unsplit "350 g" parsed as an
+ * unparsable note and the amount was dropped. Re-deriving the week now produces
+ * the real amount, so on every shopping load we top those rows up rather than
+ * forcing the user to clear + regenerate.
+ *
+ * Rules, deliberately conservative so a backfill is always safe:
+ *  - Only `source: 'recipe'` rows are touched. A manual or staple row that
+ *    happens to share a recipe ingredient's name keeps the user's own intent.
+ *  - Only rows with a genuinely BLANK amount (null or whitespace) are filled. A
+ *    row that already carries any amount, even one the user typed over, is left
+ *    exactly as-is, so a user edit is never clobbered.
+ *  - Only when the freshly derived line for that name has a real amount
+ *    (a non-null `amount` after `lineToNewItem`, i.e. not '(unspecified amount)')
+ *    do we write. A line with no source amount leaves the row blank (the '+'
+ *    affordance), never '(unspecified)'.
+ *
+ * Matching is by normalised name (same key as `planMerge`). Returns the list of
+ * `{ id, amount, unit }` updates the server should apply; empty when nothing is
+ * stale. Pure: it computes the diff, it does not touch the DB.
+ */
+export function backfillAmounts(
+  existing: Array<ShoppingItem>,
+  derived: Array<NewShoppingItem>,
+): Array<{ id: string; amount: string; unit: string | null }> {
+  const byName = new Map<string, NewShoppingItem>()
+  for (const line of derived) {
+    // Only lines that actually carry an amount can backfill a blank row.
+    if (line.amount === null) continue
+    byName.set(normaliseItemName(line.name), line)
+  }
+  if (byName.size === 0) return []
+
+  const updates: Array<{ id: string; amount: string; unit: string | null }> = []
+  for (const item of existing) {
+    if (item.source !== 'recipe') continue
+    // A blank amount is null or whitespace-only; anything else is the user's.
+    if (item.amount !== null && item.amount.trim() !== '') continue
+    const match = byName.get(normaliseItemName(item.name))
+    if (!match || match.amount === null) continue
+    updates.push({ id: item.id, amount: match.amount, unit: match.unit })
+  }
+  return updates
+}
+
+/**
  * The label + disabled state for the week's "Add to shopping list" CTA, given
  * how many week ingredients are not yet on the saved list.
  *
