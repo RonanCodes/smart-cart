@@ -293,7 +293,10 @@ export const VoiceButton = forwardRef<VoiceButtonHandle, VoiceButtonProps>(
     // "still listening". Sits above the tab bar, out of the way of the basket CTA.
     if ((live || connecting) && minimized) {
       return (
-        <div className="fixed bottom-[calc(var(--tab-bar-space)+4.75rem)] left-1/2 z-50 -translate-x-1/2">
+        <div
+          className="fixed left-1/2 z-50 -translate-x-1/2"
+          style={{ top: 'calc(var(--safe-top, 0px) + 0.5rem)' }}
+        >
           <button
             type="button"
             onClick={() => setMinimized(false)}

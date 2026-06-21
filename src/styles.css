@@ -198,6 +198,10 @@ body {
 
 body {
   margin: 0;
+  /* Stop the browser back/forward swipe gesture from firing when the user drags
+     a dish left to swap it (the horizontal swipe was navigating to the previous
+     page). */
+  overscroll-behavior-x: none;
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
