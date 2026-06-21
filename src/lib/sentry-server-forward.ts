@@ -19,6 +19,7 @@
  */
 import { SENTRY_DSN as SENTRY_DSN_CLIENT } from '#/config/observability'
 import { readEnv } from './env'
+import { isIgnorableNetworkError } from './ignorable-error'
 
 interface ParsedDsn {
   /** Sentry ingest origin, e.g. `o123.ingest.de.sentry.io`. */
@@ -177,6 +178,11 @@ export async function forwardErrorToSentry(body: ClientLogBody): Promise<void> {
   try {
     const id = eventId()
     const error = body.error ?? {}
+
+    // Drop benign server-fn network/abort blips (SOUSO-A/Y/X, #417) so the
+    // ad-blocker-fallback path doesn't re-introduce the noise the client
+    // beforeSend already filters. Same precise predicate, one source of truth.
+    if (isIgnorableNetworkError(error)) return
 
     // Everything that isn't a recognised top-level field becomes `extra`.
     const { level: _l, event, ts: _ts, error: _e, ...rest } = body

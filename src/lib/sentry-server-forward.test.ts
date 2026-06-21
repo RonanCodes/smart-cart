@@ -107,6 +107,41 @@ describe('forwardErrorToSentry', () => {
     expect(event.extra.error).toBeUndefined()
   })
 
+  it('drops a benign server-fn network/abort blip without POSTing (SOUSO-A/Y/X #417)', async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      forwardErrorToSentry({
+        level: 'error',
+        event: 'react.error_boundary',
+        error: { name: 'TypeError', message: 'Load failed' },
+      }),
+    ).resolves.toBeUndefined()
+    await expect(
+      forwardErrorToSentry({
+        level: 'error',
+        event: 'react.error_boundary',
+        error: { name: 'TypeError', message: 'Failed to fetch' },
+      }),
+    ).resolves.toBeUndefined()
+
+    // Neither benign error reached the Sentry ingest endpoint.
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('still forwards a real error after filtering benign ones', async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await forwardErrorToSentry({
+      level: 'error',
+      event: 'react.error_boundary',
+      error: { name: 'TypeError', message: 'week is not iterable' },
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('swallows a fetch rejection (never propagates into the request path)', async () => {
     vi.stubGlobal(
       'fetch',
