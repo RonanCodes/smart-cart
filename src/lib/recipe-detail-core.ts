@@ -1,4 +1,5 @@
 import { pickIngredients, pickInstructions } from './recipe-locale'
+import type { Locale } from './recipe-locale'
 
 /** What the recipe-detail view needs to fetch the dish. */
 export interface RecipeDetailInput {
@@ -76,12 +77,17 @@ export function formatAmount(qty?: string, unit?: string): string | null {
  * DB. Drops ingredient rows with no name (junk), trims step strings and drops
  * blanks, and tolerates null JSON columns (older / partial rows) -> empty arrays.
  */
-export function mapRecipeDetail(row: RecipeDetailRow): RecipeDetailResult {
-  // Default to English (the demo locale), fall back to Dutch when a recipe has
-  // no translation. The Dutch source is kept on the row untouched (#295).
+export function mapRecipeDetail(
+  row: RecipeDetailRow,
+  locale: Locale = 'en',
+): RecipeDetailResult {
+  // Honour the household's display locale (#310). 'en' (default) shows the
+  // English translation, falling back to Dutch when a recipe has none; 'nl'
+  // shows the Dutch source. The Dutch source is kept on the row untouched (#295).
   const ingredients: Array<RecipeIngredient> = pickIngredients(
     row.ingredients,
     row.ingredientsEn,
+    locale,
   )
     .filter((i) => i.name.trim() !== '')
     .map((i) => ({
@@ -92,6 +98,7 @@ export function mapRecipeDetail(row: RecipeDetailRow): RecipeDetailResult {
   const steps: Array<string> = pickInstructions(
     row.instructions,
     row.instructionsEn,
+    locale,
   )
     .filter((s): s is string => typeof s === 'string' && s.trim() !== '')
     .map((s) => s.trim())
@@ -140,9 +147,20 @@ export async function fetchRecipeDetail(
   if (!user) throw new Error('Not signed in')
 
   const { getDb } = await import('../db/client')
-  const { recipe } = await import('../db/schema')
+  const { recipe, household } = await import('../db/schema')
   const { eq } = await import('drizzle-orm')
   const db = await getDb()
+
+  // The household's recipe-display locale (#310). 'en' shows the English
+  // translation (Dutch fallback), 'nl' the Dutch source. normalizeLocale guards
+  // a junk / missing value back to 'en'.
+  const { normalizeLocale } = await import('./locale-pref-server')
+  const hhRows = await db
+    .select({ preferredLocale: household.preferredLocale })
+    .from(household)
+    .where(eq(household.ownerId, user.id))
+    .limit(1)
+  const locale = normalizeLocale(hhRows[0]?.preferredLocale) ?? 'en'
 
   const rows = await db
     .select({
@@ -161,5 +179,5 @@ export async function fetchRecipeDetail(
   const row = rows[0]
   if (!row) return empty
 
-  return mapRecipeDetail(row)
+  return mapRecipeDetail(row, locale)
 }

@@ -180,6 +180,12 @@ vi.mock('../db/schema', () => ({
     servings: 'servings-col',
     quantitiesEstimated: 'qty-est-col',
   },
+  // The household read for the recipe-display locale (#310). Columns are just
+  // sentinel strings; the fake db ignores them and returns detailRows.
+  household: {
+    ownerId: 'owner-col',
+    preferredLocale: 'locale-col',
+  },
 }))
 vi.mock('drizzle-orm', () => ({ eq: () => 'eq-clause' }))
 

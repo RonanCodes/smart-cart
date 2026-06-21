@@ -184,6 +184,9 @@ export const completeOnboarding = createServerFn({ method: 'POST' })
           ...(mapped.preferredStore
             ? { preferredStore: mapped.preferredStore }
             : {}),
+          // The locale is always set (the draft defaults to 'en'), so a redo
+          // persists whatever language the user picked on the step (#310).
+          preferredLocale: mapped.preferredLocale,
           updatedAt: new Date(),
         })
         .where(eq(household.id, householdId))
@@ -198,6 +201,7 @@ export const completeOnboarding = createServerFn({ method: 'POST' })
         ...(mapped.preferredStore
           ? { preferredStore: mapped.preferredStore }
           : {}),
+        preferredLocale: mapped.preferredLocale,
         updatedAt: new Date(),
       })
     }
