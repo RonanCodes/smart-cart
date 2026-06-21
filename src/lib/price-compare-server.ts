@@ -18,6 +18,16 @@ import type { BasketComparison } from './pricing'
  * Store coverage is data-driven: we compare every store that actually carries
  * priced products (coveredStoreSlugs), so a new store (Picnic, once #294 lands
  * its data) joins the comparison automatically with no code change here.
+ *
+ * Accurate-tier total (#plan-cart-mismatch): the displayed total + per-item
+ * prices now resolve lines with the SAME accurate matcher the cart/deep-link uses
+ * (expand + multi-query retrieval + LLM rerank, ADR-0004), so the shown € exactly
+ * matches what cart-build adds to Albert Heijn. That tier costs an LLM call per
+ * line and runs for every covered store on every list change, so it goes through
+ * resolveLinesForStoreCached: a (store, normalised name) -> product resolution is
+ * paid for ONCE (D1 persistent cache + per-instance in-memory tier), price stays
+ * fresh from the catalogue. ADR-0004's cost warning is accepted; the cache softens
+ * it. First-load latency for a large, cold-cache list is the known trade-off.
  */
 
 /** One line the client sends: the ingredient name + its exact amount string. */
@@ -37,13 +47,16 @@ export const comparePrices = createServerFn({ method: 'POST' })
     const { getCataloguesFor, coveredStoreSlugs } =
       await import('./pricing/catalogue')
     const { basketForStoreWithMatches } = await import('./pricing/basket')
-    const { resolveLinesForStore } = await import('./pricing/resolve-lines')
+    const { resolveLinesForStoreCached } = await import('./pricing/match-cache')
 
     const stores = getCataloguesFor(coveredStoreSlugs())
     const baskets = await Promise.all(
       stores.map(async (store) => {
-        const names = lines.map((l) => l.name)
-        const resolved = await resolveLinesForStore(names, store.store)
+        // Resolve with the ACCURATE tier (cache-aware) so the displayed total +
+        // per-item prices match the basket cart-build adds. The amount feeds the
+        // rerank's pack size-match. A per-line failure degrades to a no-match
+        // inside the resolver, so it never throws the whole comparison.
+        const resolved = await resolveLinesForStoreCached(lines, store.store)
         return basketForStoreWithMatches(lines, resolved, store)
       }),
     )

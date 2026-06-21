@@ -13,7 +13,7 @@ import {
   setAllChecked,
   clearShoppingList,
 } from '#/lib/shopping-list-server'
-import { cleanRows } from '#/lib/shopping'
+import { cleanRows, isPantryStaple } from '#/lib/shopping'
 import type { ShoppingItem } from '#/lib/shopping'
 
 /**
@@ -384,6 +384,11 @@ function ItemRow({
   onRemove: () => void
 }) {
   const sticker = ingredientSticker(item.name)
+  // A recognised pantry staple (salt, oil, vanilla, ...) is added UNticked so it
+  // does not inflate the basket (#cart-staples). Show a quiet hint while it is
+  // out of the order so the user understands why and can tick it in; once
+  // ticked the hint drops away (they have decided to buy it).
+  const showStapleHint = !item.checked && isPantryStaple(item.name)
   return (
     <div className="border-hairline flex items-center gap-3 border-b py-3 last:border-b-0">
       {/* Cut-out product sticker (or a neutral tile when we have no match). */}
@@ -434,6 +439,11 @@ function ItemRow({
           className="text-muted-foreground text-xs"
           emptyClassName="text-muted-foreground/35 text-sm font-normal"
         />
+        {showStapleHint && (
+          <p className="text-muted-foreground/70 text-[0.7rem] italic">
+            you likely have this
+          </p>
+        )}
       </div>
 
       {/* The selected store's per-item price (#cart-align). No price = no match
