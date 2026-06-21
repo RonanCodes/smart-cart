@@ -23,10 +23,11 @@ describe('resetPlan', () => {
     expect(childTables).toEqual([...HOUSEHOLD_SCOPED_TABLES])
   })
 
-  it('targets exactly the six household-scoped tables (no auth / admin-config tables)', () => {
+  it('targets exactly the household-scoped tables (no auth / admin-config tables)', () => {
     expect([...HOUSEHOLD_SCOPED_TABLES].sort()).toEqual(
       [
         'meal_feedback',
+        'household_memory',
         'meal_plan',
         'push_subscription',
         'recipe_swipe',
@@ -69,6 +70,7 @@ describe('executeReset (one household, mock executor)', () => {
     expect(calls).toEqual([
       'clear:recipe_swipe:hh-1',
       'clear:meal_feedback:hh-1',
+      'clear:household_memory:hh-1',
       'clear:meal_plan:hh-1',
       'clear:shopping_list_item:hh-1',
       'clear:staple:hh-1',

@@ -91,24 +91,45 @@ export const Route = createFileRoute('/api/replan')({
           recipes: ctx.recipes,
           profile: ctx.profile,
           swipes: ctx.swipes,
+          penalties: ctx.penalties,
           buildMatcher,
         })
 
         const { streamText, flush } = await import('../../lib/braintrust-ai')
-        const { replanAgentArgs } = await import('../../lib/agent/runner')
+        const { replanAgentArgsWithMemory } =
+          await import('../../lib/agent/agent-args-server')
         const { log } = await import('../../lib/log')
+
+        // Ground the chat agent in durable memory + recent history, and let it
+        // write new facts (stamped as chat). Best-effort: never break a replan on
+        // a memory read failure.
+        const { buildMemoryContext } =
+          await import('../../lib/memory/memory-server')
+        let memoryContext = ''
+        try {
+          memoryContext = (await buildMemoryContext(ctx.householdId)).text
+        } catch {
+          memoryContext = ''
+        }
+
+        const agentArgs = await replanAgentArgsWithMemory({
+          session,
+          profile: ctx.profile,
+          recipes: ctx.recipes,
+          instruction,
+          model,
+          history,
+          memory: {
+            householdId: ctx.householdId,
+            source: 'chat',
+            context: memoryContext,
+          },
+        })
 
         const stream = createUIMessageStream<ReplanUIMessage>({
           execute: ({ writer }) => {
             const result = streamText({
-              ...replanAgentArgs({
-                session,
-                profile: ctx.profile,
-                recipes: ctx.recipes,
-                instruction,
-                model,
-                history,
-              }),
+              ...agentArgs,
               onStepFinish: () => {
                 writer.write({
                   type: 'data-week',

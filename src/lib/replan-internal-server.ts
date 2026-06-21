@@ -54,20 +54,39 @@ export async function replanForHousehold(
     recipes: ctx.recipes,
     profile: ctx.profile,
     swipes: ctx.swipes,
+    penalties: ctx.penalties,
     buildMatcher,
   })
 
   const { generateText, flush } = await import('./braintrust-ai')
-  const { replanAgentArgs, finalizeReplan } = await import('./agent/runner')
+  const { replanAgentArgsWithMemory } =
+    await import('./agent/agent-args-server')
+  const { finalizeReplan } = await import('./agent/runner')
+
+  // Ground the agent in durable memory + recent history, and let it write new
+  // facts during the turn (stamped as voice). Best-effort: a memory read failure
+  // must never break a voice replan, so fall back to no grounding.
+  const { buildMemoryContext } = await import('./memory/memory-server')
+  let memoryContext = ''
+  try {
+    memoryContext = (await buildMemoryContext(ctx.householdId)).text
+  } catch {
+    memoryContext = ''
+  }
 
   try {
     const { text } = await generateText(
-      replanAgentArgs({
+      await replanAgentArgsWithMemory({
         session,
         profile: ctx.profile,
         recipes: ctx.recipes,
         instruction,
         model,
+        memory: {
+          householdId: ctx.householdId,
+          source: 'voice',
+          context: memoryContext,
+        },
       }),
     )
     const result = finalizeReplan(text, session)

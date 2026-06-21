@@ -4,6 +4,7 @@ import type {
   PlannerProfile,
   PlannerRecipe,
   PlannerSwipe,
+  SoftPenalties,
 } from '../planner/types'
 import type { TermMatcherFactory } from './week-session'
 
@@ -32,8 +33,16 @@ export interface ReplanContextData {
   week: PlannedWeek
   /** The full recipe catalogue (the planner's candidate pool). */
   recipes: Array<PlannerRecipe>
-  /** The onboarding swipe signal that seeds the adaptive ranker. */
+  /**
+   * The taste signal that seeds the adaptive ranker: onboarding swipes with
+   * post-meal feedback folded on top (the closed learning loop).
+   */
   swipes: Array<PlannerSwipe>
+  /**
+   * Memory-derived soft penalties (variety / dislikes / recently-served). Empty
+   * for a household with no memory, leaving replan ranking unchanged.
+   */
+  penalties: SoftPenalties
 }
 
 interface HouseholdRow {
@@ -103,9 +112,18 @@ async function assemble(
     mealType: r.mealType,
   }))
 
-  const swipes: Array<PlannerSwipe> = swipeRows
+  const onboardingSwipes: Array<PlannerSwipe> = swipeRows
     .filter((s) => s.direction === 'like' || s.direction === 'dislike')
     .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
+
+  // Close the loop for replans too: fold post-meal feedback onto the swipes and
+  // load the memory-derived penalties, so a replan learns from thumbs + memory
+  // exactly like the first week does (planner-signals is the shared source).
+  const { loadPlannerSignals } = await import('../planner-signals')
+  const { swipes, penalties } = await loadPlannerSignals(
+    hh.id,
+    onboardingSwipes,
+  )
 
   const week: PlannedWeek = {
     days: current.plan.days.map((d) => ({
@@ -123,6 +141,7 @@ async function assemble(
     week,
     recipes,
     swipes,
+    penalties,
   }
 }
 

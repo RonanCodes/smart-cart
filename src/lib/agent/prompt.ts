@@ -36,9 +36,15 @@ How you talk (critical):
 - Hard filters (diet, allergies, dislikes) are already enforced. Never fight them.
 - Cheaper groceries need store prices, which aren't wired yet — say so plainly if asked and offer changes you can make.`
 
+/** Extra guidance, added only when the memory tools are available this turn. */
+const MEMORY_GUIDANCE = `Memory:
+- You can call recall_memory to read durable preferences, this/last week, and recent feedback. Use it when a request depends on taste, variety, or history.
+- You can call remember to keep a lasting fact. Interpret nuance: "not pizza every week" is a variety wish (do NOT ban pizza), a real dislike or allergy is a hard constraint. Don't remember one-off, throwaway, or already-known facts.`
+
 export function buildReplanSystemPrompt(
   profile: PlannerProfile,
   recipes: Array<PlannerRecipe>,
+  memoryContext?: string,
 ): string {
   const lines: Array<string> = []
   if (profile.diet) lines.push(`Diet: ${profile.diet}.`)
@@ -52,6 +58,15 @@ export function buildReplanSystemPrompt(
   if (cuisines.length)
     lines.push(`Cuisines in rotation: ${cuisines.join(', ')}.`)
 
-  if (lines.length === 0) return BASE
-  return `${BASE}\n\nHousehold (already enforced when picking dinners):\n${lines.join('\n')}`
+  // Memory grounding is only injected when the caller wired the memory tools
+  // (and there is something to ground on), so the no-memory path is unchanged.
+  const hasMemory = Boolean(memoryContext && memoryContext.trim())
+  let prompt =
+    lines.length === 0
+      ? BASE
+      : `${BASE}\n\nHousehold (already enforced when picking dinners):\n${lines.join('\n')}`
+  if (hasMemory) {
+    prompt += `\n\n${MEMORY_GUIDANCE}\n\nWhat we remember:\n${memoryContext!.trim()}`
+  }
+  return prompt
 }

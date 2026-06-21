@@ -116,11 +116,36 @@ model-filled; identity is always from the signed token.
 | `generate_cart`    | `shopping-server` (basket build) | `store` (ah/jumbo)                              | "your basket is ready, N items"         |
 | `open_cart`        | `buildCartLink`                  | `store`                                         | "your AH cart link is ready in the app" |
 
+### Memory tools (shared with the chat agent)
+
+The voice assistant shares its memory surface with the in-app chat agent
+(`src/lib/agent/tools.ts`), so both behave identically. Two tools, both routed
+through `dispatchVapiTool` -> `dispatchAgentTool` with `source: 'voice'`:
+
+| Tool            | Wraps                                  | Args (model-filled)                                           | Spoken result                                |
+| --------------- | -------------------------------------- | ------------------------------------------------------------- | -------------------------------------------- |
+| `recall_memory` | `buildMemoryContext` (`memory-server`) | none                                                          | what we remember + this/last week + feedback |
+| `remember`      | `rememberFact` (`memory-server`)       | `content`, `kind`, `cuisine?`, `term?`, `polarity?`, `scope?` | confirms the fact was saved                  |
+
+The model fills the structured `remember` fields itself (it IS the LLM), so there
+is no extra classification call. The classic nuance to respect: **"not pizza every
+week"** is `kind: "variety"`, `polarity: "neutral"`, `cuisine: "pizza"` — a
+frequency wish, never a dislike or a ban.
+
+> Dashboard step (cannot be done from the repo): register `recall_memory` and
+> `remember` as custom tools on assistant `0b54b5b2-f98d-4e94-b186-035a57d65065`
+> with server URL `/api/vapi/tool` and the schemas above (mirroring
+> `rememberInputSchema` in `src/lib/agent/tools.ts`). Update the assistant's system
+> prompt to: "Call `recall_memory` before acting so you know the household's tastes
+> and what they ate recently. When you learn something durable, call `remember`.
+> Treat 'not X every week' as a variety wish, not a dislike."
+
 Notes:
 
 - All four flows run through voice: **onboarding** (`start_onboarding`), **meal
   planning** (`get_week` + `replan_week`), **generate cart** (`generate_cart`),
   **add items** (`add_items`).
+- **Memory** is shared with the chat agent (`recall_memory` + `remember`).
 - The **swipe taste step stays visual** in onboarding (you can't swipe by voice);
   voice captures size/diet/dislikes/store and hands off to the swipe deck in-app.
 - `generate_cart` / `open_cart` depend on **AH basket fill (#14)**, not built yet.

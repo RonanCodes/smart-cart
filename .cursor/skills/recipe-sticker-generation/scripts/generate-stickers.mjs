@@ -3,10 +3,11 @@
  * Generate recipe stickers via Replicate google/nano-banana-2.
  *
  * Usage:
- *   node .cursor/skills/recipe-sticker-generation/scripts/generate-stickers.mjs data/images/foo.jpg
- *   node .cursor/skills/recipe-sticker-generation/scripts/generate-stickers.mjs data/images/*.jpg
+ *   node .../generate-stickers.mjs data/images/foo.jpg
+ *   node .../generate-stickers.mjs --all-ah
+ *   node .../generate-stickers.mjs --all-jumbo
  *
- * Env: REPLICATE_API_TOKEN in .dev.vars (read automatically)
+ * Env: REPLICATE_API_TOKEN in .dev.vars
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -74,8 +75,13 @@ async function generate(token, imagePath, prompt) {
   const abs = path.isAbsolute(imagePath) ? imagePath : path.join(ROOT, imagePath)
   const base = path.basename(abs, path.extname(abs))
   const outPath = path.join(OUT_DIR, `${base}-sticker.png`)
-  const sm = resize(abs)
 
+  if (fs.existsSync(outPath)) {
+    console.log(`skip (exists): ${base}`)
+    return outPath
+  }
+
+  const sm = resize(abs)
   const input = {
     prompt,
     image_input: [dataUrl(sm)],
@@ -107,23 +113,44 @@ async function generate(token, imagePath, prompt) {
   return outPath
 }
 
-const args = process.argv.slice(2).filter((a) => !a.startsWith('-'))
-if (args.length === 0) {
-  console.error('Usage: generate-stickers.mjs <image-path> [more...]')
+function listImages(prefix) {
+  return fs
+    .readdirSync(path.join(ROOT, 'data/images'))
+    .filter((f) => f.startsWith(`${prefix}_`) && /\.jpe?g$/i.test(f))
+    .map((f) => path.join('data/images', f))
+    .sort()
+}
+
+const args = process.argv.slice(2)
+let images = args.filter((a) => !a.startsWith('-'))
+
+if (args.includes('--all-ah')) images = listImages('ah')
+if (args.includes('--all-jumbo')) images = listImages('jumbo')
+
+if (images.length === 0) {
+  console.error('Usage: generate-stickers.mjs <image...> | --all-ah | --all-jumbo')
   process.exit(1)
 }
 
 const prompt = fs.readFileSync(PROMPT_FILE, 'utf8').trim()
 const token = loadToken()
+let ok = 0
+let fail = 0
 
-for (const imagePath of args) {
-  if (!fs.existsSync(path.isAbsolute(imagePath) ? imagePath : path.join(ROOT, imagePath))) {
+for (const imagePath of images) {
+  const abs = path.isAbsolute(imagePath) ? imagePath : path.join(ROOT, imagePath)
+  if (!fs.existsSync(abs)) {
     console.error(`missing: ${imagePath}`)
+    fail++
     continue
   }
   try {
     await generate(token, imagePath, prompt)
+    ok++
   } catch (err) {
-    console.error(`failed ${imagePath}:`, err.message)
+    console.error(`failed ${path.basename(imagePath)}:`, err.message)
+    fail++
   }
 }
+
+console.log(`\ndone: ${ok} ok, ${fail} failed, ${images.length} total`)

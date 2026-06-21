@@ -1,7 +1,7 @@
 A sticker of the dish in the reference photo.
 
-Remove everything that is not the food and the plate: no table, no background, no surface, no utensils, no props.
+Remove everything that is not the food and the plate: no table, no background, no surface, no utensils, no props, no hands, no packaging.
 
-Keep the food and plate exactly as photographed. Photorealistic, not cartoon.
+Keep the food and plate exactly as photographed — same plate shape and color, same food arrangement. Photorealistic, not cartoon. One single cohesive dish, not split into multiple pieces.
 
-Place the isolated dish centered on a pure solid chroma green #00FF00 background, with even green margin on all sides so the dish does not touch the edges. No white border, no shadow, no text — just the dish on flat chroma green.
+Place the isolated dish centered on a pure flat chroma green #00FF00 background. Even green margin on all sides — the dish must not touch the image edges. No cast shadow on the green, no white border, no text.

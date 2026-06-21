@@ -1,31 +1,7 @@
 #!/usr/bin/env node
 /**
- * Remove the white canvas background from generated stickers and rebuild a clean
- * die-cut sticker: tight cutout + uniform white border + soft drop shadow.
- *
- * Why not colorkey / edge-keep tricks:
- *   The model's white border is the SAME white as the canvas and connected to it,
- *   so no color rule can keep just the ring. Instead we eat ALL the white via an
- *   edge-seeded flood fill, then synthesize our own uniform border + shadow. This
- *   is deterministic and consistent across every image.
- *
- * Stickers are generated on a chroma green (#00FF00) canvas (see prompt.txt) so the
- * background is unambiguous and never collides with food/plate/white-border colors.
- *
- * Pipeline:
- *   1. Sample corner pixels -> background color (chroma green)
- *   2. Flood fill from image edges through bg-colored pixels -> alpha 0
- *      (interior green like herbs/veg is enclosed by the plate, so it survives)
- *   3. Green despill on subject pixels near the cutout edge (kills green fringe)
- *   4. Chamfer distance transform outward from the surviving subject
- *   5. Paint a uniform white border ring (dist <= border)
- *   6. Composite a blurred, offset black drop shadow underneath
- *
- * Usage:
- *   node .../remove-sticker-bg.mjs data/.tmp-replicate/stickers/foo-sticker.png
- *   node .../remove-sticker-bg.mjs --all [--tol=14] [--border=24] [--shadow=80]
- *
- * Requires: ffmpeg, ffprobe
+ * Key out chroma-green canvas from generated stickers, then synthesize a uniform
+ * white die-cut border + drop shadow. Requires ffmpeg + ffprobe.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -34,12 +10,11 @@ import { execSync } from 'node:child_process'
 const ROOT = findRoot(process.cwd())
 const IN_DIR = path.join(ROOT, 'data/.tmp-replicate/stickers')
 const OUT_DIR = path.join(ROOT, 'data/.tmp-replicate/stickers-transparent')
-
-const DEFAULT_TOL = 14 // bg color match tolerance
-const DEFAULT_BORDER = 24 // white die-cut border width (px)
-const DEFAULT_SHADOW_ALPHA = 80 // 0-255 max shadow opacity
-const SHADOW_OFFSET = 12 // px down-right
-const SHADOW_BLUR = 16 // box blur radius
+const DEFAULT_TOL = 14
+const DEFAULT_BORDER = 24
+const DEFAULT_SHADOW_ALPHA = 80
+const SHADOW_OFFSET = 12
+const SHADOW_BLUR = 16
 
 function findRoot(start) {
   let dir = start
@@ -68,9 +43,9 @@ function loadRgba(file, w, h) {
 }
 
 function saveRgba(file, rgba, w, h) {
+  fs.mkdirSync(path.dirname(file), { recursive: true })
   const tmp = `${file}.raw`
   fs.writeFileSync(tmp, Buffer.from(rgba))
-  fs.mkdirSync(path.dirname(file), { recursive: true })
   execSync(`ffmpeg -y -f rawvideo -pix_fmt rgba -s ${w}x${h} -i "${tmp}" -frames:v 1 -update 1 "${file}"`, {
     stdio: 'pipe',
   })
@@ -98,32 +73,26 @@ function sampleCorners(rgba, w, h) {
   return [Math.round(r / pts.length), Math.round(g / pts.length), Math.round(b / pts.length)]
 }
 
-/**
- * Build a background test. For a green-dominant canvas use a chroma-green key
- * (robust to the AI's slightly varying / anti-aliased greens). Otherwise fall
- * back to a tolerance match around the sampled corner color.
- */
 function makeBgTest(bg, tol) {
   const greenCanvas = bg[1] > bg[0] + 40 && bg[1] > bg[2] + 40
   if (greenCanvas) {
-    return (r, g, b) => g > 90 && g > r + 25 && g > b + 25
+    // Screen green only — reject darker/yellower food greens (curry, beans, herbs)
+    return (r, g, b) => g > 120 && g - Math.max(r, b) > 55
   }
   return (r, g, b) =>
     Math.abs(r - bg[0]) <= tol && Math.abs(g - bg[1]) <= tol && Math.abs(b - bg[2]) <= tol
 }
 
-/** Flood fill from all four edges through bg-colored pixels. Returns subject mask. */
 function floodOuterBg(rgba, w, h, isBg) {
   const isOuter = new Uint8Array(w * h)
+  const visited = new Uint8Array(w * h)
   const stack = []
 
   const seed = (x, y) => {
     const idx = y * w + x
+    if (visited[idx]) return
     const i = idx * 4
-    if (!isOuter[idx] && isBg(rgba[i], rgba[i + 1], rgba[i + 2])) {
-      isOuter[idx] = 1
-      stack.push(idx)
-    }
+    if (isBg(rgba[i], rgba[i + 1], rgba[i + 2])) stack.push(idx)
   }
   for (let x = 0; x < w; x++) {
     seed(x, 0)
@@ -136,40 +105,35 @@ function floodOuterBg(rgba, w, h, isBg) {
 
   while (stack.length) {
     const idx = stack.pop()
+    if (visited[idx]) continue
+    visited[idx] = 1
+    isOuter[idx] = 1
     const x = idx % w
     const y = (idx - x) / w
-    const neighbors = [
+    for (const [nx, ny] of [
       [x - 1, y],
       [x + 1, y],
       [x, y - 1],
       [x, y + 1],
-    ]
-    for (const [nx, ny] of neighbors) {
+    ]) {
       if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
       const nidx = ny * w + nx
-      if (isOuter[nidx]) continue
+      if (visited[nidx]) continue
       const ni = nidx * 4
-      if (isBg(rgba[ni], rgba[ni + 1], rgba[ni + 2])) {
-        isOuter[nidx] = 1
-        stack.push(nidx)
-      }
+      if (isBg(rgba[ni], rgba[ni + 1], rgba[ni + 2])) stack.push(nidx)
     }
   }
 
-  // subject = everything not reached from the outer edges
   const subject = new Uint8Array(w * h)
   for (let idx = 0; idx < w * h; idx++) subject[idx] = isOuter[idx] ? 0 : 1
   return subject
 }
 
-/** Chamfer 3-4 distance transform from subject pixels outward (units: ~3 per px). */
 function chamferDistance(subject, w, h) {
   const INF = 1 << 28
   const dist = new Int32Array(w * h)
   for (let idx = 0; idx < w * h; idx++) dist[idx] = subject[idx] ? 0 : INF
-
   const at = (x, y) => dist[y * w + x]
-  // forward
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x
@@ -181,7 +145,6 @@ function chamferDistance(subject, w, h) {
       dist[idx] = d
     }
   }
-  // backward
   for (let y = h - 1; y >= 0; y--) {
     for (let x = w - 1; x >= 0; x--) {
       const idx = y * w + x
@@ -196,7 +159,6 @@ function chamferDistance(subject, w, h) {
   return dist
 }
 
-/** Separable box blur on a Float32 alpha plane. */
 function boxBlur(src, w, h, radius) {
   if (radius < 1) return src
   const tmp = new Float32Array(w * h)
@@ -207,9 +169,7 @@ function boxBlur(src, w, h, radius) {
     for (let x = -radius; x <= radius; x++) sum += src[y * w + Math.min(w - 1, Math.max(0, x))]
     for (let x = 0; x < w; x++) {
       tmp[y * w + x] = sum / win
-      const add = src[y * w + Math.min(w - 1, x + radius + 1)]
-      const sub = src[y * w + Math.max(0, x - radius)]
-      sum += add - sub
+      sum += src[y * w + Math.min(w - 1, x + radius + 1)] - src[y * w + Math.max(0, x - radius)]
     }
   }
   for (let x = 0; x < w; x++) {
@@ -217,15 +177,12 @@ function boxBlur(src, w, h, radius) {
     for (let y = -radius; y <= radius; y++) sum += tmp[Math.min(h - 1, Math.max(0, y)) * w + x]
     for (let y = 0; y < h; y++) {
       out[y * w + x] = sum / win
-      const add = tmp[Math.min(h - 1, y + radius + 1) * w + x]
-      const sub = tmp[Math.max(0, y - radius) * w + x]
-      sum += add - sub
+      sum += tmp[Math.min(h - 1, y + radius + 1) * w + x] - tmp[Math.max(0, y - radius) * w + x]
     }
   }
   return out
 }
 
-/** Green despill on subject pixels within `reach` px of the cutout edge. */
 function greenDespill(rgba, subject, w, h, reach = 3) {
   const edge = []
   for (let y = 0; y < h; y++) {
@@ -263,25 +220,12 @@ function removeBg(rgba, w, h, { tol, border, shadowAlpha }) {
   const bg = sampleCorners(rgba, w, h)
   const isBg = makeBgTest(bg, tol)
   const subject = floodOuterBg(rgba, w, h, isBg)
-
-  // clear flooded background to transparent
-  for (let idx = 0; idx < w * h; idx++) {
-    if (!subject[idx]) rgba[idx * 4 + 3] = 0
-  }
-
-  // kill green fringe on the cutout edge before painting the white border
+  for (let idx = 0; idx < w * h; idx++) if (!subject[idx]) rgba[idx * 4 + 3] = 0
   greenDespill(rgba, subject, w, h)
-
   const dist = chamferDistance(subject, w, h)
-  const borderUnits = border * 3 // chamfer ~3 per px
-
-  // sticker shape mask (subject + white border) for shadow casting
+  const borderUnits = border * 3
   const shape = new Float32Array(w * h)
-  for (let idx = 0; idx < w * h; idx++) {
-    if (dist[idx] <= borderUnits) shape[idx] = 1
-  }
-
-  // drop shadow: shape offset down-right, blurred
+  for (let idx = 0; idx < w * h; idx++) if (dist[idx] <= borderUnits) shape[idx] = 1
   const shadowSrc = new Float32Array(w * h)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -291,8 +235,6 @@ function removeBg(rgba, w, h, { tol, border, shadowAlpha }) {
     }
   }
   const shadow = boxBlur(shadowSrc, w, h, SHADOW_BLUR)
-
-  // paint white border ring (transparent pixels within border distance)
   for (let idx = 0; idx < w * h; idx++) {
     if (subject[idx]) continue
     if (dist[idx] <= borderUnits) {
@@ -303,8 +245,6 @@ function removeBg(rgba, w, h, { tol, border, shadowAlpha }) {
       rgba[i + 3] = 255
     }
   }
-
-  // composite shadow under still-transparent pixels
   for (let idx = 0; idx < w * h; idx++) {
     const i = idx * 4
     if (rgba[i + 3] !== 0) continue
@@ -316,20 +256,21 @@ function removeBg(rgba, w, h, { tol, border, shadowAlpha }) {
       rgba[i + 3] = Math.min(255, a)
     }
   }
-
   return { bg }
 }
 
 function processFile(inPath, opts) {
-  const base = path.basename(inPath)
-  const outPath = path.join(OUT_DIR, base)
+  const outPath = path.join(OUT_DIR, path.basename(inPath))
   const [w, h] = getSize(inPath)
   const rgba = loadRgba(inPath, w, h)
-  const { bg } = removeBg(rgba, w, h, opts)
+  removeBg(rgba, w, h, opts)
   saveRgba(outPath, rgba, w, h)
-  console.log(
-    `ok ${path.relative(ROOT, outPath)} (bg ${bg.join(',')}, tol ${opts.tol}, border ${opts.border})`,
-  )
+
+  let transparent = 0
+  for (let i = 3; i < rgba.length; i += 4) if (rgba[i] === 0) transparent++
+  const pct = ((transparent / (w * h)) * 100).toFixed(1)
+  if (transparent === 0) console.warn(`WARN ${path.basename(inPath)}: no transparent pixels`)
+  console.log(`ok ${path.relative(ROOT, outPath)} (${pct}% transparent)`)
 }
 
 const args = process.argv.slice(2)
@@ -352,7 +293,7 @@ if (args.includes('--all') || files.length === 0) {
 }
 
 if (files.length === 0) {
-  console.error('Usage: remove-sticker-bg.mjs <sticker.png> [more...] | --all [--tol=14] [--border=24] [--shadow=80]')
+  console.error('Usage: remove-sticker-bg.mjs <sticker.png> [more...] | --all')
   process.exit(1)
 }
 
