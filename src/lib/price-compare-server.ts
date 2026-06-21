@@ -12,8 +12,8 @@ import type { BasketComparison } from './pricing'
  *
  * No auth gate here: the only input is the list the caller already loaded
  * through the authed shopping route, and the output is public price data. The
- * compute is pure (basketForStore / compareBaskets); this fn just wires the
- * vendored catalogue to it lazily so none of it lands client-side.
+ * compute uses the embedding resolver + pack-rounding (ADR-0004); this fn wires
+ * the vendored catalogue to it lazily so none of it lands client-side.
  *
  * Store coverage is data-driven: we compare every store that actually carries
  * priced products (coveredStoreSlugs), so a new store (Picnic, once #294 lands
@@ -26,7 +26,7 @@ export interface PriceCompareLine {
   amount?: string | null
 }
 
-export const comparePrices = createServerFn({ method: 'GET' })
+export const comparePrices = createServerFn({ method: 'POST' })
   .inputValidator((d: { lines: Array<PriceCompareLine> }) => d)
   .handler(async ({ data }): Promise<BasketComparison> => {
     const lines = data.lines.filter(
@@ -36,8 +36,21 @@ export const comparePrices = createServerFn({ method: 'GET' })
 
     const { getCataloguesFor, coveredStoreSlugs } =
       await import('./pricing/catalogue')
-    const { compareBaskets } = await import('./pricing/basket')
+    const { basketForStoreWithMatches } = await import('./pricing/basket')
+    const { resolveLinesForStore } = await import('./pricing/resolve-lines')
 
     const stores = getCataloguesFor(coveredStoreSlugs())
-    return compareBaskets(lines, stores)
+    const baskets = await Promise.all(
+      stores.map(async (store) => {
+        const names = lines.map((l) => l.name)
+        const resolved = await resolveLinesForStore(names, store.store)
+        return basketForStoreWithMatches(lines, resolved, store)
+      }),
+    )
+    let cheapest: (typeof baskets)[number] | null = null
+    for (const b of baskets) {
+      if (b.lineItems.length === 0) continue
+      if (cheapest === null || b.totalCents < cheapest.totalCents) cheapest = b
+    }
+    return { baskets, cheapest }
   })

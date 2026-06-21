@@ -267,6 +267,135 @@ function baseUnit(dimension: RequiredAmount['dimension']): string {
 /* The basket builder                                                          */
 /* -------------------------------------------------------------------------- */
 
+/** Whole packs needed for a required amount vs a product's pack size; 1 when n/a. */
+export function packsForAmount(
+  amount: string | null | undefined,
+  product: { size: ParsedSize },
+): number {
+  const required = parseRequired(amount)
+  const pack = packToBase(product.size)
+  if (required && pack && required.dimension === pack.dimension) {
+    return Math.max(1, Math.ceil(required.baseQuantity / pack.baseQuantity))
+  }
+  return 1
+}
+
+function accumulateMatchedLine(
+  req: BasketRequest,
+  match: IngredientMatch,
+  lineItems: Array<BasketLineItem>,
+  waste: BasketWasteSummary,
+): { lineCents: number; estimated: boolean } | null {
+  if (match.product === null || match.priceCents === null) return null
+
+  const product = match.product
+  const required = parseRequired(req.amount)
+  const pack = packToBase(product.size)
+
+  let packs = 1
+  let lineWaste: BasketWaste | null = null
+
+  if (required && pack && required.dimension === pack.dimension) {
+    packs = Math.max(1, Math.ceil(required.baseQuantity / pack.baseQuantity))
+    const bought = packs * pack.baseQuantity
+    const leftover = round2(bought - required.baseQuantity)
+    const perBaseCents = match.priceCents / pack.baseQuantity
+    const wasteCents = Math.round(leftover * perBaseCents)
+    lineWaste = {
+      dimension: required.dimension,
+      baseQuantity: leftover,
+      unit: baseUnit(required.dimension),
+      cents: wasteCents,
+    }
+  } else {
+    waste.unknownLines += 1
+    waste.hasUnknown = true
+  }
+
+  const lineCents = packs * match.priceCents
+
+  if (lineWaste) {
+    waste.cents += lineWaste.cents
+    if (lineWaste.dimension === 'mass')
+      waste.massGrams += lineWaste.baseQuantity
+    else if (lineWaste.dimension === 'volume')
+      waste.volumeMl += lineWaste.baseQuantity
+    else waste.count += lineWaste.baseQuantity
+  }
+
+  lineItems.push({
+    ingredient: req.name,
+    productName: product.name,
+    packSize: product.size.raw,
+    packPriceCents: match.priceCents,
+    packs,
+    lineCents,
+    slug: product.slug,
+    confidence: match.confidence,
+    estimated: match.estimated,
+    waste: lineWaste,
+  })
+
+  return { lineCents, estimated: match.estimated }
+}
+
+/**
+ * Price + waste ONE store's basket using PRE-RESOLVED matches (embedding tier).
+ * Keeps pack-rounding identical to basketForStore so the cart total matches
+ * what the UI shows when both paths share the same resolver.
+ */
+export function basketForStoreWithMatches(
+  requests: ReadonlyArray<BasketRequest>,
+  matches: ReadonlyArray<{ name: string; match: IngredientMatch }>,
+  store: StoreCatalogue,
+): StoreBasket {
+  const matchByName = new Map(matches.map((m) => [m.name, m.match]))
+  const lineItems: Array<BasketLineItem> = []
+  const unavailable: Array<BasketUnavailable> = []
+  let totalCents = 0
+  let estimatedCount = 0
+  const waste: BasketWasteSummary = {
+    cents: 0,
+    massGrams: 0,
+    volumeMl: 0,
+    count: 0,
+    unknownLines: 0,
+    hasUnknown: false,
+  }
+
+  for (const req of requests) {
+    const match = matchByName.get(req.name) ?? {
+      store: store.store,
+      product: null,
+      priceCents: null,
+      confidence: 'none' as const,
+      estimated: true,
+      score: 0,
+    }
+    const priced = accumulateMatchedLine(req, match, lineItems, waste)
+    if (!priced) {
+      unavailable.push({ ingredient: req.name })
+      continue
+    }
+    totalCents += priced.lineCents
+    if (priced.estimated) estimatedCount += 1
+  }
+
+  waste.massGrams = round2(waste.massGrams)
+  waste.volumeMl = round2(waste.volumeMl)
+  waste.count = round2(waste.count)
+
+  return {
+    store: store.store,
+    displayName: store.displayName,
+    lineItems,
+    totalCents,
+    totalWaste: waste,
+    unavailable,
+    estimatedCount,
+  }
+}
+
 /**
  * Price + waste ONE store's basket for a list of required amounts.
  *
@@ -275,6 +404,9 @@ function baseUnit(dimension: RequiredAmount['dimension']): string {
  * (same dimension, both parseable), packs = ceil(required / packBase) and
  * leftover = packs*packBase - required, costed pro-rata to the pack price.
  * When they are NOT comparable, we buy ONE pack and the waste is unknown ('n/a').
+ *
+ * Uses the legacy token matcher; the shopping-tab compare path uses the
+ * embedding resolver via basketForStoreWithMatches instead (ADR-0004).
  */
 export function basketForStore(
   requests: ReadonlyArray<BasketRequest>,
@@ -295,65 +427,15 @@ export function basketForStore(
 
   for (const req of requests) {
     const match = matchIngredient(req.name, store)
-    if (match.product === null || match.priceCents === null) {
+    const priced = accumulateMatchedLine(req, match, lineItems, waste)
+    if (!priced) {
       unavailable.push({ ingredient: req.name })
       continue
     }
-
-    const product = match.product
-    const required = parseRequired(req.amount)
-    const pack = packToBase(product.size)
-
-    let packs = 1
-    let lineWaste: BasketWaste | null = null
-
-    if (required && pack && required.dimension === pack.dimension) {
-      packs = Math.max(1, Math.ceil(required.baseQuantity / pack.baseQuantity))
-      const bought = packs * pack.baseQuantity
-      const leftover = round2(bought - required.baseQuantity)
-      // Pro-rata euro value of the leftover at the pack's per-unit price.
-      const perBaseCents = match.priceCents / pack.baseQuantity
-      const wasteCents = Math.round(leftover * perBaseCents)
-      lineWaste = {
-        dimension: required.dimension,
-        baseQuantity: leftover,
-        unit: baseUnit(required.dimension),
-        cents: wasteCents,
-      }
-    } else {
-      // Cannot compare required vs pack: buy one pack, waste is n/a.
-      waste.unknownLines += 1
-      waste.hasUnknown = true
-    }
-
-    const lineCents = packs * match.priceCents
-    totalCents += lineCents
-    if (match.estimated) estimatedCount += 1
-
-    if (lineWaste) {
-      waste.cents += lineWaste.cents
-      if (lineWaste.dimension === 'mass')
-        waste.massGrams += lineWaste.baseQuantity
-      else if (lineWaste.dimension === 'volume')
-        waste.volumeMl += lineWaste.baseQuantity
-      else waste.count += lineWaste.baseQuantity
-    }
-
-    lineItems.push({
-      ingredient: req.name,
-      productName: product.name,
-      packSize: product.size.raw,
-      packPriceCents: match.priceCents,
-      packs,
-      lineCents,
-      slug: product.slug,
-      confidence: match.confidence,
-      estimated: match.estimated,
-      waste: lineWaste,
-    })
+    totalCents += priced.lineCents
+    if (priced.estimated) estimatedCount += 1
   }
 
-  // Kill float noise from the pro-rata sums.
   waste.massGrams = round2(waste.massGrams)
   waste.volumeMl = round2(waste.volumeMl)
   waste.count = round2(waste.count)

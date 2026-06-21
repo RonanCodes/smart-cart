@@ -3,6 +3,11 @@ import {
   ahProductId,
   jumboSku,
   ahBulkCartUrl,
+  ahBulkCartUrls,
+  mergeCartLineItems,
+  chunkCartLineItems,
+  AH_BULK_CHUNK_SIZE,
+  jumboBulkCartUrls,
   jumboBulkCartUrl,
 } from './cart-links'
 
@@ -70,6 +75,79 @@ describe('ahBulkCartUrl', () => {
       ]),
     ).toBeNull()
     expect(ahBulkCartUrl([])).toBeNull()
+  })
+})
+
+describe('mergeCartLineItems', () => {
+  it('combines qty for duplicate SKUs', () => {
+    expect(
+      mergeCartLineItems([
+        { sku: '1', qty: 1 },
+        { sku: '1', qty: 2 },
+        { sku: '2', qty: 1 },
+      ]),
+    ).toEqual([
+      { sku: '1', qty: 3 },
+      { sku: '2', qty: 1 },
+    ])
+  })
+})
+
+describe('ahBulkCartUrls', () => {
+  it('returns one URL when under the chunk size', () => {
+    const items = [{ sku: '1', qty: 1 }]
+    expect(ahBulkCartUrls(items)).toHaveLength(1)
+    expect(ahBulkCartUrls(items)[0]).toBe(ahBulkCartUrl(items))
+  })
+
+  it('splits into multiple add-multiple URLs above the chunk size', () => {
+    const items = Array.from({ length: AH_BULK_CHUNK_SIZE + 3 }, (_, i) => ({
+      sku: String(i + 1),
+      qty: 1,
+    }))
+    const urls = ahBulkCartUrls(items)
+    expect(urls).toHaveLength(2)
+    expect(urls[0]?.match(/p=/g)?.length).toBe(AH_BULK_CHUNK_SIZE)
+    expect(urls[1]?.match(/p=/g)?.length).toBe(3)
+  })
+})
+
+describe('chunkCartLineItems', () => {
+  it('chunks evenly with a short tail', () => {
+    const items = [
+      { sku: '1', qty: 1 },
+      { sku: '2', qty: 1 },
+      { sku: '3', qty: 1 },
+      { sku: '4', qty: 1 },
+      { sku: '5', qty: 1 },
+    ]
+    expect(chunkCartLineItems(items, 2)).toEqual([
+      [
+        { sku: '1', qty: 1 },
+        { sku: '2', qty: 1 },
+      ],
+      [
+        { sku: '3', qty: 1 },
+        { sku: '4', qty: 1 },
+      ],
+      [{ sku: '5', qty: 1 }],
+    ])
+  })
+})
+
+describe('jumboBulkCartUrls', () => {
+  it('returns one URL when under the chunk size', () => {
+    const items = [{ sku: '128692ZK', qty: 1 }]
+    expect(jumboBulkCartUrls(items)).toHaveLength(1)
+    expect(jumboBulkCartUrls(items)[0]).toBe(jumboBulkCartUrl(items))
+  })
+
+  it('splits into multiple mandje URLs above the chunk size', () => {
+    const items = Array.from({ length: 30 }, (_, i) => ({
+      sku: `${i + 1}PAK`,
+      qty: 1,
+    }))
+    expect(jumboBulkCartUrls(items)).toHaveLength(2)
   })
 })
 

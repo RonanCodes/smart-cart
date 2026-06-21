@@ -4,6 +4,7 @@ import { Heart } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { Button } from '#/components/ui/button'
 import { buildCartLinks } from '#/lib/cart-links-server'
+import { openStoreCart } from '#/lib/open-store-cart'
 import { log } from '#/lib/log'
 
 /**
@@ -30,7 +31,7 @@ function TipReturn() {
     setBusy(true)
     try {
       const link = await buildCartLinks({ data: { store } })
-      if (link.url) window.open(link.url, '_blank', 'noopener,noreferrer')
+      if (link.urls.length > 0) openStoreCart(link)
     } catch (err) {
       log.error('tip.return_open_cart_failed', err, { store })
     } finally {

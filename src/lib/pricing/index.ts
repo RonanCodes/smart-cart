@@ -66,4 +66,9 @@ export type {
   BasketWasteSummary,
   BasketComparison,
 } from './basket'
-export { basketForStore, compareBaskets } from './basket'
+export {
+  basketForStore,
+  basketForStoreWithMatches,
+  compareBaskets,
+  packsForAmount,
+} from './basket'

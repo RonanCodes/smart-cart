@@ -5,11 +5,12 @@ import { formatCents } from '#/lib/pricing'
 import type { BasketComparison } from '#/lib/pricing'
 import { buildCartLinks } from '#/lib/cart-links-server'
 import type { CartLinkResult } from '#/lib/cart-links-server'
-import type { CartExtra } from '#/lib/shopping/cart-set'
+import type { CartExtra, CompareLine } from '#/lib/shopping/cart-set'
 import { storeLabel } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
 import { TipSheet } from '#/components/shopping/TipSheet'
 import { startTip } from '#/lib/tip-server'
+import { openStoreCart } from '#/lib/open-store-cart'
 import { log } from '#/lib/log'
 
 /** Rough basket € total for the tip math fallback when we have no priced basket. */
@@ -35,15 +36,15 @@ const CART_STORES = new Set<StoreSlug>(['ah', 'jumbo'])
 export function FloatingOrderBar({
   store,
   data,
-  itemNames,
+  compareLines,
   extras,
 }: {
   /** The store the top switch currently has selected. */
   store: StoreSlug
   /** The shared price comparison, for the selected store's total. */
   data: BasketComparison | null
-  /** Live UNCHECKED recipe + manual item names (#311). */
-  itemNames: Array<string>
+  /** Live UNCHECKED recipe + manual lines with amounts (#311). */
+  compareLines: Array<CompareLine>
   /** Live UNCHECKED extras (staples) with their store + saved slug. */
   extras: Array<CartExtra>
 }) {
@@ -56,7 +57,7 @@ export function FloatingOrderBar({
 
   const basket = data?.baskets.find((b) => b.store === store)
   const total = basket && basket.lineItems.length > 0 ? basket.totalCents : null
-  const productCount = basket?.lineItems.length ?? itemNames.length
+  const productCount = basket?.lineItems.length ?? compareLines.length
   const canOrder = CART_STORES.has(store)
 
   /** Resolve the selected store's link, then open the tip sheet. */
@@ -66,12 +67,12 @@ export function FloatingOrderBar({
     setError(false)
     try {
       const live = {
-        itemNames,
+        items: compareLines.map((l) => ({ name: l.name, amount: l.amount })),
         staples: extras.map((e) => ({ slug: e.slug, store: e.store })),
       }
       const res = await buildCartLinks({ data: { store, live } })
       setLink(res)
-      if (!res.url) {
+      if (!res.urls.length) {
         setError(true)
         return
       }
@@ -84,7 +85,7 @@ export function FloatingOrderBar({
   }
 
   function openCart() {
-    if (link?.url) window.open(link.url, '_blank', 'noopener,noreferrer')
+    if (link) openStoreCart(link)
   }
 
   async function confirmTip(percent: number) {
@@ -173,19 +174,22 @@ export function FloatingOrderBar({
             </div>
           )}
 
-          {canOrder && link?.url && link.matched < link.total && (
-            <p className="text-muted-foreground/80 mt-1.5 text-center text-[11px]">
-              {link.matched} of {link.total} items matched a {storeLabel(store)}{' '}
-              product.
-            </p>
-          )}
+          {canOrder &&
+            link &&
+            link.urls.length > 0 &&
+            link.matched < link.total && (
+              <p className="text-muted-foreground/80 mt-1.5 text-center text-[11px]">
+                {link.matched} of {link.total} items matched a{' '}
+                {storeLabel(store)} product.
+              </p>
+            )}
 
           {error && (
             <p
               className="text-destructive mt-1.5 text-center text-[11px]"
               role="alert"
             >
-              {link && !link.url
+              {link && !link.urls.length
                 ? `None of your items matched a ${storeLabel(store)} product yet.`
                 : 'Could not build the cart link. Try again.'}
             </p>

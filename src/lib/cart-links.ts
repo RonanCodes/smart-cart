@@ -31,7 +31,23 @@ export interface CartLineItem {
 }
 
 const AH_BULK_BASE = 'https://www.ah.nl/mijnlijst/add-multiple'
+
+/** Where the shopper reviews the filled basket after bulk-add (#293). */
+export const AH_MIJNLIJST = 'https://www.ah.nl/mijnlijst'
+
 const JUMBO_CART_BASE = 'https://www.jumbo.com/mandje/'
+
+/**
+ * AH's add-multiple GraphQL mutation reliably applies ~25 SKUs per request;
+ * larger sends silently truncate (~26 of 79 observed). Chunk under this limit.
+ */
+export const AH_BULK_CHUNK_SIZE = 25
+
+/**
+ * Jumbo packs the whole list into one URL-encoded JSON `add` param. Large lists
+ * exceed ~4 KB and may truncate server-side; chunk to the same batch size as AH.
+ */
+export const JUMBO_BULK_CHUNK_SIZE = 25
 
 /** Clamp a quantity to a whole number in 1..99 (a deep-link is not a warehouse). */
 function clampQty(qty: number): number {
@@ -82,11 +98,63 @@ export function jumboSku(slug: string | null | undefined): string | null {
 export function ahBulkCartUrl(
   items: ReadonlyArray<CartLineItem>,
 ): string | null {
-  const params = items
-    .filter((i) => i.sku.trim().length > 0)
-    .map((i) => `p=${encodeURIComponent(i.sku.trim())}:${clampQty(i.qty)}`)
+  const params = ahBulkCartParams(items)
   if (params.length === 0) return null
   return `${AH_BULK_BASE}?${params.join('&')}`
+}
+
+function ahBulkCartParams(items: ReadonlyArray<CartLineItem>): Array<string> {
+  return items
+    .filter((i) => i.sku.trim().length > 0)
+    .map((i) => `p=${encodeURIComponent(i.sku.trim())}:${clampQty(i.qty)}`)
+}
+
+/** Merge duplicate SKUs so each product appears once with combined qty. */
+export function mergeCartLineItems(
+  items: ReadonlyArray<CartLineItem>,
+): Array<CartLineItem> {
+  const bySku = new Map<string, number>()
+  for (const item of items) {
+    const sku = item.sku.trim()
+    if (sku.length === 0) continue
+    bySku.set(sku, (bySku.get(sku) ?? 0) + clampQty(item.qty))
+  }
+  return [...bySku.entries()].map(([sku, qty]) => ({
+    sku,
+    qty: Math.min(qty, 99),
+  }))
+}
+
+/** Split a flat item list into fixed-size chunks (last chunk may be smaller). */
+export function chunkCartLineItems(
+  items: ReadonlyArray<CartLineItem>,
+  chunkSize: number,
+): Array<Array<CartLineItem>> {
+  if (chunkSize < 1) throw new Error('chunkSize must be >= 1')
+  const out: Array<Array<CartLineItem>> = []
+  for (let i = 0; i < items.length; i += chunkSize) {
+    out.push(items.slice(i, i + chunkSize))
+  }
+  return out
+}
+
+/**
+ * Build one or more AH add-multiple URLs, chunked when the list exceeds
+ * {@link AH_BULK_CHUNK_SIZE}. Callers open every chunk except the last as a
+ * silent preload; the shopper lands on {@link AH_MIJNLIJST} after the final add.
+ */
+export function ahBulkCartUrls(
+  items: ReadonlyArray<CartLineItem>,
+  chunkSize: number = AH_BULK_CHUNK_SIZE,
+): Array<string> {
+  const merged = mergeCartLineItems(items)
+  if (merged.length === 0) return []
+  return chunkCartLineItems(merged, chunkSize)
+    .map((chunk) => {
+      const params = ahBulkCartParams(chunk)
+      return params.length > 0 ? `${AH_BULK_BASE}?${params.join('&')}` : null
+    })
+    .filter((url): url is string => url != null)
 }
 
 /**
@@ -99,9 +167,35 @@ export function ahBulkCartUrl(
 export function jumboBulkCartUrl(
   items: ReadonlyArray<CartLineItem>,
 ): string | null {
-  const payload = items
-    .filter((i) => i.sku.trim().length > 0)
-    .map((i) => ({ sku: i.sku.trim(), quantity: clampQty(i.qty) }))
+  const payload = jumboBulkCartPayload(items)
   if (payload.length === 0) return null
   return `${JUMBO_CART_BASE}?add=${encodeURIComponent(JSON.stringify(payload))}`
+}
+
+function jumboBulkCartPayload(
+  items: ReadonlyArray<CartLineItem>,
+): Array<{ sku: string; quantity: number }> {
+  return items
+    .filter((i) => i.sku.trim().length > 0)
+    .map((i) => ({ sku: i.sku.trim(), quantity: clampQty(i.qty) }))
+}
+
+/**
+ * Build one or more Jumbo mandje URLs, chunked when the list exceeds
+ * {@link JUMBO_BULK_CHUNK_SIZE}.
+ */
+export function jumboBulkCartUrls(
+  items: ReadonlyArray<CartLineItem>,
+  chunkSize: number = JUMBO_BULK_CHUNK_SIZE,
+): Array<string> {
+  const merged = mergeCartLineItems(items)
+  if (merged.length === 0) return []
+  return chunkCartLineItems(merged, chunkSize)
+    .map((chunk) => {
+      const payload = jumboBulkCartPayload(chunk)
+      return payload.length > 0
+        ? `${JUMBO_CART_BASE}?add=${encodeURIComponent(JSON.stringify(payload))}`
+        : null
+    })
+    .filter((url): url is string => url != null)
 }

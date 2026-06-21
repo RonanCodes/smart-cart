@@ -24,13 +24,18 @@ import type { StoreSlug } from './store-pref-server'
  * No store auth, no credentials, no new secrets: the deep-links are public URLs
  * the stores already honour. Server-only modules (DB, catalogue) are imported
  * INSIDE the handler so none of it leaks into the client bundle (the
- * shopping-list-server / staples-server pattern). Quantity defaults to 1 per
- * item: the shopping-list amount is free text ("450 g") and converting that to a
- * reliable pack count is out of scope, so we add one of each matched product.
+ * shopping-list-server / staples-server pattern). Pack count uses the same
+ * pack-rounding as the price comparison so the AH cart total matches the UI.
  */
 
 /** The resolved cart link for the one selected store. */
 export type CartLinkResult = BuiltCartLink
+
+/** One recipe / manual line sent live from the cart screen. */
+export interface CartLinksLiveItem {
+  name: string
+  amount: string | null
+}
 
 /**
  * The live, client-supplied UNCHECKED set the page wants in the cart, so the
@@ -39,8 +44,8 @@ export type CartLinkResult = BuiltCartLink
  * unchecked rows + saved staples straight from the DB.
  */
 export interface CartLinksLiveSet {
-  /** Recipe + manual item NAMES to resolve against the selected store. */
-  itemNames: Array<string>
+  /** Recipe + manual lines to resolve against the selected store. */
+  items: Array<CartLinksLiveItem>
   /** Staple product SLUGS already saved for a store, with the store they belong to. */
   staples: Array<{ slug: string | null; store: string }>
 }
@@ -70,7 +75,7 @@ async function requireHouseholdId(): Promise<string> {
  * the UNCHECKED recipe + manual items PLUS the saved staples for that store.
  * Already-ticked items are nothing left to buy, so they are excluded.
  */
-export const buildCartLinks = createServerFn({ method: 'GET' })
+export const buildCartLinks = createServerFn({ method: 'POST' })
   .inputValidator(
     (d: {
       store: unknown
@@ -85,13 +90,32 @@ export const buildCartLinks = createServerFn({ method: 'GET' })
       // simply falls back to the DB read rather than throwing.
       let live: CartLinksLiveSet | null = null
       const raw = d.live as
-        | { itemNames?: unknown; staples?: unknown }
+        | { items?: unknown; itemNames?: unknown; staples?: unknown }
         | undefined
         | null
       if (raw && typeof raw === 'object') {
-        const itemNames = Array.isArray(raw.itemNames)
-          ? raw.itemNames.map((n) => String(n)).filter((n) => n.trim() !== '')
-          : []
+        let items: Array<CartLinksLiveItem> = []
+        if (Array.isArray(raw.items)) {
+          items = raw.items
+            .map((row) => {
+              const o = row as { name?: unknown; amount?: unknown }
+              const name = String(o.name ?? '').trim()
+              if (!name) return null
+              return {
+                name,
+                amount:
+                  o.amount == null || String(o.amount).trim() === ''
+                    ? null
+                    : String(o.amount),
+              }
+            })
+            .filter((row): row is CartLinksLiveItem => row !== null)
+        } else if (Array.isArray(raw.itemNames)) {
+          items = raw.itemNames
+            .map((n) => String(n).trim())
+            .filter((n) => n !== '')
+            .map((name) => ({ name, amount: null }))
+        }
         const staples = Array.isArray(raw.staples)
           ? raw.staples.map((s) => {
               const o = s as { slug?: unknown; store?: unknown }
@@ -103,7 +127,7 @@ export const buildCartLinks = createServerFn({ method: 'GET' })
               }
             })
           : []
-        live = { itemNames, staples }
+        live = { items, staples }
       }
       return { store: slug, live }
     },
@@ -118,7 +142,7 @@ export const buildCartLinks = createServerFn({ method: 'GET' })
     const { eq, and } = await import('drizzle-orm')
     const db = await getDb()
 
-    let names: Array<string>
+    let lines: Array<CartLinksLiveItem>
     let stapleRows: Array<{ slug: string | null }>
 
     if (data.live) {
@@ -126,7 +150,7 @@ export const buildCartLinks = createServerFn({ method: 'GET' })
       // page shows them right now, so a tick the user just made is honoured with
       // no DB round-trip lag. Staples are filtered to the SELECTED store, mirroring
       // the DB path (a staple saved for Jumbo never goes to AH's cart).
-      names = data.live.itemNames
+      lines = data.live.items
       stapleRows = data.live.staples
         .filter((s) => s.store === store)
         .map((s) => ({ slug: s.slug }))
@@ -135,7 +159,10 @@ export const buildCartLinks = createServerFn({ method: 'GET' })
       // DB. The week + manual items: still-to-buy only. These need name -> product
       // resolution for the selected store.
       const itemRows = await db
-        .select({ name: shoppingListItem.name })
+        .select({
+          name: shoppingListItem.name,
+          amount: shoppingListItem.amount,
+        })
         .from(shoppingListItem)
         .where(
           and(
@@ -143,7 +170,7 @@ export const buildCartLinks = createServerFn({ method: 'GET' })
             eq(shoppingListItem.checked, false),
           ),
         )
-      names = itemRows.map((r) => r.name)
+      lines = itemRows.map((r) => ({ name: r.name, amount: r.amount }))
 
       // The staples / extras: each already carries a saved store-specific slug, so
       // we take the ones saved for the SELECTED store directly (no re-matching).
@@ -155,19 +182,29 @@ export const buildCartLinks = createServerFn({ method: 'GET' })
         )
     }
 
+    const names = lines.map((l) => l.name)
+    const amountByName = new Map(lines.map((l) => [l.name, l.amount ?? null]))
+
     // Semantic resolution (ADR-0004) for the recipe lines: embed each name once
     // for the selected store and take the nearest product by cosine, so
     // "mushroom" resolves to the Dutch champignon SKU with no synonym table.
     // Requires OPENAI_API_KEY; with no key it returns no matches (honest empty
     // cart) rather than the old token matcher.
     const { resolveLinesForStore } = await import('./pricing/resolve-lines')
+    const { packsForAmount } = await import('./pricing/basket')
     const resolved = await resolveLinesForStore(names, store)
 
     // One flat list of resolved slugs across BOTH sources (week + extras), so the
     // single cart link covers everything above the button on the page.
     const items = [
-      ...resolved.map(({ match }) => ({ slug: match.product?.slug ?? null })),
-      ...stapleRows.map((r) => ({ slug: r.slug })),
+      ...resolved.map(({ name, match }) => ({
+        slug: match.product?.slug ?? null,
+        qty:
+          match.product != null
+            ? packsForAmount(amountByName.get(name), match.product)
+            : undefined,
+      })),
+      ...stapleRows.map((r) => ({ slug: r.slug, qty: 1 })),
     ]
 
     return buildAllItemsCartUrl(store, items)
