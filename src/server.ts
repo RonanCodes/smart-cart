@@ -8,7 +8,31 @@ import type { RequestHandler } from '@tanstack/react-start/server'
 
 const fetch = createStartHandler(defaultStreamHandler)
 
+/**
+ * Re-export the live-count Durable Object so it surfaces as a NAMED export of
+ * the deployed Worker module (wrangler resolves the COUNTER_DO binding's
+ * `class_name` against the module's exports). Verified with
+ * `wrangler deploy --dry-run`: re-exporting from this entry is enough, no
+ * separate custom entry was needed.
+ */
+export { CounterDO } from '#/lib/live-count/counter-do'
+
 export type ServerEntry = { fetch: RequestHandler<Register> }
+
+/** The path the landing opens its live-count WebSocket against. */
+const LIVE_COUNT_PATH = '/api/live-count'
+
+/** The single global counter instance every client and the signup hook share. */
+const LIVE_COUNT_DO_NAME = 'global'
+
+/**
+ * The slice of the Worker env this entry touches: just the CounterDO binding
+ * (wired in wrangler.jsonc). Typed minimally so we don't take a dependency on a
+ * generated full-env type here.
+ */
+interface CounterEnv {
+  COUNTER_DO?: DurableObjectNamespace
+}
 
 /**
  * Try to pull a Cloudflare `ExecutionContext` out of the fetch args so a
@@ -62,6 +86,20 @@ export function createServerEntry(entry: ServerEntry): ServerEntry {
         req && typeof req === 'object' && 'url' in req
           ? String(req.url)
           : undefined
+
+      // Live counter: route /api/live-count (WS upgrade or POST) to the global
+      // CounterDO BEFORE the Start handler sees it. Everything else (SSR,
+      // server-fns, the cron path) passes through untouched. Guarded so a
+      // missing binding (e.g. an old dev env) degrades to the normal handler
+      // rather than throwing.
+      if (url) {
+        const env = args[1] as CounterEnv | undefined
+        const ns = env?.COUNTER_DO
+        if (ns && new URL(url).pathname === LIVE_COUNT_PATH) {
+          const id = ns.idFromName(LIVE_COUNT_DO_NAME)
+          return ns.get(id).fetch(req as Request)
+        }
+      }
 
       try {
         const res = await entry.fetch(...args)
