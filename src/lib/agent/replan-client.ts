@@ -8,6 +8,12 @@ import type { WeekView } from '../week-server'
 import type { ReplanUIMessage } from './replan-ui-message'
 import type { PlanDayChange } from '../replan/diff'
 
+/** One prior turn in the chat-replan thread, sent so a follow-up has context. */
+export interface ReplanHistoryTurn {
+  role: 'user' | 'assistant'
+  text: string
+}
+
 /**
  * Client-side helpers for the chat replan (`POST /api/replan`).
  *
@@ -44,13 +50,17 @@ function textFromMessage(message: ReplanUIMessage): string {
 export async function* streamReplan(
   planId: string,
   instruction: string,
-  signal?: AbortSignal,
+  options?: { history?: Array<ReplanHistoryTurn>; signal?: AbortSignal },
 ): AsyncGenerator<ReplanWireEvent> {
   const res = await fetch('/api/replan', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ planId, instruction }),
-    signal,
+    body: JSON.stringify({
+      planId,
+      instruction,
+      history: options?.history ?? [],
+    }),
+    signal: options?.signal,
   })
   if (!res.ok || !res.body) {
     throw new Error(`replan request failed (${res.status})`)
@@ -101,7 +111,7 @@ export async function* streamReplan(
       }
     }
   } catch (err) {
-    if (signal?.aborted) return
+    if (options?.signal?.aborted) return
     throw err
   }
 

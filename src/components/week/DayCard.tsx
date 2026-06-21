@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import clsx from 'clsx'
 import {
   UtensilsCrossed,
@@ -26,6 +26,11 @@ interface DayCardProps {
   locked: boolean
   /** A voice/chat replan just changed this day: play the AI "magic" glow. */
   glowing?: boolean
+  /**
+   * Souso is actively working on THIS day (a replan naming it is in flight):
+   * play the looping "working" glow until the result lands (#replan-ux).
+   */
+  working?: boolean
   /** Tap the card to open the recipe sheet (ingredients + steps, titled by name). */
   onEdit: () => void
   /**
@@ -64,11 +69,12 @@ interface DayCardProps {
  *    the replacement stays close to what is already planned ("like this, but a
  *    different night"), with a faster / lighter re-rank toggle.
  */
-export function DayCard({
+function DayCardImpl({
   day,
   busy,
   locked,
   glowing = false,
+  working = false,
   onEdit,
   onAdd,
   onSwap,
@@ -98,6 +104,7 @@ export function DayCard({
       className={clsx(
         'bg-card border-border flex flex-col overflow-hidden rounded-xl border shadow-sm',
         glowing && 'ai-glow',
+        working && !glowing && 'ai-glow-pulse',
       )}
     >
       {/* The whole dish (image + title + macros) is one big tap target that opens
@@ -140,10 +147,16 @@ export function DayCard({
             </p>
           ) : (
             <>
-              <h3 className="flex-1 text-base leading-snug font-semibold">
+              {/* Clamp to 2 lines + reserve that height so a swap to a shorter
+                  or longer title never reflows the card height and shifts its
+                  siblings (#replan-ux). `min-h` keeps a one-line title's box the
+                  same height as a two-line one. */}
+              <h3 className="line-clamp-2 min-h-[2.75rem] flex-1 text-base leading-snug font-semibold">
                 {day.meal}
               </h3>
-              <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              {/* Reserve the macro row's height so a recipe missing a chip (e.g.
+                  no protein) doesn't make the card shorter than its neighbours. */}
+              <div className="text-muted-foreground flex min-h-[1.25rem] flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                 {day.prepMinutes != null && (
                   <span className="inline-flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
@@ -232,3 +245,14 @@ export function DayCard({
     </div>
   )
 }
+
+/**
+ * Memoised so a replan that touches one day re-renders only that day's card, not
+ * all seven (#replan-ux). This holds because the parent now (a) preserves the
+ * `day` object's identity for unchanged days (see `mergeWeekPreservingIdentity`)
+ * and (b) passes STABLE per-day callbacks (`useCallback` + a memoised per-day
+ * map), so the default shallow prop comparison sees no change for a steady day.
+ * Combined with consistent card heights, a Friday swap can't shift Thursday or
+ * Saturday on screen.
+ */
+export const DayCard = memo(DayCardImpl)

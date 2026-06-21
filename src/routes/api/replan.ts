@@ -34,6 +34,25 @@ export const Route = createFileRoute('/api/replan')({
         if (!planId || !instruction) {
           return Response.json({ error: 'bad-request' }, { status: 400 })
         }
+        // Prior conversation turns for a multi-turn replan (#replan-ux). The
+        // client sends the last few user/assistant turns so a follow-up answer
+        // to Souso's clarifying question is understood in context. Validated +
+        // clamped here so a malformed body can never reach the model.
+        const rawHistory = (body as { history?: unknown }).history
+        const history = Array.isArray(rawHistory)
+          ? rawHistory
+              .filter(
+                (t): t is { role: 'user' | 'assistant'; text: string } =>
+                  !!t &&
+                  typeof t === 'object' &&
+                  ((t as { role?: unknown }).role === 'user' ||
+                    (t as { role?: unknown }).role === 'assistant') &&
+                  typeof (t as { text?: unknown }).text === 'string' &&
+                  (t as { text: string }).text.trim().length > 0,
+              )
+              .map((t) => ({ role: t.role, text: t.text.trim() }))
+              .slice(-6)
+          : []
 
         const ctxMod = await import('../../lib/agent/replan-context-server')
         const ctx = await ctxMod.loadReplanContextForUser(user.id, planId)
@@ -88,6 +107,7 @@ export const Route = createFileRoute('/api/replan')({
                 recipes: ctx.recipes,
                 instruction,
                 model,
+                history,
               }),
               onStepFinish: () => {
                 writer.write({

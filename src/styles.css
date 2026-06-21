@@ -416,3 +416,70 @@ body {
     background: none;
   }
 }
+
+/* "Souso is working" glow (#replan-ux): a looping, calmer sibling of `.ai-glow`,
+   shown WHILE a replan is in flight (on the chat card, or on the target DayCard
+   if the instruction named a day). It loops with a soft breathing ring + a slow
+   shimmer sweep, and stops the moment the class is removed (the result has
+   landed). When the change lands, `.ai-glow` plays its one-shot confirm sweep. */
+@keyframes ai-glow-pulse-ring {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(99, 102, 241, 0.3),
+      0 0 6px 0 rgba(99, 102, 241, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1.5px rgba(168, 85, 247, 0.45),
+      0 0 18px 3px rgba(99, 102, 241, 0.35);
+  }
+}
+@keyframes ai-glow-pulse-sweep {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.6;
+  }
+  60%,
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+.ai-glow-pulse {
+  position: relative;
+  border-radius: inherit;
+  animation: ai-glow-pulse-ring 1.8s ease-in-out infinite;
+}
+.ai-glow-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  overflow: hidden;
+  background: linear-gradient(
+    100deg,
+    transparent 35%,
+    rgba(168, 85, 247, 0.16) 48%,
+    rgba(99, 102, 241, 0.24) 50%,
+    rgba(168, 85, 247, 0.16) 52%,
+    transparent 65%
+  );
+  background-size: 220% 100%;
+  animation: ai-glow-pulse-sweep 2.4s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-glow-pulse {
+    animation: none;
+    box-shadow: 0 0 0 1.5px rgba(99, 102, 241, 0.45);
+  }
+  .ai-glow-pulse::after {
+    animation: none;
+    background: none;
+  }
+}
