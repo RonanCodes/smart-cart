@@ -11,6 +11,7 @@ import type {
 } from './shopping'
 import type { StapleLine, FrequentStaple } from './staples-server'
 import type { StoreSlug } from './store-pref-server'
+import { pickTitle, pickIngredients } from './recipe-locale'
 
 /**
  * The shopping-list view's payload: the consolidated list, the subset of lines
@@ -195,21 +196,25 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
           .select({
             id: recipe.id,
             title: recipe.title,
+            titleEn: recipe.titleEn,
             servings: recipe.servings,
             ingredients: recipe.ingredients,
+            ingredientsEn: recipe.ingredientsEn,
           })
           .from(recipe)
           .where(inArray(recipe.id, ids))
       : []
 
+    // Default the shopping ingredient names to English (Dutch fallback) so the
+    // demo list reads in English; quantities are language-agnostic (#295).
     const recipesById = new Map<string, PlanRecipe>(
       recipeRows.map((r) => [
         r.id,
         {
           id: r.id,
-          title: r.title,
+          title: pickTitle(r.title, r.titleEn),
           servings: r.servings,
-          ingredients: r.ingredients,
+          ingredients: pickIngredients(r.ingredients, r.ingredientsEn),
         },
       ]),
     )

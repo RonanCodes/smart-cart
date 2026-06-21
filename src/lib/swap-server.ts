@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { pickTitle } from './recipe-locale'
 
 export interface ApplySimilarSwapRequest {
   /** The plan id to edit (the current week). */
@@ -78,7 +79,7 @@ export const applySimilarSwapToPlan = createServerFn({ method: 'POST' })
     // The chosen recipe must exist in the catalogue; its title denormalises into
     // the plan's `meal` label so the week view stays consistent without a join.
     const recipeRows = await db
-      .select({ id: recipe.id, title: recipe.title })
+      .select({ id: recipe.id, title: recipe.title, titleEn: recipe.titleEn })
       .from(recipe)
       .where(eq(recipe.id, data.recipeId))
       .limit(1)
@@ -99,7 +100,9 @@ export const applySimilarSwapToPlan = createServerFn({ method: 'POST' })
       .map((d) => d.recipeRef as string)
 
     let resolvedId = chosen.id
-    let resolvedTitle = chosen.title
+    // Persist the English title into the plan's `meal` label (Dutch fallback) so
+    // the demo reads in English; the week view also re-resolves at read time (#295).
+    let resolvedTitle = pickTitle(chosen.title, chosen.titleEn)
 
     if (chosen.id === currentRecipeId) {
       const { hasImage } = await import('../db/recipe-filters')
@@ -107,6 +110,7 @@ export const applySimilarSwapToPlan = createServerFn({ method: 'POST' })
         .select({
           id: recipe.id,
           title: recipe.title,
+          titleEn: recipe.titleEn,
           cuisine: recipe.cuisine,
           category: recipe.category,
           dietaryTags: recipe.dietaryTags,
@@ -122,7 +126,7 @@ export const applySimilarSwapToPlan = createServerFn({ method: 'POST' })
 
       const catalogue = catalogueRows.map((r) => ({
         id: r.id,
-        title: r.title,
+        title: pickTitle(r.title, r.titleEn),
         cuisine: r.cuisine,
         category: r.category,
         dietaryTags: r.dietaryTags,
@@ -162,7 +166,8 @@ export const applySimilarSwapToPlan = createServerFn({ method: 'POST' })
       resolvedId = recipeId
       const resolved = catalogue.find((r) => r.id === recipeId)
       // Fall back to the chosen title only in the degenerate same-id case.
-      resolvedTitle = resolved?.title ?? chosen.title
+      // `resolved.title` is already locale-picked (English, Dutch fallback).
+      resolvedTitle = resolved?.title ?? pickTitle(chosen.title, chosen.titleEn)
     }
 
     const nextDays = applySimilarSwap(current.plan.days, data.day, {

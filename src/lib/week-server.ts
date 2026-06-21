@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import type { MealFeedbackState } from './meal-feedback-server'
+import { pickTitle } from './recipe-locale'
 
 /**
  * One ready alternative for a day, denormalised with the same card detail the
@@ -116,6 +117,7 @@ export const loadWeek = createServerFn({ method: 'GET' })
       .select({
         id: recipe.id,
         title: recipe.title,
+        titleEn: recipe.titleEn,
         cuisine: recipe.cuisine,
         category: recipe.category,
         dietaryTags: recipe.dietaryTags,
@@ -137,9 +139,12 @@ export const loadWeek = createServerFn({ method: 'GET' })
       .from(recipeSwipe)
       .where(eq(recipeSwipe.householdId, hh.id))
 
+    // Default the demo display to English (Dutch fallback). The catalogue's
+    // title flows into the week cards (the day's `meal`) and the alternatives,
+    // so resolving the locale once here covers both surfaces (#295).
     const catalogue = catalogueRows.map((r) => ({
       id: r.id,
-      title: r.title,
+      title: pickTitle(r.title, r.titleEn),
       cuisine: r.cuisine,
       category: r.category,
       dietaryTags: r.dietaryTags,
@@ -157,6 +162,11 @@ export const loadWeek = createServerFn({ method: 'GET' })
           null,
       ]),
     )
+
+    // The display title (English, Dutch fallback) per recipe id. The stored plan
+    // baked the Dutch title into `d.meal` at build time; we override it at read
+    // time so existing weeks pick up English without a re-plan (#295).
+    const titleById = new Map(catalogue.map((r) => [r.id, r.title]))
 
     const swipes = swipeRows
       .filter((s) => s.direction === 'like' || s.direction === 'dislike')
@@ -254,7 +264,7 @@ export const loadWeek = createServerFn({ method: 'GET' })
 
       return {
         day: d.day,
-        meal: d.meal,
+        meal: (d.recipeRef && titleById.get(d.recipeRef)) || d.meal,
         recipeRef: d.recipeRef ?? '',
         cuisine: r?.cuisine ?? null,
         prepMinutes: r?.prepMinutes ?? null,

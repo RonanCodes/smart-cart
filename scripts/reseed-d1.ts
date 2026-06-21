@@ -30,6 +30,10 @@ interface SeedRecipe {
   dietaryTags: Array<string>
   ingredients: Array<Record<string, unknown>>
   instructions: Array<string>
+  /** English translations, present only for the translated demo set (#295). */
+  titleEn?: string | null
+  ingredientsEn?: Array<Record<string, unknown>> | null
+  instructionsEn?: Array<string> | null
   [k: string]: unknown
 }
 
@@ -45,7 +49,11 @@ const qnull = (v: string | number | null | undefined) =>
       : q(v)
 
 const COLS =
-  'id, source, source_url, title, servings, prep_minutes, calories, protein, cuisine, meal_type, category, dietary_tags, ingredients, instructions, raw, created_at'
+  'id, source, source_url, title, servings, prep_minutes, calories, protein, cuisine, meal_type, category, dietary_tags, ingredients, instructions, title_en, ingredients_en, instructions_en, raw, created_at'
+
+/** JSON column that should be SQL NULL when absent (not the string "null"). */
+const qjsonNull = (v: unknown) =>
+  v === null || v === undefined ? 'NULL' : q(JSON.stringify(v))
 
 function rowValues(r: SeedRecipe, now: number): string {
   return [
@@ -63,6 +71,9 @@ function rowValues(r: SeedRecipe, now: number): string {
     qjson(r.dietaryTags),
     qjson(r.ingredients),
     qjson(r.instructions),
+    qnull(r.titleEn ?? undefined),
+    qjsonNull(r.ingredientsEn),
+    qjsonNull(r.instructionsEn),
     qjson(r),
     String(now),
   ].join(', ')
