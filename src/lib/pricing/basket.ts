@@ -267,7 +267,14 @@ function baseUnit(dimension: RequiredAmount['dimension']): string {
 /* The basket builder                                                          */
 /* -------------------------------------------------------------------------- */
 
-/** Whole packs needed for a required amount vs a product's pack size; 1 when n/a. */
+/**
+ * Whole packs needed for a required amount vs a product's pack size; 1 when n/a.
+ *
+ * A cooking measure we cannot compare to a pack (a teaspoon, a pinch, "to taste"
+ * -> parseRequired null) buys exactly ONE pack. That already handles the
+ * "1 tsp vanilla" case: it adds one bottle, never three. When the recipe gives a
+ * real comparable mass/volume (e.g. 1200 g flour), normal pack rounding applies.
+ */
 export function packsForAmount(
   amount: string | null | undefined,
   product: { size: ParsedSize },

@@ -75,11 +75,26 @@ interface Case {
   ingredient: string
   /** Lower-cased substrings; the matched product passes if its name contains ANY. */
   expectAny: Array<string>
+  /**
+   * Lower-cased substrings the matched product must NOT contain (the wrong TYPE).
+   * A case with these FAILS if the match is a Doritos/cake/ready-meal/etc., even
+   * when an expectAny keyword also matched. A null/no-match never trips a reject.
+   */
+  rejectAny?: Array<string>
 }
 
 /**
  * Golden cases. Deliberately small (cost + speed): the headline cross-lingual
  * case plus a handful of obvious staples spanning English and Dutch queries.
+ *
+ * This exercises the ACCURATE tier (expand -> multi-query retrieval -> LLM
+ * rerank) — the SAME pipeline `resolveLinesForStoreAccurate` runs for the cart,
+ * so a pass here means the cart resolves these correctly. Needs a live
+ * OPENAI_API_KEY (present in pre-push); self-skips with no key (see top of file).
+ *
+ * The `rejectAny` cases below are the real-world cart failures: a basic
+ * ingredient must resolve to the right product TYPE and reject the snack / cake /
+ * ready-meal / gluten-free-when-not-asked it used to match.
  */
 const CASES: Array<Case> = [
   { ingredient: 'mushroom', expectAny: ['champignon'] },
@@ -90,6 +105,37 @@ const CASES: Array<Case> = [
   { ingredient: 'gehakt', expectAny: ['gehakt'] },
   { ingredient: 'milk', expectAny: ['melk'] },
   { ingredient: 'garlic', expectAny: ['knoflook'] },
+  // --- real-world cart failures: right TYPE + reject junk -------------------
+  {
+    ingredient: 'chilli flakes',
+    expectAny: ['vlok', 'flakes', 'chili', 'peper'],
+    rejectAny: ['doritos', 'chips', 'tortilla', 'nacho'],
+  },
+  {
+    ingredient: 'almond flour',
+    expectAny: ['amandelmeel', 'amandel', 'almond'],
+    rejectAny: ['cake', 'taart', 'koek', 'croissant', 'reep'],
+  },
+  {
+    ingredient: 'amandelmeel',
+    expectAny: ['amandelmeel', 'amandel'],
+    rejectAny: ['cake', 'taart', 'koek', 'croissant'],
+  },
+  {
+    ingredient: "'nduja",
+    expectAny: ['nduja', 'worst', 'salami'],
+    rejectAny: ['eenpans', 'verspakket', 'maaltijd', 'kant-en-klaar'],
+  },
+  {
+    ingredient: 'fresh lasagne sheets',
+    expectAny: ['lasagne', 'lasagna', 'pasta'],
+    rejectAny: ['glutenvrij', 'gluten-free', 'gluten free'],
+  },
+  {
+    ingredient: 'basmati rice',
+    expectAny: ['basmati', 'rijst', 'rice'],
+    rejectAny: ['chips', 'cracker', 'snack', 'wafel'],
+  },
 ]
 
 interface CaseResult {
@@ -172,7 +218,13 @@ async function main(): Promise<void> {
     )
     const matched = match.product?.name ?? null
     const hay = (matched ?? '').toLowerCase()
-    const pass = matched !== null && c.expectAny.some((k) => hay.includes(k))
+    const expected =
+      matched !== null && c.expectAny.some((k) => hay.includes(k))
+    // A reject hit is a TYPE mismatch (Doritos for "chilli flakes"): hard fail,
+    // even if an expectAny keyword also matched ("Doritos Sweet chilli").
+    const rejected =
+      matched !== null && (c.rejectAny ?? []).some((k) => hay.includes(k))
+    const pass = expected && !rejected
     return {
       ingredient: c.ingredient,
       expectAny: c.expectAny,

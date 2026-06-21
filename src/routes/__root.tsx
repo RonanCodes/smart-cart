@@ -9,7 +9,11 @@ import {
 import appCss from '../styles.css?url'
 import { registerServiceWorker } from '../lib/push-client'
 import { QueryClientProvider } from '../lib/query-client'
-import { ErrorBoundary } from '../components/ErrorBoundary'
+import {
+  ErrorBoundary,
+  reloadOnceForChunkError,
+  CHUNK_RELOAD_KEY,
+} from '../components/ErrorBoundary'
 import { log } from '../lib/log'
 import { useSession } from '../lib/auth-client'
 
@@ -177,10 +181,31 @@ function RootComponent() {
       log.error('window.unhandledrejection', e.reason)
     window.addEventListener('error', onError)
     window.addEventListener('unhandledrejection', onRejection)
+    // Vite fires this when a code-split chunk preload fails (the stale-chunk case
+    // after a deploy). Catch it BEFORE React renders the error boundary, so the
+    // tab reloads to the new build with no "flashing" loop (#chunk-reload).
+    const onPreloadError = (e: Event) => {
+      e.preventDefault()
+      reloadOnceForChunkError(
+        new Error('Failed to fetch dynamically imported module'),
+      )
+    }
+    window.addEventListener('vite:preloadError', onPreloadError)
+    // A clean run means the new build loaded fine; clear the once-per-episode
+    // guard so a LATER deploy's stale chunk can recover too.
+    const clearGuard = window.setTimeout(() => {
+      try {
+        sessionStorage.removeItem(CHUNK_RELOAD_KEY)
+      } catch {
+        // sessionStorage unavailable; nothing to clear.
+      }
+    }, 10_000)
     return () => {
       swContainer?.removeEventListener('message', onSwMessage)
       window.removeEventListener('error', onError)
       window.removeEventListener('unhandledrejection', onRejection)
+      window.removeEventListener('vite:preloadError', onPreloadError)
+      window.clearTimeout(clearGuard)
     }
   }, [])
 

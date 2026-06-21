@@ -182,17 +182,20 @@ export const buildCartLinks = createServerFn({ method: 'POST' })
         )
     }
 
-    const names = lines.map((l) => l.name)
     const amountByName = new Map(lines.map((l) => [l.name, l.amount ?? null]))
 
-    // Semantic resolution (ADR-0004) for the recipe lines: embed each name once
-    // for the selected store and take the nearest product by cosine, so
-    // "mushroom" resolves to the Dutch champignon SKU with no synonym table.
+    // Semantic resolution (ADR-0004), ACCURATE tier for the cart: per line we
+    // expand to Dutch search terms, union the cosine top-K, then LLM-rerank to
+    // pick the right SKU and reject type mismatches (no Doritos for "chilli
+    // flakes", no cake for "almond flour", no ready-meal for "'nduja"). This is
+    // the tier the ADR always specified for the cart; the cart used to call the
+    // CHEAP top-1 tier, which is why basic ingredients matched snacks/cakes.
     // Requires OPENAI_API_KEY; with no key it returns no matches (honest empty
     // cart) rather than the old token matcher.
-    const { resolveLinesForStore } = await import('./pricing/resolve-lines')
+    const { resolveLinesForStoreAccurate } =
+      await import('./pricing/resolve-lines')
     const { packsForAmount } = await import('./pricing/basket')
-    const resolved = await resolveLinesForStore(names, store)
+    const resolved = await resolveLinesForStoreAccurate(lines, store)
 
     // One flat list of resolved slugs across BOTH sources (week + extras), so the
     // single cart link covers everything above the button on the page.

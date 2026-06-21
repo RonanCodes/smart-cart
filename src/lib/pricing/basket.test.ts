@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { basketForStore, compareBaskets } from './basket'
-import { buildCatalogues } from './normalise'
+import { basketForStore, compareBaskets, packsForAmount } from './basket'
+import { buildCatalogues, parseSize } from './normalise'
 import type { RawStore, StoreCatalogue } from './types'
 
 /**
@@ -162,6 +162,53 @@ describe('basketForStore: pack rounding + waste', () => {
     if (basket.lineItems.length > 0) {
       expect(basket.estimatedCount).toBeGreaterThanOrEqual(0)
     }
+  })
+})
+
+describe('packsForAmount: grams -> pack-count correctness', () => {
+  /** A product whose pack size is the parsed free-text size (the real path). */
+  function product(packSize: string) {
+    return { size: parseSize(packSize) }
+  }
+
+  it('returns ceil(required / packBase) packs for a comparable mass amount', () => {
+    // Need 1200 g flour; pack is 500 g => ceil(1200/500) = 3 packs.
+    expect(packsForAmount('1200 g', product('500 g'))).toBe(3)
+    // Exactly one pack when the amount fits inside it.
+    expect(packsForAmount('300 g', product('500 g'))).toBe(1)
+    // Exact multiple: 1000 g of a 500 g pack = 2 packs, no rounding up past it.
+    expect(packsForAmount('1000 g', product('500 g'))).toBe(2)
+    // Just over a multiple rounds up: 1001 g of 500 g = 3 packs.
+    expect(packsForAmount('1001 g', product('500 g'))).toBe(3)
+  })
+
+  it('normalises units before counting (kg amount vs g pack)', () => {
+    // 1.5 kg = 1500 g; pack 1 kg = 1000 g => ceil(1500/1000) = 2 packs.
+    expect(packsForAmount('1.5 kg', product('1 kg'))).toBe(2)
+    // 2 l = 2000 ml; pack 500 ml => 4 packs.
+    expect(packsForAmount('2 l', product('500 ml'))).toBe(4)
+  })
+
+  it('returns 1 pack for a non-comparable cooking unit (tsp / pinch / snufje)', () => {
+    // None of these reduce to a comparable mass/volume vs a gram pack, so the
+    // shopper buys exactly ONE pack (never three bottles for "1 tsp vanilla").
+    expect(packsForAmount('1 tsp', product('500 g'))).toBe(1)
+    expect(packsForAmount('a pinch', product('500 g'))).toBe(1)
+    expect(packsForAmount('snufje', product('500 g'))).toBe(1)
+    expect(packsForAmount('2 cloves', product('500 g'))).toBe(1)
+    // Mismatched dimensions (need volume, pack in grams) also fall to 1 pack.
+    expect(packsForAmount('100 ml', product('250 g'))).toBe(1)
+  })
+
+  it('returns 1 pack when the pack size is missing / unparseable', () => {
+    expect(packsForAmount('300 g', product(''))).toBe(1)
+    expect(packsForAmount('300 g', product('per stuk'))).toBe(1)
+  })
+
+  it('counts matching count units (stuks) the same way', () => {
+    // 12 stuks needed, 6-pack => 2 packs.
+    expect(packsForAmount('12 stuks', product('6 stuks'))).toBe(2)
+    expect(packsForAmount('7 stuks', product('6 stuks'))).toBe(2)
   })
 })
 
