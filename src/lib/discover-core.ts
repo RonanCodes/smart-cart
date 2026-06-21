@@ -167,7 +167,10 @@ export function buildDiscoverAngles(
       `Keep it to one or two short sentences.${avoid}`,
   })
 
-  return angles
+  // Force English output regardless of cuisine/ingredient names in the query
+  // (Cala otherwise infers the language). The app defaults to English; revisit
+  // when full per-user NL/EN i18n lands.
+  return angles.map((a) => ({ ...a, query: `Answer in English. ${a.query}` }))
 }
 
 /** How long a cached feed stays fresh before we regenerate it (24h, in ms). */
