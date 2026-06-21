@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ShoppingBag } from 'lucide-react'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
@@ -10,6 +11,10 @@ import { StaplesSection } from '#/components/shopping/StaplesSection'
 import { WasteLine } from '#/components/shopping/WasteLine'
 import { PriceComparison } from '#/components/shopping/PriceComparison'
 import { ShoppingSkeleton } from '#/components/shopping/ShoppingSkeleton'
+import type { ShoppingItem } from '#/lib/shopping'
+import type { StapleLine } from '#/lib/staples-server'
+import { deriveLiveCartSet } from '#/lib/shopping/cart-set'
+import type { CartExtra } from '#/lib/shopping/cart-set'
 
 interface ShoppingSearch {
   /** Optional plan id, set when arriving from the week view's "Shopping list". */
@@ -55,14 +60,48 @@ export const Route = createFileRoute('/_authed/shopping')({
  * "Add all to Albert Heijn / Jumbo" deep-links stay prominent at the top.
  */
 function Shopping() {
-  const { view, staples, frequentlyBought, items, preferredStore } =
-    Route.useLoaderData()
-  const hasSavedItems = items.length > 0
+  const {
+    view,
+    staples: initialStaples,
+    frequentlyBought,
+    items: initialItems,
+    preferredStore,
+  } = Route.useLoaderData()
+  const hasSavedItems = initialItems.length > 0
+
+  // The route OWNS the live list + extras + their checked state (#311), so the
+  // price comparison and the single cart action recompute from the UNCHECKED set
+  // as the user ticks rows off, with no full reload. EditableShoppingList and
+  // StaplesSection still own their server round-trips; they mirror their state up
+  // here through the on*Change callbacks.
+  const [liveItems, setLiveItems] = useState<Array<ShoppingItem>>(initialItems)
+  const [liveStaples, setLiveStaples] =
+    useState<Array<StapleLine>>(initialStaples)
+  const [checkedExtraIds, setCheckedExtraIds] = useState<Set<string>>(new Set())
+
+  // The extras as cart-set shape: a staple's saved slug already carries its
+  // store, so a tick excludes it from that store's basket + cart.
+  const extras: Array<CartExtra> = useMemo(
+    () =>
+      liveStaples.map((s) => ({
+        id: s.id,
+        name: s.name,
+        store: s.store,
+        slug: s.productSlug,
+      })),
+    [liveStaples],
+  )
+
+  // The single live UNCHECKED set both siblings consume.
+  const liveSet = useMemo(
+    () => deriveLiveCartSet(liveItems, extras, checkedExtraIds),
+    [liveItems, extras, checkedExtraIds],
+  )
 
   // Nothing to shop for yet: no saved rows and no staples. The bare empty
   // state, but still let the user start a list from staples alone (a top-up
   // shop without a meal plan).
-  if (!hasSavedItems && staples.length === 0) {
+  if (!hasSavedItems && initialStaples.length === 0) {
     return (
       <AppShell>
         <ScreenHeader
@@ -81,7 +120,7 @@ function Shopping() {
         />
         <div className="px-5 pt-6 pb-4">
           <StaplesSection
-            initialStaples={staples}
+            initialStaples={initialStaples}
             frequentlyBought={frequentlyBought}
           />
         </div>
@@ -102,41 +141,53 @@ function Shopping() {
         <WasteLine waste={view.waste} estimated={view.amountsEstimated} />
       </div>
 
-      {/* The editable, persisted list: the primary UI. Tick, rename, re-amount,
-          add, and remove all survive a reload. */}
+      {/* STORE-AGNOSTIC, TOP: the week's recipe ingredients WITH amounts, the
+          primary editable list. Tick, rename, re-amount, add, remove all survive
+          a reload. State mirrors up so the comparison + cart recompute on a tick
+          (#311). */}
       {hasSavedItems && (
         <div className="px-5 pt-3 pb-2">
-          <EditableShoppingList initialItems={items} />
-        </div>
-      )}
-
-      {/* Per-store price + wastage comparison (#293), below the store-agnostic
-          list. The list above stays store-agnostic; this answers "where is this
-          cheapest, and how much do I waste there?". The single "Send to <store>"
-          action below stays the one cart action (#243). */}
-      {hasSavedItems && (
-        <div className="px-5 pt-2 pb-2">
-          <PriceComparison
-            lines={items.map((it) => ({ name: it.name, amount: it.amount }))}
+          <EditableShoppingList
+            initialItems={initialItems}
+            onItemsChange={setLiveItems}
           />
         </div>
       )}
 
-      {/* Staples / extras search, below the list. These are part of the cart
-          action too, so they sit ABOVE the bottom button (#238). */}
+      {/* STORE-AGNOSTIC, BELOW THAT: "Also on my list" extras / staples. No
+          AH / Jumbo branding drives the order here; the store comparison is the
+          next block down. State mirrors up so a ticked extra leaves the basket +
+          cart (#311). */}
       <div className="px-5 pt-2 pb-2">
         <StaplesSection
-          initialStaples={staples}
+          initialStaples={initialStaples}
           frequentlyBought={frequentlyBought}
+          onStaplesChange={setLiveStaples}
+          onCheckedChange={setCheckedExtraIds}
         />
       </div>
 
+      {/* PER-STORE COMPARISON, BELOW THE STORE-AGNOSTIC SECTIONS (#293, #311).
+          Each store's basket = the UNCHECKED recipe ingredients PLUS the
+          unchecked extras, priced with waste + unavailable over the COMBINED set.
+          Ticking an item off (recipe line or extra) recomputes it live. */}
+      {hasSavedItems && (
+        <div className="px-5 pt-2 pb-2">
+          <PriceComparison lines={liveSet.compareLines} />
+        </div>
+      )}
+
       {/* The store selector + single "Send to <store>" action, at the VERY
           bottom so it reads as "everything above goes in the cart" (#238).
-          Covers the week list AND the extras. */}
+          Sends the UNCHECKED recipe items AND the unchecked extras to the chosen
+          store, reacting to ticks with no DB lag (#311). */}
       {hasSavedItems && (
         <div className="border-border/60 mt-2 border-t px-5 pt-4 pb-6">
-          <CartLinks preferredStore={preferredStore} />
+          <CartLinks
+            preferredStore={preferredStore}
+            itemNames={liveSet.itemNames}
+            extras={extras.filter((e) => !checkedExtraIds.has(e.id))}
+          />
         </div>
       )}
     </AppShell>
