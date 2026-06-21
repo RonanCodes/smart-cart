@@ -4,9 +4,9 @@ import { createServerFn } from '@tanstack/react-start'
  * Preferred-store read/write for the Profile tab's "Preferred store" row (#212).
  *
  * The onboarding Store step (#109) captures the same field on the household
- * (`preferredStore`, slug 'ah' | 'jumbo'; see onboarding-mapping). This file is
- * the in-app entry to changing it AFTER onboarding, deliberately kept separate
- * from onboarding-server so the Profile diff stays isolated.
+ * (`preferredStore`, slug 'ah' | 'jumbo' | 'picnic'; see onboarding-mapping).
+ * This file is the in-app entry to changing it AFTER onboarding, deliberately
+ * kept separate from onboarding-server so the Profile diff stays isolated.
  *
  * Two halves, mirroring the tip/staples split:
  *  - Pure glue (the store catalogue + the slug guard), unit-tested with no DB.
@@ -15,25 +15,32 @@ import { createServerFn } from '@tanstack/react-start'
  *    server-only leaks into the client bundle.
  */
 
-/** The store slugs we actually fulfil a basket against. Picnic is the joke. */
-export type StoreSlug = 'ah' | 'jumbo'
+/**
+ * The store slugs a household can pick as its preferred store. All three are
+ * selectable preferences (#294). The price-comparison cart only deep-links AH +
+ * Jumbo today; building Picnic's cart is tracked separately (#293).
+ */
+export type StoreSlug = 'ah' | 'jumbo' | 'picnic'
 
 export interface StoreOption {
-  /** Slug persisted on the household, or null for the coming-soon joke entry. */
-  slug: StoreSlug | null
+  /** Slug persisted on the household. */
+  slug: StoreSlug
   name: string
-  /** Brand initials shown in the colour chip in lieu of a logo. */
+  /** Brand initials shown in the colour chip when there's no logo. */
   initials: string
   /** Tailwind classes for the brand chip (background + text). */
   chipClassName: string
-  /** Picnic is shown disabled with the CTO joke; it never persists. */
-  comingSoon?: boolean
+  /**
+   * Path to the self-hosted brand logo under public/brand/stores/, shown in
+   * place of the initials chip when present. Never hotlinked.
+   */
+  iconSrc?: string
 }
 
 /**
  * The three Dutch stores, matching the onboarding Store step exactly so the two
- * surfaces can't drift. Albert Heijn + Jumbo are selectable; Picnic is the
- * in-joke (the Picnic CTO is a megathon judge) and stays disabled.
+ * surfaces can't drift. All three are selectable preferences; Picnic shows its
+ * real brand logo, the others keep their brand-colour initials chip.
  */
 export const STORE_OPTIONS: ReadonlyArray<StoreOption> = [
   {
@@ -49,24 +56,21 @@ export const STORE_OPTIONS: ReadonlyArray<StoreOption> = [
     chipClassName: 'bg-[#eab90c] text-black',
   },
   {
-    slug: null,
+    slug: 'picnic',
     name: 'Picnic',
     initials: 'P',
     chipClassName: 'bg-[#e1141d] text-white',
-    comingSoon: true,
+    iconSrc: '/brand/stores/picnic.png',
   },
 ]
 
-/** The Picnic in-joke copy, shared with the onboarding Store step. */
-export const PICNIC_JOKE = 'Coming soon if we can convince the CTO'
-
 /** The store slugs we accept on a write. */
-const REAL_STORES = new Set<StoreSlug>(['ah', 'jumbo'])
+const REAL_STORES = new Set<StoreSlug>(['ah', 'jumbo', 'picnic'])
 
 /**
  * Coerce arbitrary input to a known store slug, or null if it isn't one we
- * fulfil. Pure: lowercases + trims, then gates against the real-store set so a
- * Picnic / typo / empty value never reaches the DB. Unit-tested without a DB.
+ * accept. Pure: lowercases + trims, then gates against the store set so a typo
+ * / empty / unknown value never reaches the DB. Unit-tested without a DB.
  */
 export function normalizeStore(input: unknown): StoreSlug | null {
   if (typeof input !== 'string') return null
@@ -125,8 +129,8 @@ export const loadProfileBootstrap = createServerFn({ method: 'GET' }).handler(
 )
 
 /**
- * Persist the household's preferred store. Validates the slug to a real store
- * (rejecting Picnic / junk) before touching the DB. Writes ONLY the
+ * Persist the household's preferred store. Validates the slug to a known store
+ * (rejecting junk) before touching the DB. Writes ONLY the
  * preferredStore column, leaving the profile + everything else untouched, so
  * this stays isolated from the onboarding write path. Throws if not signed in
  * or the user hasn't onboarded (no household row to update).
