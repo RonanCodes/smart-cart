@@ -17,6 +17,9 @@ vi.mock('#/lib/auth-client', () => ({
     signIn: {
       emailOtp: (...args: Array<unknown>) => signInEmailOtp(...args),
     },
+    // #414: verify() now confirms the session before handing off. Resolve a user
+    // so confirmSession() returns immediately in these classification tests.
+    getSession: () => Promise.resolve({ data: { user: { id: 'u1' } } }),
   },
 }))
 

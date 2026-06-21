@@ -67,7 +67,29 @@ export async function promptForNotifications(): Promise<void> {
     // Lazy import so the push-server fns (and their server-only deps) only pull in
     // when we actually reach a sign-in success, not on every module load.
     const { log } = await import('./log')
-    const { getPushConfig, subscribePush } = await import('./push-server')
+    // #414 (SOUSO-Z): on iOS, when the page is already tearing down for the
+    // post-auth navigation, this dynamic import can resolve to null/undefined.
+    // Destructuring that threw an unhandled TypeError. Null-guard it so a torn-down
+    // import is a SILENT no-op, not an error logged to Sentry.
+    // The static type says the module is always present, but on iOS during page
+    // teardown the dynamic import really can resolve to null/undefined. Widen to a
+    // minimal nullable structural type so the runtime guard below is honest (and
+    // not stripped as "always truthy" by the no-unnecessary-condition lint). We
+    // deliberately avoid a static `import type` of './push-server' here: that
+    // module pulls server-only code (cloudflare:workers) and must never be
+    // statically referenced from this client module, even types-only.
+    type PushServerModule = {
+      getPushConfig: () => Promise<{ publicKey?: string }>
+      subscribePush: (args: {
+        data: { subscription: PushSubscriptionJSON }
+      }) => Promise<unknown>
+    }
+    const mod = (await import('./push-server')) as
+      | PushServerModule
+      | null
+      | undefined
+    if (!mod || typeof mod.getPushConfig !== 'function') return
+    const { getPushConfig, subscribePush } = mod
 
     const cfg = await getPushConfig()
     if (!cfg.publicKey) {

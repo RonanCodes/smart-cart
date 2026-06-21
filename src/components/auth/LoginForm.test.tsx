@@ -16,6 +16,9 @@ vi.mock('#/lib/auth-client', () => ({
     signIn: {
       emailOtp: (...args: Array<unknown>) => signInEmailOtp(...args),
     },
+    // #414: verify() confirms the session before navigating; resolve a user so
+    // confirmSession() returns immediately.
+    getSession: () => Promise.resolve({ data: { user: { id: 'u1' } } }),
   },
 }))
 

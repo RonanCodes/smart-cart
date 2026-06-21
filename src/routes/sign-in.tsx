@@ -8,6 +8,7 @@ import {
   isExpectedOtpError,
 } from '#/lib/otp-error'
 import { promptForNotifications } from '#/lib/push-client'
+import { confirmSession } from '#/lib/confirm-session'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import {
@@ -20,7 +21,10 @@ import {
 
 export const Route = createFileRoute('/sign-in')({ component: SignIn })
 
-function SignIn() {
+// Exported for the verify()/navigation-ordering tests (#414). The route uses it
+// as `component: SignIn`; tests render it directly (it uses window.location, not
+// router hooks, so it stands alone).
+export function SignIn() {
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -100,10 +104,16 @@ function SignIn() {
       }
       return setError(verifyErrorMessage(reason, signErr))
     }
-    // Fire the push opt-in inside this click-driven success handler so the
-    // browser permission prompt counts as user-gesture-adjacent. Kicked off
-    // before the redirect (fire-and-forget) so the prompt shows; navigation
-    // never waits on it (#149 prompt-on-auth).
+    // #414: the verify fetch resolves before the browser commits the session
+    // Set-Cookie to its jar. If we hard-navigate to the guarded /week in the same
+    // tick, on iOS Safari the SSR guard can run before the cookie commits, see no
+    // session, and bounce us back to /sign-in. Confirm the session is readable
+    // client-side FIRST (this read uses the same cookie jar the navigation will),
+    // then navigate. confirmSession never throws and times out so we never hang.
+    await confirmSession()
+    // Push opt-in is moved OFF the verify tick (it raced the navigation and threw
+    // SOUSO-Z). Fire it fully fire-and-forget AFTER the session is confirmed; it
+    // must never block or abort the navigation (#149 prompt-on-auth).
     void promptForNotifications()
     window.location.href = '/week'
   }
