@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, Plus, Trash2, ShoppingBasket } from 'lucide-react'
 import { Input } from '#/components/ui/input'
 import { Button } from '#/components/ui/button'
@@ -33,6 +33,7 @@ import type { ShoppingItem } from '#/lib/shopping'
 export function EditableShoppingList({
   initialItems,
   onCleared,
+  onItemsChange,
 }: {
   initialItems: Array<ShoppingItem>
   /**
@@ -41,8 +42,25 @@ export function EditableShoppingList({
    * the week on the next visit / reload).
    */
   onCleared?: () => void
+  /**
+   * Fired whenever the items change (tick, edit, add, remove, clear). The route
+   * lifts this up so the price comparison + the single cart action recompute
+   * from the live UNCHECKED set as the user ticks rows off (#311), with no full
+   * reload. The list still owns its own server round-trips; this is a read-only
+   * mirror for the siblings below it.
+   */
+  onItemsChange?: (items: Array<ShoppingItem>) => void
 }) {
   const [items, setItems] = useState<Array<ShoppingItem>>(initialItems)
+
+  // Mirror every items change up to the route (#311). An effect (not a call in
+  // each setItems site) keeps the single source of truth here and fires once per
+  // committed render, including the initial mount so the siblings start in sync.
+  const onItemsChangeRef = useRef(onItemsChange)
+  onItemsChangeRef.current = onItemsChange
+  useEffect(() => {
+    onItemsChangeRef.current?.(items)
+  }, [items])
   const [busyId, setBusyId] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
   const [newAmount, setNewAmount] = useState('')
