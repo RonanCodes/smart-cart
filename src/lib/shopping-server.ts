@@ -285,6 +285,50 @@ export interface ShoppingBootstrap {
 export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
   .inputValidator((d?: { planId?: string }) => d ?? {})
   .handler(async ({ data }): Promise<ShoppingBootstrap> => {
+    // DEMO data mode: return the canned cart (the merged ingredients of the demo
+    // week) with no staples/extras, so a pitch account renders the polished list
+    // without a seeded plan. The UI is unchanged; only the data swaps (#demo).
+    {
+      const { getSessionUser } = await import('./server-auth')
+      const user = await getSessionUser()
+      if (!user) throw new Error('Not signed in')
+      const { getDb } = await import('../db/client')
+      const { household } = await import('../db/schema')
+      const { eq } = await import('drizzle-orm')
+      const { resolveDataMode } = await import('./data-mode-resolve')
+      const db = await getDb()
+      const hh = (
+        await db
+          .select({
+            id: household.id,
+            adults: household.adults,
+            children: household.children,
+          })
+          .from(household)
+          .where(eq(household.ownerId, user.id))
+          .limit(1)
+      )[0]
+      if (hh && (await resolveDataMode(db, hh.id)) === 'demo') {
+        const { demoShoppingItems } = await import('./demo/fixtures')
+        const empty = emptyList()
+        return {
+          view: {
+            planId: 'demo-plan',
+            weekStart: null,
+            portions: { adults: hh.adults, children: hh.children },
+            list: empty,
+            shared: [],
+            waste: summariseWaste(empty),
+            amountsEstimated: false,
+          },
+          staples: [],
+          frequentlyBought: [],
+          items: demoShoppingItems(),
+          preferredStore: 'ah',
+        }
+      }
+    }
+
     const { loadStaples, frequentlyBoughtStaples } =
       await import('./staples-server')
     const {

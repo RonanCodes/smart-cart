@@ -40,6 +40,8 @@ import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminMatchingRouteImport } from './routes/admin/matching'
 import { Route as AdminLaunchRouteImport } from './routes/admin/launch'
 import { Route as AdminFeedbackRouteImport } from './routes/admin/feedback'
+import { Route as AdminDesignSystemRouteImport } from './routes/admin/design-system'
+import { Route as AdminDataModeRouteImport } from './routes/admin/data-mode'
 import { Route as AdminBenchmarkRouteImport } from './routes/admin/benchmark'
 import { Route as AuthedWeekRouteImport } from './routes/_authed.week'
 import { Route as AuthedShoppingRouteImport } from './routes/_authed.shopping'
@@ -205,6 +207,16 @@ const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
   path: '/feedback',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminDesignSystemRoute = AdminDesignSystemRouteImport.update({
+  id: '/design-system',
+  path: '/design-system',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminDataModeRoute = AdminDataModeRouteImport.update({
+  id: '/data-mode',
+  path: '/data-mode',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminBenchmarkRoute = AdminBenchmarkRouteImport.update({
   id: '/benchmark',
   path: '/benchmark',
@@ -270,6 +282,8 @@ export interface FileRoutesByFullPath {
   '/shopping': typeof AuthedShoppingRoute
   '/week': typeof AuthedWeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
+  '/admin/data-mode': typeof AdminDataModeRoute
+  '/admin/design-system': typeof AdminDesignSystemRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
@@ -311,6 +325,8 @@ export interface FileRoutesByTo {
   '/shopping': typeof AuthedShoppingRoute
   '/week': typeof AuthedWeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
+  '/admin/data-mode': typeof AdminDataModeRoute
+  '/admin/design-system': typeof AdminDesignSystemRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
@@ -355,6 +371,8 @@ export interface FileRoutesById {
   '/_authed/shopping': typeof AuthedShoppingRoute
   '/_authed/week': typeof AuthedWeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
+  '/admin/data-mode': typeof AdminDataModeRoute
+  '/admin/design-system': typeof AdminDesignSystemRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
@@ -399,6 +417,8 @@ export interface FileRouteTypes {
     | '/shopping'
     | '/week'
     | '/admin/benchmark'
+    | '/admin/data-mode'
+    | '/admin/design-system'
     | '/admin/feedback'
     | '/admin/launch'
     | '/admin/matching'
@@ -440,6 +460,8 @@ export interface FileRouteTypes {
     | '/shopping'
     | '/week'
     | '/admin/benchmark'
+    | '/admin/data-mode'
+    | '/admin/design-system'
     | '/admin/feedback'
     | '/admin/launch'
     | '/admin/matching'
@@ -483,6 +505,8 @@ export interface FileRouteTypes {
     | '/_authed/shopping'
     | '/_authed/week'
     | '/admin/benchmark'
+    | '/admin/data-mode'
+    | '/admin/design-system'
     | '/admin/feedback'
     | '/admin/launch'
     | '/admin/matching'
@@ -762,6 +786,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFeedbackRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/design-system': {
+      id: '/admin/design-system'
+      path: '/design-system'
+      fullPath: '/admin/design-system'
+      preLoaderRoute: typeof AdminDesignSystemRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/data-mode': {
+      id: '/admin/data-mode'
+      path: '/data-mode'
+      fullPath: '/admin/data-mode'
+      preLoaderRoute: typeof AdminDataModeRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/benchmark': {
       id: '/admin/benchmark'
       path: '/benchmark'
@@ -837,6 +875,8 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteRouteChildren {
   AdminBenchmarkRoute: typeof AdminBenchmarkRoute
+  AdminDataModeRoute: typeof AdminDataModeRoute
+  AdminDesignSystemRoute: typeof AdminDesignSystemRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminLaunchRoute: typeof AdminLaunchRoute
   AdminMatchingRoute: typeof AdminMatchingRoute
@@ -850,6 +890,8 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBenchmarkRoute: AdminBenchmarkRoute,
+  AdminDataModeRoute: AdminDataModeRoute,
+  AdminDesignSystemRoute: AdminDesignSystemRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
   AdminLaunchRoute: AdminLaunchRoute,
   AdminMatchingRoute: AdminMatchingRoute,

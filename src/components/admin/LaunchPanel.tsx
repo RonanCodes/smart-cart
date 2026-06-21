@@ -153,7 +153,7 @@ export function LaunchPanel({ state }: { state: LaunchStateView }) {
             onClick={() => setConfirmGoLive(true)}
           >
             <Rocket className="h-4 w-4" aria-hidden />
-            {busy ? 'Going live…' : 'Go live 🚀'}
+            {busy ? 'Going live…' : 'Go live'}
           </Button>
         </div>
       )}
@@ -176,7 +176,7 @@ export function LaunchPanel({ state }: { state: LaunchStateView }) {
             ? 'This removes the waitlist and lets anyone sign in. Everyone on the waitlist and every registered user gets a "Souso is live" email.'
             : 'This removes the waitlist and lets anyone sign in. No emails will be sent.'
         }
-        confirmLabel="Go live 🚀"
+        confirmLabel="Go live"
         busy={busy}
         onConfirm={() => void goLive()}
       />

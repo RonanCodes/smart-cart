@@ -12,6 +12,8 @@ import {
   Rocket,
   ChevronLeft,
   Palette,
+  Beaker,
+  SwatchBook,
 } from 'lucide-react'
 import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import { ScreenHeader } from '#/components/ui/app-shell'
@@ -124,9 +126,19 @@ function AdminLayout() {
               icon={<Rocket className="h-4 w-4" />}
               label="Launch"
             />
+            <TabLink
+              to="/admin/data-mode"
+              icon={<Beaker className="h-4 w-4" />}
+              label="Demo data"
+            />
             {/* Souso design prototype (PR #320). Admin-gated so the throwaway
                 /design/* preview is reachable for demos without shipping it as
                 a public route. */}
+            <TabLink
+              to="/admin/design-system"
+              icon={<SwatchBook className="h-4 w-4" />}
+              label="Design system"
+            />
             <TabLink
               to="/design/onboarding"
               icon={<Palette className="h-4 w-4" />}
