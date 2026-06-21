@@ -44,12 +44,21 @@ interface DayCardProps {
   /** Optional hand-written tag for a special meal, placed by the photo. */
   note?: string
   /**
-   * Optional alternatives for this day (design demo). When given (>1), the dish
-   * becomes a little deck: the NEXT option sits ready behind the current one and
-   * swiping the dish left brings it straight forward, no "Replace" step. Without
-   * it, a swipe simply fires onSwap (the real server-side replace).
+   * Optional alternatives for this day (design demo + real week, #week-align).
+   * When given (>1), the dish becomes a little deck: the NEXT option sits ready
+   * behind the current one and swiping the dish left brings it straight forward,
+   * no "Replace" step. Without it, a swipe simply fires onSwap (the real
+   * server-side replace).
    */
   swapOptions?: Array<WeekDayView>
+  /**
+   * Optional persist hook for the deck (#week-align). When `swapOptions` is a real
+   * pre-ranked deck, the local cycle is only an instant preview; pass this to
+   * write the committed pick to the plan (the design route omits it, so its deck
+   * stays a pure throwaway preview). Called with the recipe id the swipe landed
+   * on, after the visual cycle.
+   */
+  onSwapTo?: (recipeId: string) => void
 }
 
 /** Drag the dish this far left (px) to commit to the next one. */
@@ -72,6 +81,7 @@ function DayCardImpl({
   onEdit,
   onAdd,
   onSwap,
+  onSwapTo,
   note,
   swapOptions,
 }: DayCardProps) {
@@ -79,6 +89,17 @@ function DayCardImpl({
   const options = swapOptions && swapOptions.length > 1 ? swapOptions : null
 
   const [idx, setIdx] = useState(0)
+  // Reset the deck index whenever a fresh `swapOptions` array arrives
+  // (#week-align): a persisted swap reloads the week, so the chosen dish is back
+  // at options[0] and the alternatives are re-derived. Without this the card
+  // would keep its incremented index and briefly show the wrong dish. Compares
+  // by array identity: the parent memoises the deck, so an unchanged day keeps
+  // the same reference and the index is left alone.
+  const optionsRef = useRef(swapOptions)
+  if (optionsRef.current !== swapOptions) {
+    optionsRef.current = swapOptions
+    if (idx !== 0) setIdx(0)
+  }
   const current = options ? (options[idx % options.length] ?? day) : day
   const next = options ? (options[(idx + 1) % options.length] ?? null) : null
 
@@ -113,12 +134,18 @@ function DayCardImpl({
     dragXRef.current = clamped
     setDragX(clamped)
   }
-  // Swap to the next dish — cycles the staged options in the design demo, or
-  // fires the real server-side replace. Used by both the swipe and the switch
-  // button.
+  // Swap to the next dish: cycles the staged options (design demo + real-data
+  // preview), or fires the real server-side replace. Used by both the swipe and
+  // the switch button. When a real deck is wired with `onSwapTo`, the local cycle
+  // is just the instant preview and `onSwapTo` persists the committed pick.
   function commitSwap() {
-    if (options) setIdx((i) => i + 1)
-    else onSwap()
+    if (options) {
+      const landed = options[(idx + 1) % options.length]
+      setIdx((i) => i + 1)
+      if (landed && onSwapTo) onSwapTo(landed.recipeRef)
+    } else {
+      onSwap()
+    }
   }
   function endSwipe() {
     if (startX.current === null) return
