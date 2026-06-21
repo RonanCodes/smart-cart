@@ -239,6 +239,16 @@ function EmptyWeek({ offset }: { offset: number }) {
       } else {
         await navigate({ to: '/week', search: { week: 0 } })
       }
+    } catch (err) {
+      // Building a week needs a household. A signed-in user who never finished
+      // onboarding (e.g. after an account reset, then logging back in) has none,
+      // so generatePlanForHousehold throws "No household, onboard first". Send
+      // them to onboarding to set up first instead of failing silently. Other
+      // failures just clear busy so they can retry.
+      const msg = err instanceof Error ? err.message.toLowerCase() : ''
+      if (msg.includes('household') || msg.includes('onboard')) {
+        await navigate({ to: '/onboarding' })
+      }
     } finally {
       setBusy(false)
     }
