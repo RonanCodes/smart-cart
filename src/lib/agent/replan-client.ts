@@ -6,6 +6,7 @@ import {
 import type { PlannedWeek } from '../planner/types'
 import type { WeekView } from '../week-server'
 import type { ReplanUIMessage } from './replan-ui-message'
+import type { PlanDayChange } from '../replan/diff'
 
 /**
  * Client-side helpers for the chat replan (`POST /api/replan`).
@@ -19,7 +20,13 @@ import type { ReplanUIMessage } from './replan-ui-message'
 export type ReplanWireEvent =
   | { type: 'text'; delta: string }
   | { type: 'week'; week: PlannedWeek }
-  | { type: 'done'; message: string; changed: boolean; planId: string }
+  | {
+      type: 'done'
+      message: string
+      changed: boolean
+      planId: string
+      changes: Array<PlanDayChange>
+    }
   | { type: 'error'; message: string }
 
 function textFromMessage(message: ReplanUIMessage): string {
@@ -83,6 +90,7 @@ export async function* streamReplan(
             message: part.data.message,
             changed: part.data.changed,
             planId: part.data.planId,
+            changes: part.data.changes,
           }
           // The merged text stream may stay open after data-done; stop here so
           // the caller can drop busy state. Do not abort the fetch — that races

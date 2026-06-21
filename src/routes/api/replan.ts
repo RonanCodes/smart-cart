@@ -57,6 +57,7 @@ export const Route = createFileRoute('/api/replan')({
                   message: offlineMessage,
                   changed: false,
                   planId: ctx.planId,
+                  changes: [],
                 },
               })
             },
@@ -97,12 +98,19 @@ export const Route = createFileRoute('/api/replan')({
               },
               onFinish: async ({ text }) => {
                 try {
+                  const after = session.getWeek()
                   const changed = session.hasChanged()
+                  // The per-day diff behind the agent's summary: compare the week
+                  // we opened the session with (`ctx.week`) against the final
+                  // week. Drives the banner's "Show changes" disclosure.
+                  const { buildPlanDiff } =
+                    await import('../../lib/replan/diff')
+                  const changes = buildPlanDiff(ctx.week, after)
                   const newPlanId = changed
                     ? await ctxMod.persistRevision(
                         ctx.householdId,
                         ctx.weekStart,
-                        session.getWeek(),
+                        after,
                       )
                     : ctx.planId
                   writer.write({
@@ -112,6 +120,7 @@ export const Route = createFileRoute('/api/replan')({
                       message: text.trim() || "Done. I've updated your week.",
                       changed,
                       planId: newPlanId,
+                      changes,
                     },
                   })
                 } catch (err) {
@@ -123,6 +132,7 @@ export const Route = createFileRoute('/api/replan')({
                       message: 'Could not save the updated week.',
                       changed: false,
                       planId: ctx.planId,
+                      changes: [],
                     },
                   })
                 } finally {
