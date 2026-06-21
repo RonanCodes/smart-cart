@@ -13,6 +13,7 @@ describe('buildAllItemsCartUrl', () => {
     expect(res.url).toBe(
       'https://www.ah.nl/mijnlijst/add-multiple?p=415202:1&p=2798:1',
     )
+    expect(res.urls).toEqual([res.url])
   })
 
   it('builds a Jumbo link from trailing-token slugs', () => {
@@ -21,6 +22,7 @@ describe('buildAllItemsCartUrl', () => {
       { slug: '1fruit-appel-200ml-764448PAK' },
     ])
     expect(res.matched).toBe(2)
+    expect(res.urls).toHaveLength(1)
     const add = new URL(res.url!).searchParams.get('add')!
     expect(JSON.parse(add)).toEqual([
       { sku: '128692ZK', quantity: 1 },
@@ -37,6 +39,27 @@ describe('buildAllItemsCartUrl', () => {
     expect(res.matched).toBe(1)
     expect(res.total).toBe(3)
     expect(res.url).toBe('https://www.ah.nl/mijnlijst/add-multiple?p=415202:1')
+    expect(res.urls).toEqual([res.url])
+  })
+
+  it('chunks large AH carts into multiple add-multiple URLs', () => {
+    const items = Array.from({ length: 30 }, (_, i) => ({
+      slug: `wi${i + 1}/x`,
+    }))
+    const res = buildAllItemsCartUrl('ah', items)
+    expect(res.matched).toBe(30)
+    expect(res.urls).toHaveLength(2)
+    expect(res.url).toBe(res.urls[1])
+  })
+
+  it('chunks large Jumbo carts into multiple mandje URLs', () => {
+    const items = Array.from({ length: 30 }, (_, i) => ({
+      slug: `item-${i + 1}-SKU${i + 1}PAK`,
+    }))
+    const res = buildAllItemsCartUrl('jumbo', items)
+    expect(res.matched).toBe(30)
+    expect(res.urls).toHaveLength(2)
+    expect(res.url).toBe(res.urls[1])
   })
 
   it('returns a null url when nothing resolved', () => {

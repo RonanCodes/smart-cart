@@ -236,7 +236,7 @@ function Shopping() {
         <FloatingOrderBar
           store={store}
           data={priceData}
-          itemNames={liveSet.itemNames}
+          compareLines={liveSet.compareLines}
           extras={extras.filter((e) => !checkedExtraIds.has(e.id))}
         />
       )}

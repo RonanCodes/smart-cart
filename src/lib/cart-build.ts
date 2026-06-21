@@ -15,8 +15,8 @@
 import {
   ahProductId,
   jumboSku,
-  ahBulkCartUrl,
-  jumboBulkCartUrl,
+  ahBulkCartUrls,
+  jumboBulkCartUrls,
 } from './cart-links'
 import type { StoreSlug } from './store-pref-server'
 
@@ -24,14 +24,24 @@ import type { StoreSlug } from './store-pref-server'
 export interface ResolvedCartItem {
   /** The store-specific product slug, or null when nothing matched. */
   slug: string | null
+  /** Packs to add; defaults to 1 when omitted. */
+  qty?: number
 }
 
 /** The outcome of building one store's cart link for the whole list. */
 export interface BuiltCartLink {
   /** The selected store. */
   store: StoreSlug
-  /** The bulk-cart deep-link, or null when no item resolved to a SKU. */
+  /**
+   * Primary deep-link for backward compatibility: the last AH add-multiple chunk,
+   * or the single Jumbo mandje URL.
+   */
   url: string | null
+  /**
+   * Every bulk-add URL to fire, in order. AH may return several add-multiple
+   * chunks; Jumbo may return several mandje URLs.
+   */
+  urls: Array<string>
   /** How many list items resolved to a SKU in this store. */
   matched: number
   /** The total number of list items considered. */
@@ -56,13 +66,19 @@ export function buildAllItemsCartUrl(
   // preference (#294) but its cart is not built yet (#293), so resolve nothing
   // rather than silently firing the wrong store's cart.
   if (store !== 'ah' && store !== 'jumbo') {
-    return { store, url: null, matched: 0, total }
+    return { store, url: null, urls: [], matched: 0, total }
   }
   const skus: Array<{ sku: string; qty: number }> = []
   for (const item of items) {
     const sku = store === 'ah' ? ahProductId(item.slug) : jumboSku(item.slug)
-    if (sku) skus.push({ sku, qty: 1 })
+    if (sku) skus.push({ sku, qty: item.qty ?? 1 })
   }
-  const url = store === 'ah' ? ahBulkCartUrl(skus) : jumboBulkCartUrl(skus)
-  return { store, url, matched: skus.length, total }
+  if (store === 'ah') {
+    const urls = ahBulkCartUrls(skus)
+    const url = urls.length > 0 ? urls[urls.length - 1]! : null
+    return { store, url, urls, matched: skus.length, total }
+  }
+  const urls = jumboBulkCartUrls(skus)
+  const last = urls.length > 0 ? urls[urls.length - 1]! : null
+  return { store, url: last, urls, matched: skus.length, total }
 }
