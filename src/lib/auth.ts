@@ -34,8 +34,8 @@ async function buildAuth() {
         sendVerificationOnSignUp: true,
         async sendVerificationOTP({ email, otp }) {
           // Gated access: only approved emails (or the admin) may sign in.
-          // Reject BEFORE stashing or sending a code so a waitlisted email can
-          // never complete sign-in via the normal flow or the demo skip path.
+          // Reject BEFORE sending a code so a waitlisted email can never
+          // complete sign-in.
           const { isApproved, NOT_APPROVED_MESSAGE } = await import('./access')
           if (!(await isApproved(email))) {
             // Make the "you're on the waitlist" message TRUE: idempotently add
@@ -46,9 +46,6 @@ async function buildAuth() {
             await addUnapprovedEmailToWaitlist(email)
             throw new Error(NOT_APPROVED_MESSAGE)
           }
-          // Stash first so the demo skip-login path can read it back even if the
-          // email never goes out (Resend outage). See stashOtp/consumeOtp below.
-          stashOtp(email, otp)
           // Issue #259: send the OTP email WITH a one-tap magic sign-in link
           // below the code. signInMagicLink generates a single-use, short-TTL
           // token (existing `verification` table) and fires `sendMagicLink`,
@@ -163,26 +160,4 @@ export async function sendApprovalMagicLink(
     console.error('sendApprovalMagicLink failed (continuing):', err)
     return { sent: false }
   }
-}
-
-/**
- * DEMO SKIP-LOGIN support (Resend outage workaround).
- *
- * Better Auth hands us the plaintext OTP in `sendVerificationOTP`. We stash the most
- * recent one per email so a server fn can read it back WITHIN THE SAME REQUEST (same
- * Worker isolate) and complete sign-in without the email being delivered. The only
- * consumer is `demo-auth.ts`. Remove this and the skip button after the demo. The
- * normal email-OTP flow is unaffected.
- */
-const lastOtpByEmail = new Map<string, string>()
-
-export function stashOtp(email: string, otp: string): void {
-  lastOtpByEmail.set(email.toLowerCase(), otp)
-}
-
-export function consumeOtp(email: string): string | undefined {
-  const key = email.toLowerCase()
-  const otp = lastOtpByEmail.get(key)
-  lastOtpByEmail.delete(key)
-  return otp
 }
