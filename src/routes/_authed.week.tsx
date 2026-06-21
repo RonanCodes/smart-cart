@@ -11,6 +11,8 @@ import {
   ChevronRight,
   CalendarPlus,
   Sparkles,
+  Plus,
+  ChefHat,
 } from 'lucide-react'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import {
@@ -22,7 +24,7 @@ import {
 } from '#/lib/week-server'
 import { weekLabel, offsetForWeekStart } from '#/lib/week-offset'
 import { weekPlanUrl } from '#/lib/week-url'
-import type { WeekView, DayAlternative } from '#/lib/week-server'
+import type { WeekView, WeekDayView, DayAlternative } from '#/lib/week-server'
 import { applyStreamedWeek, streamReplan } from '#/lib/agent/replan-client'
 import type { ReplanHistoryTurn } from '#/lib/agent/replan-client'
 import { mergeWeekPreservingIdentity } from '#/lib/week-merge'
@@ -259,6 +261,34 @@ function EmptyWeek({ offset }: { offset: number }) {
       </div>
     </AppShell>
   )
+}
+
+/**
+ * Build the dish's swipe-deck (#week-align): the current dinner followed by its
+ * pre-ranked alternatives, all shaped as `WeekDayView` so DayCard's swipe-to-swap
+ * deck (the design layout) runs on real data. The first option is ALWAYS the
+ * current dish so a swipe stages the next-best alternative behind it. A skipped
+ * ('out') day ships no alternatives, so it returns just the day itself (the deck
+ * collapses to a plain sticker, no swipe). Each alternative inherits the day's
+ * label/meal slot and carries no further alternatives of its own (it only needs
+ * to render one card deep). `videoUrl` is null on alternatives: the deck shows a
+ * still sticker; the real video only plays once a swap commits and the day reloads.
+ */
+function swapDeckFor(day: WeekDayView): Array<WeekDayView> {
+  if (!day.recipeRef) return [day]
+  const alternatives: Array<WeekDayView> = day.alternatives.map((a) => ({
+    day: day.day,
+    meal: a.meal,
+    recipeRef: a.recipeRef,
+    cuisine: a.cuisine,
+    prepMinutes: a.prepMinutes,
+    calories: a.calories,
+    protein: a.protein,
+    imageUrl: a.imageUrl,
+    videoUrl: null,
+    alternatives: [],
+  }))
+  return [day, ...alternatives]
 }
 
 function LoadedWeek({
@@ -696,6 +726,7 @@ function LoadedWeek({
         onEdit: () => void
         onAdd: () => void
         onSwap: () => void
+        onSwapTo: (recipeId: string) => void
         onLoadSimilar: (sort: SimilarSort) => Promise<Array<SimilarNeighbour>>
         onPickSimilar: (recipeId: string) => Promise<void>
         onRate: (next: {
@@ -710,6 +741,9 @@ function LoadedWeek({
         onEdit: () => setRecipeDay(day),
         onAdd: () => void startAdd(day),
         onSwap: () => startSwap(day),
+        // The swipe-deck landed on a pre-ranked alternative: persist it through
+        // the same revision write path the edit-sheet pick uses (#week-align).
+        onSwapTo: (recipeId) => void pickSimilar(day, recipeId),
         onLoadSimilar: (sort) => loadSimilar(day, sort),
         onPickSimilar: (recipeId) => pickSimilar(day, recipeId),
         onRate: (next) => {
@@ -724,6 +758,53 @@ function LoadedWeek({
     // the day set changes (added/removed/reordered days, essentially never).
   }, [dayKeys, startAdd, startSwap, loadSimilar, pickSimilar, rate])
 
+  // Per-day swipe-decks (#week-align), memoised so a swap that touches one day
+  // doesn't hand every sibling card a fresh `swapOptions` array (which would
+  // defeat DayCard's React.memo and jitter the grid, #replan-ux). We keep the
+  // previous deck for any day whose source object is still the SAME reference
+  // (mergeWeekPreservingIdentity holds unchanged days stable), so only the
+  // changed day rebuilds its deck.
+  const decksRef = useRef<
+    Map<string, { src: WeekDayView; deck: Array<WeekDayView> }>
+  >(new Map())
+  const decks = useMemo(() => {
+    const prev = decksRef.current
+    const map = new Map<string, Array<WeekDayView>>()
+    for (const d of week.days) {
+      const cached = prev.get(d.day)
+      const deck = cached && cached.src === d ? cached.deck : swapDeckFor(d)
+      map.set(d.day, deck)
+    }
+    decksRef.current = new Map(
+      week.days.map((d) => [d.day, { src: d, deck: map.get(d.day)! }]),
+    )
+    return map
+  }, [week.days])
+
+  // "You might also like" (#week-align): a short tail of real household-ranked
+  // recipes drawn from the alternatives the week already shipped (so no extra
+  // round-trip), de-duplicated across days and excluding anything already in the
+  // week. These are honest suggestions the recommender picked, not fixtures.
+  const suggestions = useMemo(() => {
+    const inWeek = new Set(week.days.map((d) => d.recipeRef).filter(Boolean))
+    const seen = new Set<string>()
+    const out: Array<DayAlternative> = []
+    for (const d of week.days) {
+      for (const a of d.alternatives) {
+        if (inWeek.has(a.recipeRef) || seen.has(a.recipeRef)) continue
+        seen.add(a.recipeRef)
+        out.push(a)
+        if (out.length >= 2) return out
+      }
+    }
+    return out
+  }, [week.days])
+
+  // The first day with no dinner, if any: where a "You might also like" pick
+  // lands when added. The tail only shows when there's an open day to fill, so
+  // the Add button is never a dead end.
+  const firstOpenDay = week.days.find((d) => !d.recipeRef)?.day ?? null
+
   // The AI replan + voice live behind one subtle "Ask Souso" button that opens a
   // sheet, keeping the week screen calm and Julienne-quiet by default (#design).
   const [aiOpen, setAiOpen] = useState(false)
@@ -732,7 +813,7 @@ function LoadedWeek({
     <AppShell>
       <ScreenHeader
         title="Your week"
-        subtitle="Seven dinners, one per day. Swap any day or tell us what changed."
+        subtitle="Seven dinners, planned for you. Swipe a dish to swap it."
         action={
           <Link
             to="/shopping"
@@ -772,13 +853,18 @@ function LoadedWeek({
 
         {message && <ReplanBanner message={message} changes={changes} />}
 
-        <div className="grid grid-cols-1 gap-4">
+        {/* Card-less dashed rows (the Souso week, #week-align): each DayCard owns
+            its own dashed divider + padding, so they flow as one continuous list
+            rather than a gapped grid. The dish is a swipe-deck built from the
+            day's pre-ranked alternatives; swiping persists the pick (onSwapTo). */}
+        <div>
           {week.days.map((d) => {
             const cbs = dayCallbacks.get(d.day)!
             return (
               <DayCard
                 key={d.day}
                 day={d}
+                swapOptions={decks.get(d.day)}
                 busy={busyDay === d.day}
                 locked={locked}
                 glowing={glowDays.has(d.day)}
@@ -786,6 +872,7 @@ function LoadedWeek({
                 onEdit={cbs.onEdit}
                 onAdd={cbs.onAdd}
                 onSwap={cbs.onSwap}
+                onSwapTo={cbs.onSwapTo}
                 onLoadSimilar={cbs.onLoadSimilar}
                 onPickSimilar={cbs.onPickSimilar}
                 rating={feedback.get(d.recipeRef)?.rating ?? null}
@@ -796,6 +883,81 @@ function LoadedWeek({
             )
           })}
         </div>
+
+        {/* Add another dinner (#week-align): only when a day is open, since a
+            full week has nowhere to add. Routes through the same add-a-meal sheet
+            the empty-day card uses. */}
+        {firstOpenDay && (
+          <button
+            type="button"
+            disabled={locked}
+            onClick={() => void startAdd(firstOpenDay)}
+            className="border-hairline text-muted-foreground flex w-full items-center gap-3 rounded-2xl border border-dashed px-4 py-3.5 text-sm font-semibold transition active:scale-[0.99]"
+          >
+            <span className="bg-card flex h-9 w-9 items-center justify-center rounded-full shadow-sm">
+              <ChefHat className="text-primary h-4 w-4" />
+            </span>
+            <span className="flex-1 text-left">Add another dinner</span>
+            <span className="bg-primary flex h-7 w-7 items-center justify-center rounded-full text-white">
+              <Plus className="h-4 w-4" />
+            </span>
+          </button>
+        )}
+
+        {/* You might also like (#week-align): real household-ranked picks the
+            recommender already surfaced as alternatives. Shown only when there's
+            an open day to fill, so the Add button always has a home. */}
+        {firstOpenDay && suggestions.length > 0 && (
+          <section className="border-hairline border-t pt-8">
+            <h2
+              className="text-lg font-bold"
+              style={{ letterSpacing: '-0.02em' }}
+            >
+              You might also like
+            </h2>
+            <p className="text-muted-foreground mt-0.5 mb-5 text-[0.85rem]">
+              Picked from how your household eats
+            </p>
+            <div className="space-y-6">
+              {suggestions.map((s) => (
+                <div key={s.recipeRef} className="flex items-center gap-4">
+                  {s.imageUrl && (
+                    <img
+                      src={s.imageUrl}
+                      alt=""
+                      aria-hidden
+                      className="souso-sticker h-20 w-20 shrink-0 object-contain"
+                      style={{ transform: 'rotate(-3deg)' }}
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[1rem] font-bold">{s.meal}</h3>
+                    <p className="text-muted-foreground mt-0.5 line-clamp-2 text-[0.78rem]">
+                      {[
+                        s.prepMinutes != null && `${s.prepMinutes} min`,
+                        s.calories != null && `${s.calories} kcal`,
+                        s.protein != null && `${s.protein} g protein`,
+                        s.cuisine,
+                      ]
+                        .filter(Boolean)
+                        .join('  ·  ')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={locked}
+                    onClick={() =>
+                      void pickAlternative(firstOpenDay, s.recipeRef)
+                    }
+                    className="border-primary text-primary inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition active:scale-95 disabled:opacity-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Spacer so the last card clears the floating "make basket" button. */}
         <div aria-hidden className="h-16" />
