@@ -8,6 +8,7 @@ import { EditableShoppingList } from '#/components/shopping/EditableShoppingList
 import { CartLinks } from '#/components/shopping/CartLinks'
 import { StaplesSection } from '#/components/shopping/StaplesSection'
 import { WasteLine } from '#/components/shopping/WasteLine'
+import { PriceComparison } from '#/components/shopping/PriceComparison'
 import { ShoppingSkeleton } from '#/components/shopping/ShoppingSkeleton'
 
 interface ShoppingSearch {
@@ -124,6 +125,18 @@ function Shopping() {
       {hasSavedItems && (
         <div className="px-5 pt-3 pb-2">
           <EditableShoppingList initialItems={items} onCleared={markCleared} />
+        </div>
+      )}
+
+      {/* Per-store price + wastage comparison (#293), below the store-agnostic
+          list. The list above stays store-agnostic; this answers "where is this
+          cheapest, and how much do I waste there?". The single "Send to <store>"
+          action below stays the one cart action (#243). */}
+      {hasSavedItems && (
+        <div className="px-5 pt-2 pb-2">
+          <PriceComparison
+            lines={items.map((it) => ({ name: it.name, amount: it.amount }))}
+          />
         </div>
       )}
 
