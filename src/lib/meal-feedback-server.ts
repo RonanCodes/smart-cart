@@ -214,6 +214,23 @@ export const submitMealFeedback = createServerFn({ method: 'POST' })
       action,
     })
 
+    // Feedback bridge: a free-text note ("not pizza every week") becomes durable
+    // memory so it shapes future weeks, not just this row. Exactly one LLM call
+    // classifies it (variety vs dislike vs ...). Best-effort: a memory failure
+    // never blocks saving the feedback itself.
+    if (
+      (action.kind === 'insert' || action.kind === 'update') &&
+      action.row.note &&
+      action.row.note.trim()
+    ) {
+      try {
+        const { rememberNote } = await import('./memory/memory-server')
+        await rememberNote(hh.id, action.row.note, 'feedback')
+      } catch {
+        // The note is still saved as feedback; memory is an enhancement.
+      }
+    }
+
     // delete/noop carried no row; insert/update have `row` non-null. The stored
     // state echoes the nullable rating (a note-only save returns rating null).
     return {

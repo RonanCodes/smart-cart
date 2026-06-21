@@ -125,6 +125,12 @@ export async function generatePlanForHousehold(
     .map((f) => ({ recipeId: f.recipeId, rating: f.rating }))
   const swipes = foldRealFeedback(onboardingSwipes, feedback)
 
+  // Memory-derived soft penalties (variety / dislikes / recently-served) on top
+  // of the folded swipes, so learned preferences ("not pizza every week") shape
+  // the new week. Empty for a household with no memory -> ranking unchanged.
+  const { loadPlannerPenalties } = await import('./memory/memory-server')
+  const penalties = await loadPlannerPenalties(hh.id)
+
   // Smarter future-week generation (#week-nav). Look at the household's recent
   // plans (newest first). With NO prior plan this stays empty -> both knobs are
   // no-ops and the week is generated exactly as before (fresh household + the
@@ -161,6 +167,7 @@ export async function generatePlanForHousehold(
   const week = generateWeek(recipes, hh.profile, swipes, {
     excludeRecipeIds,
     dayTypes,
+    penalties,
   })
 
   const weekStart = targetWeekStart ?? mondayOf(new Date())

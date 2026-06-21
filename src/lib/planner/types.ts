@@ -87,6 +87,56 @@ export interface PlannedWeek {
   days: Array<PlannedDay>
 }
 
+/**
+ * Soft penalties layered on top of the preference ranking, all optional. These
+ * are how learned memory + week history reach the planner WITHOUT becoming hard
+ * filters: a penalty is subtracted from a recipe's soft score, so it only ever
+ * reshuffles recipes the recommender already rated close together (the per-slot
+ * rank gap of 1 dwarfs any single penalty). This is what makes "not pizza every
+ * week" eat pizza LESS OFTEN instead of banning it — the week never empties.
+ *
+ * All maps are keyed lowercased. An empty/absent `SoftPenalties` leaves ranking
+ * byte-for-byte unchanged, so the frozen benchmark fixture is untouched.
+ */
+export interface SoftPenalties {
+  /** Cuisine (lowercased) -> amount subtracted from a matching recipe's score. */
+  cuisine?: Record<string, number>
+  /**
+   * Ingredient/food term (lowercased) -> penalty, matched as a substring against
+   * the recipe's title + ingredient names (so "pizza" hits a pizza recipe even
+   * when its `cuisine` column is empty).
+   */
+  term?: Record<string, number>
+  /** Recipe id -> penalty (e.g. this exact dish was served very recently). */
+  recipe?: Record<string, number>
+}
+
+/**
+ * The total soft penalty for one recipe: the cuisine penalty (if its cuisine is
+ * penalised) plus every term penalty whose token appears in the recipe's title
+ * or ingredients, plus any per-recipe penalty. Pure + deterministic. Returns 0
+ * when `penalties` is empty, so the default planner path is unaffected.
+ */
+export function penaltyFor(
+  recipe: PlannerRecipe,
+  penalties: SoftPenalties | undefined,
+): number {
+  if (!penalties) return 0
+  let p = 0
+  const cuisine = recipe.cuisine ? recipe.cuisine.toLowerCase().trim() : null
+  if (cuisine && penalties.cuisine) p += penalties.cuisine[cuisine] ?? 0
+  if (penalties.recipe) p += penalties.recipe[recipe.id] ?? 0
+  if (penalties.term) {
+    const hay = `${recipe.title} ${recipe.ingredients
+      .map((i) => i.name)
+      .join(' ')}`.toLowerCase()
+    for (const [term, weight] of Object.entries(penalties.term)) {
+      if (term && hay.includes(term)) p += weight
+    }
+  }
+  return p
+}
+
 /** Knobs for the planner, all optional with sensible defaults. */
 export interface PlanOptions {
   /** How many days to fill. Defaults to 7. */
@@ -114,6 +164,12 @@ export interface PlanOptions {
    * sparse override (e.g. "skip Friday, leave the rest to the profile") works.
    */
   dayTypes?: Array<DayType | undefined>
+  /**
+   * Soft penalties from learned memory + recent week history (variety / "not X
+   * every week", recently-served dishes). Subtracted from the soft score in
+   * `rankRecipes`. Empty/absent leaves ranking unchanged (benchmark-safe).
+   */
+  penalties?: SoftPenalties
   /**
    * Recipe ids to keep OUT of the ranked pool entirely (#week-nav variety). Used
    * when generating a FUTURE week to exclude last week's dinners, so next week

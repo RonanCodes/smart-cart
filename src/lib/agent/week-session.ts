@@ -7,6 +7,7 @@ import type {
   PlannerProfile,
   PlannerRecipe,
   PlannerSwipe,
+  SoftPenalties,
 } from '../planner/types'
 import type { TermMatcher } from '../replan/types'
 
@@ -69,6 +70,12 @@ export interface WeekSessionInit {
   /** Optional planner seed so a replan is deterministic in tests. */
   seed?: number
   /**
+   * Soft penalties from learned memory + recent week history (variety / dislikes
+   * / recently-served), so a replan respects the same memory the first week does.
+   * Absent/empty leaves ranking unchanged. Threaded into every re-rank below.
+   */
+  penalties?: SoftPenalties
+  /**
    * Builds a semantic term matcher on demand (exclude / lean-more). Absent when
    * no embedding key is wired, in which case the term-driven tools decline
    * cleanly rather than fall back to substring matching.
@@ -97,11 +104,13 @@ function rankedPool(
   profile: PlannerProfile,
   swipes: Array<PlannerSwipe>,
   seed?: number,
+  penalties?: SoftPenalties,
 ): Array<PlannerRecipe> {
   const byRef = new Map(recipes.map((r) => [r.id, r]))
   const longWeek = generateWeek(recipes, profile, swipes, {
     days: recipes.length,
     seed,
+    penalties,
   })
   return longWeek.days
     .map((d) => byRef.get(d.recipeRef))
@@ -204,6 +213,7 @@ export class WeekSession {
   private readonly profile: PlannerProfile
   private readonly swipes: Array<PlannerSwipe>
   private readonly seed?: number
+  private readonly penalties?: SoftPenalties
   private readonly buildMatcher?: TermMatcherFactory
   private readonly initialRefs: string
   /** Matchers accumulated by exclude — sticky for the rest of the session. */
@@ -215,6 +225,7 @@ export class WeekSession {
     this.profile = init.profile
     this.swipes = init.swipes
     this.seed = init.seed
+    this.penalties = init.penalties
     this.buildMatcher = init.buildMatcher
     this.initialRefs = this.refKey()
   }
@@ -252,6 +263,7 @@ export class WeekSession {
       this.profile,
       this.swipes,
       this.seed,
+      this.penalties,
     )
   }
 
@@ -326,7 +338,13 @@ export class WeekSession {
     }
     this.excludedMatchers.push(matches)
     const filtered = this.eligibleRecipes()
-    const pool = rankedPool(filtered, this.profile, this.swipes, this.seed)
+    const pool = rankedPool(
+      filtered,
+      this.profile,
+      this.swipes,
+      this.seed,
+      this.penalties,
+    )
     const map = this.byRef()
     const affected = new Set(
       this.week.days
@@ -380,6 +398,7 @@ export class WeekSession {
       this.swipes,
       {
         seed: this.seed,
+        penalties: this.penalties,
       },
     )
     const matchingPool = ranked.filter((r) => matches(r))
@@ -512,6 +531,7 @@ export class WeekSession {
         seed: this.seed,
         days: this.week.days.length || 7,
         dayTypes: dayTypes.map((t) => t ?? 'home'),
+        penalties: this.penalties,
       },
     )
     // Keep the session's own day labels (the planner uses Monday-first labels,

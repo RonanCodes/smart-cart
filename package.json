@@ -27,9 +27,11 @@
     "embed:catalogue": "tsx scripts/embed-catalogue.ts",
     "reseed:d1": "tsx scripts/reseed-d1.ts",
     "seed:recipes": "tsx scripts/seed-recipes.ts",
+    "sync:stickers": "node scripts/sync-recipe-stickers.mjs",
     "cf-typegen": "wrangler types",
     "eval": "tsx scripts/eval.ts",
     "eval:replan-agent": "braintrust eval evals/replan-agent.eval.ts",
+    "eval:memory-classifier": "braintrust eval evals/memory-classifier.eval.ts",
     "quality": "pnpm run format && pnpm run lint && pnpm run typecheck && pnpm run build && pnpm run test",
     "prepare": "husky"
   },

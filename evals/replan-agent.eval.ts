@@ -6,6 +6,7 @@
  *
  * @see https://www.braintrust.dev/docs/best-practices/agents
  */
+import './load-dev-vars'
 import { Eval } from 'braintrust'
 import { replanDataset } from '../src/lib/agent/eval/dataset'
 import { runReplanEvalTask } from '../src/lib/agent/eval/run-task'

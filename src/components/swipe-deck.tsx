@@ -33,12 +33,16 @@ export function SwipeDeck({
       <div className="relative flex-1">
         {card ? (
           <div className="bg-card border-border overflow-hidden rounded-[var(--radius-ios)] border shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_-12px_rgba(0,0,0,0.12)]">
-            <div className="bg-secondary aspect-[4/3] w-full">
+            <div className="bg-secondary flex aspect-[4/3] w-full items-center justify-center">
               {card.imageUrl ? (
                 <img
                   src={card.imageUrl}
                   alt={card.title}
-                  className="h-full w-full object-cover"
+                  className={
+                    card.imageUrl.includes('/stickers/recipes/')
+                      ? 'souso-sticker max-h-[85%] max-w-[85%] object-contain'
+                      : 'h-full w-full object-cover'
+                  }
                 />
               ) : (
                 <div className="text-muted-foreground flex h-full items-center justify-center">

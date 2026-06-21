@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import type { DayAlternative } from './week-server'
 import { pickTitle } from './recipe-locale'
+import { recipeImageUrl } from './recipe-sticker'
 
 export interface AddMealAlternativesRequest {
   /** The plan id to add a meal into (the current week). */
@@ -113,8 +114,11 @@ export const addMealAlternatives = createServerFn({ method: 'GET' })
     const imageById = new Map(
       catalogueRows.map((r) => [
         r.id,
-        ((r.raw as { imageUrl?: string | null } | null) ?? null)?.imageUrl ??
-          null,
+        recipeImageUrl(
+          r.id,
+          ((r.raw as { imageUrl?: string | null } | null) ?? null)?.imageUrl ??
+            null,
+        ),
       ]),
     )
 

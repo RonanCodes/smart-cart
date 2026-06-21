@@ -6,8 +6,11 @@
  * (also from call metadata, not tool args). Unknown or not-yet-wired tools return
  * an honest string rather than failing the call.
  *
- * Server-only collaborators are dynamically imported so none of them (nor the D1
- * binding) leaks into the client bundle (the planner-server pattern).
+ * The memory + replan tools are the SHARED agent surface (src/lib/agent/tools.ts),
+ * so the voice assistant and the chat agent behave identically: same names, same
+ * schemas, same handlers. The voice path stamps `source: 'voice'` on any memory
+ * it writes. Server-only collaborators are dynamically imported so none of them
+ * (nor the D1 binding) leaks into the client bundle (the planner-server pattern).
  */
 export async function dispatchVapiTool(
   name: string,
@@ -18,6 +21,56 @@ export async function dispatchVapiTool(
   switch (name) {
     case 'ping':
       return 'pong'
+
+    // Memory: ground the assistant before it acts, and let it keep durable facts.
+    // `recall_memory` returns what we remember + this/last week + recent feedback;
+    // `remember` stores a fact, keeping nuance like "not pizza every week" as a
+    // variety wish (not a dislike). Voice stamps `source: 'voice'` on writes.
+    case 'recall_memory': {
+      const { buildMemoryContext } = await import('./memory/memory-server')
+      const { text } = await buildMemoryContext(householdId)
+      return text
+    }
+
+    case 'remember': {
+      const content =
+        typeof args.content === 'string' ? args.content.trim() : ''
+      const kind = typeof args.kind === 'string' ? args.kind : ''
+      const validKinds = [
+        'preference',
+        'constraint',
+        'variety',
+        'context',
+        'logistics',
+      ]
+      if (!content || !validKinds.includes(kind)) {
+        return "I didn't catch what to remember — say it once more?"
+      }
+      const { rememberFact } = await import('./memory/memory-server')
+      const m = await rememberFact(householdId, {
+        content,
+        source: 'voice',
+        kind: kind as
+          | 'preference'
+          | 'constraint'
+          | 'variety'
+          | 'context'
+          | 'logistics',
+        cuisine: typeof args.cuisine === 'string' ? args.cuisine : null,
+        term: typeof args.term === 'string' ? args.term : null,
+        polarity:
+          args.polarity === 'like' ||
+          args.polarity === 'dislike' ||
+          args.polarity === 'neutral'
+            ? args.polarity
+            : undefined,
+        scope:
+          args.scope === 'week' || args.scope === 'persistent'
+            ? args.scope
+            : undefined,
+      })
+      return `Got it — I'll remember that: "${m.content}".`
+    }
 
     case 'get_week': {
       const { loadVoiceReplanContext } =
@@ -32,6 +85,7 @@ export async function dispatchVapiTool(
         recipes: ctx.recipes,
         profile: ctx.profile,
         swipes: ctx.swipes,
+        penalties: ctx.penalties,
       })
       return session.describe()
     }

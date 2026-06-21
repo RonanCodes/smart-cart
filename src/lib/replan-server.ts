@@ -56,6 +56,7 @@ export const replanWeek = createServerFn({ method: 'POST' })
       recipes: ctx.recipes,
       profile: ctx.profile,
       swipes: ctx.swipes,
+      penalties: ctx.penalties,
     })
 
     const edit =
