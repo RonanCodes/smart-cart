@@ -1,5 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+/** Shallow key list of an object, for diagnosing the VAPI payload shape. */
+function keysOf(v: unknown): string[] {
+  return v && typeof v === 'object' ? Object.keys(v) : []
+}
+
+/** Read a property off an unknown value without tripping no-unnecessary-condition. */
+function prop(v: unknown, key: string): unknown {
+  return v && typeof v === 'object'
+    ? (v as Record<string, unknown>)[key]
+    : undefined
+}
+
 /**
  * POST /api/vapi/tool, the VAPI custom-tool webhook.
  *
@@ -47,7 +59,8 @@ export const Route = createFileRoute('/api/vapi/tool')({
           // 2. Derive identity from the verified token only.
           const { verifyVapiToken } =
             await import('../../../lib/vapi-verify-server')
-          const claims = await verifyVapiToken(extractCallToken(body))
+          const rawToken = extractCallToken(body)
+          const claims = await verifyVapiToken(rawToken)
 
           // 3. Dispatch each tool call. One try/catch per call so a single
           //    failure can never throw the whole webhook (always 200).
@@ -58,6 +71,14 @@ export const Route = createFileRoute('/api/vapi/tool')({
           log.info('vapi.tool_call', {
             tools: calls.map((c) => c.name),
             identified: Boolean(claims),
+            tokenPresent: Boolean(rawToken),
+            // Top-level keys of the payload + the call object, so we can confirm
+            // exactly where VAPI puts the echoed metadata (diagnosis).
+            bodyKeys: keysOf(body),
+            messageKeys: keysOf(prop(body, 'message')),
+            callKeys: keysOf(
+              prop(prop(body, 'message'), 'call') ?? prop(body, 'call'),
+            ),
           })
           const results = await Promise.all(
             calls.map(async (c) => {
