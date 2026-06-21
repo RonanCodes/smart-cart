@@ -51,12 +51,23 @@ const BENEFITS: Array<Benefit> = [
   },
 ]
 
+/**
+ * Below this, the social-proof line stays hidden. Kept at 1 so the count shows
+ * as soon as there is a real signed-up user (it only hides at 0, where "0 home
+ * cooks" would read worse than no line at all).
+ */
+const SOCIAL_PROOF_MIN = 1
+
 export function Landing({
   launched = false,
+  userCount = 0,
   signInTo = '/sign-in',
   loginTo = '/login',
 }: {
   launched?: boolean
+  /** Total registered users, from the public getUserCount server fn. Drives the
+   * social-proof line; hidden below SOCIAL_PROOF_MIN. */
+  userCount?: number
   /** Where the "Get started" CTA points. Overridden by the design prototype so
    * the walkthrough stays inside /design/* instead of jumping to real auth. */
   signInTo?: string
@@ -126,6 +137,11 @@ export function Landing({
             Souso plans your whole week of dinners and fills a ready-to-order
             basket. Save time, spend less, waste less food.
           </p>
+          {userCount >= SOCIAL_PROOF_MIN && (
+            <p className="text-primary mt-4 text-sm font-semibold">
+              {userCount.toLocaleString('en')} home cooks planning with Souso
+            </p>
+          )}
         </section>
 
         {/* Primary CTA: once live, a "get started" button into sign-in; before

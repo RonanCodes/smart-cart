@@ -23,12 +23,14 @@ import type { ShoppingItem } from '#/lib/shopping'
  * owned as local state seeded from the loader, then kept in sync from each
  * server-fn response (no full-page reload), exactly like StaplesSection.
  *
- * Per row the household can:
- *  - tick it off (a tap on the round checkbox),
+ * The checkbox is an INCLUSION model (matches the design prototype): a CHECKED
+ * row is IN the order, so the order / price / cart are built from the checked
+ * set. Per row the household can:
+ *  - select it into the order (a tap on the round checkbox),
  *  - rename it (tap the name, edit inline, blur / Enter to save),
  *  - re-amount it (tap the amount, edit inline),
  *  - remove it (the trash button).
- * Plus add a fresh manual item at the bottom and tick / untick the whole list.
+ * Plus add a fresh manual item at the bottom and select all / clear the list.
  *
  * Mobile-first (390px), iOS card styling consistent with the rest of the app.
  */
@@ -48,9 +50,9 @@ export function EditableShoppingList({
   /**
    * Fired whenever the items change (tick, edit, add, remove, clear). The route
    * lifts this up so the price comparison + the single cart action recompute
-   * from the live UNCHECKED set as the user ticks rows off (#311), with no full
-   * reload. The list still owns its own server round-trips; this is a read-only
-   * mirror for the siblings below it.
+   * from the live SELECTED (in-order) set as the user ticks rows in (#311), with
+   * no full reload. The list still owns its own server round-trips; this is a
+   * read-only mirror for the siblings below it.
    */
   onItemsChange?: (items: Array<ShoppingItem>) => void
   /**
@@ -80,14 +82,16 @@ export function EditableShoppingList({
   /** A failed bulk action (clear / check-all) , shown instead of failing silently. */
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const remaining = items.filter((i) => !i.checked).length
-  const allChecked = items.length > 0 && remaining === 0
-  // Still-to-buy first, ticked-off collapsed beneath. Order within each group is
-  // preserved (the loader returns oldest-first). The still-to-buy rows are then
-  // grouped into aisle sections for the airy hairline layout (#cart-align).
-  const unchecked = items.filter((i) => !i.checked)
-  const checked = items.filter((i) => i.checked)
-  const uncheckedGroups = groupByCategory(unchecked, (i) => i.name)
+  const selectedCount = items.filter((i) => i.checked).length
+  const allChecked = items.length > 0 && selectedCount === items.length
+  // Inclusion model: the SELECTED (checked, in-order) rows are the active set, so
+  // they lead in the airy hairline aisle groups; the unselected rows collapse
+  // dimmed beneath. Order within each group is preserved (the loader returns
+  // oldest-first). The selected rows are grouped into aisle sections for the
+  // layout (#cart-align).
+  const selected = items.filter((i) => i.checked)
+  const unselected = items.filter((i) => !i.checked)
+  const selectedGroups = groupByCategory(selected, (i) => i.name)
 
   async function toggle(item: ShoppingItem) {
     setBusyId(item.id)
@@ -211,7 +215,7 @@ export function EditableShoppingList({
             Your list
           </h2>
           {items.length > 0 && (
-            <Badge variant="primary">{remaining} left</Badge>
+            <Badge variant="primary">{selectedCount} selected</Badge>
           )}
         </div>
         {items.length > 0 && (
@@ -222,7 +226,7 @@ export function EditableShoppingList({
               disabled={busyId === '__all__'}
               onClick={toggleAll}
             >
-              {allChecked ? 'Uncheck all' : 'Check all'}
+              {allChecked ? 'Clear' : 'Select all'}
             </Button>
             <Button
               variant="ghost"
@@ -251,9 +255,9 @@ export function EditableShoppingList({
       {/* Airy hairline GROUPS by aisle (Produce, Dairy & cheese, ...), derived
           from the real item names (#cart-align). Each group is a quiet uppercase
           heading over hairline-separated rows: die-cut sticker, name + amount,
-          per-store price, checkbox. Still-to-buy first; ticked-off collapsed
-          beneath. Grouping preserves order within each aisle. */}
-      {uncheckedGroups.map((group) => (
+          per-store price, checkbox. SELECTED (in-order) first; unselected
+          collapsed beneath. Grouping preserves order within each aisle. */}
+      {selectedGroups.map((group) => (
         <section key={group.category} className="mb-4">
           <h3 className="text-muted-foreground mb-1 px-1 text-[0.7rem] font-bold tracking-[0.16em] uppercase">
             {group.category}
@@ -275,13 +279,13 @@ export function EditableShoppingList({
         </section>
       ))}
 
-      {checked.length > 0 && (
+      {unselected.length > 0 && (
         <div className="space-y-1">
           <p className="text-muted-foreground/80 px-1 text-xs font-medium">
-            In the trolley ({checked.length})
+            Not in your order ({unselected.length})
           </p>
           <div className="opacity-70">
-            {checked.map((item) => (
+            {unselected.map((item) => (
               <ItemRow
                 key={item.id}
                 item={item}
@@ -342,8 +346,9 @@ export function EditableShoppingList({
 /**
  * One editable hairline row (#cart-align): die-cut sticker, inline-editable name
  * + amount, the selected store's per-item price, and the round tick box. Name +
- * amount still edit inline; the round box ticks it off; the trash button
- * removes it. A bottom hairline (last:border-b-0) gives the airy grouped look.
+ * amount still edit inline; the round box selects it INTO the order (checked =
+ * in your order, filled + active); the trash button removes it. A bottom hairline
+ * (last:border-b-0) gives the airy grouped look.
  */
 function ItemRow({
   item,
@@ -369,7 +374,7 @@ function ItemRow({
       {/* Cut-out product sticker (or a neutral tile when we have no match). */}
       <div
         className={`bg-secondary flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-          item.checked ? 'opacity-50' : ''
+          item.checked ? '' : 'opacity-50'
         }`}
       >
         {sticker ? (
@@ -396,8 +401,8 @@ function ItemRow({
           onSave={onSaveName}
           className={
             item.checked
-              ? 'text-muted-foreground text-[0.95rem] font-semibold line-through'
-              : 'text-[0.95rem] font-semibold'
+              ? 'text-[0.95rem] font-semibold'
+              : 'text-muted-foreground text-[0.95rem] font-semibold'
           }
         />
         <InlineEdit
@@ -421,7 +426,7 @@ function ItemRow({
       {price !== undefined && (
         <span
           className={`shrink-0 text-sm font-bold tabular-nums ${
-            item.checked ? 'text-muted-foreground' : 'text-foreground'
+            item.checked ? 'text-foreground' : 'text-muted-foreground'
           }`}
         >
           {formatCents(price)}
@@ -432,7 +437,11 @@ function ItemRow({
         type="button"
         role="checkbox"
         aria-checked={item.checked}
-        aria-label={`Tick off ${item.name}`}
+        aria-label={
+          item.checked
+            ? `Remove ${item.name} from your order`
+            : `Add ${item.name} to your order`
+        }
         disabled={busy}
         onClick={onToggle}
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition active:scale-90 ${

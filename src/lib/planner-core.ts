@@ -1,4 +1,5 @@
 import type { GeneratePlanResult } from './planner-server'
+import type { SoftPenalties } from './planner/types'
 
 /**
  * Server-only plan-generation core. This module is NEVER statically imported by
@@ -128,8 +129,25 @@ export async function generatePlanForHousehold(
   // Memory-derived soft penalties (variety / dislikes / recently-served) on top
   // of the folded swipes, so learned preferences ("not pizza every week") shape
   // the new week. Empty for a household with no memory -> ranking unchanged.
+  //
+  // The memory layer is a SOFT enhancement, never a hard dependency: if its
+  // query fails (a missing/locked table, a transient D1 error) we plan WITHOUT
+  // penalties rather than failing the whole week build. A signed-up user must
+  // always get a week — degrading the ranking is fine, blocking onboarding is
+  // not. Warn so the failure is still visible in the logs.
   const { loadPlannerPenalties } = await import('./memory/memory-server')
-  const penalties = await loadPlannerPenalties(hh.id)
+  let penalties: SoftPenalties = {}
+  try {
+    penalties = await loadPlannerPenalties(hh.id)
+  } catch (err) {
+    console.warn(
+      '[planner] memory penalties unavailable, planning without them',
+      {
+        householdId: hh.id,
+        message: err instanceof Error ? err.message : String(err),
+      },
+    )
+  }
 
   // Smarter future-week generation (#week-nav). Look at the household's recent
   // plans (newest first). With NO prior plan this stays empty -> both knobs are

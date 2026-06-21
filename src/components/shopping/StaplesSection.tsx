@@ -40,24 +40,27 @@ export function StaplesSection({
    */
   onStaplesChange?: (staples: Array<StapleLine>) => void
   /**
-   * Fired whenever the set of ticked-off ("already have") extra ids changes. A
-   * ticked extra drops out of every store's basket AND out of the cart, exactly
-   * like a ticked recipe line (#311). Optional for the same reason.
+   * Fired whenever the set of SELECTED (in-order) extra ids changes. A selected
+   * extra is included in every store's basket AND in the cart, exactly like a
+   * checked recipe line (#311). Optional for the same reason.
    */
-  onCheckedChange?: (checkedIds: Set<string>) => void
+  onCheckedChange?: (selectedIds: Set<string>) => void
 }) {
   const [staples, setStaples] = useState<Array<StapleLine>>(initialStaples)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Array<StapleSearchResult>>([])
   const [searching, setSearching] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
-  // Client-only "already have" ticks for the extras. Staples have no persisted
-  // checked column, so this lives in the page session: ticking one excludes it
-  // from the comparison + the cart, unticking adds it back (#311).
-  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+  // Client-only "in my order" selection for the extras. Staples have no
+  // persisted checked column, so this lives in the page session: selecting one
+  // includes it in the comparison + the cart, unselecting drops it (#311). A
+  // freshly added staple starts selected (in the order) by default.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(initialStaples.map((s) => s.id)),
+  )
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Mirror staples + checked extras up to the route (#311), once per committed
+  // Mirror staples + selected extras up to the route (#311), once per committed
   // render including mount, so the siblings below start in sync.
   const onStaplesChangeRef = useRef(onStaplesChange)
   onStaplesChangeRef.current = onStaplesChange
@@ -68,11 +71,11 @@ export function StaplesSection({
   const onCheckedChangeRef = useRef(onCheckedChange)
   onCheckedChangeRef.current = onCheckedChange
   useEffect(() => {
-    onCheckedChangeRef.current?.(checkedIds)
-  }, [checkedIds])
+    onCheckedChangeRef.current?.(selectedIds)
+  }, [selectedIds])
 
-  function toggleChecked(id: string) {
-    setCheckedIds((prev) => {
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -118,8 +121,17 @@ export function StaplesSection({
   async function add(result: StapleSearchResult) {
     setBusyKey(result.productKey)
     try {
+      const prevIds = new Set(staples.map((s) => s.id))
       const { staples: next } = await addStaple({ data: result })
       setStaples(next)
+      // A freshly added staple lands IN the order by default (#311 inclusion
+      // model), so select every id the server returned that we did not already
+      // have.
+      setSelectedIds((prev) => {
+        const merged = new Set(prev)
+        for (const s of next) if (!prevIds.has(s.id)) merged.add(s.id)
+        return merged
+      })
       clearSearch()
     } catch {
       // Swallow; the list simply does not change. A toast layer can hook in later.
@@ -133,9 +145,9 @@ export function StaplesSection({
     try {
       const { staples: next } = await removeStaple({ data: { id } })
       setStaples(next)
-      // Drop the removed extra from the checked set so a stale id can never keep
-      // excluding a row that no longer exists.
-      setCheckedIds((prev) => {
+      // Drop the removed extra from the selected set so a stale id can never keep
+      // a row that no longer exists in the order.
+      setSelectedIds((prev) => {
         if (!prev.has(id)) return prev
         const nextSet = new Set(prev)
         nextSet.delete(id)
@@ -299,24 +311,28 @@ export function StaplesSection({
           </div>
           <div className="bg-card border-border divide-border divide-y overflow-hidden rounded-[var(--radius-ios)] border">
             {staples.map((s) => {
-              const checked = checkedIds.has(s.id)
+              const selected = selectedIds.has(s.id)
               return (
                 <div key={s.id} className="flex items-center gap-3 px-4 py-3">
-                  {/* Tick = "already have it": drops the extra from the basket +
-                      the cart, like a recipe line (#311). */}
+                  {/* Tick = "in my order": includes the extra in the basket +
+                      the cart, like a checked recipe line (#311). */}
                   <button
                     type="button"
                     role="checkbox"
-                    aria-checked={checked}
-                    aria-label={`Tick off ${s.name}`}
-                    onClick={() => toggleChecked(s.id)}
+                    aria-checked={selected}
+                    aria-label={
+                      selected
+                        ? `Remove ${s.name} from your order`
+                        : `Add ${s.name} to your order`
+                    }
+                    onClick={() => toggleSelected(s.id)}
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
-                      checked
+                      selected
                         ? 'bg-primary border-primary text-primary-foreground'
                         : 'border-border bg-transparent'
                     }`}
                   >
-                    {checked && <Check className="h-4 w-4" aria-hidden />}
+                    {selected && <Check className="h-4 w-4" aria-hidden />}
                   </button>
                   <StoreBadge
                     store={s.store}
@@ -326,7 +342,7 @@ export function StaplesSection({
                   <div className="min-w-0 flex-1">
                     <p
                       className={`truncate font-medium ${
-                        checked ? 'text-muted-foreground line-through' : ''
+                        selected ? '' : 'text-muted-foreground'
                       }`}
                     >
                       {s.name}
@@ -338,7 +354,7 @@ export function StaplesSection({
                   {s.priceLabel && (
                     <span
                       className={`shrink-0 text-sm font-semibold tabular-nums ${
-                        checked ? 'text-muted-foreground' : 'text-foreground'
+                        selected ? 'text-foreground' : 'text-muted-foreground'
                       }`}
                     >
                       {s.priceLabel}

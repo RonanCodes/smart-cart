@@ -2,13 +2,15 @@
  * Pure helpers for the LIVE shopping set the Shopping tab feeds into the price
  * comparison and the single "Send to <store>" cart action (#311).
  *
- * Ronan's shopping-tab model: a CHECKED item means "I already have this", so it
- * must drop out of every store's basket (price + waste) AND out of the cart the
- * single bottom button sends. This applies to BOTH the recipe / manual items
- * (the editable list) and the "also on my list" extras (the staples). The route
- * owns the items, the staples, and their checked state, then derives the live
- * UNCHECKED set here and hands it to PriceComparison + CartLinks, so ticking a
- * box recomputes the comparison and shrinks the cart with no page reload.
+ * The shopping-tab model is INCLUSION (matches the design prototype): a CHECKED
+ * item means "IN my order", so the order / compare set is the CHECKED items, and
+ * unticking a row drops it from every store's basket (price + waste) AND out of
+ * the cart the single bottom button sends. This applies to BOTH the recipe /
+ * manual items (the editable list) and the "also on my list" extras (the
+ * staples). The route owns the items, the staples, and their selected state,
+ * then derives the live SELECTED set here and hands it to PriceComparison +
+ * CartLinks, so ticking a box recomputes the comparison and grows the cart with
+ * no page reload.
  *
  * Everything here is PURE: no DB, no I/O, no React. Unit-tested in
  * cart-set.test.ts.
@@ -24,11 +26,11 @@ export interface CompareLine {
 
 /**
  * One extra / staple on the list, with the store its saved slug belongs to. The
- * route lifts the staples up so a tick here drops the extra from the basket and
- * the cart, exactly like a recipe line.
+ * route lifts the staples up so selecting one adds the extra to the basket and
+ * the cart, exactly like a checked recipe line.
  */
 export interface CartExtra {
-  /** Stable id (the staple row id), used as the checked-state key. */
+  /** Stable id (the staple row id), used as the selected-state key. */
   id: string
   /** The product name, priced by the comparison matcher. */
   name: string
@@ -38,24 +40,24 @@ export interface CartExtra {
   slug: string | null
 }
 
-/** The live, unchecked set the comparison + cart consume. */
+/** The live, SELECTED (in-order) set the comparison + cart consume. */
 export interface LiveCartSet {
-  /** Unchecked recipe + manual + extra lines, for the price comparison. */
+  /** Selected recipe + manual + extra lines, for the price comparison. */
   compareLines: Array<CompareLine>
-  /** Unchecked recipe + manual item names, for cart name-resolution. */
+  /** Selected recipe + manual item names, for cart name-resolution. */
   itemNames: Array<string>
-  /** Unchecked extras, carrying their store + slug for direct cart resolution. */
+  /** Selected extras, carrying their store + slug for direct cart resolution. */
   staples: Array<{ slug: string | null; store: string }>
 }
 
 /**
- * Derive the live unchecked set from the list items, the extras, and the set of
- * extra ids the user has ticked off as "already have".
+ * Derive the live SELECTED (in-order) set from the list items, the extras, and
+ * the set of extra ids the user has selected (ticked) into the order.
  *
- * - Recipe / manual items carry their own `checked` flag (from the DB), so a
- *   ticked row is excluded.
- * - Extras have no persisted checked column; the route tracks ticked extra ids
- *   client-side and passes them in, so a ticked extra is excluded the same way.
+ * - Recipe / manual items carry their own `checked` flag (from the DB), where
+ *   `checked: true` means "in the order", so only checked rows are included.
+ * - Extras have no persisted checked column; the route tracks the SELECTED extra
+ *   ids client-side and passes them in, so only a selected extra is included.
  *
  * The comparison lines are recipe lines (with amounts, so pack-rounding + waste
  * work) PLUS the extras (no amount, priced as one pack each). The cart split
@@ -65,19 +67,19 @@ export interface LiveCartSet {
 export function deriveLiveCartSet(
   items: ReadonlyArray<ShoppingItem>,
   extras: ReadonlyArray<CartExtra>,
-  checkedExtraIds: ReadonlySet<string>,
+  selectedExtraIds: ReadonlySet<string>,
 ): LiveCartSet {
-  const uncheckedItems = items.filter((i) => !i.checked)
-  const uncheckedExtras = extras.filter((e) => !checkedExtraIds.has(e.id))
+  const selectedItems = items.filter((i) => i.checked)
+  const selectedExtras = extras.filter((e) => selectedExtraIds.has(e.id))
 
-  const itemNames = uncheckedItems.map((i) => i.name)
+  const itemNames = selectedItems.map((i) => i.name)
 
   const compareLines: Array<CompareLine> = [
-    ...uncheckedItems.map((i) => ({ name: i.name, amount: i.amount })),
-    ...uncheckedExtras.map((e) => ({ name: e.name, amount: null })),
+    ...selectedItems.map((i) => ({ name: i.name, amount: i.amount })),
+    ...selectedExtras.map((e) => ({ name: e.name, amount: null })),
   ]
 
-  const staples = uncheckedExtras.map((e) => ({ slug: e.slug, store: e.store }))
+  const staples = selectedExtras.map((e) => ({ slug: e.slug, store: e.store }))
 
   return { compareLines, itemNames, staples }
 }

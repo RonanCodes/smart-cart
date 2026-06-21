@@ -27,7 +27,7 @@ const SLIDES: readonly [Slide, ...Array<Slide>] = [
   {
     icon: <Search aria-hidden className="h-10 w-10" />,
     title: 'Find recipes, build the basket',
-    body: 'Souso picks dinners you will love and fills a ready-to-order basket at Albert Heijn or Jumbo.',
+    body: 'Souso picks dinners you will love and fills a ready-to-order basket at Albert Heijn.',
   },
   {
     icon: <ChefHat aria-hidden className="h-10 w-10" />,

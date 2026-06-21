@@ -697,12 +697,24 @@ async function wipeHousehold(
  * and finally the household row. The auth user/session is left intact, so the
  * person stays signed in but has no household; the route guards then send them
  * to /onboarding on next open. No-op (ok:false) if the user has no household.
+ *
+ * `wasSelf` reports whether the admin reset their OWN account, so the panel can
+ * drop them straight into /onboarding (the gate is now stale in the live router
+ * for the current session) instead of waiting for a manual reload.
  */
 export const resetUserData = createServerFn({ method: 'POST' })
   .inputValidator((d: { userId: string }) => d)
   .handler(
-    async ({ data }): Promise<{ ok: boolean; householdId: string | null }> => {
-      if (!(await adminUser())) throw new Error('forbidden')
+    async ({
+      data,
+    }): Promise<{
+      ok: boolean
+      householdId: string | null
+      wasSelf: boolean
+    }> => {
+      const viewer = await adminUser()
+      if (!viewer) throw new Error('forbidden')
+      const wasSelf = viewer.id === data.userId
       const { eq } = await import('drizzle-orm')
       const tables = await loadResetTables()
       const db = await getDbForReset()
@@ -713,9 +725,9 @@ export const resetUserData = createServerFn({ method: 'POST' })
           .where(eq(tables.household.ownerId, data.userId))
           .limit(1)
       )[0]
-      if (!hh) return { ok: false, householdId: null }
+      if (!hh) return { ok: false, householdId: null, wasSelf }
       await wipeHousehold(db, tables, hh.id)
-      return { ok: true, householdId: hh.id }
+      return { ok: true, householdId: hh.id, wasSelf }
     },
   )
 

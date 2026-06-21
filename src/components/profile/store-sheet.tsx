@@ -2,7 +2,11 @@ import * as React from 'react'
 import { Check } from 'lucide-react'
 import { Sheet } from '#/components/ui/sheet'
 import { cn } from '#/lib/utils'
-import { STORE_OPTIONS, setStore } from '#/lib/store-pref-server'
+import {
+  STORE_OPTIONS,
+  setStore,
+  isStoreSelectable,
+} from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
 
 /**
@@ -12,9 +16,11 @@ import type { StoreSlug } from '#/lib/store-pref-server'
  * brand styling, but here it PERSISTS straight away through the `setStore`
  * server fn rather than patching an in-flight draft.
  *
- * All three stores write the choice on tap and reflect immediately (the
+ * Selectable stores write the choice on tap and reflect immediately (the
  * parent's trailing value updates) (#294). A failed write rolls the optimistic
  * value back and shows a quiet note; the sheet stays open so the user can retry.
+ * Jumbo is parked as a disabled "Coming soon" row until it's tested (still
+ * shown so we can re-enable it later); tapping it does nothing.
  *
  * Mobile-first at 390px: full-width tappable rows, iOS sheet styling, calm copy.
  */
@@ -33,7 +39,7 @@ export function StoreSheet({
   const [error, setError] = React.useState(false)
 
   async function pick(slug: StoreSlug) {
-    if (slug === current) return
+    if (slug === current || !isStoreSelectable(slug)) return
     setError(false)
     setPending(slug)
     const previous = current
@@ -56,7 +62,8 @@ export function StoreSheet({
         className="flex flex-col gap-3 pt-2 pb-2"
       >
         {STORE_OPTIONS.map((option) => {
-          const selected = option.slug === current
+          const comingSoon = option.comingSoon === true
+          const selected = option.slug === current && !comingSoon
           const saving = option.slug === pending
           return (
             <button
@@ -64,7 +71,8 @@ export function StoreSheet({
               type="button"
               role="radio"
               aria-checked={selected}
-              disabled={pending !== null}
+              aria-disabled={comingSoon}
+              disabled={pending !== null || comingSoon}
               onClick={() => void pick(option.slug)}
               className={cn(
                 'flex items-center gap-4 rounded-[var(--radius-ios)] border p-4 text-left transition active:scale-[0.98]',
@@ -72,6 +80,7 @@ export function StoreSheet({
                   ? 'border-primary bg-primary/5'
                   : 'border-border bg-card',
                 pending !== null && !saving && 'opacity-70',
+                comingSoon && 'cursor-not-allowed opacity-50 active:scale-100',
               )}
             >
               {option.iconSrc ? (
@@ -97,7 +106,11 @@ export function StoreSheet({
                   {option.name}
                 </span>
               </span>
-              {saving ? (
+              {comingSoon ? (
+                <span className="bg-secondary text-muted-foreground shrink-0 rounded-full px-2.5 py-1 text-[0.7rem] font-semibold">
+                  Coming soon
+                </span>
+              ) : saving ? (
                 <span className="text-muted-foreground shrink-0 text-xs">
                   Saving…
                 </span>

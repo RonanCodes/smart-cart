@@ -41,6 +41,7 @@ import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminMatchingRouteImport } from './routes/admin/matching'
 import { Route as AdminLaunchRouteImport } from './routes/admin/launch'
 import { Route as AdminFeedbackRouteImport } from './routes/admin/feedback'
+import { Route as AdminEmailRouteImport } from './routes/admin/email'
 import { Route as AdminDesignSystemRouteImport } from './routes/admin/design-system'
 import { Route as AdminDataModeRouteImport } from './routes/admin/data-mode'
 import { Route as AdminBenchmarkRouteImport } from './routes/admin/benchmark'
@@ -213,6 +214,11 @@ const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
   path: '/feedback',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminEmailRoute = AdminEmailRouteImport.update({
+  id: '/email',
+  path: '/email',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminDesignSystemRoute = AdminDesignSystemRouteImport.update({
   id: '/design-system',
   path: '/design-system',
@@ -291,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/data-mode': typeof AdminDataModeRoute
   '/admin/design-system': typeof AdminDesignSystemRoute
+  '/admin/email': typeof AdminEmailRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
@@ -335,6 +342,7 @@ export interface FileRoutesByTo {
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/data-mode': typeof AdminDataModeRoute
   '/admin/design-system': typeof AdminDesignSystemRoute
+  '/admin/email': typeof AdminEmailRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
@@ -382,6 +390,7 @@ export interface FileRoutesById {
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/data-mode': typeof AdminDataModeRoute
   '/admin/design-system': typeof AdminDesignSystemRoute
+  '/admin/email': typeof AdminEmailRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
@@ -429,6 +438,7 @@ export interface FileRouteTypes {
     | '/admin/benchmark'
     | '/admin/data-mode'
     | '/admin/design-system'
+    | '/admin/email'
     | '/admin/feedback'
     | '/admin/launch'
     | '/admin/matching'
@@ -473,6 +483,7 @@ export interface FileRouteTypes {
     | '/admin/benchmark'
     | '/admin/data-mode'
     | '/admin/design-system'
+    | '/admin/email'
     | '/admin/feedback'
     | '/admin/launch'
     | '/admin/matching'
@@ -519,6 +530,7 @@ export interface FileRouteTypes {
     | '/admin/benchmark'
     | '/admin/data-mode'
     | '/admin/design-system'
+    | '/admin/email'
     | '/admin/feedback'
     | '/admin/launch'
     | '/admin/matching'
@@ -806,6 +818,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFeedbackRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/email': {
+      id: '/admin/email'
+      path: '/email'
+      fullPath: '/admin/email'
+      preLoaderRoute: typeof AdminEmailRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/design-system': {
       id: '/admin/design-system'
       path: '/design-system'
@@ -897,6 +916,7 @@ interface AdminRouteRouteChildren {
   AdminBenchmarkRoute: typeof AdminBenchmarkRoute
   AdminDataModeRoute: typeof AdminDataModeRoute
   AdminDesignSystemRoute: typeof AdminDesignSystemRoute
+  AdminEmailRoute: typeof AdminEmailRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminLaunchRoute: typeof AdminLaunchRoute
   AdminMatchingRoute: typeof AdminMatchingRoute
@@ -912,6 +932,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBenchmarkRoute: AdminBenchmarkRoute,
   AdminDataModeRoute: AdminDataModeRoute,
   AdminDesignSystemRoute: AdminDesignSystemRoute,
+  AdminEmailRoute: AdminEmailRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
   AdminLaunchRoute: AdminLaunchRoute,
   AdminMatchingRoute: AdminMatchingRoute,

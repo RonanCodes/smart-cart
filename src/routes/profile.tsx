@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ComponentType } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { requireUserBeforeLoad } from '#/lib/route-guards'
 import {
   User,
   LogOut,
@@ -76,6 +77,11 @@ async function loadProfileData(): Promise<ProfileData> {
 }
 
 export const Route = createFileRoute('/profile')({
+  // Gate signed-out visitors server-side (auth-guards canon): redirect to
+  // sign-in in beforeLoad rather than rendering a client-side "sign in" empty
+  // state. The loader fns are already safe (they return null / throw for
+  // signed-out callers), so this is consistency + a clean redirect.
+  beforeLoad: requireUserBeforeLoad,
   // Server-decide admin status so the 'Admin console' row only renders for true
   // admins, read the current preferred store so its row shows the real value,
   // and read the taste summary for the 'Your taste' section (#268). ONE
@@ -437,8 +443,8 @@ function Profile() {
         <div className="text-muted-foreground space-y-4 pb-4 text-[0.95rem] leading-relaxed">
           <p>
             Souso learns how your household eats from a few swipes, plans a week
-            of dinners, and fills a ready-to-order basket at Albert Heijn or
-            Jumbo. You just check out.
+            of dinners, and fills a ready-to-order basket at Albert Heijn. You
+            just check out.
           </p>
           <p>
             Swap any meal with one tap, tell it what changed ("we're out

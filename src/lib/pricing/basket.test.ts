@@ -3,16 +3,31 @@ import { basketForStore, compareBaskets } from './basket'
 import { buildCatalogues } from './normalise'
 import type { RawStore, StoreCatalogue } from './types'
 
-/** Build a one-store catalogue from [name, priceEur, packSize] tuples. */
+/**
+ * Build a one-store catalogue from [name, priceEur, packSize] tuples. Each
+ * product gets a slug derived from its name so it is addable to the store cart
+ * (a real catalogue row always carries a slug). Pass a 4th tuple element to
+ * override the slug — `null` models a priced-but-unaddable product (#plan-cart-mismatch).
+ */
 function cat(
   slug: string,
-  products: Array<[string, number, string]>,
+  products: Array<
+    [string, number, string] | [string, number, string, string | null]
+  >,
 ): StoreCatalogue {
   const raw: Array<RawStore> = [
     {
       n: slug,
       c: slug.toUpperCase(),
-      d: products.map(([n, p, s]) => ({ n, p, s })),
+      d: products.map(([n, p, s, l]) => ({
+        n,
+        p,
+        s,
+        l:
+          l === undefined
+            ? n.toLowerCase().replace(/\s+/g, '-')
+            : (l ?? undefined),
+      })),
     },
   ]
   return buildCatalogues(raw)[slug]!
@@ -115,6 +130,29 @@ describe('basketForStore: pack rounding + waste', () => {
     expect(basket.lineItems).toHaveLength(1)
     expect(basket.unavailable).toHaveLength(1)
     expect(basket.unavailable[0]!.ingredient).toBe('saffron threads')
+  })
+
+  it('excludes a priced-but-unaddable product (no slug) from the basket total', () => {
+    // A product with no slug is priced but cannot be added to the store cart
+    // (cart-build skips no-SKU items). Pricing it would inflate the shown total
+    // above the real basket, so it must be excluded entirely (#plan-cart-mismatch).
+    const ah = cat('ah', [
+      ['Penne pasta', 1.19, '500 g'],
+      ['Saffraan', 5.0, '1 g', null],
+    ])
+    const basket = basketForStore(
+      [
+        { name: 'penne pasta', amount: '500 g' },
+        { name: 'saffraan', amount: '1 g' },
+      ],
+      ah,
+    )
+    // Only the addable (slugged) pasta is priced; the slug-less saffron is dropped.
+    expect(basket.lineItems).toHaveLength(1)
+    expect(basket.lineItems[0]!.ingredient).toBe('penne pasta')
+    expect(basket.totalCents).toBe(119)
+    // It is reported as unavailable rather than silently swallowed.
+    expect(basket.unavailable.map((u) => u.ingredient)).toContain('saffraan')
   })
 
   it('flags estimated (soft) matches so the UI can mark them', () => {

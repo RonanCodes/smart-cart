@@ -37,7 +37,6 @@ export {
   concatAmounts,
   mergeAmount,
   planMerge,
-  shouldAutoSeed,
   countMissing,
   backfillAmounts,
   addToListCta,

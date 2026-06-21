@@ -16,9 +16,11 @@ import { createServerFn } from '@tanstack/react-start'
  */
 
 /**
- * The store slugs a household can pick as its preferred store. All three are
- * selectable preferences (#294). The price-comparison cart only deep-links AH +
- * Jumbo today; building Picnic's cart is tracked separately (#293).
+ * The store slugs a household can pick as its preferred store. The slug union
+ * keeps 'jumbo' so its pricing + cart plumbing stays intact for when we turn it
+ * back on; the UI just gates it as "Coming soon" for now (see COMING_SOON_STORES
+ * + effectiveStore). The price-comparison cart only deep-links AH + Jumbo today;
+ * building Picnic's cart is tracked separately (#293).
  */
 export type StoreSlug = 'ah' | 'jumbo' | 'picnic'
 
@@ -35,6 +37,12 @@ export interface StoreOption {
    * place of the initials chip when present. Never hotlinked.
    */
   iconSrc?: string
+  /**
+   * When true the store shows as a disabled "Coming soon" option: visible in the
+   * selectors but not pickable, and never the effective cart/pricing store. Used
+   * to park Jumbo until it's tested, without ripping out its plumbing.
+   */
+  comingSoon?: boolean
 }
 
 /**
@@ -54,6 +62,9 @@ export const STORE_OPTIONS: ReadonlyArray<StoreOption> = [
     name: 'Jumbo',
     initials: 'J',
     chipClassName: 'bg-[#eab90c] text-black',
+    // Parked until Jumbo pricing + cart are tested. Shown disabled with a
+    // "Coming soon" tag; never selectable, never the effective store.
+    comingSoon: true,
   },
   {
     slug: 'picnic',
@@ -67,15 +78,45 @@ export const STORE_OPTIONS: ReadonlyArray<StoreOption> = [
 /** The store slugs we accept on a write. */
 const REAL_STORES = new Set<StoreSlug>(['ah', 'jumbo', 'picnic'])
 
+/** The default store every fallback lands on. */
+export const DEFAULT_STORE: StoreSlug = 'ah'
+
+/** Slugs that are parked as "Coming soon": valid values, but not pickable and
+ *  never the effective cart/pricing store. Derived from STORE_OPTIONS so the
+ *  flag is the single source of truth. */
+const COMING_SOON_STORES = new Set<StoreSlug>(
+  STORE_OPTIONS.filter((o) => o.comingSoon).map((o) => o.slug),
+)
+
+/** Whether a store is currently selectable (not a "Coming soon" option). */
+export function isStoreSelectable(slug: StoreSlug): boolean {
+  return !COMING_SOON_STORES.has(slug)
+}
+
 /**
  * Coerce arbitrary input to a known store slug, or null if it isn't one we
  * accept. Pure: lowercases + trims, then gates against the store set so a typo
  * / empty / unknown value never reaches the DB. Unit-tested without a DB.
+ *
+ * Note: this still accepts 'jumbo' as a VALID slug so existing data + the
+ * pricing plumbing keep working. Use effectiveStore to gate what the cart /
+ * pricing actually run against.
  */
 export function normalizeStore(input: unknown): StoreSlug | null {
   if (typeof input !== 'string') return null
   const slug = input.toLowerCase().trim()
   return REAL_STORES.has(slug as StoreSlug) ? (slug as StoreSlug) : null
+}
+
+/**
+ * The store the cart + pricing should actually run against. Coerces any parked
+ * "Coming soon" slug (Jumbo, for now) down to the default store, so an existing
+ * household whose saved preference is 'jumbo' still gets a working AH cart
+ * instead of landing on an untested store. Selectable slugs pass through
+ * untouched.
+ */
+export function effectiveStore(slug: StoreSlug): StoreSlug {
+  return COMING_SOON_STORES.has(slug) ? DEFAULT_STORE : slug
 }
 
 /** The human label for a slug, for the row's trailing value. */
@@ -103,7 +144,10 @@ export const getStore = createServerFn({ method: 'GET' }).handler(
       .from(household)
       .where(eq(household.ownerId, user.id))
       .limit(1)
-    return normalizeStore(rows[0]?.preferredStore) ?? 'ah'
+    // Coerce any parked "Coming soon" slug (e.g. a saved 'jumbo') down to the
+    // default so the cart + pricing always run against a real, tested store.
+    const saved = normalizeStore(rows[0]?.preferredStore) ?? DEFAULT_STORE
+    return effectiveStore(saved)
   },
 )
 
@@ -139,6 +183,9 @@ export const setStore = createServerFn({ method: 'POST' })
   .inputValidator((d: { store: string }) => {
     const slug = normalizeStore(d.store)
     if (!slug) throw new Error('Unknown store')
+    // A parked "Coming soon" store (e.g. Jumbo) is a valid slug but must never
+    // be persisted as a preference while it's gated in the UI.
+    if (!isStoreSelectable(slug)) throw new Error('Store not available yet')
     return { store: slug }
   })
   .handler(async ({ data }): Promise<{ store: StoreSlug }> => {

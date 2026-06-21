@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useRouter } from '@tanstack/react-router'
 import {
   ThumbsUp,
   ThumbsDown,
@@ -50,6 +51,7 @@ export function UsersPanel({
   viewerIsSuperAdmin?: boolean
 }) {
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [detail, setDetail] = useState<UserDatapoints | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   // Mobile-only: tapping a user opens the detail in a bottom sheet (there is no
@@ -97,7 +99,16 @@ export function UsersPanel({
     if (resettingId) return
     setResettingId(userId)
     try {
-      await resetUserData({ data: { userId } })
+      const res = await resetUserData({ data: { userId } })
+      // Resetting your OWN account wipes your household, but the live router's
+      // auth context still thinks you have one — so drop straight into
+      // onboarding instead of leaving you on a now-stale admin page. Invalidate
+      // first so the guard + onboarding loader re-resolve server-side.
+      if (res.wasSelf) {
+        await router.invalidate()
+        await router.navigate({ to: '/onboarding' })
+        return
+      }
       await refreshUsers()
     } catch {
       // leave the row as-is; the server rejected it.

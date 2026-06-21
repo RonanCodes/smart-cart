@@ -27,8 +27,8 @@ const CART_STORES = new Set<StoreSlug>(['ah', 'jumbo'])
  * It reads the SELECTED store (owned by the route, same selection the top switch
  * sets) and shows that store's REAL basket total from the shared price
  * comparison. Tapping resolves the chosen store's public bulk-cart deep-link for
- * the live UNCHECKED set and opens it after the tip prompt, exactly as the old
- * CartLinks did, so the order flow (incl. the tip) is unchanged.
+ * the live SELECTED (in-order) set and opens it after the tip prompt, exactly as
+ * the old CartLinks did, so the order flow (incl. the tip) is unchanged.
  *
  * Picnic is priced in the switch but can't receive a cart yet, so when it's the
  * selected store the button is disabled with an honest note.
@@ -43,9 +43,9 @@ export function FloatingOrderBar({
   store: StoreSlug
   /** The shared price comparison, for the selected store's total. */
   data: BasketComparison | null
-  /** Live UNCHECKED recipe + manual lines with amounts (#311). */
+  /** Live SELECTED (in-order) recipe + manual lines with amounts (#311). */
   compareLines: Array<CompareLine>
-  /** Live UNCHECKED extras (staples) with their store + saved slug. */
+  /** Live SELECTED (in-order) extras (staples) with their store + saved slug. */
   extras: Array<CartExtra>
 }) {
   const [link, setLink] = useState<CartLinkResult | null>(null)
@@ -169,7 +169,7 @@ export function FloatingOrderBar({
               />
               <p className="text-muted-foreground text-[11px] font-medium">
                 Picnic goes live the second they say yes. This guy&rsquo;s ready
-                when they are. Pick Albert Heijn or Jumbo to send your cart now.
+                when they are. Pick Albert Heijn to send your cart now.
               </p>
             </div>
           )}
