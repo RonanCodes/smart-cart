@@ -13,6 +13,19 @@ import {
   saveDraft,
 } from './form-state'
 import type { OnboardingDraft } from './form-state'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
+
+/** Non-PII funnel properties derived from the in-flight draft (household size +
+ * store). NO names/email — analytics stays PII-free (analytics.stripPii also
+ * defends this). */
+function draftFunnelProps(draft: OnboardingDraft) {
+  return {
+    householdSize: (draft.adults || 0) + (draft.children || 0),
+    adults: draft.adults,
+    children: draft.children,
+    store: draft.store,
+  }
+}
 
 /**
  * OnboardingFlow — the Jow-style form shell that replaces the swipe deck as the
@@ -77,6 +90,11 @@ export function OnboardingFlow({
   React.useEffect(() => {
     saveDraft(draft)
   }, [draft])
+
+  // Top of the funnel: the onboarding flow mounted. Once per mount.
+  React.useEffect(() => {
+    track(FUNNEL_EVENTS.onboardingStarted, { skipIntro, requireAuth })
+  }, [skipIntro, requireAuth])
 
   const formValue = React.useMemo(
     () => ({
@@ -157,10 +175,24 @@ export function OnboardingFlow({
   }
 
   function next() {
+    // Each completed step is a funnel rung; `step.id` names which one (household,
+    // dislikes, diet, cuisine, kitchen, goals, store, ...). `step` is guaranteed
+    // here (the early `if (!step) return null` returns before this renders), but
+    // re-read defensively for noUncheckedIndexedAccess.
+    track(FUNNEL_EVENTS.onboardingStepCompleted, {
+      step: STEPS[stepIndex]?.id,
+      stepIndex,
+      total,
+      ...draftFunnelProps(draft),
+    })
     if (isLast) {
       // A signed-out visitor goes to the email/OTP phase to create their account
       // before we persist; a signed-in redo (requireAuth=false) completes now.
       if (requireAuth) {
+        // Reached the email/OTP phase: the user has submitted the whole form and
+        // is about to give their email. The auth agent owns the OTP
+        // request/verify breadcrumbs inside EmailStep; this marks the funnel rung.
+        track(FUNNEL_EVENTS.emailSubmitted, draftFunnelProps(draft))
         setPhase('auth')
         return
       }

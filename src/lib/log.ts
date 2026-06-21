@@ -15,6 +15,8 @@
  * ("push.enable_failed"), context carries load-bearing ids (userId, householdId,
  * traceId) so a single grep reconstructs a flow.
  */
+import { getClientTraceId } from './trace'
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 export type LogContext = Record<string, unknown>
 
@@ -59,6 +61,23 @@ interface LogEntry extends LogContext {
   origin: 'server' | 'client'
 }
 
+/**
+ * The per-session client trace id (diagnose canon), attached to every client log
+ * line so the line, its `/api/log` server re-emit, the Sentry event, and the
+ * PostHog event for the same flow all carry the same `traceId`. Guarded: a
+ * missing/blocked sessionStorage just yields no traceId. Server-side the trace id
+ * arrives ON the shipped client body (`/api/log` re-emits `...body`), so we only
+ * mint one client-side. `trace.ts` is pure (no `cloudflare:workers` import) so it
+ * is safe in the client bundle.
+ */
+function withClientTrace(): { traceId?: string } {
+  try {
+    return { traceId: getClientTraceId() }
+  } catch {
+    return {}
+  }
+}
+
 function emit(level: LogLevel, event: string, context?: LogContext): void {
   const entry: LogEntry = {
     level,
@@ -68,6 +87,9 @@ function emit(level: LogLevel, event: string, context?: LogContext): void {
     // Server request user (#284): merged BEFORE per-call context so an explicit
     // userId/email passed at the call site still wins.
     ...(isServer ? serverUserContext : {}),
+    // Per-session client trace id (diagnose canon): only when not already set by
+    // the caller, so an explicit traceId still wins.
+    ...(!isServer && context?.traceId === undefined ? withClientTrace() : {}),
     ...context,
   }
   const line = JSON.stringify(entry)

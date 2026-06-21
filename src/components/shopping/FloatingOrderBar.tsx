@@ -12,6 +12,7 @@ import { TipSheet } from '#/components/shopping/TipSheet'
 import { startTip } from '#/lib/tip-server'
 import { openStoreCart, CART_CHUNK_OPEN_MS } from '#/lib/open-store-cart'
 import { log } from '#/lib/log'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
 /** Rough basket € total for the tip math fallback when we have no priced basket. */
 const EUR_PER_ITEM = 2.5
@@ -65,6 +66,8 @@ export function FloatingOrderBar({
     if (!canOrder) return
     setLoading(true)
     setError(false)
+    // Cart opened: the user tapped "Order at <store>" to build the basket link.
+    track(FUNNEL_EVENTS.cartOpened, { store, productCount })
     try {
       const live = {
         items: compareLines.map((l) => ({ name: l.name, amount: l.amount })),
@@ -85,7 +88,16 @@ export function FloatingOrderBar({
   }
 
   function openCart() {
-    if (link) openStoreCart(link)
+    if (link) {
+      openStoreCart(link)
+      // Order placed (Souso's no-auto-buy model): the store's ready-to-order
+      // basket opened. The user checks out themselves — this is the conversion.
+      track(FUNNEL_EVENTS.orderPlaced, {
+        store,
+        matched: link.matched,
+        total: link.total,
+      })
+    }
   }
 
   /**
@@ -128,6 +140,8 @@ export function FloatingOrderBar({
       })
       log.info('tip.confirmed', { percent, store, tipped: !!res.checkoutUrl })
       if (res.checkoutUrl) {
+        // Checkout started: redirecting to the Mollie tip payment.
+        track(FUNNEL_EVENTS.checkoutStarted, { store, percent })
         const checkoutUrl = res.checkoutUrl
         // Defer the redirect so every staggered chunk tab has been navigated
         // first (an immediate location change would kill the pending opens, and
