@@ -34,6 +34,10 @@ interface SeedRecipe {
   titleEn?: string | null
   ingredientsEn?: Array<Record<string, unknown>> | null
   instructionsEn?: Array<string> | null
+  /** Estimated metric amounts, parallel to `ingredients` by index (#313). */
+  ingredientsQty?: Array<Record<string, unknown>> | null
+  /** True when the amounts are LLM-estimated, not from the source (#313). */
+  quantitiesEstimated?: boolean | null
   [k: string]: unknown
 }
 
@@ -49,7 +53,7 @@ const qnull = (v: string | number | null | undefined) =>
       : q(v)
 
 const COLS =
-  'id, source, source_url, title, servings, prep_minutes, calories, protein, cuisine, meal_type, category, dietary_tags, ingredients, instructions, title_en, ingredients_en, instructions_en, raw, created_at'
+  'id, source, source_url, title, servings, prep_minutes, calories, protein, cuisine, meal_type, category, dietary_tags, ingredients, instructions, title_en, ingredients_en, instructions_en, ingredients_qty, quantities_estimated, raw, created_at'
 
 /** JSON column that should be SQL NULL when absent (not the string "null"). */
 const qjsonNull = (v: unknown) =>
@@ -74,6 +78,8 @@ function rowValues(r: SeedRecipe, now: number): string {
     qnull(r.titleEn ?? undefined),
     qjsonNull(r.ingredientsEn),
     qjsonNull(r.instructionsEn),
+    qjsonNull(r.ingredientsQty),
+    r.quantitiesEstimated ? '1' : '0',
     qjson(r),
     String(now),
   ].join(', ')

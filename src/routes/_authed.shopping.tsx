@@ -117,7 +117,7 @@ function Shopping() {
       {/* One quiet line for the food-waste story, in place of the old card
           stack. Hidden when there is nothing honest to claim. */}
       <div className="px-5 pt-1">
-        <WasteLine waste={view.waste} />
+        <WasteLine waste={view.waste} estimated={view.amountsEstimated} />
       </div>
 
       {/* The editable, persisted list: the primary UI. Tick, rename, re-amount,

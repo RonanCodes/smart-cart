@@ -201,6 +201,68 @@ describe('deriveShoppingView', () => {
     expect(list.lines.map((l) => l.name)).toEqual(['Onion'])
   })
 
+  it('flows an estimated qty/unit through to a consolidated shopping line and sums it (#313)', () => {
+    // The demo AH/Jumbo recipes have no real quantities; #313 bakes estimated
+    // metric amounts onto the ingredient lines. Those estimates must flow through
+    // the same consolidation path as real amounts: parsed, scaled, and summed
+    // when the ingredient repeats across the week.
+    const recipes = mapOf(
+      recipe({
+        id: 'r1',
+        title: 'Pumpkin soup',
+        servings: 2,
+        quantitiesEstimated: true,
+        ingredients: [
+          { name: 'pumpkin', qty: '350', unit: 'g' },
+          { name: 'onion', qty: '1', unit: 'stuks' },
+        ],
+      }),
+      recipe({
+        id: 'r2',
+        title: 'Onion tart',
+        servings: 2,
+        quantitiesEstimated: true,
+        ingredients: [{ name: 'onion', qty: '2', unit: 'stuks' }],
+      }),
+    )
+    const days: Array<PlanDayRef> = [{ recipeRef: 'r1' }, { recipeRef: 'r2' }]
+    const { list, amountsEstimated } = deriveShoppingView(days, recipes, {
+      adults: 2,
+    })
+
+    // The estimated amount survived to the line.
+    const pumpkin = list.lines.find((l) => l.name === 'pumpkin')
+    expect(pumpkin?.totalQty).toBe(350)
+    expect(pumpkin?.unit).toBe('g')
+
+    // Consolidation summed the onion across both meals (1 + 2 = 3 stuks).
+    const onion = list.lines.find((l) => l.name === 'onion')
+    expect(onion?.totalQty).toBe(3)
+    expect(onion?.usedInMeals).toEqual(['Onion tart', 'Pumpkin soup'])
+
+    // The whole view is flagged estimated so the UI can label it "approx".
+    expect(amountsEstimated).toBe(true)
+  })
+
+  it('does not flag the view estimated when no contributing recipe is estimated (#313)', () => {
+    const recipes = mapOf(
+      recipe({
+        id: 'r1',
+        title: 'Real recipe',
+        servings: 2,
+        ingredients: [{ name: 'rice', qty: '100', unit: 'g' }],
+      }),
+    )
+    const { amountsEstimated } = deriveShoppingView(
+      [{ recipeRef: 'r1' }],
+      recipes,
+      {
+        adults: 2,
+      },
+    )
+    expect(amountsEstimated).toBe(false)
+  })
+
   it('treats a recipe cooked on two days as two contributions', () => {
     const recipes = mapOf(
       recipe({
