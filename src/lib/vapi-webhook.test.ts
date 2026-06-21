@@ -1,11 +1,51 @@
 import { describe, it, expect } from 'vitest'
 import {
   timingSafeEqual,
+  checkVapiSecret,
   extractToolCalls,
   extractCallToken,
   extractCallPlanId,
 } from './vapi-webhook'
 import { dispatchVapiTool } from './vapi-dispatch'
+
+describe('checkVapiSecret (the 401-on-tool-call regression)', () => {
+  // The real incident: the Worker had VAPI_SERVER_SECRET set but the VAPI
+  // dashboard assistant had no server.secret, so VAPI sent NO X-Vapi-Secret
+  // header and every tool call 401'd before it could even log. These lock the
+  // auth decision so that exact drift is caught + named.
+  it('authorizes when no secret is configured (token is the identity guard)', () => {
+    expect(checkVapiSecret('', '')).toEqual({
+      authorized: true,
+      reason: 'no_secret',
+    })
+    expect(checkVapiSecret('', 'anything')).toEqual({
+      authorized: true,
+      reason: 'no_secret',
+    })
+  })
+
+  it('rejects with missing_header when a secret is set but no header arrives', () => {
+    // This is exactly the live failure mode that broke meal-update by voice.
+    expect(checkVapiSecret('s3cret', '')).toEqual({
+      authorized: false,
+      reason: 'missing_header',
+    })
+  })
+
+  it('rejects with mismatch when the header is wrong', () => {
+    expect(checkVapiSecret('s3cret', 'wrong')).toEqual({
+      authorized: false,
+      reason: 'mismatch',
+    })
+  })
+
+  it('authorizes when the header matches (timing-safe)', () => {
+    expect(checkVapiSecret('s3cret', 's3cret')).toEqual({
+      authorized: true,
+      reason: 'ok',
+    })
+  })
+})
 
 describe('timingSafeEqual', () => {
   it('is true for equal strings', () => {

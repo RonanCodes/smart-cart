@@ -40,7 +40,7 @@ export const Route = createFileRoute('/api/vapi/tool')({
         try {
           const { readEnv } = await import('../../../lib/env')
           const {
-            timingSafeEqual,
+            checkVapiSecret,
             extractToolCalls,
             extractCallToken,
             extractCallPlanId,
@@ -49,11 +49,20 @@ export const Route = createFileRoute('/api/vapi/tool')({
           const secret = (await readEnv('VAPI_SERVER_SECRET')) ?? ''
           const got = request.headers.get('X-Vapi-Secret') ?? ''
           // Fail CLOSED whenever a server secret is configured: an absent or
-          // mismatched X-Vapi-Secret header is rejected (previously an absent
-          // header skipped the check, letting an unauthenticated caller reach
-          // the dispatch path). When no secret is set, the HMAC call-token
-          // verification below remains the identity guard.
-          if (secret && (!got || !timingSafeEqual(got, secret))) {
+          // mismatched X-Vapi-Secret header is rejected. When no secret is set,
+          // the HMAC call-token verification below remains the identity guard.
+          const auth = checkVapiSecret(secret, got)
+          if (!auth.authorized) {
+            // LOG before the 401. This path was previously silent, which hid a
+            // config drift (Worker secret set, VAPI assistant server.secret not)
+            // that 401'd every tool call so voice meal-updates failed with no
+            // trace while chat still worked. `reason` names which side is off.
+            const { log } = await import('../../../lib/log')
+            log.warn('vapi.unauthorized', {
+              reason: auth.reason,
+              hasHeader: got.length > 0,
+              hint: "missing_header => set the VAPI assistant's server.secret to match the Worker's VAPI_SERVER_SECRET",
+            })
             return new Response('unauthorized', { status: 401 })
           }
 
