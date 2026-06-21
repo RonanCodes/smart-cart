@@ -50,7 +50,6 @@ export async function* streamReplan(
   }
 
   let prevText = ''
-  let doneEmitted = false
 
   const chunkStream = parseJsonEventStream({
     stream: res.body,
@@ -78,8 +77,7 @@ export async function* streamReplan(
         if (part.type === 'data-week') {
           yield { type: 'week', week: part.data.week }
         }
-        if (part.type === 'data-done' && !doneEmitted) {
-          doneEmitted = true
+        if (part.type === 'data-done') {
           yield {
             type: 'done',
             message: part.data.message,
@@ -99,11 +97,9 @@ export async function* streamReplan(
     throw err
   }
 
-  if (!doneEmitted) {
-    yield {
-      type: 'error',
-      message: 'Could not adjust the week.',
-    }
+  yield {
+    type: 'error',
+    message: 'Could not adjust the week.',
   }
 }
 
