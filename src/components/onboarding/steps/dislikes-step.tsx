@@ -3,6 +3,10 @@ import { Plus, X, Search, UtensilsCrossed } from 'lucide-react'
 import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 import { suggestDislikes } from '#/lib/onboarding/common-dislikes'
+import {
+  canonicalDislikeKey,
+  dedupeSynonyms,
+} from '#/lib/onboarding/dislike-synonyms'
 import { useOnboardingForm } from '../form-state'
 
 /**
@@ -16,8 +20,13 @@ import { useOnboardingForm } from '../form-state'
  * Lucide mark and the chips are text, in line with the Souso icon set.
  */
 
-/** The default pill set, the common avoid-list from the Jow reference. */
-const SUGGESTED: ReadonlyArray<string> = [
+/**
+ * The default pill set, the common avoid-list from the Jow reference. Deduped of
+ * synonym pairs (#370) so the user never sees two names for one ingredient —
+ * e.g. the raw list carries both 'Cilantro' and 'Coriander', the same herb, and
+ * only the first survives.
+ */
+const SUGGESTED: ReadonlyArray<string> = dedupeSynonyms([
   'Shellfish',
   'Nuts',
   'Egg',
@@ -32,7 +41,7 @@ const SUGGESTED: ReadonlyArray<string> = [
   'Garlic',
   'Pepper',
   'Coriander',
-]
+])
 
 /** Avoid-chips that ship with a cut-out product sticker (public/stickers). */
 const STICKER_SLUGS = new Set([
@@ -55,10 +64,14 @@ function stickerSrc(label: string): string | null {
   return STICKER_SLUGS.has(slug) ? `/stickers/ingredients/${slug}.png` : null
 }
 
-/** Case-insensitive membership so 'Egg' and 'egg' never double up. */
+/**
+ * Synonym-aware membership: 'Egg' and 'egg' never double up, and neither do
+ * synonym pairs like 'Cilantro' / 'Coriander' (#370) — both canonicalise to the
+ * same key, so selecting one counts as selecting the other.
+ */
 function includesCI(list: ReadonlyArray<string>, value: string): boolean {
-  const v = value.trim().toLowerCase()
-  return list.some((item) => item.toLowerCase() === v)
+  const key = canonicalDislikeKey(value)
+  return list.some((item) => canonicalDislikeKey(item) === key)
 }
 
 export function DislikesStep() {
@@ -76,10 +89,9 @@ export function DislikesStep() {
 
   function toggle(label: string) {
     if (includesCI(selected, label)) {
+      const key = canonicalDislikeKey(label)
       patch({
-        dislikes: selected.filter(
-          (d) => d.toLowerCase() !== label.toLowerCase(),
-        ),
+        dislikes: selected.filter((d) => canonicalDislikeKey(d) !== key),
       })
     } else {
       patch({ dislikes: [...selected, label] })

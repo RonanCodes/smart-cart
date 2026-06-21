@@ -77,7 +77,13 @@ export class ErrorBoundary extends Component<Props, State> {
     })
     // Best-effort direct client capture too (free; may be ad-blocker-blocked).
     try {
+      // Tag the pathname so a minified, frame-less crash (e.g. the /week
+      // RangeError #382, whose stack didn't survive minification) is still
+      // attributable to a route in Sentry without an app stack frame.
+      const pathname =
+        typeof window !== 'undefined' ? window.location.pathname : undefined
       Sentry.captureException(error, {
+        tags: pathname ? { route: pathname } : undefined,
         extra: { componentStack: info.componentStack },
       })
     } catch {

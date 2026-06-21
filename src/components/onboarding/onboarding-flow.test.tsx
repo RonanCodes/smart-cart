@@ -202,11 +202,74 @@ describe('OnboardingFlow', () => {
     expect(screen.queryByTestId('onboarding-welcome')).toBeNull()
   })
 
-  it('steps back from the first step to the welcome board', () => {
+  it('steps back from the first step to the welcome board', async () => {
     render(<OnboardingFlow onComplete={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
     expect(screen.getByTestId('onboarding-steps')).toBeTruthy()
+    // The in-app Back arrow defers to the browser's Back (#371) so it shares one
+    // path with the OS Back button; popstate is async, so wait for the transition.
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    await waitFor(() =>
+      expect(screen.getByTestId('onboarding-welcome')).toBeTruthy(),
+    )
+  })
+
+  /**
+   * #371: the browser/OS Back button must step the form back ONE position, not
+   * jump all the way to the intro. We simulate the browser Back by firing a
+   * `popstate` carrying the previous position's history.state — exactly what the
+   * browser delivers when the user taps Back after the shell pushed an entry per
+   * forward move.
+   */
+  function browserBack() {
+    // The browser moves the history pointer first, then dispatches popstate with
+    // the now-current entry's state. JSDOM doesn't move the pointer, so we model
+    // it by reading the index we're at, writing the previous index into
+    // history.state, and firing popstate with it.
+    const current = (window.history.state ?? {}) as { onboardingPos?: number }
+    const prev = (current.onboardingPos ?? 0) - 1
+    const prevState = prev >= 0 ? { onboardingPos: prev } : null
+    act(() => {
+      window.history.replaceState(prevState, '')
+      window.dispatchEvent(new PopStateEvent('popstate', { state: prevState }))
+    })
+  }
+
+  it('browser Back steps the form back one step, not to the intro (#371)', () => {
+    render(<OnboardingFlow onComplete={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
+    // Advance to step 3 (index 2).
+    fireEvent.click(screen.getByTestId('onboarding-next'))
+    fireEvent.click(screen.getByTestId('onboarding-next'))
+    expect(screen.getByText(`3/${STEPS.length}`)).toBeTruthy()
+
+    // Browser Back: must land on step 2, NOT bounce to the welcome board.
+    browserBack()
+    expect(screen.getByTestId('onboarding-steps')).toBeTruthy()
+    expect(screen.getByText(`2/${STEPS.length}`)).toBeTruthy()
+    expect(screen.queryByTestId('onboarding-welcome')).toBeNull()
+
+    // One more Back -> step 1.
+    browserBack()
+    expect(screen.getByText(`1/${STEPS.length}`)).toBeTruthy()
+
+    // Back from the first step -> the welcome board (intro).
+    browserBack()
     expect(screen.getByTestId('onboarding-welcome')).toBeTruthy()
+  })
+
+  it('pushes a history entry per forward move so Back has somewhere to go (#371)', () => {
+    const pushSpy = vi.spyOn(window.history, 'pushState')
+    render(<OnboardingFlow onComplete={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
+    fireEvent.click(screen.getByTestId('onboarding-next'))
+    // Two forward moves (intro->step0, step0->step1) => two pushed entries, each
+    // stamped with its linear position.
+    const pushed = pushSpy.mock.calls.map(
+      (c) => c[0] as { onboardingPos?: number } | null | undefined,
+    )
+    expect(pushed.some((s) => s?.onboardingPos === 1)).toBe(true)
+    expect(pushed.some((s) => s?.onboardingPos === 2)).toBe(true)
+    pushSpy.mockRestore()
   })
 })

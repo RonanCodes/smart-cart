@@ -52,6 +52,13 @@ interface DayCardProps {
    */
   swapOptions?: Array<WeekDayView>
   /**
+   * Human-readable household the week is sized for, e.g. "2 adults + 2 kids"
+   * (#373). Shown on the portions pill so the number is never misread as the
+   * whole head count. Falls back to the recipe's serving count wording when the
+   * household isn't known.
+   */
+  portionsLabel?: string
+  /**
    * Optional persist hook for the deck (#week-align). When `swapOptions` is a real
    * pre-ranked deck, the local cycle is only an instant preview; pass this to
    * write the committed pick to the plan (the design route omits it, so its deck
@@ -84,6 +91,7 @@ function DayCardImpl({
   onSwapTo,
   note,
   swapOptions,
+  portionsLabel,
 }: DayCardProps) {
   const skipped = !day.recipeRef
   const options = swapOptions && swapOptions.length > 1 ? swapOptions : null
@@ -282,8 +290,14 @@ function DayCardImpl({
 
           {!skipped && (
             <div className="mt-2.5 flex items-center gap-2">
-              <span className="border-border bg-card text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm">
-                <Utensils className="h-3.5 w-3.5" />2
+              <span
+                className="border-border bg-card text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm"
+                aria-label={
+                  portionsLabel ? `Cooks for ${portionsLabel}` : undefined
+                }
+              >
+                <Utensils className="h-3.5 w-3.5" />
+                {portionsLabel ?? '2'}
               </span>
               <button
                 type="button"

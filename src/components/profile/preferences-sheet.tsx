@@ -10,15 +10,15 @@ import {
   ChefHat,
   ShoppingCart,
   Sprout,
+  Loader2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Sheet } from '#/components/ui/sheet'
-import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 import { suggestDislikes } from '#/lib/onboarding/common-dislikes'
 import { updateHouseholdProfile } from '#/lib/profile-edit-server'
-import type { EditableProfile } from '#/lib/profile-edit-server'
+import type { EditableProfile, ProfilePatch } from '#/lib/profile-edit-server'
 
 /**
  * PreferencesSheet — the Profile-tab editor for the household's STATED data
@@ -30,8 +30,16 @@ import type { EditableProfile } from '#/lib/profile-edit-server'
  * week honours the edit (the planner reads household.profile).
  *
  * Mobile-first at 390px: iOS sheet styling, big tap targets, calm copy. Edits
- * are held locally until "Save", then one round-trip persists the whole patch.
+ * AUTOSAVE: every change schedules a single debounced patch round-trip (#376),
+ * so the user never has to hunt for a buried Save button or risk losing a
+ * change. A small status line in the sheet header reflects saving / saved /
+ * couldn't-save so the persistence state is always visible.
  */
+
+/** How long after the last change before the coalesced patch is sent. */
+const AUTOSAVE_DEBOUNCE_MS = 600
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 const CUISINES: ReadonlyArray<string> = [
   'Italian',
@@ -105,15 +113,15 @@ export function PreferencesSheet({
   current: EditableProfile
   onSaved: (next: EditableProfile) => void
 }) {
-  // A local draft so edits feel instant and a single Save persists them all.
+  // A local draft so edits feel instant; autosave persists them in the
+  // background (#376).
   const [liked, setLiked] = React.useState(current.cuisinesLiked)
   const [disliked, setDisliked] = React.useState(current.cuisinesDisliked)
   const [dislikes, setDislikes] = React.useState(current.dislikes)
   const [diet, setDiet] = React.useState(current.diet)
   const [goals, setGoals] = React.useState(current.goals)
   const [query, setQuery] = React.useState('')
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState(false)
+  const [status, setStatus] = React.useState<SaveStatus>('idle')
 
   // Re-seed the draft whenever the sheet (re)opens with fresh server values.
   React.useEffect(() => {
@@ -124,7 +132,7 @@ export function PreferencesSheet({
       setDiet(current.diet)
       setGoals(current.goals)
       setQuery('')
-      setError(false)
+      setStatus('idle')
     }
   }, [open, current])
 
@@ -185,33 +193,76 @@ export function PreferencesSheet({
     )
   }
 
-  async function save() {
-    setError(false)
-    setSaving(true)
-    try {
-      const next = await updateHouseholdProfile({
-        data: {
-          patch: {
-            cuisinesLiked: liked,
-            cuisinesDisliked: disliked,
-            dislikes,
-            diet,
-            goals,
-          },
-        },
-      })
-      onSaved(next)
-      onOpenChange(false)
-    } catch {
-      setError(true)
-    } finally {
-      setSaving(false)
+  // Keep the latest onSaved handler in a ref so the autosave effect doesn't
+  // re-subscribe (and re-fire) every render when the parent passes a fresh fn.
+  const onSavedRef = React.useRef(onSaved)
+  onSavedRef.current = onSaved
+
+  // Autosave: debounce a single patch round-trip after the draft settles.
+  // `baselineRef` holds the last-known-persisted draft (a JSON snapshot); we
+  // only save when the current draft actually differs from it. This makes
+  // opening the sheet, the re-seed effect above, and a server echo all no-ops,
+  // so there's never a spurious save (#376), while a real edit always persists.
+  // Both the baseline and the live draft go through `serialise` so the same
+  // ordering + shape compares equal.
+  const serialise = (p: ProfilePatch) =>
+    JSON.stringify({
+      cuisinesLiked: p.cuisinesLiked,
+      cuisinesDisliked: p.cuisinesDisliked,
+      dislikes: p.dislikes,
+      diet: p.diet,
+      goals: p.goals,
+    })
+
+  const baselineRef = React.useRef('')
+  // When the sheet (re)opens with fresh values, reset the baseline so the seeded
+  // draft is the "nothing to save" starting point.
+  React.useEffect(() => {
+    if (open) baselineRef.current = serialise(current)
+    // serialise is a pure local helper; `current` is the only meaningful input.
+  }, [open, current])
+
+  const patchKey = serialise({
+    cuisinesLiked: liked,
+    cuisinesDisliked: disliked,
+    dislikes,
+    diet,
+    goals,
+  })
+  React.useEffect(() => {
+    if (!open) return
+    if (patchKey === baselineRef.current) return
+
+    const patch: ProfilePatch = {
+      cuisinesLiked: liked,
+      cuisinesDisliked: disliked,
+      dislikes,
+      diet,
+      goals,
     }
-  }
+    const timer = setTimeout(() => {
+      setStatus('saving')
+      void updateHouseholdProfile({ data: { patch } })
+        .then((next) => {
+          baselineRef.current = patchKey
+          onSavedRef.current(next)
+          setStatus('saved')
+        })
+        .catch(() => {
+          setStatus('error')
+        })
+    }, AUTOSAVE_DEBOUNCE_MS)
+
+    return () => clearTimeout(timer)
+  }, [patchKey, open, liked, disliked, dislikes, diet, goals])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Your preferences">
       <div className="flex flex-col gap-6 pt-2 pb-2">
+        {/* Autosave status: always visible so the user knows their changes are
+            being persisted without hunting for a Save button (#376). */}
+        <SaveStatusLine status={status} />
+
         <section className="flex flex-col gap-3">
           <div>
             <h3 className="text-sm font-semibold">Cuisines</h3>
@@ -408,23 +459,42 @@ export function PreferencesSheet({
             })}
           </div>
         </section>
-
-        {error && (
-          <p role="status" className="text-muted-foreground text-xs">
-            Couldn&apos;t save that just now. Tap Save to try again.
-          </p>
-        )}
-
-        <Button
-          size="pill"
-          className="w-full"
-          disabled={saving}
-          onClick={() => void save()}
-          data-testid="preferences-save"
-        >
-          {saving ? 'Saving…' : 'Save preferences'}
-        </Button>
       </div>
     </Sheet>
+  )
+}
+
+/**
+ * The autosave status line shown at the top of the sheet. It reflects the four
+ * states of the background patch round-trip so the user always knows whether
+ * their changes are persisted (#376): idle (nothing yet), saving, saved, and a
+ * quiet retry-on-next-change error. role="status" announces changes to AT.
+ */
+function SaveStatusLine({ status }: { status: SaveStatus }) {
+  return (
+    <p
+      role="status"
+      aria-live="polite"
+      className={cn(
+        'flex items-center gap-1.5 text-xs',
+        status === 'error' ? 'text-destructive' : 'text-muted-foreground',
+      )}
+    >
+      {status === 'saving' && (
+        <>
+          <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin" />
+          Saving…
+        </>
+      )}
+      {status === 'saved' && (
+        <>
+          <Check aria-hidden className="h-3.5 w-3.5" />
+          Saved
+        </>
+      )}
+      {status === 'error' && 'Couldn’t save that. Change anything to retry.'}
+      {status === 'idle' &&
+        'Changes save automatically as you tweak your preferences.'}
+    </p>
   )
 }

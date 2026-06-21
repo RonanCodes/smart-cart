@@ -85,7 +85,14 @@ export interface AuthContext {
 export function authedRedirectTarget(
   ctx: AuthContext,
 ): '/sign-in' | '/onboarding' | null {
-  if (!ctx.user) return '/sign-in'
+  // Fail closed if the whole context is missing (#381): a prod 500 made
+  // `resolveAuthContext` resolve to `undefined`, and reading `.user` off it
+  // crashed `/week` with `e.user` in the error boundary. The type says `ctx` is
+  // always present, but the runtime proved otherwise, so guard it (the rule
+  // can't see the prod-500 state). Treat a nullish context like a signed-out
+  // visitor.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (!ctx?.user) return '/sign-in'
   if (!ctx.hasHousehold) return '/onboarding'
   return null
 }

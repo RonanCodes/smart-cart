@@ -82,6 +82,30 @@ describe('suggestDislikes', () => {
     expect(out).not.toContain('Cream')
   })
 
+  it('never offers two names for one ingredient (#370 synonym dedupe)', () => {
+    // COMMON_DISLIKES carries both 'Shrimp' and 'Prawns' (the same thing); the
+    // dropdown must surface only one. Query a substring common to both via 'pra'
+    // and 'shr' and assert the synonym pair never both appear.
+    const shrimp = suggestDislikes('shr', ctx())
+    const prawns = suggestDislikes('pra', ctx())
+    const combined = [...shrimp, ...prawns]
+    const hasShrimp = combined.includes('Shrimp')
+    const hasPrawns = combined.includes('Prawns')
+    // At most one of the pair is ever offered for a given query result set.
+    expect(shrimp.includes('Shrimp') && shrimp.includes('Prawns')).toBe(false)
+    expect(hasShrimp || hasPrawns).toBe(true)
+  })
+
+  it('hides a synonym of an already-selected ingredient (#370)', () => {
+    // The user already avoids 'Aubergine'; typing toward 'Eggplant' (its
+    // synonym) must NOT suggest it — they are the same vegetable.
+    const out = suggestDislikes('eggplant', ctx({ selected: ['Aubergine'] }))
+    expect(out).not.toContain('Eggplant')
+    // And the reverse: avoiding Eggplant hides Aubergine.
+    const out2 = suggestDislikes('aubergine', ctx({ selected: ['Eggplant'] }))
+    expect(out2).not.toContain('Aubergine')
+  })
+
   it('caps results at MAX_SUGGESTIONS by default', () => {
     // 'a' matches a large number of entries; the cap keeps the dropdown short.
     const out = suggestDislikes('a', ctx())

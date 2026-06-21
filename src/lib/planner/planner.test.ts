@@ -238,15 +238,36 @@ describe('planner', () => {
   })
 
   it('home is unconstrained: long recipes are allowed', () => {
-    const byId = new Map(recipes.map((r) => [r.id, r]))
-    const week = generateWeek(recipes, {}, swipes, {
+    // A catalogue of ONLY long recipes (every prep over the busy cap). A home
+    // day must still fill from them, proving home imposes no length cap. (Built
+    // standalone rather than reading off the shared catalogue so the assertion
+    // does not depend on which recipes the diversity nudge happens to surface.)
+    const longOnly: Array<PlannerRecipe> = Array.from(
+      { length: 10 },
+      (_, i) => ({
+        id: `long-${i}`,
+        title: `Slow braise ${i}`,
+        cuisine: ['Italian', 'Thai', 'Mexican'][i % 3]!,
+        category: 'Main',
+        mealType: 'dinner',
+        dietaryTags: [],
+        ingredients: [{ name: 'onion' }],
+        calories: null,
+        protein: null,
+        prepMinutes: BUSY_PREP_CAP_MINUTES + 15 + i, // every recipe is long
+      }),
+    )
+    const byId = new Map(longOnly.map((r) => [r.id, r]))
+    const week = generateWeek(longOnly, {}, [], {
       dayTypes: Array(7).fill('home') as Array<DayType>,
     })
-    // At least one picked recipe is over the busy cap (proving home is unconstrained).
-    const anyLong = week.days.some(
-      (d) => (byId.get(d.recipeRef)!.prepMinutes ?? 0) > BUSY_PREP_CAP_MINUTES,
-    )
-    expect(anyLong).toBe(true)
+    const filled = week.days.filter((d) => d.recipeRef)
+    expect(filled).toHaveLength(7) // home days fill from long recipes
+    for (const d of filled) {
+      expect(byId.get(d.recipeRef)!.prepMinutes!).toBeGreaterThan(
+        BUSY_PREP_CAP_MINUTES,
+      )
+    }
   })
 
   it('keeps no-repeat and hard filters across mixed day types', () => {
@@ -425,6 +446,229 @@ describe('cuisine bias (explicit like/hate, #122)', () => {
       generateWeek(flat, { cuisinesDisliked: ['Thai'] }, []),
     )
     expect(hated).toBeLessThanOrEqual(baseline)
+  })
+})
+
+describe('disliked cuisine is a HARD filter (#374)', () => {
+  /** A flat catalogue with several cuisines, enough to fill a week without any. */
+  function flat(cuisines: Array<string>): Array<PlannerRecipe> {
+    const out: Array<PlannerRecipe> = []
+    let id = 0
+    for (const cuisine of cuisines) {
+      for (let i = 0; i < 6; i++) {
+        out.push({
+          id: `d${id++}`,
+          title: `${cuisine} ${i}`,
+          cuisine,
+          category: 'Main',
+          mealType: 'dinner',
+          dietaryTags: [],
+          ingredients: [{ name: 'onion' }],
+          calories: null,
+          protein: null,
+          prepMinutes: null,
+        })
+      }
+    }
+    return out
+  }
+
+  it('hardFilter drops every recipe of a disliked cuisine', () => {
+    const recipes = flat(['Italian', 'Thai', 'Mexican', 'Japanese'])
+    const filtered = hardFilter(recipes, { cuisinesDisliked: ['italian'] })
+    expect(filtered.length).toBeGreaterThan(0)
+    for (const r of filtered) {
+      expect((r.cuisine ?? '').toLowerCase()).not.toBe('italian')
+    }
+  })
+
+  it('matches the disliked cuisine case-insensitively', () => {
+    const recipes = flat(['ITALIAN', 'Thai'])
+    const filtered = hardFilter(recipes, { cuisinesDisliked: ['Italian'] })
+    for (const r of filtered) {
+      expect((r.cuisine ?? '').toLowerCase()).not.toBe('italian')
+    }
+  })
+
+  it('a household that dislikes Italian gets ZERO Italian meals in the week', () => {
+    const recipes = flat(['Italian', 'Thai', 'Mexican', 'Japanese'])
+    const byId = new Map(recipes.map((r) => [r.id, r]))
+    const week = generateWeek(recipes, { cuisinesDisliked: ['Italian'] }, [])
+    const italian = week.days.filter(
+      (d) => byId.get(d.recipeRef)?.cuisine === 'Italian',
+    )
+    expect(italian).toHaveLength(0)
+  })
+
+  it('a disliked cuisine is excluded even when swipes liked it', () => {
+    // A swipe liked an Italian dish, but the household later marks Italian as a
+    // disliked cuisine: the hard filter wins, no Italian in the week.
+    const recipes = flat(['Italian', 'Thai', 'Mexican'])
+    const byId = new Map(recipes.map((r) => [r.id, r]))
+    const likedItalian = [{ recipeId: 'd0', like: true }] // d0 is Italian
+    const week = generateWeek(
+      recipes,
+      { cuisinesDisliked: ['italian'] },
+      likedItalian,
+    )
+    const italian = week.days.filter(
+      (d) => byId.get(d.recipeRef)?.cuisine === 'Italian',
+    )
+    expect(italian).toHaveLength(0)
+  })
+
+  it('still fills the week from the remaining cuisines', () => {
+    const recipes = flat(['Italian', 'Thai', 'Mexican', 'Japanese'])
+    const week = generateWeek(recipes, { cuisinesDisliked: ['Italian'] }, [])
+    const filled = week.days.filter((d) => d.recipeRef)
+    expect(filled).toHaveLength(7)
+  })
+})
+
+describe('cuisine diversity across the week (#374)', () => {
+  /** A flat catalogue, equal recipes per cuisine, no swipe / soft signal, so the
+   * only thing that can shape the distribution is the diversity nudge. */
+  function flat(cuisines: Array<string>, per = 10): Array<PlannerRecipe> {
+    const out: Array<PlannerRecipe> = []
+    let id = 0
+    for (const cuisine of cuisines) {
+      for (let i = 0; i < per; i++) {
+        out.push({
+          id: `v${id++}`,
+          title: `${cuisine} ${i}`,
+          cuisine,
+          category: 'Main',
+          mealType: 'dinner',
+          dietaryTags: [],
+          ingredients: [{ name: 'onion' }],
+          calories: null,
+          protein: null,
+          prepMinutes: null,
+        })
+      }
+    }
+    return out
+  }
+
+  it('a neutral household sees several cuisines, not one dominating the week', () => {
+    const recipes = flat(['Italian', 'Thai', 'Mexican', 'Japanese'])
+    const byId = new Map(recipes.map((r) => [r.id, r]))
+    const week = generateWeek(recipes, {}, [])
+    const cuisines = week.days
+      .map((d) => byId.get(d.recipeRef)?.cuisine)
+      .filter((c): c is string => !!c)
+    const distinct = new Set(cuisines)
+    // Four cuisines exist with plenty of recipes each; a neutral week should
+    // spread across at least three rather than serving one cuisine all 7 days.
+    expect(distinct.size).toBeGreaterThanOrEqual(3)
+  })
+
+  it('a strong cuisine preference still wins over diversity (pasta person)', () => {
+    // CONTEXT.md: a household that clearly loves one cuisine should still get a
+    // cuisine-heavy week. The diversity nudge is soft and must not override an
+    // explicit like.
+    const recipes = flat(['Italian', 'Thai', 'Mexican', 'Japanese'])
+    const byId = new Map(recipes.map((r) => [r.id, r]))
+    const week = generateWeek(recipes, { cuisinesLiked: ['Italian'] }, [])
+    const italian = week.days.filter(
+      (d) => byId.get(d.recipeRef)?.cuisine === 'Italian',
+    ).length
+    // The liked cuisine still dominates the week (a soft diversity nudge cannot
+    // out-pull the explicit-like bias).
+    expect(italian).toBeGreaterThanOrEqual(5)
+  })
+})
+
+describe('only dinner-appropriate recipes are planned (#375)', () => {
+  /** A catalogue of real dinners plus odd non-dinner items that historically
+   * leaked through because mealType defaults to 'dinner' in the DB. */
+  function catalogueWithJunk(): Array<PlannerRecipe> {
+    const out: Array<PlannerRecipe> = []
+    let id = 0
+    for (let i = 0; i < 12; i++) {
+      out.push({
+        id: `dinner-${id++}`,
+        title: `Dinner ${i}`,
+        cuisine: 'Italian',
+        category: 'Main',
+        mealType: 'dinner',
+        dietaryTags: [],
+        ingredients: [{ name: 'onion' }],
+        calories: null,
+        protein: null,
+        prepMinutes: null,
+      })
+    }
+    // Non-dinner items whose mealType is the DB default 'dinner' but whose
+    // category marks them as snacks / sides / sweets / drinks.
+    out.push({
+      id: 'crackers',
+      title: 'Crackers',
+      cuisine: null,
+      category: 'Snack',
+      mealType: 'dinner',
+      dietaryTags: [],
+      ingredients: [{ name: 'flour' }],
+      calories: null,
+      protein: null,
+      prepMinutes: null,
+    })
+    out.push({
+      id: 'brownie',
+      title: 'Brownie',
+      cuisine: null,
+      category: 'Dessert',
+      mealType: 'dinner',
+      dietaryTags: [],
+      ingredients: [{ name: 'chocolate' }],
+      calories: null,
+      protein: null,
+      prepMinutes: null,
+    })
+    out.push({
+      id: 'side-salad',
+      title: 'Side salad',
+      cuisine: null,
+      category: 'Side Dish',
+      mealType: 'dinner',
+      dietaryTags: [],
+      ingredients: [{ name: 'lettuce' }],
+      calories: null,
+      protein: null,
+      prepMinutes: null,
+    })
+    out.push({
+      id: 'smoothie',
+      title: 'Smoothie',
+      cuisine: null,
+      category: 'Beverage',
+      mealType: 'dinner',
+      dietaryTags: [],
+      ingredients: [{ name: 'banana' }],
+      calories: null,
+      protein: null,
+      prepMinutes: null,
+    })
+    return out
+  }
+
+  const junkIds = new Set(['crackers', 'brownie', 'side-salad', 'smoothie'])
+
+  it('hardFilter drops snack/dessert/side/drink categories', () => {
+    const recipes = catalogueWithJunk()
+    const filtered = hardFilter(recipes, {})
+    for (const r of filtered) {
+      expect(junkIds.has(r.id)).toBe(false)
+    }
+    expect(filtered.length).toBeGreaterThan(0)
+  })
+
+  it('non-dinner items never appear in the generated week', () => {
+    const recipes = catalogueWithJunk()
+    const week = generateWeek(recipes, {}, [])
+    for (const d of week.days) {
+      expect(junkIds.has(d.recipeRef)).toBe(false)
+    }
   })
 })
 
