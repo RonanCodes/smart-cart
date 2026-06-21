@@ -279,6 +279,56 @@ export const resetWeekAndCart = createServerFn({ method: 'POST' }).handler(
   },
 )
 
+/**
+ * Update ONLY the household size (adults + children) for the signed-in user's
+ * household, without touching anything else (#household-inline-edit). This backs
+ * the Profile-tab Household editor sheet, which replaced the old "tap Household ->
+ * full re-onboarding" path (a perceived data-loss: the redo form started blank).
+ *
+ * Session-scoped (the household is found by `ownerId = session user`), admin-free.
+ * Validates adults >= 1 (a household has at least one cook) and children >= 0 via
+ * the shared clampHouseholdCount helper, the same clamp onboarding uses, so the
+ * stored values stay consistent. Adults/children land on dedicated columns (not
+ * the profile JSON), so portions for the NEXT week build pick the new size up;
+ * we do not regenerate the current week here.
+ *
+ * Returns the refreshed HouseholdSummary so the sheet can reflect the saved
+ * value in place. Throws if not signed in / not onboarded.
+ */
+export const updateHouseholdSize = createServerFn({ method: 'POST' })
+  .inputValidator((d: { adults: number; children: number }) => d)
+  .handler(async ({ data }): Promise<HouseholdSummary> => {
+    const { getSessionUser } = await import('./server-auth')
+    const user = await getSessionUser()
+    if (!user) throw new Error('Not signed in')
+
+    const { getDb } = await import('../db/client')
+    const { household } = await import('../db/schema')
+    const { clampHouseholdCount } = await import('./onboarding-rhythm')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+
+    const rows = await db
+      .select({ id: household.id })
+      .from(household)
+      .where(eq(household.ownerId, user.id))
+      .limit(1)
+    const row = rows[0]
+    if (!row) throw new Error('No household, onboard first')
+
+    const adults = clampHouseholdCount(data.adults, 1)
+    const children = clampHouseholdCount(data.children, 0)
+
+    await db
+      .update(household)
+      .set({ adults, children, updatedAt: new Date() })
+      .where(eq(household.id, row.id))
+
+    const summary = await getHouseholdSummary()
+    if (!summary) throw new Error('Could not re-read household')
+    return summary
+  })
+
 /** Does the signed-in user already have a household (i.e. has onboarded)? */
 export const hasHousehold = createServerFn({ method: 'GET' }).handler(
   async (): Promise<boolean> => {

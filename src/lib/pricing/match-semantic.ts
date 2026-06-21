@@ -107,6 +107,33 @@ export function selectCandidates(
   return out
 }
 
+/**
+ * Catalogue product names that signal a wrong TYPE for a basic raw ingredient:
+ * snacks, crisps, ready-meal kits, desserts, sweets, drinks. The cheap (no-LLM)
+ * tier has no judgement of its own, so it would happily return "Doritos Sweet
+ * chilli" for "chilli flakes" at a medium cosine. This name-signal guard drops
+ * such a candidate so the price total reads as an honest no-match instead of
+ * confident junk, bringing the displayed total closer to the LLM-reranked cart.
+ * Name signals only (the checkjebon catalogue carries no category field).
+ */
+const JUNK_TYPE_PATTERNS: ReadonlyArray<RegExp> = [
+  /\b(doritos|lay's|lays|chips|crisps|tortilla|nacho|nachos|borrel|snack|popcorn)\b/i,
+  /\b(cake|taart|gebak|koek|koekjes|biscuits?|cookies?|brownie|muffins?|croissants?|dessert|toetje|ijs|ice\s*cream)\b/i,
+  /\b(chocolate|chocolade|candy|snoep|reep|bonbon)\b/i,
+  /\b(verspakket|eenpans|maaltijd|maaltijdpakket|ready\s*meal|kant-en-klaar|kant\s*en\s*klaar)\b/i,
+  /\b(saus|sauce|dressing|dip|spread|smeer)\b/i,
+  /\b(frisdrank|soda|limonade|cola|sap\b|juice|smoothie|vla|pudding)\b/i,
+]
+
+/**
+ * True when a candidate product's name reads as a clearly wrong TYPE (snack,
+ * cake, ready-meal, dessert, sweet, drink, sauce) for a basic ingredient. The
+ * cheap tier uses this to drop a high-cosine-but-wrong-type nearest neighbour.
+ */
+export function looksTypeMismatched(productName: string): boolean {
+  return JUNK_TYPE_PATTERNS.some((re) => re.test(productName))
+}
+
 function toMatch(
   store: string,
   candidate: ProductCandidate,
@@ -122,16 +149,31 @@ function toMatch(
   }
 }
 
-/** CHEAP tier: the top candidate, confidence from its cosine score. No LLM. */
+/**
+ * CHEAP tier: the top candidate, confidence from its cosine score. No LLM.
+ *
+ * When `ingredientName` is given, candidates whose name reads as a clearly wrong
+ * TYPE (snack/cake/ready-meal/dessert/drink/sauce) are skipped, UNLESS the
+ * ingredient itself names that type (so "doritos" can still match Doritos). This
+ * stops a basic ingredient ("chilli flakes") returning junk ("Doritos Sweet
+ * chilli") as a confident price line; if every candidate is junk, it is an
+ * honest no-match. Without `ingredientName` the old top-1 behaviour is unchanged.
+ */
 export function cheapMatch(
   store: string,
   candidates: ReadonlyArray<ProductCandidate>,
+  ingredientName?: string,
 ): IngredientMatch {
-  const best = candidates[0]
-  if (!best) return NO_MATCH(store)
-  const confidence = confidenceFromCosine(best.score)
+  const ingredientIsJunkType = ingredientName
+    ? looksTypeMismatched(ingredientName)
+    : true // no name given: don't filter (preserve old behaviour)
+  const pick = ingredientIsJunkType
+    ? candidates[0]
+    : candidates.find((c) => !looksTypeMismatched(c.product.name))
+  if (!pick) return NO_MATCH(store)
+  const confidence = confidenceFromCosine(pick.score)
   if (confidence === 'none') return NO_MATCH(store)
-  return toMatch(store, best, confidence)
+  return toMatch(store, pick, confidence)
 }
 
 /**

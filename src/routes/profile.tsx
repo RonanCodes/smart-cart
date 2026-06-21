@@ -32,6 +32,7 @@ import { StoreSheet } from '#/components/profile/store-sheet'
 import { LanguageSheet } from '#/components/profile/language-sheet'
 import { PreferencesSheet } from '#/components/profile/preferences-sheet'
 import { SkipDaysSheet } from '#/components/profile/skip-days-sheet'
+import { HouseholdSheet } from '#/components/profile/household-sheet'
 import { storeLabel, loadProfileBootstrap } from '#/lib/store-pref-server'
 import type { StoreSlug, ProfileBootstrap } from '#/lib/store-pref-server'
 import { getLocale, localeLabel } from '#/lib/locale-pref-server'
@@ -186,8 +187,12 @@ function Profile() {
     initialData: loaderData,
   })
   const router = useRouter()
-  const { isAdmin, store: initialStore, summary, locale: initialLocale } = data
+  const { isAdmin, store: initialStore, locale: initialLocale } = data
+  // Local mirror of the household summary so an inline household-size edit
+  // reflects in the row at once, without a route reload (#household-inline-edit).
+  const [summary, setSummary] = useState<HouseholdSummary | null>(data.summary)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [householdOpen, setHouseholdOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [storeOpen, setStoreOpen] = useState(false)
   const [store, setStore] = useState<StoreSlug>(initialStore)
@@ -311,9 +316,7 @@ function Profile() {
             icon={Users}
             label="Household"
             value={householdValue}
-            onClick={() => {
-              window.location.href = '/onboarding'
-            }}
+            onClick={() => setHouseholdOpen(true)}
           />
           <HairlineRow
             icon={Heart}
@@ -501,6 +504,13 @@ function Profile() {
             prev ? { ...prev, manual: next.skipDays } : prev,
           )
         }}
+      />
+
+      <HouseholdSheet
+        open={householdOpen}
+        onOpenChange={setHouseholdOpen}
+        summary={summary}
+        onSaved={setSummary}
       />
 
       <ConfirmDialog
