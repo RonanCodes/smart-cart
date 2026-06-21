@@ -253,8 +253,11 @@ export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
   .handler(async ({ data }): Promise<ShoppingBootstrap> => {
     const { loadStaples, frequentlyBoughtStaples } =
       await import('./staples-server')
-    const { listShoppingItems, addWeekToShoppingList } =
-      await import('./shopping-list-server')
+    const {
+      listShoppingItems,
+      addWeekToShoppingList,
+      backfillShoppingAmounts,
+    } = await import('./shopping-list-server')
     const { getStore } = await import('./store-pref-server')
     const { shouldAutoSeed } = await import('./shopping')
 
@@ -278,6 +281,13 @@ export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
     ) {
       const seeded = await addWeekToShoppingList({ data: planArg })
       items = seeded.items
+    } else {
+      // Existing list: top up any stale recipe rows whose amount was dropped
+      // before the Dutch-qty split shipped (#243), matched against the current
+      // week, without clobbering user-typed amounts (#292). A no-op when nothing
+      // is stale, so the common case stays a single extra cheap read.
+      const filled = await backfillShoppingAmounts({ data: planArg })
+      items = filled.items
     }
 
     return {
