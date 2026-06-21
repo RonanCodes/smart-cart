@@ -25,6 +25,24 @@
       "migrations_dir": "drizzle/migrations",
     },
   ],
+  // Live-pitch roulette demo (feat/demo-roulette). The entrant phone numbers
+  // live ONLY in this Durable Object's memory for the length of the pitch —
+  // never D1, never durable storage — so "numbers are not stored anywhere"
+  // holds. The class is exported from src/server.ts (the Worker entry).
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DEMO_ROULETTE",
+        "class_name": "DemoRouletteRoom",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["DemoRouletteRoom"],
+    },
+  ],
   "routes": [
     { "pattern": "smartcart.ronanconnolly.dev", "custom_domain": true },
     { "pattern": "souso.app", "custom_domain": true },

@@ -6,6 +6,11 @@ import {
 import type { Register } from '@tanstack/react-router'
 import type { RequestHandler } from '@tanstack/react-start/server'
 
+// The live-pitch roulette demo's ephemeral entrant store. Re-exported from this
+// (the Worker entry) module so wrangler's `durable_objects` binding resolves the
+// class. Numbers live in the DO's memory only — never persisted (see the class).
+export { DemoRouletteRoom } from '#/lib/demo-roulette-do'
+
 const fetch = createStartHandler(defaultStreamHandler)
 
 export type ServerEntry = { fetch: RequestHandler<Register> }
