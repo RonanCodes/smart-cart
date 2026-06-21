@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth'
+import { createAuthMiddleware } from 'better-auth/api'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { emailOTP, magicLink } from 'better-auth/plugins'
 import { getDb } from '../db/client'
@@ -50,6 +51,26 @@ export function resolveTrustedOrigins(
   )
 }
 
+/**
+ * Map a Better Auth OTP-verify error message to a greppable reason code for the
+ * server logs. Better Auth does not log OTP verify failures itself, so this is
+ * the only signal we get for "why did sign-in fail". Pure + no-throw.
+ */
+export function mapOtpVerifyReason(message: string | undefined | null): string {
+  const msg = (message ?? '').toLowerCase()
+  if (msg.includes('expired')) return 'expired'
+  if (msg.includes('too many')) return 'rate_limited'
+  if (msg.includes('not found') || msg.includes('user not found'))
+    return 'no_user'
+  if (msg.includes('invalid') || msg.includes('incorrect')) return 'invalid'
+  return 'unknown'
+}
+
+/** True for the email-OTP sign-in verify endpoint, whatever leading slash. */
+function isOtpVerifyPath(path: string | undefined | null): boolean {
+  return typeof path === 'string' && path.includes('/sign-in/email-otp')
+}
+
 async function buildAuth() {
   const db = await getDb()
   const secret = await readEnv('BETTER_AUTH_SECRET')
@@ -72,6 +93,48 @@ async function buildAuth() {
     // the *.workers.dev URL, and localhost in dev, so all are trusted; extra
     // hosts (previews) can be added via the TRUSTED_ORIGINS env with no redeploy.
     trustedOrigins,
+    // Better Auth does not log OTP verify failures itself; this is the only
+    // server-side signal for "why did sign-in fail". onAPIError.onError fires on
+    // every failed endpoint — we narrow to the email-OTP verify path and emit a
+    // reason-coded warn. We do NOT set `throw`, so error-throwing behaviour is
+    // unchanged. Wrapped so observability can never break the request.
+    onAPIError: {
+      onError: (error, ctx) => {
+        try {
+          // `ctx` is typed as the broad AuthContext; at runtime the error-time
+          // context carries the request `path` + `body`. Read them defensively.
+          const rc = ctx as unknown as { path?: string; body?: unknown }
+          if (!isOtpVerifyPath(rc.path)) return
+          const e = error as { message?: string; status?: number }
+          const email =
+            typeof rc.body === 'object' && rc.body !== null
+              ? (rc.body as { email?: string }).email
+              : undefined
+          log.warn('auth.otp_verify_failed', {
+            email,
+            status: e.status,
+            reason: mapOtpVerifyReason(e.message),
+          })
+        } catch {
+          // Observability must never crash the request (diagnose canon).
+        }
+      },
+    },
+    hooks: {
+      // On a SUCCESSFUL OTP verify, emit a matching ok event so the logs show
+      // both sides of the funnel. The `after` hook runs post-handler; a failed
+      // verify throws before returning, so reaching here on this path = success.
+      after: createAuthMiddleware(async (ctx) => {
+        try {
+          if (isOtpVerifyPath(ctx.path)) {
+            const email = (ctx.body as { email?: string } | undefined)?.email
+            log.info('auth.otp_verify_ok', { email })
+          }
+        } catch {
+          // Never let logging break the request.
+        }
+      }),
+    },
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     // Passwordless: no password to manage. Sign-in is a 6-digit code by email.
     emailAndPassword: { enabled: false },

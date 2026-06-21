@@ -3,9 +3,17 @@ import { Button } from '#/components/ui/button'
 import { usePushSubscription } from '#/components/push/use-push-subscription'
 
 /**
- * NotificationsStep — the final optional 'Stay in the loop' screen of the Jow-style
- * onboarding (#204). Asks for notification permission while the user is engaged,
- * which lifts opt-in vs the buried Week-page control (RatingReminders).
+ * RETIRED from the active onboarding flow (#149 prompt-on-auth). It is no longer
+ * listed in `STEPS`, so notifications are no longer asked mid-form. The push
+ * permission prompt now fires immediately on a successful sign-in / sign-up (a
+ * user-gesture moment) via `promptForNotifications()` in push-client.ts. This
+ * component is kept only for reference / potential reuse and is not imported
+ * anywhere; delete it if it stays unused.
+ *
+ * NotificationsStep — the (former) optional 'Stay in the loop' screen of the
+ * Jow-style onboarding (#204). Asked for notification permission while the user
+ * was engaged, which lifted opt-in vs the buried Week-page control
+ * (RatingReminders).
  *
  * It NEVER blocks onboarding. The shell's bottom CTA ('Build my week') always
  * advances regardless of what happens here, so a skip is simply tapping that CTA.

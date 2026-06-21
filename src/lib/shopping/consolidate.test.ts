@@ -152,8 +152,38 @@ describe('consolidate — unparseable handling', () => {
   })
 
   it('falls back to a neutral amount when nothing is specified', () => {
-    const r = recipe('r1', 'A', 1, [{ name: 'water', unit: '' }])
+    const r = recipe('r1', 'A', 1, [{ name: 'salt', unit: '' }])
     const list = consolidate([r], { adults: 1 })
+    expect(list.lines[0]!.displayAmount).toBe('(unspecified amount)')
+  })
+
+  it('drops cooking water "from the tap" (it is a recipe step, not a grocery)', () => {
+    const r = recipe('r1', 'A', 1, [
+      { name: 'tap water', qty: '1200', unit: 'ml' },
+      { name: 'boiling water', qty: '900', unit: 'ml' },
+      { name: 'salt', qty: '5', unit: 'g' },
+    ])
+    const list = consolidate([r], { adults: 1 })
+    expect(list.lines.map((l) => l.name)).toEqual(['salt'])
+  })
+
+  it('merges chili / chilli spelling variants into one line, summing amounts', () => {
+    const r = recipe('r1', 'A', 1, [
+      { name: 'chili flakes', qty: '10', unit: 'g' },
+      { name: 'chilli flakes', qty: '20', unit: 'g' },
+    ])
+    const list = consolidate([r], { adults: 1 })
+    expect(list.lines).toHaveLength(1)
+    expect(list.lines[0]!.totalQty).toBe(30)
+    expect(list.lines[0]!.unit).toBe('g')
+  })
+
+  it('drops a zero amount rather than rendering "0 tsp"', () => {
+    const r = recipe('r1', 'A', 1, [
+      { name: 'chilli flakes', qty: '0', unit: 'tsp' },
+    ])
+    const list = consolidate([r], { adults: 1 })
+    expect(list.lines).toHaveLength(1)
     expect(list.lines[0]!.displayAmount).toBe('(unspecified amount)')
   })
 })

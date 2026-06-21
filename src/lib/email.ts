@@ -6,7 +6,10 @@ import { readEnv } from './env'
 const FROM = 'Souso <hello@ronanconnolly.dev>'
 // Where waitlist-signup pings land.
 const ADMIN_NOTIFY_TO = 'tech@discopenguin.com'
-const MASCOT = 'https://smartcart.ronanconnolly.dev/brand/souso-v3-hello.png'
+// The full Souso brand mark (chef's toque + "Souso" wordmark) rendered cream on
+// transparent so it reads on the green header band. Email clients render PNG,
+// not SVG, and need an absolute URL, so this points at the prod email-logo.
+const MASCOT = 'https://souso.app/email-logo.png?v=5'
 const GREEN = '#43A047'
 const CANVAS = '#FBFDF9'
 
@@ -20,8 +23,7 @@ function emailShell(inner: string): string {
   <div style="background:${CANVAS};padding:32px 0;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;">
     <div style="max-width:440px;margin:0 auto;background:#ffffff;border:1px solid #e7eee7;border-radius:16px;overflow:hidden;">
       <div style="background:${GREEN};padding:20px 28px;text-align:center;">
-        <img src="${MASCOT}" alt="Souso" width="64" height="64" style="display:inline-block;border-radius:12px;vertical-align:middle;" />
-        <span style="color:#ffffff;font-size:20px;font-weight:700;vertical-align:middle;margin-left:10px;">Souso</span>
+        <img src="${MASCOT}" alt="Souso" width="180" height="111" style="display:inline-block;vertical-align:middle;" />
       </div>
       <div style="padding:32px 28px;text-align:center;">
         ${inner}

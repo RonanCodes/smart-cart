@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Plus, Trash2, ShoppingBasket } from 'lucide-react'
 import { Input } from '#/components/ui/input'
 import { Button } from '#/components/ui/button'
@@ -13,6 +13,7 @@ import {
   setAllChecked,
   clearShoppingList,
 } from '#/lib/shopping-list-server'
+import { cleanRows } from '#/lib/shopping'
 import type { ShoppingItem } from '#/lib/shopping'
 
 /**
@@ -63,7 +64,18 @@ export function EditableShoppingList({
    */
   priceMap?: Map<string, number>
 }) {
-  const [items, setItems] = useState<Array<ShoppingItem>>(initialItems)
+  // Clean the persisted rows before anything renders or flows up to the route
+  // (#cart-clean): drop cooking water ("tap water 1200 ml"), blank zero amounts
+  // ("chilli flakes 0 tsp"), and merge spelling-variant duplicates ("chili
+  // flakes" + "chilli flakes") into one row. Applied here so it also fixes rows
+  // saved BEFORE this shipped, not just freshly derived ones. Every server
+  // response is re-cleaned via `commit` below so the list never drifts back.
+  const [items, setItems] = useState<Array<ShoppingItem>>(() =>
+    cleanRows(initialItems),
+  )
+
+  /** Apply a server response: clean it, then store it. The single write path. */
+  const commit = (next: Array<ShoppingItem>) => setItems(cleanRows(next))
 
   // Mirror every items change up to the route (#311). An effect (not a call in
   // each setItems site) keeps the single source of truth here and fires once per
@@ -77,6 +89,12 @@ export function EditableShoppingList({
   const [newName, setNewName] = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [adding, setAdding] = useState(false)
+  /**
+   * The inline "Add an item" composer is collapsed by default so the main view
+   * stays clean like the design; a small affordance at the bottom opens it. The
+   * functionality is unchanged, just de-emphasised.
+   */
+  const [addOpen, setAddOpen] = useState(false)
   /** Two-tap guard for "Clear all": first tap arms it, second confirms. */
   const [confirmingClear, setConfirmingClear] = useState(false)
   /** A failed bulk action (clear / check-all) , shown instead of failing silently. */
@@ -84,14 +102,16 @@ export function EditableShoppingList({
 
   const selectedCount = items.filter((i) => i.checked).length
   const allChecked = items.length > 0 && selectedCount === items.length
-  // Inclusion model: the SELECTED (checked, in-order) rows are the active set, so
-  // they lead in the airy hairline aisle groups; the unselected rows collapse
-  // dimmed beneath. Order within each group is preserved (the loader returns
-  // oldest-first). The selected rows are grouped into aisle sections for the
-  // layout (#cart-align).
-  const selected = items.filter((i) => i.checked)
-  const unselected = items.filter((i) => !i.checked)
-  const selectedGroups = groupByCategory(selected, (i) => i.name)
+  // Aisle grouping is the PRIMARY structure (matches TJ's design): selected AND
+  // unselected rows live TOGETHER inside each aisle (Produce, Dairy & cheese,
+  // ...), each carrying its own checkbox state (checked = in your order). No
+  // separate "Not in your order" dump. A checked row reads as in-order; an
+  // unchecked one is dimmed in place. Order within each aisle is preserved
+  // (oldest-first from the loader).
+  const aisleGroups = useMemo(
+    () => groupByCategory(items, (i) => i.name),
+    [items],
+  )
 
   async function toggle(item: ShoppingItem) {
     setBusyId(item.id)
@@ -99,7 +119,7 @@ export function EditableShoppingList({
       const { items: next } = await updateShoppingItem({
         data: { id: item.id, checked: !item.checked },
       })
-      setItems(next)
+      commit(next)
     } catch {
       // no-op; the row simply does not change.
     } finally {
@@ -117,7 +137,7 @@ export function EditableShoppingList({
       const { items: next } = await updateShoppingItem({
         data: { id, [field]: value },
       })
-      setItems(next)
+      commit(next)
     } catch {
       // no-op
     } finally {
@@ -129,7 +149,7 @@ export function EditableShoppingList({
     setBusyId(id)
     try {
       const { items: next } = await removeShoppingItem({ data: { id } })
-      setItems(next)
+      commit(next)
     } catch {
       // no-op
     } finally {
@@ -145,9 +165,10 @@ export function EditableShoppingList({
       const { items: next } = await addShoppingItem({
         data: { name, amount: newAmount.trim() || null },
       })
-      setItems(next)
+      commit(next)
       setNewName('')
       setNewAmount('')
+      setAddOpen(false)
     } catch {
       // no-op
     } finally {
@@ -162,7 +183,7 @@ export function EditableShoppingList({
       const { items: next } = await setAllChecked({
         data: { checked: !allChecked },
       })
-      setItems(next)
+      commit(next)
     } catch {
       setActionError(
         'Could not update the list. Check your connection and try again.',
@@ -190,7 +211,7 @@ export function EditableShoppingList({
     setActionError(null)
     try {
       const { items: next } = await clearShoppingList()
-      setItems(next)
+      commit(next)
       // The empty list stays cleared on the next visit via the household's
       // durable lastSeededPlanId (#311), so no extra signal to the route is
       // needed; onCleared is kept optional for callers that still want it.
@@ -252,12 +273,12 @@ export function EditableShoppingList({
         </p>
       )}
 
-      {/* Airy hairline GROUPS by aisle (Produce, Dairy & cheese, ...), derived
-          from the real item names (#cart-align). Each group is a quiet uppercase
-          heading over hairline-separated rows: die-cut sticker, name + amount,
-          per-store price, checkbox. SELECTED (in-order) first; unselected
-          collapsed beneath. Grouping preserves order within each aisle. */}
-      {selectedGroups.map((group) => (
+      {/* Aisle sections are the primary structure (matches the design). Each
+          aisle is a quiet uppercase heading over hairline-separated rows: die-cut
+          sticker, name + amount, per-store price, checkbox. Selected (checked,
+          in-order) and unselected rows sit TOGETHER in each aisle; an unchecked
+          row reads dimmed in place via the row's own checked styling. */}
+      {aisleGroups.map((group) => (
         <section key={group.category} className="mb-4">
           <h3 className="text-muted-foreground mb-1 px-1 text-[0.7rem] font-bold tracking-[0.16em] uppercase">
             {group.category}
@@ -279,66 +300,60 @@ export function EditableShoppingList({
         </section>
       ))}
 
-      {unselected.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-muted-foreground/80 px-1 text-xs font-medium">
-            Not in your order ({unselected.length})
-          </p>
-          <div className="opacity-70">
-            {unselected.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                price={priceMap?.get(item.name)}
-                busy={busyId === item.id}
-                onToggle={() => toggle(item)}
-                onSaveName={(v) => saveField(item.id, 'name', v)}
-                onSaveAmount={(v) => saveField(item.id, 'amount', v)}
-                onRemove={() => remove(item.id)}
-              />
-            ))}
+      {/* Add a manual item — collapsed behind a small affordance so the default
+          view stays clean (the design has no inline composer). Tapping it reveals
+          the same name + amount inputs; the functionality is unchanged. */}
+      {addOpen ? (
+        <div className="flex items-end gap-2">
+          <div className="min-w-0 flex-1">
+            <Input
+              autoFocus
+              aria-label="New item name"
+              placeholder="Add an item..."
+              value={newName}
+              enterKeyHint="done"
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void add()
+                else if (e.key === 'Escape') setAddOpen(false)
+              }}
+              className="h-12 text-base"
+            />
           </div>
+          <div className="w-24 shrink-0">
+            <Input
+              aria-label="New item amount"
+              placeholder="Amount"
+              value={newAmount}
+              enterKeyHint="done"
+              onChange={(e) => setNewAmount(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void add()
+                else if (e.key === 'Escape') setAddOpen(false)
+              }}
+              className="h-12 text-base"
+            />
+          </div>
+          <Button
+            size="icon"
+            className="h-12 w-12 shrink-0"
+            aria-label="Add item"
+            disabled={adding || !newName.trim()}
+            onClick={() => void add()}
+          >
+            <Plus className="h-5 w-5" aria-hidden />
+          </Button>
         </div>
-      )}
-
-      {/* Add a manual item */}
-      <div className="flex items-end gap-2">
-        <div className="min-w-0 flex-1">
-          <Input
-            aria-label="New item name"
-            placeholder="Add an item..."
-            value={newName}
-            enterKeyHint="done"
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void add()
-            }}
-            className="h-12 text-base"
-          />
-        </div>
-        <div className="w-24 shrink-0">
-          <Input
-            aria-label="New item amount"
-            placeholder="Amount"
-            value={newAmount}
-            enterKeyHint="done"
-            onChange={(e) => setNewAmount(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void add()
-            }}
-            className="h-12 text-base"
-          />
-        </div>
-        <Button
-          size="icon"
-          className="h-12 w-12 shrink-0"
-          aria-label="Add item"
-          disabled={adding || !newName.trim()}
-          onClick={() => void add()}
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 px-1 text-sm font-medium transition-colors"
         >
-          <Plus className="h-5 w-5" aria-hidden />
-        </Button>
-      </div>
+          <Plus className="h-4 w-4" aria-hidden />
+          Add an item
+        </button>
+      )}
     </section>
   )
 }
