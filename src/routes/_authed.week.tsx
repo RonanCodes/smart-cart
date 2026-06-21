@@ -13,6 +13,7 @@ import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { replanWeek } from '#/lib/replan-server'
 import { getSimilarRecipes } from '#/lib/similar-server'
 import { applySimilarSwapToPlan } from '#/lib/swap-server'
+import { clearDayInPlan } from '#/lib/week-clear-server'
 import { addMealAlternatives } from '#/lib/add-meal-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
 import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
@@ -296,6 +297,31 @@ function WeekPage() {
   }
 
   /**
+   * Remove / skip a day's dinner: the household is not cooking that night (#255).
+   * Clears the day server-side (a new plan revision, the old week kept), reloads
+   * the week so the card flips to the empty "No dinner, Add one" state, and closes
+   * the sheet. The skipped day drops out of the shopping list + the cart because
+   * every derivation ignores a day with no recipe, so nothing else needs wiring.
+   */
+  async function removeDay(day: string) {
+    if (locked) return
+    setBusyDay(day)
+    setMessage(null)
+    try {
+      const res = await clearDayInPlan({
+        data: { planId: week.planId, day },
+      })
+      const next = await loadWeek({ data: { planId: res.planId } })
+      adopt(res.planId, next)
+      closeSheet()
+    } catch {
+      setMessage('Could not remove that dinner, try again.')
+    } finally {
+      setBusyDay(null)
+    }
+  }
+
+  /**
    * Open the picker in "add a meal" mode for an eating-out / empty day (#175). The
    * day ships no alternatives (topNForDay returns none for an 'out' day), so fetch
    * a fresh household-ranked set on demand, then render it in the same sheet the
@@ -444,6 +470,7 @@ function WeekPage() {
         onPick={(recipeId) => {
           if (editDay) void pickAlternative(editDay, recipeId)
         }}
+        onRemove={editDay ? () => void removeDay(editDay) : undefined}
       />
     </AppShell>
   )
