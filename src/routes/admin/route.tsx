@@ -7,6 +7,7 @@ import {
   Network,
   Mail,
   Sparkles,
+  CreditCard,
   ChevronLeft,
 } from 'lucide-react'
 import { requireAdminBeforeLoad } from '#/lib/admin-server'
@@ -104,6 +105,11 @@ function AdminLayout() {
               to="/admin/waitlist"
               icon={<Mail className="h-4 w-4" />}
               label="Waitlist"
+            />
+            <TabLink
+              to="/admin/payments"
+              icon={<CreditCard className="h-4 w-4" />}
+              label="Payments"
             />
           </nav>
         </div>

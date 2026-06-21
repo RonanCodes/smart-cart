@@ -20,17 +20,45 @@ export const Route = createFileRoute('/api/mollie/webhook')({
         const id = form ? String(form.get('id') ?? '') : ''
         if (!id) return new Response('missing id', { status: 400 })
 
-        const { readEnv } = await import('../../../lib/env')
-        const apiKey = await readEnv('MOLLIE_API_KEY')
-        if (!apiKey) return new Response('not configured', { status: 200 })
-
         const { getPayment } = await import('../../../lib/mollie')
         const { getDb } = await import('../../../db/client')
         const { tipPayment } = await import('../../../db/tip-schema')
         const { eq } = await import('drizzle-orm')
         const { applyMolliePaymentUpdate } =
           await import('../../../lib/tip-server')
+        const { asPaymentMode } = await import('../../../lib/payment-mode')
+        const { mollieKeyForMode } =
+          await import('../../../lib/payment-mode-resolve')
+        const { log } = await import('../../../lib/log')
         const db = await getDb()
+
+        // The mode the payment was created under decides which Mollie key can
+        // re-fetch it (a live payment can't be read with the test key). Look it
+        // up on the stored row; fall back to 'test' (+ a warn) if no row matches.
+        const row = (
+          await db
+            .select({ mode: tipPayment.mode })
+            .from(tipPayment)
+            .where(eq(tipPayment.molliePaymentId, id))
+            .limit(1)
+        )[0]
+        if (!row) {
+          log.warn('mollie.webhook_no_row', { molliePaymentId: id })
+        }
+        const mode = asPaymentMode(row?.mode) ?? 'test'
+
+        let apiKey: string
+        try {
+          apiKey = await mollieKeyForMode(mode)
+        } catch {
+          // 200 fast so Mollie stops retrying; the key is a config problem, not
+          // a transient one a retry would fix.
+          log.warn('mollie.webhook_key_unconfigured', {
+            molliePaymentId: id,
+            mode,
+          })
+          return new Response('not configured', { status: 200 })
+        }
 
         // Re-fetch status (source of truth) and write it to the matching row.
         // Idempotent: a retry with the same status rewrites the same value.

@@ -66,6 +66,10 @@ export const tipPayment = sqliteTable('tip_payment', {
   /** Mollie status: open|pending|authorized|paid|canceled|expired|failed, or
    * 'none' for a recorded no-tip add. Updated by the webhook re-fetch. */
   status: text('status').notNull(),
+  /** The Mollie mode this charge was created under ('test'|'live'), so the
+   * webhook re-fetches status with the MATCHING key (a live payment can't be
+   * read with the test key). Resolved at create time from payment_mode. */
+  mode: text('mode').notNull().default('test'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .$defaultFn(() => new Date())
     .notNull(),
