@@ -13,9 +13,9 @@ describe('entryRedirectTarget', () => {
     expect(entryRedirectTarget({ signedIn: false, onboarded: true })).toBeNull()
   })
 
-  it('sends a signed-in + onboarded user to /app', () => {
+  it('sends a signed-in + onboarded user to /week', () => {
     expect(entryRedirectTarget({ signedIn: true, onboarded: true })).toBe(
-      '/app',
+      '/week',
     )
   })
 

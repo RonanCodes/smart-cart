@@ -314,26 +314,3 @@ export const getHouseholdSummary = createServerFn({ method: 'GET' }).handler(
     }
   },
 )
-
-/** Everything the /app route's loader needs, in one round-trip (#251). */
-export interface AppBootstrap {
-  summary: HouseholdSummary | null
-  isAdmin: boolean
-}
-
-/**
- * The /app loader, batched into ONE round-trip (#251). The route used to call
- * getHouseholdSummary() + isAdmin() as two separate GET server fns; this composes
- * the same two reads INSIDE one server handler so the client makes a single call.
- * Behaviour and shape are unchanged.
- */
-export const loadAppBootstrap = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<AppBootstrap> => {
-    const { isAdmin } = await import('./admin-server')
-    const [summary, admin] = await Promise.all([
-      getHouseholdSummary(),
-      isAdmin(),
-    ])
-    return { summary, isAdmin: admin }
-  },
-)
