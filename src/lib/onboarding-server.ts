@@ -246,6 +246,39 @@ export const resetOnboarding = createServerFn({ method: 'POST' }).handler(
   },
 )
 
+export const resetWeekAndCart = createServerFn({ method: 'POST' }).handler(
+  async (): Promise<{ ok: true }> => {
+    const { getSessionUser } = await import('./server-auth')
+    const user = await getSessionUser()
+    if (!user) throw new Error('Not signed in')
+    const { getDb } = await import('../db/client')
+    const { household, mealPlan } = await import('../db/schema')
+    const { shoppingListItem } = await import('../db/shopping-list-schema')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+    const rows = await db
+      .select({ id: household.id })
+      .from(household)
+      .where(eq(household.ownerId, user.id))
+      .limit(1)
+    const householdId = rows[0]?.id
+    if (householdId) {
+      // Wipe every meal plan + the shopping list and forget the last auto-seed,
+      // so a freshly generated week re-seeds cleanly. Keeps the household +
+      // profile (a demo "start fresh", not a full reset).
+      await db.delete(mealPlan).where(eq(mealPlan.householdId, householdId))
+      await db
+        .delete(shoppingListItem)
+        .where(eq(shoppingListItem.householdId, householdId))
+      await db
+        .update(household)
+        .set({ lastSeededPlanId: null, updatedAt: new Date() })
+        .where(eq(household.id, householdId))
+    }
+    return { ok: true }
+  },
+)
+
 /** Does the signed-in user already have a household (i.e. has onboarded)? */
 export const hasHousehold = createServerFn({ method: 'GET' }).handler(
   async (): Promise<boolean> => {
