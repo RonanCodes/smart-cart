@@ -58,6 +58,7 @@ import { RatingReminders } from '#/components/week/RatingReminders'
 import { WeekSkeleton } from '#/components/week/WeekSkeleton'
 import { ReplanBanner } from '#/components/week/ReplanBanner'
 import type { PlanDayChange } from '#/lib/replan/diff'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
 interface WeekSearch {
   plan?: string
@@ -181,6 +182,16 @@ export const Route = createFileRoute('/_authed/week')({
 function WeekPage() {
   const loaderData = Route.useLoaderData()
 
+  // Record the route + the SHAPE of its loader data on Sentry (the undefined
+  // route/loader-data crashes on /week had no such context). Lazy-imported so the
+  // browser-only Sentry SDK never enters the loader/SSR bundle; a no-op until init.
+  // Must run before the guard below — hooks cannot sit after an early return.
+  useEffect(() => {
+    void import('#/lib/observability-client').then(({ setRouteContext }) =>
+      setRouteContext('/week', loaderData),
+    )
+  }, [loaderData])
+
   // Defensive: if the loader payload is ever missing or unusable (a partial /
   // failed result that slipped past the loader guards), render the empty state
   // for this week rather than crashing on `loaderData.kind` / `t.week` (#380).
@@ -271,9 +282,17 @@ function EmptyWeek({ offset }: { offset: number }) {
   async function act() {
     if (busy) return
     setBusy(true)
+    // Build-week clicked: the top of the planning funnel (also fired from
+    // onboarding's "Build my week"). `offset` distinguishes this-week vs a
+    // future generate.
+    track(FUNNEL_EVENTS.onboardingStepCompleted, {
+      step: isFuture ? 'generate_future_week_clicked' : 'build_week_clicked',
+      offset,
+    })
     try {
       if (canBuild) {
         await generateWeekForOffset({ data: { offset } })
+        track(FUNNEL_EVENTS.weekBuilt, { offset, source: 'week_empty_state' })
         await navigate({ to: '/week', search: { week: offset } })
         // The URL is already `?week=offset` while sitting on the empty state, so
         // navigate alone won't re-run the loader; invalidate forces it to pick up
@@ -631,6 +650,7 @@ function LoadedWeek({
         })
         const next = await loadWeek({ data: { planId: res.planId } })
         adopt(res.planId, next)
+        track(FUNNEL_EVENTS.recipeSwapped, { day, source: 'similar' })
       } catch {
         // Surface a recoverable banner instead of rethrowing (#385). The deck's
         // onSwapTo / the sheet's onPick both fire this as a fire-and-forget
@@ -662,6 +682,10 @@ function LoadedWeek({
       })
       const next = await loadWeek({ data: { planId: res.planId } })
       adopt(res.planId, next)
+      track(FUNNEL_EVENTS.recipeSwapped, {
+        day,
+        source: adding ? 'add_meal' : 'alternative',
+      })
       closeSwapSheet()
     } catch {
       setMessage(
@@ -822,6 +846,12 @@ function LoadedWeek({
       if (changed) {
         const next = await loadWeek({ data: { planId: finalPlanId } })
         adopt(next.planId, next)
+        // A chat/voice replan regenerated the week: count it as a recipe swap
+        // (the change can span multiple days) so the funnel sees the edit.
+        track(FUNNEL_EVENTS.recipeSwapped, {
+          source: 'replan',
+          changedDays: finalChanges.length,
+        })
         // Open the step-through review on exactly the days the diff says moved,
         // in calendar order, so the user can walk each change one at a time.
         const changedSet = new Set(finalChanges.map((c) => c.day))

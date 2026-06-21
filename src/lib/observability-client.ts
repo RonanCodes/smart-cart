@@ -8,6 +8,7 @@ import {
 } from '#/config/observability'
 import type { SessionLike } from './observability-user'
 import { toObservabilityUser } from './observability-user'
+import { getClientTraceId } from './trace'
 
 /**
  * Browser observability: Sentry (errors) + PostHog (product analytics + session
@@ -37,6 +38,18 @@ export function initObservability(): void {
     environment: 'production',
   })
 
+  // The per-session trace id (diagnose canon): tag every Sentry event with it and
+  // register it as a PostHog super-property so it rides on every event. Combined
+  // with the same id on `log.*` lines + the `/api/log` server re-emit, ONE value
+  // reconstructs a flow across logs, Sentry, and PostHog. Guarded: never throws.
+  let traceId = ''
+  try {
+    traceId = getClientTraceId()
+    Sentry.setTag('trace_id', traceId)
+  } catch {
+    // trace id is best-effort; an error without it still reports.
+  }
+
   posthog.init(POSTHOG_KEY, {
     api_host: POSTHOG_HOST,
     person_profiles: 'identified_only',
@@ -57,8 +70,91 @@ export function initObservability(): void {
       } catch {
         // get_session_replay_url is best-effort; ignore if unavailable.
       }
+      // The trace id rides on every PostHog event too, so a funnel event lines up
+      // with the same flow's Sentry error + Workers Logs line.
+      try {
+        if (traceId) ph.register({ trace_id: traceId })
+      } catch {
+        // register is best-effort; ignore if unavailable.
+      }
     },
   })
+}
+
+/**
+ * Describe the SHAPE of a route's loader data (keys + value-types, never the
+ * values) for a Sentry breadcrumb / route context. The worst post-launch issues
+ * were undefined route/loader data on /week with no clue what the loader returned;
+ * this captures exactly that without leaking recipe data or PII. Pure + exported
+ * so it is unit-testable without booting Sentry.
+ */
+export function loaderDataShape(data: unknown): Record<string, unknown> {
+  try {
+    if (data === null) return { type: 'null' }
+    if (data === undefined) return { type: 'undefined' }
+    if (Array.isArray(data)) return { type: 'array', length: data.length }
+    if (typeof data === 'object') {
+      const keys = Object.keys(data)
+      const types: Record<string, string> = {}
+      for (const k of keys) {
+        const v = (data as Record<string, unknown>)[k]
+        types[k] = Array.isArray(v) ? 'array' : v === null ? 'null' : typeof v
+      }
+      return { type: 'object', keys, types }
+    }
+    return { type: typeof data }
+  } catch {
+    return { type: 'unknown' }
+  }
+}
+
+/**
+ * Record the active route + the shape of its loader data, as both a Sentry tag
+ * (`route`) and a breadcrumb. So when /week (or any route) throws, the issue shows
+ * WHICH route and WHAT the loader handed it — the exact context the undefined
+ * route/loader-data crashes were missing. No-op until init. Never throws.
+ */
+export function setRouteContext(route: string, loaderData?: unknown): void {
+  if (!started) return
+  try {
+    Sentry.setTag('route', route)
+    Sentry.addBreadcrumb({
+      category: 'route',
+      message: route,
+      level: 'info',
+      data:
+        loaderData === undefined
+          ? undefined
+          : { loader: loaderDataShape(loaderData) },
+    })
+  } catch {
+    // Observability must never crash a request (diagnose canon).
+  }
+}
+
+/**
+ * Drop a Sentry breadcrumb for a key user action (build-week clicked, recipe
+ * swap, cart open, checkout start, order placed, OTP requested/verified). The
+ * trail of breadcrumbs makes a later error self-explanatory: you see the steps
+ * that led to it. Called by `analytics.track` for every funnel event, and
+ * directly at action edges that aren't funnel steps. No-op until init; never
+ * throws.
+ */
+export function addBreadcrumb(
+  message: string,
+  data?: Record<string, unknown>,
+): void {
+  if (!started) return
+  try {
+    Sentry.addBreadcrumb({
+      category: 'user-action',
+      message,
+      level: 'info',
+      ...(data ? { data } : {}),
+    })
+  } catch {
+    // Observability must never crash a request (diagnose canon).
+  }
 }
 
 /**

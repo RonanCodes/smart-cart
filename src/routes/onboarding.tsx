@@ -7,6 +7,7 @@ import { OnboardingFlow } from '#/components/onboarding/onboarding-flow'
 import { OnboardingSkeleton } from '#/components/onboarding/OnboardingSkeleton'
 import { completeOnboarding, hasHousehold } from '#/lib/onboarding-server'
 import type { OnboardingDraft } from '#/components/onboarding/form-state'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
 /**
  * Resolve the onboarding entry state in ONE server round-trip: is the visitor
@@ -68,6 +69,12 @@ function Onboarding() {
       // had a session; a signed-out visitor just verified their OTP, which set
       // the session cookie. So completeOnboarding's getSessionUser resolves.
       const { planId } = await completeOnboarding({ data: { draft } })
+      // First week built from onboarding: the activation moment. Non-PII props.
+      track(FUNNEL_EVENTS.weekBuilt, {
+        source: 'onboarding',
+        householdSize: (draft.adults || 0) + (draft.children || 0),
+        store: draft.store,
+      })
       await navigate({ to: '/week', search: { plan: planId } })
     } catch {
       // Keep the user on the form (their answers survive in the flow state +

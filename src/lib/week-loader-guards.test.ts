@@ -13,6 +13,8 @@ import type { WeekView } from './week-server'
 const WEEK: WeekView = {
   planId: 'plan-1',
   weekStart: '2026-06-15',
+  adults: 2,
+  children: 0,
   days: [
     {
       day: 'Monday',

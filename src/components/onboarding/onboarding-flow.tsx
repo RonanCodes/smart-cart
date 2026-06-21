@@ -13,6 +13,7 @@ import {
   saveDraft,
 } from './form-state'
 import type { OnboardingDraft } from './form-state'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 import {
   historyStateFor,
   indexToPosition,
@@ -20,6 +21,18 @@ import {
   readHistoryIndex,
 } from './onboarding-history'
 import type { OnboardingPhase } from './onboarding-history'
+
+/** Non-PII funnel properties derived from the in-flight draft (household size +
+ * store). NO names/email — analytics stays PII-free (analytics.stripPii also
+ * defends this). */
+function draftFunnelProps(draft: OnboardingDraft) {
+  return {
+    householdSize: (draft.adults || 0) + (draft.children || 0),
+    adults: draft.adults,
+    children: draft.children,
+    store: draft.store,
+  }
+}
 
 /**
  * OnboardingFlow — the Jow-style form shell that replaces the swipe deck as the
@@ -84,6 +97,11 @@ export function OnboardingFlow({
   React.useEffect(() => {
     saveDraft(draft)
   }, [draft])
+
+  // Top of the funnel: the onboarding flow mounted. Once per mount.
+  React.useEffect(() => {
+    track(FUNNEL_EVENTS.onboardingStarted, { skipIntro, requireAuth })
+  }, [skipIntro, requireAuth])
 
   const formValue = React.useMemo(
     () => ({
@@ -182,10 +200,21 @@ export function OnboardingFlow({
 
   function next() {
     if (phase !== 'steps') return
+    // Each completed step is a funnel rung; `step.id` names which one (household,
+    // dislikes, diet, cuisine, kitchen, goals, store, ...). Non-PII props only.
+    track(FUNNEL_EVENTS.onboardingStepCompleted, {
+      step: STEPS[stepIndex]?.id,
+      stepIndex,
+      total,
+      ...draftFunnelProps(draft),
+    })
     if (stepIndex === total - 1) {
       // A signed-out visitor goes to the email/OTP phase to create their account
       // before we persist; a signed-in redo (requireAuth=false) completes now.
       if (requireAuth) {
+        // Reached the email/OTP phase: mark the funnel rung. The auth agent owns
+        // the OTP request/verify breadcrumbs inside EmailStep.
+        track(FUNNEL_EVENTS.emailSubmitted, draftFunnelProps(draft))
         go('auth', stepIndex, true)
         return
       }
