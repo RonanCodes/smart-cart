@@ -1,3 +1,5 @@
+import { canonicalDislikeKey } from './dislike-synonyms'
+
 /**
  * Common-dislikes catalogue + a pure suggestion filter for the onboarding
  * Dislikes step (issue #173).
@@ -188,14 +190,23 @@ export function suggestDislikes(
   const q = query.trim().toLowerCase()
   if (!q) return []
 
+  // Exclude by SYNONYM-canonical key (#370), so a chip already shown/selected
+  // under one name ('Cilantro') also hides its synonym ('Coriander') from the
+  // dropdown, and the dropdown never offers two names for one ingredient.
   const excluded = new Set(
-    [...shown, ...selected].map((s) => s.trim().toLowerCase()),
+    [...shown, ...selected].map((s) => canonicalDislikeKey(s)),
   )
 
-  const matches = COMMON_DISLIKES.filter((item) => {
+  const seen = new Set<string>(excluded)
+  const matches: Array<string> = []
+  for (const item of COMMON_DISLIKES) {
     const lower = item.toLowerCase()
-    return lower.includes(q) && !excluded.has(lower)
-  })
+    if (!lower.includes(q)) continue
+    const key = canonicalDislikeKey(item)
+    if (seen.has(key)) continue
+    seen.add(key)
+    matches.push(item)
+  }
 
   // Prefix matches first (stable within each group via the original order).
   const prefix: Array<string> = []

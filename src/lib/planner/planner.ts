@@ -28,6 +28,42 @@ const WEEK_DAYS = [
  */
 const VEG_DIETS = new Set(['vegetarian', 'vegan'])
 
+/**
+ * Recipe `category` values that are NOT a dinner, even when the row's `mealType`
+ * is the DB default 'dinner' (#375). Real imported snacks / sweets / sides /
+ * drinks carry a category but inherit the 'dinner' meal-type default, so they
+ * leaked into the week (e.g. "Crackers" as a dinner). Matched case-insensitively
+ * as a substring of the category, so "Side Dish", "Dessert", "Beverage" etc all
+ * drop out. A null/empty category is treated as a dinner (no signal to exclude).
+ */
+const NON_DINNER_CATEGORY_TERMS: ReadonlyArray<string> = [
+  'snack',
+  'dessert',
+  'sweet',
+  'side',
+  'beverage',
+  'drink',
+  'cocktail',
+  'breakfast',
+  'brunch',
+  'appetiz',
+  'appetis',
+  'starter',
+  'sauce',
+  'condiment',
+  'dip',
+  'spread',
+  'bread', // baked-good loaves, not a dinner
+  'cracker',
+]
+
+/** True when a recipe's category marks it as a non-dinner item (#375). */
+function isNonDinnerCategory(r: PlannerRecipe): boolean {
+  const cat = r.category ? normalise(r.category) : ''
+  if (!cat) return false
+  return NON_DINNER_CATEGORY_TERMS.some((t) => cat.includes(t))
+}
+
 function normalise(s: string): string {
   return s.toLowerCase().trim()
 }
@@ -38,12 +74,22 @@ function ingredientText(r: PlannerRecipe): string {
 }
 
 /**
- * Hard filter. A recipe is a candidate only if it clears BOTH gates:
+ * Hard filter. A recipe is a candidate only if it clears EVERY gate:
+ *  - dinner only: the planner plans dinners. A recipe must have mealType
+ *    'dinner' AND a category that is not a known non-dinner (snack / dessert /
+ *    side / drink …). The category check exists because the DB defaults
+ *    mealType to 'dinner', so an imported snack still reads as a dinner unless
+ *    its category gives it away (#375).
  *  - allergies: no allergen string appears in any ingredient name.
  *  - diet: if the household is vegetarian or vegan, the recipe must carry the
  *    matching dietary tag.
+ *  - disliked cuisine (#374): a recipe whose cuisine the household explicitly
+ *    DISLIKED is dropped outright. This is a HARD filter, not a nudge — a
+ *    household that says "no Italian" must get zero Italian, even if a swipe
+ *    once liked an Italian dish. (Liked cuisines remain a soft up-weight; only
+ *    the dislike is absolute, mirroring the allergy/diet gates.)
  * These recipes are never candidates, so the soft scoring below can never bring
- * them back. We also keep only dinners, the planner plans dinners.
+ * them back.
  */
 export function hardFilter(
   recipes: Array<PlannerRecipe>,
@@ -52,9 +98,16 @@ export function hardFilter(
   const allergies = (profile.allergies ?? []).map(normalise).filter(Boolean)
   const diet = profile.diet ? normalise(profile.diet) : null
   const needsVegTag = diet && VEG_DIETS.has(diet) ? diet : null
+  const dislikedCuisines = new Set(
+    (profile.cuisinesDisliked ?? []).map(normalise).filter(Boolean),
+  )
 
   return recipes.filter((r) => {
     if (r.mealType !== 'dinner') return false
+    if (isNonDinnerCategory(r)) return false
+    if (dislikedCuisines.size && r.cuisine) {
+      if (dislikedCuisines.has(normalise(r.cuisine))) return false
+    }
     if (needsVegTag) {
       const tags = r.dietaryTags.map(normalise)
       // Vegans accept vegan recipes; vegetarians accept vegetarian or vegan.
@@ -162,6 +215,60 @@ export function resolveDayTypes(
  * as not-quick, so it only lands on a busy day via the shortest-available fallback. */
 function fitsBusy(r: PlannerRecipe): boolean {
   return r.prepMinutes != null && r.prepMinutes <= BUSY_PREP_CAP_MINUTES
+}
+
+/**
+ * Per-prior-use diversity penalty, in pool positions (#374). Deliberately large
+ * enough to step PAST a same-cuisine block: the catalogue ranks a cuisine's
+ * recipes contiguously, so a small nudge can never reach a fresh cuisine sitting
+ * further down. Each prior use of a cuisine this week pushes its remaining
+ * recipes this many positions down the effective order, so by the time a cuisine
+ * has appeared once or twice another cuisine's top recipe out-ranks it.
+ *
+ * This applies ONLY to cuisines the household did NOT explicitly LIKE. A liked
+ * cuisine is exempt (penalty 0), which is exactly the "pasta person" rule from
+ * CONTEXT.md: a household that asked for a cuisine gets a cuisine-heavy week,
+ * while a household with no strong preference gets a varied one. The dislike is
+ * already a hard filter upstream, so it never reaches the pool at all.
+ */
+const CUISINE_REPEAT_PENALTY = 1000
+
+/**
+ * Choose the next recipe for a day from the preference-ordered `pool`, skipping
+ * `used` recipes and (on a busy day) non-quick ones, while steering toward a
+ * cuisine not yet heavy this week (#374).
+ *
+ * The pick maximises `-poolIndex - CUISINE_REPEAT_PENALTY * timesCuisineUsed` for
+ * NEUTRAL cuisines, so once a neutral cuisine has appeared, a different cuisine's
+ * best remaining recipe out-ranks its repeats and the week spreads across
+ * cuisines. A cuisine the household explicitly LIKED (`likedCuisines`) is exempt
+ * from the penalty, so a stated preference still produces a cuisine-heavy week.
+ * Recipes with no cuisine never incur the penalty. Returns undefined when nothing
+ * fits (caller handles the fallback / empty day).
+ */
+function pickForDay(
+  pool: Array<PlannerRecipe>,
+  used: Set<string>,
+  cuisineCount: Map<string, number>,
+  likedCuisines: Set<string>,
+  wantsQuick: boolean,
+): PlannerRecipe | undefined {
+  let best: PlannerRecipe | undefined
+  let bestScore = Number.NEGATIVE_INFINITY
+  for (let i = 0; i < pool.length; i++) {
+    const r = pool[i]!
+    if (used.has(r.id)) continue
+    if (wantsQuick && !fitsBusy(r)) continue
+    const cuisine = r.cuisine ? normalise(r.cuisine) : null
+    const exempt = !cuisine || likedCuisines.has(cuisine)
+    const repeats = cuisine ? (cuisineCount.get(cuisine) ?? 0) : 0
+    const score = exempt ? -i : -i - CUISINE_REPEAT_PENALTY * repeats
+    if (score > bestScore) {
+      bestScore = score
+      best = r
+    }
+  }
+  return best
 }
 
 /**
@@ -331,12 +438,19 @@ export function topNForDay(
 /**
  * Generate a week of dinners for a household.
  *
- * Policy (grilled 2026-06-19, CONTEXT.md "Planner policy"):
- *  - Pure preference. Rank the FULL catalogue with the adaptive recommender,
- *    seeded by the onboarding swipes. No cuisine-variety constraint, a pasta
- *    person gets a pasta week.
- *  - Allergies and diet are hard filters (done first, those recipes never
- *    become candidates). Calorie goal, protein and prep time are soft nudges.
+ * Policy (grilled 2026-06-19, refined #374, CONTEXT.md "Planner policy"):
+ *  - Preference-led. Rank the FULL catalogue with the adaptive recommender,
+ *    seeded by the onboarding swipes. A household that explicitly LIKES a cuisine
+ *    still gets a cuisine-heavy week (the liked cuisine is exempt from the
+ *    diversity nudge below) — a pasta person gets a pasta week.
+ *  - Cuisine diversity for the undecided (#374): a household with no strong
+ *    cuisine signal gets a spread across cuisines instead of one cuisine all 7
+ *    days, since the catalogue ranks a cuisine's recipes contiguously and that
+ *    over-represents whatever sits at the top. See `pickForDay`.
+ *  - Allergies, diet, AND a disliked cuisine are hard filters (done first in
+ *    hardFilter, those recipes never become candidates). Only dinners are
+ *    planned (mealType + non-snack category). Calorie goal, protein and prep
+ *    time are soft nudges.
  *  - The only de-dup is: never the same recipe twice in one week.
  *  - The week always fills its days; soft scoring never empties the pool.
  *
@@ -358,6 +472,14 @@ export function generateWeek(
   const dayTypes = resolveDayTypes(days, profile, options.dayTypes)
 
   const used = new Set<string>()
+  // How many times each cuisine has already landed this week, so the picker can
+  // steer toward variety (#374) without overriding a strong preference.
+  const cuisineCount = new Map<string, number>()
+  // Explicitly-liked cuisines are exempt from the diversity penalty: a household
+  // that asked for a cuisine still gets a cuisine-heavy week (CONTEXT.md).
+  const likedCuisines = new Set(
+    (profile.cuisinesLiked ?? []).map((c) => c.toLowerCase().trim()),
+  )
   const planned: Array<PlannedDay> = []
 
   for (let i = 0; i < days; i++) {
@@ -371,9 +493,10 @@ export function generateWeek(
     }
 
     // 'busy' = quick only (prep <= 25 min). 'home' = any length. Within the
-    // time constraint the order is pure preference, and we never repeat a recipe.
+    // time constraint preference dominates, a same-cuisine repeat is gently
+    // penalised for variety, and we never repeat a recipe.
     const wantsQuick = type === 'busy'
-    let pick = pool.find((r) => !used.has(r.id) && (!wantsQuick || fitsBusy(r)))
+    let pick = pickForDay(pool, used, cuisineCount, likedCuisines, wantsQuick)
 
     // Graceful fallback: a busy cook-day must never be left empty. If nothing
     // quick is left, take the shortest unused recipe (unknown prep counts as
@@ -398,6 +521,10 @@ export function generateWeek(
     }
 
     used.add(pick.id)
+    if (pick.cuisine) {
+      const c = normalise(pick.cuisine)
+      cuisineCount.set(c, (cuisineCount.get(c) ?? 0) + 1)
+    }
     planned.push({ day, meal: pick.title, recipeRef: pick.id, type })
   }
 
