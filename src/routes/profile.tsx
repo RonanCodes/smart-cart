@@ -17,6 +17,7 @@ import { Sheet } from '#/components/ui/sheet'
 import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
 import { NotificationsSheet } from '#/components/profile/notifications-sheet'
+import { PlanReminderSection } from '#/components/profile/plan-reminder-section'
 import { StoreSheet } from '#/components/profile/store-sheet'
 import { storeLabel, loadProfileBootstrap } from '#/lib/store-pref-server'
 import type { StoreSlug, ProfileBootstrap } from '#/lib/store-pref-server'
@@ -140,6 +141,9 @@ function Profile() {
             onClick={() => setHelpOpen(true)}
           />
         </List>
+
+        {/* Weekly planning reminder (Part B): pick a day + time to be nudged. */}
+        <PlanReminderSection />
 
         {/* Your taste (#268): moved here from the retired /app pre-plan home. */}
         <section className="space-y-3">

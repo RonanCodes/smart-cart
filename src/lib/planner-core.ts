@@ -31,9 +31,14 @@ function mondayOf(d: Date): string {
  *
  * Hard filters (diet + dislikes via the profile's allergy/diet gates) and soft
  * weights (goals) are applied inside generateWeek from the persisted profile.
+ *
+ * `targetWeekStart` (a YYYY-MM-DD Monday) stamps the plan to a specific week; it
+ * defaults to the current week's Monday. Week navigation (Part A) passes a
+ * future Monday to generate next week's plan on demand.
  */
 export async function generatePlanForHousehold(
   householdId: string,
+  targetWeekStart?: string,
 ): Promise<GeneratePlanResult> {
   const { getDb } = await import('../db/client')
   const { household, recipe, recipeSwipe, mealPlan, mealFeedback } =
@@ -113,7 +118,7 @@ export async function generatePlanForHousehold(
 
   const week = generateWeek(recipes, hh.profile, swipes)
 
-  const weekStart = mondayOf(new Date())
+  const weekStart = targetWeekStart ?? mondayOf(new Date())
   const planId = crypto.randomUUID()
   await db.insert(mealPlan).values({
     id: planId,

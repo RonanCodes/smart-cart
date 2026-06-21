@@ -5,13 +5,20 @@ import {
   useNavigate,
   Link,
 } from '@tanstack/react-router'
-import { ShoppingBag } from 'lucide-react'
-import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
+import {
+  ShoppingBag,
+  ChevronLeft,
+  ChevronRight,
+  CalendarPlus,
+} from 'lucide-react'
+import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import {
   loadWeek,
   loadWeekBootstrap,
+  loadWeekForOffset,
   resolveLatestPlanId,
 } from '#/lib/week-server'
+import { weekLabel } from '#/lib/week-offset'
 import { weekPlanUrl } from '#/lib/week-url'
 import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { replanWeek } from '#/lib/replan-server'
@@ -22,7 +29,6 @@ import { clearDayInPlan } from '#/lib/week-clear-server'
 import { addMealAlternatives } from '#/lib/add-meal-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
 import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
-import { generatePlan } from '#/lib/planner-server'
 import { addWeekToShoppingList } from '#/lib/shopping-list-server'
 import { addToListCta } from '#/lib/shopping'
 import { submitMealFeedback } from '#/lib/meal-feedback-server'
@@ -40,11 +46,36 @@ import type { PlanDayChange } from '#/lib/replan/diff'
 
 interface WeekSearch {
   plan?: string
+  /** Week offset for prev/next navigation: 0 = this week, +1 = next, -1 = last. */
+  week?: number
 }
+
+/**
+ * The /week loader payload. Either a loaded week (with its data + the resolved
+ * offset for the nav label) or an empty state (a past week the household never
+ * planned, which we never back-fill). `offset` is null when reached by a bare
+ * `?plan=<id>` deep-link (in-place swaps + legacy links), so the nav simply
+ * hides until you navigate by week.
+ */
+type WeekLoaderData =
+  | {
+      kind: 'week'
+      offset: number | null
+      week: WeekView
+      feedback: Array<MealFeedbackState>
+      missingFromList: number
+    }
+  | { kind: 'empty'; offset: number; weekStart: string }
 
 export const Route = createFileRoute('/_authed/week')({
   validateSearch: (search: Record<string, unknown>): WeekSearch => ({
     plan: typeof search.plan === 'string' ? search.plan : undefined,
+    week:
+      typeof search.week === 'number'
+        ? Math.trunc(search.week)
+        : typeof search.week === 'string' && search.week.trim() !== ''
+          ? Math.trunc(Number(search.week))
+          : undefined,
   }),
   // Auth + onboarding now run ONCE in the shared `_authed` layout's beforeLoad
   // (#251); this route reads `{ user, hasHousehold }` off context and no longer
@@ -54,24 +85,42 @@ export const Route = createFileRoute('/_authed/week')({
   // returning to /week from /shopping always re-ran the loader (a fresh fan-out);
   // 30s makes Back instant with no refetch while a genuine cold load still runs.
   staleTime: 30_000,
-  loaderDeps: ({ search }) => ({ plan: search.plan }),
-  loader: async ({
-    deps,
-  }): Promise<{
-    week: WeekView
-    feedback: Array<MealFeedbackState>
-    missingFromList: number
-  }> => {
-    // No plan id means "generate one and land on it". A fresh plan keeps the
-    // entry point forgiving: /week always shows a week.
+  loaderDeps: ({ search }) => ({ plan: search.plan, week: search.week }),
+  loader: async ({ deps }): Promise<WeekLoaderData> => {
+    // Week-offset navigation (Part A) takes precedence: `?week=<offset>` loads
+    // (or, for current/future weeks, generates) that week. A past week with no
+    // plan returns an empty state we render with a "plan this week" CTA.
+    if (deps.week !== undefined && !Number.isNaN(deps.week)) {
+      const res = await loadWeekForOffset({ data: { offset: deps.week } })
+      if (res.kind === 'empty') {
+        return { kind: 'empty', offset: res.offset, weekStart: res.weekStart }
+      }
+      const { listMealFeedback } = await import('#/lib/meal-feedback-server')
+      const { countMissingFromWeek } =
+        await import('#/lib/shopping-list-server')
+      const [feedback, missing] = await Promise.all([
+        listMealFeedback({ data: { planId: res.week.planId } }),
+        countMissingFromWeek({ data: { planId: res.week.planId } }),
+      ])
+      return {
+        kind: 'week',
+        offset: res.offset,
+        week: res.week,
+        feedback,
+        missingFromList: missing.missing,
+      }
+    }
+    // No plan id and no week offset means "land on this week". Redirect to the
+    // canonical `?week=0` entry so navigation + deep-links share one shape.
     if (!deps.plan) {
-      const { planId } = await generatePlan()
-      throw redirect({ to: '/week', search: { plan: planId } })
+      throw redirect({ to: '/week', search: { week: 0 } })
     }
     // ONE round-trip (#251): loadWeekBootstrap composes loadWeek +
-    // listMealFeedback + countMissingFromWeek server-side, replacing the old
-    // 3-call client Promise.all. Same shape, same data.
-    return loadWeekBootstrap({ data: { planId: deps.plan } })
+    // listMealFeedback + countMissingFromWeek server-side. Reached via a bare
+    // `?plan=<id>` link (legacy + in-place swaps); offset is null so the nav
+    // stays hidden until the user navigates by week.
+    const bootstrap = await loadWeekBootstrap({ data: { planId: deps.plan } })
+    return { kind: 'week', offset: null, ...bootstrap }
   },
   // Skeleton while the loader resolves (#226). The loader still runs on the
   // server and hydrates first paint (SSR untouched); this only shows on
@@ -82,11 +131,107 @@ export const Route = createFileRoute('/_authed/week')({
 })
 
 function WeekPage() {
-  const {
-    week: initial,
-    feedback: initialFeedback,
-    missingFromList,
-  } = Route.useLoaderData()
+  const loaderData = Route.useLoaderData()
+
+  // A past week the household never planned: show an empty state with a CTA to
+  // plan it, plus the same prev/next nav so the user can keep browsing.
+  if (loaderData.kind === 'empty') {
+    return <EmptyWeek offset={loaderData.offset} />
+  }
+
+  return (
+    <LoadedWeek
+      initial={loaderData.week}
+      initialFeedback={loaderData.feedback}
+      missingFromList={loaderData.missingFromList}
+      offset={loaderData.offset}
+    />
+  )
+}
+
+/**
+ * Prev/next week navigation (Part A). Mobile-first, no hover-only affordance:
+ * two large tap targets flanking the resolved week label. Navigating changes the
+ * `?week=<offset>` search param, which re-runs the loader (loading or generating
+ * that week). Hidden when offset is null (a bare `?plan=` deep-link).
+ */
+function WeekNav({ offset }: { offset: number | null }) {
+  const navigate = useNavigate()
+  if (offset === null) return null
+  const go = (next: number) =>
+    void navigate({ to: '/week', search: { week: next } })
+  return (
+    <div className="flex items-center justify-between gap-2 px-1">
+      <button
+        type="button"
+        aria-label="Previous week"
+        onClick={() => go(offset - 1)}
+        className="text-foreground bg-secondary inline-flex h-11 w-11 items-center justify-center rounded-full active:opacity-70"
+      >
+        <ChevronLeft className="h-5 w-5" aria-hidden />
+      </button>
+      <span className="text-sm font-semibold" data-testid="week-label">
+        {weekLabel(offset)}
+      </span>
+      <button
+        type="button"
+        aria-label="Next week"
+        onClick={() => go(offset + 1)}
+        className="text-foreground bg-secondary inline-flex h-11 w-11 items-center justify-center rounded-full active:opacity-70"
+      >
+        <ChevronRight className="h-5 w-5" aria-hidden />
+      </button>
+    </div>
+  )
+}
+
+/** A past week with no plan: empty state + a CTA that generates it on demand. */
+function EmptyWeek({ offset }: { offset: number }) {
+  const navigate = useNavigate()
+  const [busy, setBusy] = useState(false)
+  // "Plan this week" generates by re-requesting the SAME offset but as a
+  // current/future week the server will generate. A past week is never
+  // back-filled, so the CTA instead drops the user back on this week.
+  async function planThisWeek() {
+    if (busy) return
+    setBusy(true)
+    await navigate({ to: '/week', search: { week: 0 } })
+  }
+  return (
+    <AppShell>
+      <ScreenHeader title="Your week" />
+      <div className="space-y-6 px-5 pt-2">
+        <WeekNav offset={offset} />
+        <EmptyState
+          icon={<CalendarPlus aria-hidden />}
+          title="No plan for this week"
+          hint="You didn't plan this week. Jump back to this week to keep cooking."
+          action={
+            <Button
+              size="pill"
+              disabled={busy}
+              onClick={() => void planThisWeek()}
+            >
+              Go to this week
+            </Button>
+          }
+        />
+      </div>
+    </AppShell>
+  )
+}
+
+function LoadedWeek({
+  initial,
+  initialFeedback,
+  missingFromList,
+  offset,
+}: {
+  initial: WeekView
+  initialFeedback: Array<MealFeedbackState>
+  missingFromList: number
+  offset: number | null
+}) {
   const navigate = useNavigate()
   const [week, setWeek] = useState<WeekView>(initial)
   const [busyDay, setBusyDay] = useState<string | null>(null)
@@ -461,6 +606,7 @@ function WeekPage() {
       />
 
       <div className="space-y-6 px-5 pt-2">
+        <WeekNav offset={offset} />
         <ChatReplan
           busy={replanning}
           onSubmit={replan}

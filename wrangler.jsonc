@@ -11,6 +11,12 @@
   "vars": {
     "BETTER_AUTH_URL": "https://smartcart.ronanconnolly.dev",
   },
+  // Cron triggers (Part C): the scheduled() handler runs every 15 minutes and
+  // decides which pushes to fire from the current Europe/Amsterdam local time
+  // (rate-meal ~20:00 daily; weekly-plan reminder per household preference).
+  "triggers": {
+    "crons": ["*/15 * * * *"],
+  },
   "d1_databases": [
     {
       "binding": "DB",
