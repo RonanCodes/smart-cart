@@ -30,12 +30,12 @@ export const Route = createRootRoute({
       // Status-bar / notch theming. iOS Safari (the browser PWA tab, before an
       // app is installed) paints the top safe-area from <meta name="theme-color">,
       // NOT the manifest theme_color. Without this the notch rendered pure white.
-      // #FBF7EF is the warm off-white the app canvas uses (the --background token,
-      // oklch(0.99 0.006 120)); matching it here means the notch reads as part of
-      // the app chrome instead of a white bar. One meta only: the app defaults to
-      // light, and TanStack's HeadContent dedupes metas by `name`, so a second
-      // media-scoped theme-color is unreliable. Installed/dark PWAs still get the
-      // warm tone from the manifest theme_color.
+      // #F5F1E7 is the Souso cream ground (the --background token); matching it
+      // here means the notch reads as part of the app chrome instead of a white
+      // bar. One meta only: the app defaults to light, and TanStack's HeadContent
+      // dedupes metas by `name`, so a second media-scoped theme-color is
+      // unreliable. Installed/dark PWAs still get the cream from the manifest
+      // theme_color.
       {
         name: 'theme-color',
         content: '#F5F1E7',
@@ -50,13 +50,30 @@ export const Route = createRootRoute({
         name: 'apple-mobile-web-app-status-bar-style',
         content: 'default',
       },
+      // The installed-PWA home-screen name on iOS (falls back to <title>, which
+      // is the long marketing string). Keep it the short brand name.
+      {
+        name: 'apple-mobile-web-app-title',
+        content: 'Souso',
+      },
       { title: SITE_TITLE },
       { name: 'description', content: SITE_DESCRIPTION },
       { property: 'og:title', content: SITE_TITLE },
       { property: 'og:description', content: SITE_DESCRIPTION },
       { property: 'og:type', content: 'website' },
       { property: 'og:url', content: SITE_URL },
+      { property: 'og:site_name', content: 'Souso' },
+      // Share-card image (link previews on iMessage/Slack/WhatsApp/X). Absolute
+      // URL, the Souso brand hero. summary_large_image renders it wide.
+      { property: 'og:image', content: `${SITE_URL}/brand/souso-hero.png` },
+      { property: 'og:image:width', content: '1536' },
+      { property: 'og:image:height', content: '1024' },
+      {
+        property: 'og:image:alt',
+        content: 'Souso, your sous chef for recipes and the weekly shop',
+      },
       { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:image', content: `${SITE_URL}/brand/souso-hero.png` },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
