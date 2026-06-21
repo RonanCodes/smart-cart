@@ -32,8 +32,11 @@ export function openStoreCart(link: BuiltCartLink): void {
     return
   }
 
-  // Reserve tabs synchronously (popup-safe), navigate with a stagger.
-  const tabs = urls.map(() => window.open('about:blank', '_blank', TAB_OPTS))
+  // Reserve a tab per chunk synchronously (popup-safe), navigate with a stagger.
+  // Do NOT pass 'noopener' here: with noopener window.open returns null, so the
+  // reserved about:blank tabs would have no handle to navigate and would just
+  // sit blank (#cart-blank). We need the handle to set tab.location below.
+  const tabs = urls.map(() => window.open('about:blank', '_blank'))
 
   urls.forEach((url, index) => {
     const run = () => navigateTab(tabs[index] ?? null, url)
