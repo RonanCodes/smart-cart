@@ -1,43 +1,35 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { Compass } from 'lucide-react'
-import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
-import { Button } from '#/components/ui/button'
+import { createFileRoute } from '@tanstack/react-router'
+import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { DiscoverSkeleton } from '#/components/swipe-deck/DiscoverSkeleton'
+import { DiscoverFeed } from '#/components/discover/DiscoverFeed'
 
 export const Route = createFileRoute('/discover')({
-  // Reuse the loader result on back-nav within 30s (#251). Discover has no loader
-  // yet (static placeholder), so this is a no-op today; wiring it now means the
-  // swipe deck slice's eventual data read inherits the cached back-nav behaviour.
+  // Reuse the loader result on back-nav within 30s (#251).
   staleTime: 30_000,
-  // Skeleton while a loader resolves (#229). Discover is a static placeholder
-  // today (no loader, so this never fires yet), but wiring the pendingComponent
-  // now means the swipe deck slice only has to add its data read, the loading
-  // shape is already in place and mirrors the eventual deck card.
+  // Skeleton while a loader resolves (#229). The feed itself fetches client-side
+  // (lazy, on mount) and shows its own loading skeleton, so this only fires for a
+  // future loader; harmless to keep wired.
   pendingComponent: DiscoverSkeleton,
   component: Discover,
 })
 
 /**
- * Discover tab — placeholder for the swipe-first recipe deck (PRD #87). Stubbed
- * here so the tab bar has a real destination; the deck lands in a later slice.
+ * Discover tab — a personalized, source-cited "ideas" feed (#Cala). A scrollable
+ * stack of cards tailored to the household's profile (in-season produce, a
+ * nutrition fact, a cuisine spotlight, a fun food fact), each grounded in real
+ * cited web knowledge from Cala (cala.ai), never a hallucination.
+ *
+ * The feed hides itself entirely when Cala is unconfigured or the household isn't
+ * onboarded, so the screen degrades to just its header in that case.
  */
 function Discover() {
   return (
     <AppShell>
       <ScreenHeader
         title="Discover"
-        subtitle="Swipe through dinners to teach Souso your taste."
+        subtitle="Ideas about food, health, and what's good to cook right now, tailored to your household."
       />
-      <EmptyState
-        icon={<Compass aria-hidden />}
-        title="The recipe deck is on its way"
-        hint="Soon you'll swipe right on dinners you'd cook and left on the ones you'd skip. For now, jump into your week."
-        action={
-          <Link to="/week">
-            <Button size="pill">Go to my week</Button>
-          </Link>
-        }
-      />
+      <DiscoverFeed />
     </AppShell>
   )
 }
