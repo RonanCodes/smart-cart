@@ -1,4 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
+import { log } from './log'
+import { MollieError } from './mollie'
 import type { getDb } from '../db/client'
 
 /** The drizzle db handle, named so the shared glue avoids an inline import type. */
@@ -46,6 +48,27 @@ export function computeTipAmount(
   const raw = (percent / 100) * total
   const charged = Math.max(raw, TIP_FEE_FLOOR_EUR)
   return charged.toFixed(2)
+}
+
+/**
+ * Map a Mollie payment failure to a message safe to show a tipper. We never leak
+ * a raw API blob to the UI; instead we say what's wrong in plain words. The 422
+ * "method not activated" case (the live profile has no enabled methods, a Mollie
+ * dashboard fix, see #307) gets its own clear line so the UI and the logs agree.
+ */
+export function friendlyTipError(err: unknown): string {
+  if (err instanceof MollieError) {
+    const text = `${err.title ?? ''} ${err.detail ?? ''}`.toLowerCase()
+    if (
+      err.status === 422 &&
+      text.includes('method') &&
+      (text.includes('not activated') || text.includes('not enabled'))
+    ) {
+      return 'Live payments are not enabled on this account yet. Your cart still opened, no charge was made.'
+    }
+    return "We couldn't start that payment. Your cart still opened, no charge was made."
+  }
+  return "We couldn't start that payment. Your cart still opened, no charge was made."
 }
 
 /** Minimal shape of the Mollie client the webhook needs, for injection in tests. */
@@ -208,17 +231,41 @@ export const startTip = createServerFn({ method: 'POST' })
       return { checkoutUrl: null, tipPaymentId, amount: null }
     }
 
-    const apiKey = await mollieKeyForMode(mode)
     const { readEnv } = await import('./env')
     const appUrl = (await readEnv('APP_URL')) ?? ''
-
     const storeQuery = data.store ? `?store=${data.store}` : ''
     const { createPayment } = await import('./mollie')
-    const payment = await createPayment(apiKey, {
+
+    // Wrap key-resolve + createPayment so a Mollie failure is LOUD and queryable
+    // (#307): one structured error line carrying mode/household/amount/status/
+    // detail, then a user-friendly rethrow the UI can show. The logger already
+    // enriches userId/email (#284), so each line also says WHO hit it.
+    let payment
+    try {
+      const apiKey = await mollieKeyForMode(mode)
+      payment = await createPayment(apiKey, {
+        amount,
+        description: 'Souso tip',
+        redirectUrl: `${appUrl}/tip/${tipPaymentId}/return${storeQuery}`,
+        webhookUrl: `${appUrl}/api/mollie/webhook`,
+      })
+    } catch (err) {
+      const status = err instanceof MollieError ? err.status : undefined
+      const detail = err instanceof MollieError ? err.detail : undefined
+      log.error('tip.mollie.create_failed', err, {
+        mode,
+        householdId,
+        amount,
+        status,
+        detail,
+      })
+      throw new Error(friendlyTipError(err))
+    }
+
+    log.info('tip.mollie.created', {
+      mode,
       amount,
-      description: 'Souso tip',
-      redirectUrl: `${appUrl}/tip/${tipPaymentId}/return${storeQuery}`,
-      webhookUrl: `${appUrl}/api/mollie/webhook`,
+      molliePaymentId: payment.id,
     })
 
     await db.insert(tipPayment).values({
