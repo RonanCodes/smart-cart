@@ -1,6 +1,5 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { requireAuthedBeforeLoad } from '#/lib/route-guards'
-import { FeedbackBubble } from '#/components/feedback/FeedbackBubble'
 
 /**
  * Shared auth + onboarding guard for the gated app routes (#251).
@@ -22,12 +21,11 @@ import { FeedbackBubble } from '#/components/feedback/FeedbackBubble'
  */
 export const Route = createFileRoute('/_authed')({
   beforeLoad: () => requireAuthedBeforeLoad(),
-  // The persistent feedback bubble (#404) is mounted once here so it follows the
-  // user across every gated screen, above the children's Outlet.
-  component: () => (
-    <>
-      <Outlet />
-      <FeedbackBubble />
-    </>
-  ),
+  // The persistent feedback affordance is now Sentry's user-feedback widget
+  // (#404), auto-injected by `feedbackIntegration` in observability-client so it
+  // hovers bottom-right on EVERY page (landing + signed-in) as the single
+  // always-available button. The old custom floating FeedbackBubble was removed
+  // here to avoid two competing bottom-right widgets; the in-app feedback form
+  // (Settings "Send feedback" + the `app_feedback` table + admin inbox) stays.
+  component: Outlet,
 })

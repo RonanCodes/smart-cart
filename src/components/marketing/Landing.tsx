@@ -111,7 +111,9 @@ export function Landing({
       <div className="mx-auto flex w-full max-w-md flex-col px-6 pb-16">
         {/* Hero */}
         <section className="pt-8 text-center">
-          <div className="flex items-center justify-center gap-2">
+          {/* Wordmark stays dead-centre; the Beta tag sits quietly under it so it
+              never pushes the mark off-centre (#407). */}
+          <div className="flex flex-col items-center gap-1.5">
             <img src="/souso-mark.svg" alt="Souso" className="h-11 w-auto" />
             <BetaBadge />
           </div>

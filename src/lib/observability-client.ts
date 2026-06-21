@@ -30,6 +30,63 @@ import {
  */
 let started = false
 
+/**
+ * Souso branding + plain-voice copy for the Sentry user-feedback widget (#404).
+ *
+ * This is the SINGLE always-available feedback affordance: Sentry's
+ * `feedbackIntegration` auto-injects a small button that hovers bottom-right on
+ * every page (landing + signed-in), and opens a short form. We keep it subtle
+ * (no Sentry branding, brand colours, plain labels) so it reads as a Souso touch,
+ * not a debug overlay.
+ *
+ * Pure + exported so the config (brand colours + copy) is unit-testable without
+ * booting Sentry. The theme maps the brand palette: forest green text on cream
+ * surfaces, mustard accent on the trigger + submit button.
+ */
+export function sousoFeedbackOptions() {
+  return {
+    // Brand, not Sentry: hide Sentry's own branding line.
+    showBranding: false,
+    // We already know who the user is from `Sentry.setUser`; don't make a beta
+    // tester fill in name/email to send a quick note. Email is collected silently
+    // via the Sentry user when present (useSentryUser default).
+    showName: false,
+    showEmail: false,
+    isNameRequired: false,
+    isEmailRequired: false,
+    // Plain Souso voice (no AI-tell, no dashes).
+    triggerLabel: 'Feedback',
+    triggerAriaLabel: 'Send feedback to Souso',
+    formTitle: 'Tell us what you think',
+    messageLabel: 'Your feedback',
+    messagePlaceholder: "What's working, what's not, what you'd love next?",
+    submitButtonLabel: 'Send feedback',
+    cancelButtonLabel: 'Not now',
+    successMessageText: 'Thank you, we read every note.',
+    // Brand palette (styles.css): cream surfaces, forest-green text, mustard
+    // accent. Set on both schemes so it stays on-brand in light or dark.
+    colorScheme: 'light' as const,
+    themeLight: {
+      background: '#f6f2e8',
+      foreground: '#16341f',
+      accentBackground: '#e8a33d',
+      accentForeground: '#16341f',
+      successColor: '#6f9135',
+      boxShadow: '0 6px 24px -8px rgba(22,52,31,0.35)',
+      outline: '1px auto #e8a33d',
+    },
+    themeDark: {
+      background: '#16341f',
+      foreground: '#f1ede0',
+      accentBackground: '#e8a33d',
+      accentForeground: '#1a1405',
+      successColor: '#8bb04a',
+      boxShadow: '0 6px 24px -8px rgba(0,0,0,0.5)',
+      outline: '1px auto #e8a33d',
+    },
+  }
+}
+
 export function initObservability(): void {
   if (started || !OBSERVABILITY_ENABLED) return
   started = true
@@ -40,6 +97,19 @@ export function initObservability(): void {
     tracesSampleRate: 0.2,
     sendDefaultPii: false,
     environment: 'production',
+    // The persistent, always-available feedback button (#404). Auto-injected by
+    // the integration so it hovers bottom-right on every page with no per-route
+    // wiring. Guarded: if the feedback integration isn't available in this SDK
+    // build, we skip it rather than crash init.
+    integrations: (() => {
+      try {
+        return typeof Sentry.feedbackIntegration === 'function'
+          ? [Sentry.feedbackIntegration(sousoFeedbackOptions())]
+          : []
+      } catch {
+        return []
+      }
+    })(),
     // Drop benign server-fn network/abort blips (SOUSO-A/Y/X, #417). The Sentry
     // browser SDK also auto-captures unhandled rejections from createServerFn's
     // fetch, so the filter belongs here as well as in captureError.

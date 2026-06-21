@@ -86,7 +86,7 @@ export function ScreenHeader({
           <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight">
             {title}
           </h1>
-          {beta && <BetaBadge className="mt-1.5 self-start" />}
+          {beta && <BetaBadge className="mt-2 self-start" />}
         </div>
         {action && <div className="shrink-0 pt-1">{action}</div>}
       </div>
