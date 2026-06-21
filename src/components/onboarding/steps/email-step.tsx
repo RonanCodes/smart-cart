@@ -78,6 +78,14 @@ export function EmailStep({
     e.preventDefault()
     setBusy(true)
     setError(null)
+    // Capture the email the user entered on EVERY request (not just failures),
+    // so an OTP issue (e.g. Android autofill) is traceable by email + device.
+    log.info('onboarding.otp_requested', {
+      email,
+      origin: typeof window !== 'undefined' ? window.location.origin : null,
+      userAgent:
+        typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+    })
     const { error: sendErr } = await authClient.emailOtp.sendVerificationOtp({
       email,
       type: 'sign-in',
