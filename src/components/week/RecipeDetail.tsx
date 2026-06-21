@@ -54,6 +54,7 @@ export function RecipeDetail({ recipeId, active }: RecipeDetailProps) {
             steps: [],
             prepMinutes: null,
             servings: null,
+            amountsEstimated: false,
           })
       })
       .finally(() => {
@@ -105,6 +106,11 @@ export function RecipeDetail({ recipeId, active }: RecipeDetailProps) {
           <h3 className="text-foreground mb-2 flex items-center gap-1.5 text-sm font-semibold">
             <ListChecks className="text-primary h-4 w-4" aria-hidden />
             Ingredients
+            {detail.amountsEstimated && (
+              <span className="text-muted-foreground ml-1 text-xs font-normal">
+                (approx amounts)
+              </span>
+            )}
           </h3>
           <ul className="divide-border/60 divide-y">
             {detail.ingredients.map((ing, i) => (

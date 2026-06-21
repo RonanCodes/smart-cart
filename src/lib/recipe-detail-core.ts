@@ -25,6 +25,12 @@ export interface RecipeDetailResult {
   steps: Array<string>
   prepMinutes: number | null
   servings: number | null
+  /**
+   * True when the ingredient amounts are LLM-estimated rather than from the
+   * source (#313), so the card can label them "approx". The demo AH/Jumbo set
+   * has patchy scraped quantities, so the amounts are inferred.
+   */
+  amountsEstimated: boolean
 }
 
 /** The shape of the recipe columns this view reads (the recipe table). */
@@ -46,6 +52,8 @@ export interface RecipeDetailRow {
   instructionsEn?: Array<string> | null
   prepMinutes: number | null
   servings: number | null
+  /** True when the amounts are LLM-estimated, not from the source (#313). */
+  quantitiesEstimated?: boolean | null
 }
 
 /**
@@ -93,6 +101,10 @@ export function mapRecipeDetail(row: RecipeDetailRow): RecipeDetailResult {
     steps,
     prepMinutes: row.prepMinutes,
     servings: row.servings,
+    // Only claim "approx" when there is actually an amount to qualify; a recipe
+    // with no ingredient amounts at all should not show the estimate note.
+    amountsEstimated:
+      !!row.quantitiesEstimated && ingredients.some((i) => i.amount !== null),
   }
 }
 
@@ -119,6 +131,7 @@ export async function fetchRecipeDetail(
     steps: [],
     prepMinutes: null,
     servings: null,
+    amountsEstimated: false,
   }
   if (!data.recipeId) return empty
 
@@ -139,6 +152,7 @@ export async function fetchRecipeDetail(
       instructionsEn: recipe.instructionsEn,
       prepMinutes: recipe.prepMinutes,
       servings: recipe.servings,
+      quantitiesEstimated: recipe.quantitiesEstimated,
     })
     .from(recipe)
     .where(eq(recipe.id, data.recipeId))

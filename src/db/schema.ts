@@ -140,6 +140,20 @@ export const recipe = sqliteTable('recipe', {
   instructionsEn: text('instructions_en', { mode: 'json' }).$type<
     Array<string>
   >(),
+  /**
+   * Estimated per-ingredient metric amount, parallel to `ingredients` by index.
+   * The scraped AH/Jumbo data has patchy quantities (many lines carry none), so
+   * the demo set gets LLM-estimated amounts baked in at seed time (#313). Null
+   * when not estimated. `quantitiesEstimated` flags that the displayed amounts +
+   * food-waste figures are inferred, so the UI can label them "approx".
+   */
+  ingredientsQty: text('ingredients_qty', { mode: 'json' }).$type<
+    Array<{ qty: number; unit: 'g' | 'ml' | 'stuks' }>
+  >(),
+  /** True when the amounts on this recipe are LLM-estimated, not from the source (#313). */
+  quantitiesEstimated: integer('quantities_estimated', {
+    mode: 'boolean',
+  }).default(false),
   /** Full scraped blob, kept verbatim as the source of truth. */
   raw: text('raw', { mode: 'json' }).$type<Record<string, unknown>>(),
   createdAt: integer('created_at', { mode: 'timestamp' })
