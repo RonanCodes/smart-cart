@@ -1,5 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+/** Shallow key list of an object, for diagnosing the VAPI payload shape. */
+function keysOf(v: unknown): string[] {
+  return v && typeof v === 'object' ? Object.keys(v) : []
+}
+
+/** Read a property off an unknown value without tripping no-unnecessary-condition. */
+function prop(v: unknown, key: string): unknown {
+  return v && typeof v === 'object'
+    ? (v as Record<string, unknown>)[key]
+    : undefined
+}
+
 /**
  * POST /api/vapi/tool, the VAPI custom-tool webhook.
  *
@@ -34,12 +46,6 @@ export const Route = createFileRoute('/api/vapi/tool')({
             extractCallPlanId,
           } = await import('../../../lib/vapi-webhook')
 
-          // 1. Verify the shared secret IF present (defense-in-depth). The
-          //    assistant's server.secret can only be set in the VAPI dashboard,
-          //    not via the API, so VAPI may send no X-Vapi-Secret header. When a
-          //    header IS sent it must match; when it isn't, we fall through to
-          //    the real security boundary: the signed call token (step 2), which
-          //    cannot be forged and is what scopes the call to a household.
           const secret = (await readEnv('VAPI_SERVER_SECRET')) ?? ''
           const got = request.headers.get('X-Vapi-Secret') ?? ''
           if (got && secret && !timingSafeEqual(got, secret)) {
@@ -48,15 +54,12 @@ export const Route = createFileRoute('/api/vapi/tool')({
 
           const body: unknown = await request.json().catch(() => ({}))
 
-          // 2. Derive identity from the verified token only.
           const { verifyVapiToken } =
             await import('../../../lib/vapi-verify-server')
-          const token = extractCallToken(body)
-          const claims = await verifyVapiToken(token)
+          const rawToken = extractCallToken(body)
+          const claims = await verifyVapiToken(rawToken)
           const planId = extractCallPlanId(body)
 
-          // 3. Dispatch each tool call. One try/catch per call so a single
-          //    failure can never throw the whole webhook (always 200).
           const { dispatchVapiTool } =
             await import('../../../lib/vapi-dispatch')
           const calls = extractToolCalls(body)
@@ -72,19 +75,24 @@ export const Route = createFileRoute('/api/vapi/tool')({
           }
           log.info('vapi.tool_call', {
             tools: calls.map((c) => c.name),
-            tokenPresent: Boolean(token),
+            tokenPresent: Boolean(rawToken),
             planId: planId ?? null,
             planIdPresent: Boolean(planId),
             identified: Boolean(claims),
             ctxFound,
             loadedPlanId,
+            bodyKeys: keysOf(body),
+            messageKeys: keysOf(prop(body, 'message')),
+            callKeys: keysOf(
+              prop(prop(body, 'message'), 'call') ?? prop(body, 'call'),
+            ),
           })
-          if (token && !claims) {
+          if (rawToken && !claims) {
             log.warn('vapi.token_verify_failed', {
               hint: 'Token reached webhook but did not verify — check VAPI_TOOL_TOKEN_SECRET matches between token mint and webhook env',
             })
           }
-          if (!token) {
+          if (!rawToken) {
             log.warn('vapi.token_missing', {
               hint: 'No token in webhook call metadata — expect call.metadata or call.assistantOverrides.metadata',
             })
@@ -94,7 +102,6 @@ export const Route = createFileRoute('/api/vapi/tool')({
               let result: string
               try {
                 if (!claims) {
-                  // No trustworthy household: decline cleanly, take no action.
                   result =
                     "I can't tell which account you're signed in to right now, so I can't make changes. Try reopening the app and starting again."
                 } else {
@@ -120,8 +127,6 @@ export const Route = createFileRoute('/api/vapi/tool')({
         } catch (err) {
           const { log } = await import('../../../lib/log')
           log.error('vapi.webhook_failed', err)
-          // Last-resort guard: never let the handler throw. VAPI ignores non-200,
-          // so even on an unexpected failure we answer 200 with an empty result set.
           return Response.json({ results: [] })
         }
       },

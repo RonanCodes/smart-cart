@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   createFileRoute,
   redirect,
@@ -7,28 +7,25 @@ import {
 } from '@tanstack/react-router'
 import { ShoppingBag } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
-import { requireUserBeforeLoad } from '#/lib/route-guards'
-import { hasHousehold } from '#/lib/onboarding-server'
-import { loadWeek, resolveLatestPlanId } from '#/lib/week-server'
+import {
+  loadWeek,
+  loadWeekBootstrap,
+  resolveLatestPlanId,
+} from '#/lib/week-server'
 import { weekPlanUrl } from '#/lib/week-url'
 import type { WeekView, DayAlternative } from '#/lib/week-server'
 import { replanWeek } from '#/lib/replan-server'
 import { applyStreamedWeek, streamReplan } from '#/lib/agent/replan-client'
 import { getSimilarRecipes } from '#/lib/similar-server'
 import { applySimilarSwapToPlan } from '#/lib/swap-server'
+import { clearDayInPlan } from '#/lib/week-clear-server'
 import { addMealAlternatives } from '#/lib/add-meal-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
 import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
 import { generatePlan } from '#/lib/planner-server'
-import {
-  addWeekToShoppingList,
-  countMissingFromWeek,
-} from '#/lib/shopping-list-server'
+import { addWeekToShoppingList } from '#/lib/shopping-list-server'
 import { addToListCta } from '#/lib/shopping'
-import {
-  submitMealFeedback,
-  listMealFeedback,
-} from '#/lib/meal-feedback-server'
+import { submitMealFeedback } from '#/lib/meal-feedback-server'
 import type { MealFeedbackState } from '#/lib/meal-feedback-server'
 import type { MealRating } from '#/lib/meal-feedback'
 import { Button } from '#/components/ui/button'
@@ -43,15 +40,18 @@ interface WeekSearch {
   plan?: string
 }
 
-export const Route = createFileRoute('/week')({
+export const Route = createFileRoute('/_authed/week')({
   validateSearch: (search: Record<string, unknown>): WeekSearch => ({
     plan: typeof search.plan === 'string' ? search.plan : undefined,
   }),
-  beforeLoad: async () => {
-    const ctx = await requireUserBeforeLoad()
-    if (!(await hasHousehold())) throw redirect({ to: '/onboarding' })
-    return ctx
-  },
+  // Auth + onboarding now run ONCE in the shared `_authed` layout's beforeLoad
+  // (#251); this route reads `{ user, hasHousehold }` off context and no longer
+  // re-fires the two guard server fns.
+  // Reuse the loader result on back-nav within 30s instead of re-running it on
+  // every navigation (#251). TanStack Router's default route staleTime is 0, so
+  // returning to /week from /shopping always re-ran the loader (a fresh fan-out);
+  // 30s makes Back instant with no refetch while a genuine cold load still runs.
+  staleTime: 30_000,
   loaderDeps: ({ search }) => ({ plan: search.plan }),
   loader: async ({
     deps,
@@ -66,12 +66,10 @@ export const Route = createFileRoute('/week')({
       const { planId } = await generatePlan()
       throw redirect({ to: '/week', search: { plan: planId } })
     }
-    const [week, feedback, missing] = await Promise.all([
-      loadWeek({ data: { planId: deps.plan } }),
-      listMealFeedback({ data: { planId: deps.plan } }),
-      countMissingFromWeek({ data: { planId: deps.plan } }),
-    ])
-    return { week, feedback, missingFromList: missing.missing }
+    // ONE round-trip (#251): loadWeekBootstrap composes loadWeek +
+    // listMealFeedback + countMissingFromWeek server-side, replacing the old
+    // 3-call client Promise.all. Same shape, same data.
+    return loadWeekBootstrap({ data: { planId: deps.plan } })
   },
   // Skeleton while the loader resolves (#226). The loader still runs on the
   // server and hydrates first paint (SSR untouched); this only shows on
@@ -113,6 +111,42 @@ function WeekPage() {
   )
   /** The recipe id whose rating write is in flight, if any. */
   const [ratingBusy, setRatingBusy] = useState<string | null>(null)
+  /** Days whose dinner a voice replan just changed, glowing for ~3s (#17). */
+  const [glowDays, setGlowDays] = useState<ReadonlySet<string>>(() => new Set())
+  /** Latest week, read inside the voice-sync callback without stale closure. */
+  const weekRef = useRef<WeekView>(week)
+  weekRef.current = week
+
+  /**
+   * After an in-app voice action, pull the household's newest plan. A voice
+   * replan writes a new plan revision server-to-server, so the page can't learn
+   * its id any other way. If it's new, adopt it and glow the days that changed
+   * (the "AI is doing its magic" cue). Idempotent + cheap: a no-op when nothing
+   * changed, so it's safe to fire on every voice message + on call-end.
+   */
+  async function syncFromVoice() {
+    try {
+      const prev = weekRef.current
+      const { planId } = await resolveLatestPlanId({
+        data: { planId: prev.planId },
+      })
+      if (!planId || planId === prev.planId) return
+      const next = await loadWeek({ data: { planId } })
+      const changed = next.days
+        .filter((d) => {
+          const before = prev.days.find((p) => p.day === d.day)
+          return before && before.recipeRef !== d.recipeRef
+        })
+        .map((d) => d.day)
+      adopt(next.planId, next)
+      if (changed.length > 0) {
+        setGlowDays(new Set(changed))
+        window.setTimeout(() => setGlowDays(new Set()), 3200)
+      }
+    } catch {
+      // Best-effort live sync; the chat path + a manual reload still work.
+    }
+  }
 
   /**
    * Submit a post-meal rating for a day's dinner (#126). Writes meal_feedback via
@@ -269,6 +303,31 @@ function WeekPage() {
   }
 
   /**
+   * Remove / skip a day's dinner: the household is not cooking that night (#255).
+   * Clears the day server-side (a new plan revision, the old week kept), reloads
+   * the week so the card flips to the empty "No dinner, Add one" state, and closes
+   * the sheet. The skipped day drops out of the shopping list + the cart because
+   * every derivation ignores a day with no recipe, so nothing else needs wiring.
+   */
+  async function removeDay(day: string) {
+    if (locked) return
+    setBusyDay(day)
+    setMessage(null)
+    try {
+      const res = await clearDayInPlan({
+        data: { planId: week.planId, day },
+      })
+      const next = await loadWeek({ data: { planId: res.planId } })
+      adopt(res.planId, next)
+      closeSheet()
+    } catch {
+      setMessage('Could not remove that dinner, try again.')
+    } finally {
+      setBusyDay(null)
+    }
+  }
+
+  /**
    * Open the picker in "add a meal" mode for an eating-out / empty day (#175). The
    * day ships no alternatives (topNForDay returns none for an 'out' day), so fetch
    * a fresh household-ranked set on demand, then render it in the same sheet the
@@ -316,63 +375,6 @@ function WeekPage() {
       setAddingToList(false)
     }
   }
-
-  /**
-   * After a voice call, adopt the newest plan revision for this week (voice
-   * persists server-side but has no stream to push plan ids to the browser).
-   */
-  async function syncAfterVoice() {
-    setMessage(null)
-    const anchorId = week.planId
-    try {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        if (attempt > 0) {
-          await new Promise((r) => setTimeout(r, 500))
-        }
-        const { planId: latestId } = await resolveLatestPlanId({
-          data: { planId: anchorId },
-        })
-        const next = await loadWeek({ data: { planId: latestId } })
-        adopt(next.planId, next)
-        if (latestId !== anchorId || attempt === 1) return
-      }
-    } catch {
-      setMessage('Could not refresh your week after voice, try again.')
-    }
-  }
-
-  const voicePollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  /** Poll for voice-driven plan revisions while a call is live (no stream). */
-  useEffect(() => {
-    if (!voiceLive) {
-      if (voicePollRef.current) {
-        clearInterval(voicePollRef.current)
-        voicePollRef.current = null
-      }
-      return
-    }
-    voicePollRef.current = setInterval(() => {
-      void (async () => {
-        try {
-          const { planId: latestId } = await resolveLatestPlanId({
-            data: { planId: week.planId },
-          })
-          if (latestId === week.planId) return
-          const next = await loadWeek({ data: { planId: latestId } })
-          adopt(next.planId, next)
-        } catch {
-          // best-effort; call-end sync is the fallback
-        }
-      })()
-    }, 2000)
-    return () => {
-      if (voicePollRef.current) {
-        clearInterval(voicePollRef.current)
-        voicePollRef.current = null
-      }
-    }
-  }, [voiceLive, week.planId])
 
   /**
    * Free-text replan through the streaming agent (`POST /api/replan`). The
@@ -452,7 +454,7 @@ function WeekPage() {
           planId={week.planId}
           disabled={replanning}
           onLiveChange={setVoiceLive}
-          onCallEnd={() => void syncAfterVoice()}
+          onActed={() => void syncFromVoice()}
         />
 
         <RatingReminders />
@@ -473,6 +475,7 @@ function WeekPage() {
               day={d}
               busy={busyDay === d.day}
               locked={locked}
+              glowing={glowDays.has(d.day)}
               onEdit={() => setEditDay(d.day)}
               onAdd={() => void startAdd(d.day)}
               onSwap={() => swap(d.day)}
@@ -515,6 +518,7 @@ function WeekPage() {
         onPick={(recipeId) => {
           if (editDay) void pickAlternative(editDay, recipeId)
         }}
+        onRemove={editDay ? () => void removeDay(editDay) : undefined}
       />
     </AppShell>
   )

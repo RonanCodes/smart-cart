@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Bell, BellOff, Check, Shield, ShieldOff } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  Bell,
+  BellOff,
+  Check,
+  Shield,
+  ShieldOff,
+  CheckCheck,
+} from 'lucide-react'
 import type {
   WaitlistView,
   WaitlistRowView,
@@ -10,9 +18,13 @@ import {
   grantUser,
   grantAdmin,
   revokeAdmin,
+  approveAllWaitlist,
+  pendingApprovableEmails,
   waitlistRowActions,
 } from '#/lib/admin-server'
 import { setMyWaitlistNotify } from '#/lib/admin-prefs-server'
+import { Button } from '#/components/ui/button'
+import { ConfirmDialog } from '#/components/ui/confirm-dialog'
 import { cn } from '#/lib/utils'
 
 /**
@@ -29,19 +41,74 @@ export function WaitlistPanel({
   waitlist: WaitlistView
   notifyEnabled: boolean
 }) {
+  const queryClient = useQueryClient()
+  // Emails that "Approve all" would grant: the not-yet-granted, non-admin rows.
+  // Derived with the SAME pure rule the server uses, so the count on the button
+  // and what the server actually grants never drift.
+  const pending = pendingApprovableEmails(waitlist.rows)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [approving, setApproving] = useState(false)
+  const [approveMsg, setApproveMsg] = useState<string | null>(null)
+
+  async function approveAll() {
+    if (approving) return
+    setApproving(true)
+    setApproveMsg(null)
+    try {
+      const res = await approveAllWaitlist()
+      setApproveMsg(
+        res.approved === 0
+          ? 'Nothing pending to approve.'
+          : `Approved ${res.approved} ${res.approved === 1 ? 'email' : 'emails'}.`,
+      )
+      // Re-read the waitlist so every approved row flips to its 'Approved' tag.
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'waitlist'] })
+    } catch {
+      setApproveMsg('Could not approve all, try again.')
+    } finally {
+      setApproving(false)
+      setConfirmOpen(false)
+    }
+  }
+
   return (
     <div className="max-w-2xl space-y-4">
       <NotifyToggle initial={notifyEnabled} />
 
-      <div>
-        <h2 className="text-lg font-semibold">
-          {waitlist.count} {waitlist.count === 1 ? 'signup' : 'signups'}
-        </h2>
-        <p className="text-muted-foreground text-sm">
-          Emails captured by the marketing landing, newest first. Approve to
-          grant login access, or make someone an admin, no redeploy needed.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">
+            {waitlist.count} {waitlist.count === 1 ? 'signup' : 'signups'}
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            Emails captured by the marketing landing, newest first. Approve to
+            grant login access, or make someone an admin, no redeploy needed.
+          </p>
+        </div>
+        {/* Approve all: only when there is something pending. Guarded by a
+            confirm dialog so a tap can't grant access to everyone by accident. */}
+        {pending.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={approving}
+            onClick={() => setConfirmOpen(true)}
+            className="shrink-0"
+          >
+            <CheckCheck className="h-4 w-4" aria-hidden />
+            {approving ? 'Approving…' : `Approve all (${pending.length})`}
+          </Button>
+        )}
       </div>
+
+      {approveMsg && (
+        <p
+          role="status"
+          className="text-muted-foreground bg-secondary rounded-lg px-3 py-2 text-xs"
+        >
+          {approveMsg}
+        </p>
+      )}
 
       <div className="border-border divide-border divide-y rounded-xl border">
         {waitlist.rows.map((r) => (
@@ -53,6 +120,16 @@ export function WaitlistPanel({
           </p>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Approve all ${pending.length} pending ${pending.length === 1 ? 'email' : 'emails'}?`}
+        description="Each gets login access right away. Admins and already-approved users are left as they are."
+        confirmLabel="Approve all"
+        busy={approving}
+        onConfirm={() => void approveAll()}
+      />
     </div>
   )
 }
@@ -86,6 +163,8 @@ function WaitlistRow({ row }: { row: WaitlistRowView }) {
   const { email, createdAt, configAdmin, revocable } = row
   const [grant, setGrant] = useState<GrantState>(row.grant)
   const [saving, setSaving] = useState(false)
+  // Make-admin is an elevating action, so it goes through a confirm dialog first.
+  const [confirmAdminOpen, setConfirmAdminOpen] = useState(false)
 
   async function run(
     next: GrantState,
@@ -169,14 +248,14 @@ function WaitlistRow({ row }: { row: WaitlistRowView }) {
         )}
 
         {/* Make admin: non-admin rows only (relabels to the Admin badge above
-            once promoted). */}
+            once promoted). Confirmed first, since it elevates access. */}
         {actions.makeAdmin && (
           <GrantButton
             label="Make admin"
             icon={<Shield className="h-4 w-4" />}
             primary
             saving={saving}
-            onClick={() => run('admin', grantAdmin)}
+            onClick={() => setConfirmAdminOpen(true)}
           />
         )}
 
@@ -192,6 +271,19 @@ function WaitlistRow({ row }: { row: WaitlistRowView }) {
           />
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmAdminOpen}
+        onOpenChange={setConfirmAdminOpen}
+        title={`Make ${email} an admin?`}
+        description="Admins can see the console and grant access to others."
+        confirmLabel="Make admin"
+        busy={saving}
+        onConfirm={() => {
+          setConfirmAdminOpen(false)
+          void run('admin', grantAdmin)
+        }}
+      />
     </div>
   )
 }

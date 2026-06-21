@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import type { MealFeedbackState } from './meal-feedback-server'
 
 /**
  * One ready alternative for a day, denormalised with the same card detail the
@@ -316,3 +317,84 @@ export const resolveLatestPlanId = createServerFn({ method: 'POST' })
 
     return { planId: plan.id }
   })
+
+/** Everything the /week route's loader needs, in one server round-trip (#251). */
+export interface WeekBootstrap {
+  week: WeekView
+  feedback: Array<MealFeedbackState>
+  missingFromList: number
+}
+
+/**
+ * Reshape the three /week reads into the loader's payload (#251). Pure glue, so
+ * the "batched shape == old 3-call shape" guarantee is unit-testable without the
+ * DB/session chain. Mirrors exactly what the old loader's Promise.all returned:
+ * `{ week, feedback, missingFromList: missing.missing }`.
+ */
+export function composeWeekBootstrap(
+  week: WeekView,
+  feedback: Array<MealFeedbackState>,
+  missing: { missing: number },
+): WeekBootstrap {
+  return { week, feedback, missingFromList: missing.missing }
+}
+
+/**
+ * The /week loader, batched into ONE round-trip (#251). The route used to fan out
+ * three GET server fns per visit (loadWeek + listMealFeedback + countMissingFromWeek
+ * in a Promise.all); this composes the same three server-only reads INSIDE one
+ * server handler, so the client makes a single call. Behaviour is unchanged: it
+ * runs the exact same three reads in parallel and returns the same shape the
+ * loader returned before.
+ */
+export const loadWeekBootstrap = createServerFn({ method: 'GET' })
+  .validator((data: { planId: string }) => data)
+  .handler(async ({ data }): Promise<WeekBootstrap> => {
+    const { listMealFeedback } = await import('./meal-feedback-server')
+    const { countMissingFromWeek } = await import('./shopping-list-server')
+    const [week, feedback, missing] = await Promise.all([
+      loadWeek({ data: { planId: data.planId } }),
+      listMealFeedback({ data: { planId: data.planId } }),
+      countMissingFromWeek({ data: { planId: data.planId } }),
+    ])
+    return composeWeekBootstrap(week, feedback, missing)
+  })
+
+/**
+ * The household's newest meal_plan id (by createdAt). Used by the in-app voice
+ * flow (#17): a voice replan writes a NEW plan revision server-to-server, so the
+ * open week page can't know its id. After a voice action the client calls this,
+ * and if the id differs from what it's showing, reloads that plan and glows the
+ * days that changed. Returns null when the household has no plan yet.
+ */
+export const latestPlanId = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<{ planId: string | null }> => {
+    const { getSessionUser } = await import('./server-auth')
+    const user = await getSessionUser()
+    if (!user) throw new Error('Not signed in')
+
+    const { getDb } = await import('../db/client')
+    const { household, mealPlan } = await import('../db/schema')
+    const { eq, desc } = await import('drizzle-orm')
+    const db = await getDb()
+
+    const hh = (
+      await db
+        .select({ id: household.id })
+        .from(household)
+        .where(eq(household.ownerId, user.id))
+        .limit(1)
+    )[0]
+    if (!hh) return { planId: null }
+
+    const row = (
+      await db
+        .select({ id: mealPlan.id })
+        .from(mealPlan)
+        .where(eq(mealPlan.householdId, hh.id))
+        .orderBy(desc(mealPlan.createdAt))
+        .limit(1)
+    )[0]
+    return { planId: row?.id ?? null }
+  },
+)

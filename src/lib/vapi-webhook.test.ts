@@ -94,7 +94,7 @@ describe('extractCallToken', () => {
       'tok2',
     )
   })
-  it('reads call.assistantOverrides.metadata.token (web SDK start shape)', () => {
+  it('reads call.assistantOverrides.metadata.token (vapi.start overrides path)', () => {
     expect(
       extractCallToken({
         message: {
@@ -106,6 +106,11 @@ describe('extractCallToken', () => {
         },
       }),
     ).toBe('from_overrides')
+    expect(
+      extractCallToken({
+        call: { assistantOverrides: { metadata: { token: 'tok4' } } },
+      }),
+    ).toBe('tok4')
   })
   it('prefers call.metadata over assistantOverrides on conflict', () => {
     expect(
@@ -119,9 +124,15 @@ describe('extractCallToken', () => {
       }),
     ).toBe('direct')
   })
+  it('deep-scans for metadata.token anywhere in the payload', () => {
+    expect(
+      extractCallToken({ a: { b: { c: { metadata: { token: 'deep' } } } } }),
+    ).toBe('deep')
+  })
   it('is undefined when absent', () => {
     expect(extractCallToken({ message: {} })).toBeUndefined()
     expect(extractCallToken(null)).toBeUndefined()
+    expect(extractCallToken({ metadata: { token: 123 } })).toBeUndefined()
   })
 })
 

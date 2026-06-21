@@ -12,7 +12,7 @@ import { Landing } from '#/components/marketing/Landing'
  * login button (login is hidden; approved users go to /login directly).
  *
  * Routing (server-side, before the page renders):
- *   - signed-in + onboarded     -> /app
+ *   - signed-in + onboarded     -> /week (auto-plans + shows recipes)
  *   - signed-in + NOT onboarded -> /onboarding (the Jow form)
  *   - signed out                -> render the Landing
  * The swipe-deck opener is retired (the SwipeDeck component stays in the repo

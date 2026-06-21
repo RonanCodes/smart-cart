@@ -9,6 +9,7 @@ import type {
   StapleLine,
   FrequentStaple,
 } from '#/lib/staples-server'
+import { StoreBadge } from '#/components/shopping/StoreBadge'
 
 /**
  * "Add your staples" on the Shopping tab (#124, PRD step 4).
@@ -170,6 +171,10 @@ export function StaplesSection({
                 onClick={() => add(r)}
                 className="hover:bg-secondary/60 flex w-full items-center gap-3 px-4 py-3 text-left transition-colors disabled:opacity-60"
               >
+                {/* Static chip only: this row is itself a button (an inner
+                    link would be invalid nesting). The click-through lands on
+                    the saved row below, once added. */}
+                <StoreBadge store={r.store} productName={r.name} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{r.name}</p>
                   <p className="text-muted-foreground mt-0.5 truncate text-xs">
@@ -245,6 +250,11 @@ export function StaplesSection({
           <div className="bg-card border-border divide-border divide-y overflow-hidden rounded-[var(--radius-ios)] border">
             {staples.map((s) => (
               <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+                <StoreBadge
+                  store={s.store}
+                  slug={s.productSlug}
+                  productName={s.name}
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{s.name}</p>
                   <p className="text-muted-foreground mt-0.5 truncate text-xs">

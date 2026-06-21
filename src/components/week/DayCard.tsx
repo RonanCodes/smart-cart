@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import clsx from 'clsx'
 import {
   UtensilsCrossed,
   Shuffle,
@@ -23,6 +24,8 @@ interface DayCardProps {
   busy: boolean
   /** Whether any action anywhere is in flight (disables this card's button). */
   locked: boolean
+  /** A voice/chat replan just changed this day: play the AI "magic" glow. */
+  glowing?: boolean
   /** Tap the card to open the edit sheet (~5 ready alternatives). */
   onEdit: () => void
   /**
@@ -65,6 +68,7 @@ export function DayCard({
   day,
   busy,
   locked,
+  glowing = false,
   onEdit,
   onAdd,
   onSwap,
@@ -90,7 +94,12 @@ export function DayCard({
   }
 
   return (
-    <div className="bg-card border-border flex flex-col overflow-hidden rounded-xl border shadow-sm">
+    <div
+      className={clsx(
+        'bg-card border-border flex flex-col overflow-hidden rounded-xl border shadow-sm',
+        glowing && 'ai-glow',
+      )}
+    >
       {/* The whole dish (image + title + macros) is one big tap target that opens
           the edit sheet. A skipped day has nothing to edit, so it is inert. */}
       <button

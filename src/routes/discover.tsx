@@ -5,6 +5,10 @@ import { Button } from '#/components/ui/button'
 import { DiscoverSkeleton } from '#/components/swipe-deck/DiscoverSkeleton'
 
 export const Route = createFileRoute('/discover')({
+  // Reuse the loader result on back-nav within 30s (#251). Discover has no loader
+  // yet (static placeholder), so this is a no-op today; wiring it now means the
+  // swipe deck slice's eventual data read inherits the cached back-nav behaviour.
+  staleTime: 30_000,
   // Skeleton while a loader resolves (#229). Discover is a static placeholder
   // today (no loader, so this never fires yet), but wiring the pendingComponent
   // now means the swipe deck slice only has to add its data read, the loading

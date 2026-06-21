@@ -68,7 +68,9 @@ export interface VoiceButtonProps {
   disabled?: boolean
   /** True while a call is connecting or live (locks the rest of the week UI). */
   onLiveChange?: (live: boolean) => void
-  /** Runs when the call ends so the parent can reload the latest plan revision. */
+  /** Debounced resync after voice tool activity (live grid + glow cue). */
+  onActed?: () => void
+  /** Runs when the call ends (final resync safety net). */
   onCallEnd?: () => void
 }
 
@@ -87,11 +89,21 @@ export function VoiceButton({
   planId,
   disabled = false,
   onLiveChange,
+  onActed,
   onCallEnd,
 }: VoiceButtonProps) {
   const vapi = useRef<Vapi | null>(null)
   const [state, setState] = useState<CallState>('idle')
   const [reason, setReason] = useState<ErrorReason>('unknown')
+  const onActedRef = useRef(onActed)
+  onActedRef.current = onActed
+  const onCallEndRef = useRef(onCallEnd)
+  onCallEndRef.current = onCallEnd
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleSync = () => {
+    if (syncTimer.current) clearTimeout(syncTimer.current)
+    syncTimer.current = setTimeout(() => onActedRef.current?.(), 600)
+  }
 
   useEffect(() => {
     if (!VAPI_PUBLIC_KEY) return
@@ -102,7 +114,6 @@ export function VoiceButton({
         if (cancelled) return
         const VapiCtor = resolveVapiCtor(mod)
         if (!VapiCtor) {
-          // Capture the actual module shape so the interop can be fixed for good.
           log.error('vapi.ctor_unresolved', undefined, {
             modType: typeof mod,
             defaultType: typeof (mod as { default?: unknown }).default,
@@ -124,14 +135,18 @@ export function VoiceButton({
           v.on('call-end', () => {
             onLiveChange?.(false)
             setState('idle')
-            onCallEnd?.()
+            onActedRef.current?.()
+            onCallEndRef.current?.()
           })
           v.on('error', (e: unknown) => {
             log.error('vapi.sdk_error', e)
             setReason('unknown')
             setState('error')
           })
-          v.on('message', (m: unknown) => log.debug('vapi.message', { m }))
+          v.on('message', (m: unknown) => {
+            log.debug('vapi.message', { m })
+            scheduleSync()
+          })
         } catch (e) {
           log.error('vapi.init_failed', e)
           setReason('init')
@@ -149,7 +164,7 @@ export function VoiceButton({
       vapi.current?.stop()
       vapi.current = null
     }
-  }, [])
+  }, [onLiveChange])
 
   async function start() {
     if (!vapi.current || disabled) {
@@ -173,7 +188,6 @@ export function VoiceButton({
     } catch (err) {
       onLiveChange?.(false)
       const tagged = (err as { reason?: ErrorReason }).reason
-      // A mic-permission rejection from vapi.start surfaces as a DOMException.
       const isMic =
         err instanceof DOMException ||
         /permission|microphone|notallowed/i.test(String(err))
@@ -188,7 +202,7 @@ export function VoiceButton({
     vapi.current?.stop()
     onLiveChange?.(false)
     setState('idle')
-    onCallEnd?.()
+    onCallEndRef.current?.()
   }
 
   const live = state === 'live'

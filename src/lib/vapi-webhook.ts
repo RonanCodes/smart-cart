@@ -117,13 +117,53 @@ function readCallMetadata(body: unknown): Record<string, unknown> | undefined {
 }
 
 /**
- * Pull the start-time session token out of the webhook body. VAPI's path for
- * echoed metadata varies by version, so check `message.call?.metadata?.token`
- * and the top-level `call?.metadata?.token`. Returns undefined if absent.
+ * Pull the signed session token VAPI echoes back from call-start.
+ *
+ * The browser calls `vapi.start(assistantId, { metadata: { token } })`. That
+ * second argument is the assistant OVERRIDES, so VAPI delivers the metadata at
+ * `call.assistantOverrides.metadata` — NOT `call.metadata`, which is where our
+ * first version (wrongly) looked, so every tool call was declined ("can't tell
+ * which account..."). We now check every known path AND deep-scan for a
+ * `metadata.token` anywhere in the payload, because VAPI's exact shape varies by
+ * version (PRD §4 caveat). The webhook logs the raw payload separately to confirm.
  */
 export function extractCallToken(body: unknown): string | undefined {
-  const token = readCallMetadata(body)?.token
-  return typeof token === 'string' ? token : undefined
+  const fromMeta = readCallMetadata(body)?.token
+  if (typeof fromMeta === 'string' && fromMeta.length > 0) return fromMeta
+
+  const known = [
+    ['message', 'call', 'assistantOverrides', 'metadata', 'token'],
+    ['call', 'assistantOverrides', 'metadata', 'token'],
+    ['message', 'call', 'metadata', 'token'],
+    ['call', 'metadata', 'token'],
+    ['message', 'assistantOverrides', 'metadata', 'token'],
+    ['message', 'metadata', 'token'],
+  ]
+  for (const path of known) {
+    const v = path.reduce<unknown>(
+      (acc, k) =>
+        acc && typeof acc === 'object'
+          ? (acc as Record<string, unknown>)[k]
+          : undefined,
+      body,
+    )
+    if (typeof v === 'string' && v.length > 0) return v
+  }
+  return deepFindToken(body)
+}
+
+function deepFindToken(node: unknown, depth = 0): string | undefined {
+  if (depth > 6 || !node || typeof node !== 'object') return undefined
+  const obj = node as Record<string, unknown>
+  const meta = obj.metadata as { token?: unknown } | undefined
+  if (meta && typeof meta.token === 'string' && meta.token.length > 0) {
+    return meta.token
+  }
+  for (const value of Object.values(obj)) {
+    const found = deepFindToken(value, depth + 1)
+    if (found) return found
+  }
+  return undefined
 }
 
 /** The meal_plan revision the user had open when the voice call started. */

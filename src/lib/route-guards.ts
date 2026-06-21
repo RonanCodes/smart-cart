@@ -23,7 +23,7 @@ const resolveSessionUser = createServerFn({ method: 'GET' }).handler(
 /**
  * Resolve the signed-in user, or null when signed out, without redirecting.
  * Used by the public opener (index route) to decide whether an already-onboarded
- * visitor should skip straight to /app, while still letting signed-out visitors
+ * visitor should skip straight to /week, while still letting signed-out visitors
  * through to swipe anonymously. Fails open to null so a transient session error
  * never blocks the public deck.
  */
@@ -38,7 +38,7 @@ export async function resolveSessionUserOrNull(): Promise<GuardUser | null> {
 /**
  * Pure entry-routing decision for `/`. Keeps the branch logic out of the route's
  * async beforeLoad so it can be unit-tested without the server-fn/session chain:
- *   - signed-in + onboarded  -> redirect to /app
+ *   - signed-in + onboarded  -> redirect to /week (auto-plans + shows recipes)
  *   - signed-in + NOT onboarded -> redirect to /onboarding (the Jow form)
  *   - signed out             -> stay (render the marketing Landing)
  * Returns the redirect target, or null to render the Landing in place.
@@ -46,9 +46,9 @@ export async function resolveSessionUserOrNull(): Promise<GuardUser | null> {
 export function entryRedirectTarget(input: {
   signedIn: boolean
   onboarded: boolean
-}): '/app' | '/onboarding' | null {
+}): '/week' | '/onboarding' | null {
   if (!input.signedIn) return null
-  return input.onboarded ? '/app' : '/onboarding'
+  return input.onboarded ? '/week' : '/onboarding'
 }
 
 /**
@@ -66,4 +66,83 @@ export async function requireUserBeforeLoad(): Promise<{ user: GuardUser }> {
   }
   if (!user) throw redirect({ to: '/sign-in' })
   return { user }
+}
+
+/** The session + onboarding state every gated route needs, resolved together. */
+export interface AuthContext {
+  user: GuardUser | null
+  hasHousehold: boolean
+}
+
+/**
+ * Pure redirect decision for the shared `_authed` guard (#251). Keeps the branch
+ * logic out of the async beforeLoad so it is unit-testable without the
+ * server-fn/session chain. Mirrors the old per-route guards exactly:
+ *   - signed out             -> '/sign-in'
+ *   - signed in, no household -> '/onboarding'
+ *   - signed in + onboarded   -> null (render the gated page)
+ */
+export function authedRedirectTarget(
+  ctx: AuthContext,
+): '/sign-in' | '/onboarding' | null {
+  if (!ctx.user) return '/sign-in'
+  if (!ctx.hasHousehold) return '/onboarding'
+  return null
+}
+
+/**
+ * Resolve session + onboarding state in ONE round-trip (#251). Each gated route
+ * used to call resolveSessionUser + hasHousehold separately in its own beforeLoad,
+ * so /week, /shopping, /app each fired two guard server-fns per visit. This is the
+ * single server fn the shared `_authed` layout calls once; children read the
+ * resolved `{ user, hasHousehold }` off route context instead of re-fetching.
+ *
+ * Server-only: the auth + db imports are dynamic and inside the handler, so the
+ * `cloudflare:workers` / getRequest chain is stripped from the client bundle.
+ * Returns `user: null` (rather than throwing) when signed out, so the layout's
+ * beforeLoad owns the redirect decision in one place.
+ */
+export const resolveAuthContext = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<AuthContext> => {
+    const { getSessionUser } = await import('./server-auth')
+    const user = (await getSessionUser()) ?? null
+    if (!user) return { user: null, hasHousehold: false }
+
+    const { getDb } = await import('../db/client')
+    const { household } = await import('../db/schema')
+    const { eq } = await import('drizzle-orm')
+    const db = await getDb()
+    const rows = await db
+      .select({ id: household.id })
+      .from(household)
+      .where(eq(household.ownerId, user.id))
+      .limit(1)
+    return { user, hasHousehold: rows.length > 0 }
+  },
+)
+
+/**
+ * `beforeLoad` guard for the shared `_authed` layout (#251). Resolves auth +
+ * onboarding once and returns `{ user, hasHousehold }` for child routes to read
+ * off context, replacing the per-route `requireUserBeforeLoad()` + `hasHousehold()`
+ * pair. Behaviour is identical to the old per-route guards:
+ *   - signed out          -> redirect to /sign-in (fails closed on any error)
+ *   - signed in, no household -> redirect to /onboarding
+ *   - signed in + onboarded   -> pass `{ user, hasHousehold: true }` to children
+ */
+export async function requireAuthedBeforeLoad(): Promise<{
+  user: GuardUser
+  hasHousehold: boolean
+}> {
+  let ctx: AuthContext
+  try {
+    ctx = await resolveAuthContext()
+  } catch (err) {
+    if (isRedirect(err)) throw err
+    throw redirect({ to: '/sign-in' })
+  }
+  const target = authedRedirectTarget(ctx)
+  if (target) throw redirect({ to: target })
+  // target === null means user is present and onboarded.
+  return { user: ctx.user!, hasHousehold: ctx.hasHousehold }
 }

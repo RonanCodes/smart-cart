@@ -9,16 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WeekRouteImport } from './routes/week'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as SignOutRouteImport } from './routes/sign-out'
 import { Route as SignInRouteImport } from './routes/sign-in'
-import { Route as ShoppingRouteImport } from './routes/shopping'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DiscoverRouteImport } from './routes/discover'
-import { Route as AppRouteImport } from './routes/app'
+import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
@@ -30,9 +28,13 @@ import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AdminWhyRouteImport } from './routes/admin/why'
 import { Route as AdminWaitlistRouteImport } from './routes/admin/waitlist'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminMatchingRouteImport } from './routes/admin/matching'
 import { Route as AdminFeedbackRouteImport } from './routes/admin/feedback'
 import { Route as AdminBenchmarkRouteImport } from './routes/admin/benchmark'
+import { Route as AuthedWeekRouteImport } from './routes/_authed.week'
+import { Route as AuthedShoppingRouteImport } from './routes/_authed.shopping'
+import { Route as AuthedAppRouteImport } from './routes/_authed.app'
 import { Route as TipIdReturnRouteImport } from './routes/tip.$id.return'
 import { Route as RatePlanIdDayRouteImport } from './routes/rate.$planId.$day'
 import { Route as ApiVapiToolRouteImport } from './routes/api/vapi/tool'
@@ -40,11 +42,6 @@ import { Route as ApiVapiTokenRouteImport } from './routes/api/vapi/token'
 import { Route as ApiMollieWebhookRouteImport } from './routes/api/mollie/webhook'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
-const WeekRoute = WeekRouteImport.update({
-  id: '/week',
-  path: '/week',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const StyleguideRoute = StyleguideRouteImport.update({
   id: '/styleguide',
   path: '/styleguide',
@@ -58,11 +55,6 @@ const SignOutRoute = SignOutRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ShoppingRoute = ShoppingRouteImport.update({
-  id: '/shopping',
-  path: '/shopping',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -85,9 +77,8 @@ const DiscoverRoute = DiscoverRouteImport.update({
   path: '/discover',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppRoute = AppRouteImport.update({
-  id: '/app',
-  path: '/app',
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRouteRoute = AdminRouteRouteImport.update({
@@ -145,6 +136,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminMatchingRoute = AdminMatchingRouteImport.update({
   id: '/matching',
   path: '/matching',
@@ -159,6 +155,21 @@ const AdminBenchmarkRoute = AdminBenchmarkRouteImport.update({
   id: '/benchmark',
   path: '/benchmark',
   getParentRoute: () => AdminRouteRoute,
+} as any)
+const AuthedWeekRoute = AuthedWeekRouteImport.update({
+  id: '/week',
+  path: '/week',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedShoppingRoute = AuthedShoppingRouteImport.update({
+  id: '/shopping',
+  path: '/shopping',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedAppRoute = AuthedAppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const TipIdReturnRoute = TipIdReturnRouteImport.update({
   id: '/tip/$id/return',
@@ -194,19 +205,20 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
-  '/app': typeof AppRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
-  '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
   '/sign-out': typeof SignOutRoute
   '/styleguide': typeof StyleguideRoute
-  '/week': typeof WeekRoute
+  '/app': typeof AuthedAppRoute
+  '/shopping': typeof AuthedShoppingRoute
+  '/week': typeof AuthedWeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/matching': typeof AdminMatchingRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/admin/why': typeof AdminWhyRoute
@@ -225,19 +237,20 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/app': typeof AppRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
-  '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
   '/sign-out': typeof SignOutRoute
   '/styleguide': typeof StyleguideRoute
-  '/week': typeof WeekRoute
+  '/app': typeof AuthedAppRoute
+  '/shopping': typeof AuthedShoppingRoute
+  '/week': typeof AuthedWeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/matching': typeof AdminMatchingRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/admin/why': typeof AdminWhyRoute
@@ -258,19 +271,21 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
-  '/app': typeof AppRoute
+  '/_authed': typeof AuthedRouteWithChildren
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
-  '/shopping': typeof ShoppingRoute
   '/sign-in': typeof SignInRoute
   '/sign-out': typeof SignOutRoute
   '/styleguide': typeof StyleguideRoute
-  '/week': typeof WeekRoute
+  '/_authed/app': typeof AuthedAppRoute
+  '/_authed/shopping': typeof AuthedShoppingRoute
+  '/_authed/week': typeof AuthedWeekRoute
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/matching': typeof AdminMatchingRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/waitlist': typeof AdminWaitlistRoute
   '/admin/why': typeof AdminWhyRoute
@@ -292,19 +307,20 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/app'
     | '/discover'
     | '/login'
     | '/onboarding'
     | '/profile'
-    | '/shopping'
     | '/sign-in'
     | '/sign-out'
     | '/styleguide'
+    | '/app'
+    | '/shopping'
     | '/week'
     | '/admin/benchmark'
     | '/admin/feedback'
     | '/admin/matching'
+    | '/admin/payments'
     | '/admin/users'
     | '/admin/waitlist'
     | '/admin/why'
@@ -323,19 +339,20 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/app'
     | '/discover'
     | '/login'
     | '/onboarding'
     | '/profile'
-    | '/shopping'
     | '/sign-in'
     | '/sign-out'
     | '/styleguide'
+    | '/app'
+    | '/shopping'
     | '/week'
     | '/admin/benchmark'
     | '/admin/feedback'
     | '/admin/matching'
+    | '/admin/payments'
     | '/admin/users'
     | '/admin/waitlist'
     | '/admin/why'
@@ -355,19 +372,21 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
-    | '/app'
+    | '/_authed'
     | '/discover'
     | '/login'
     | '/onboarding'
     | '/profile'
-    | '/shopping'
     | '/sign-in'
     | '/sign-out'
     | '/styleguide'
-    | '/week'
+    | '/_authed/app'
+    | '/_authed/shopping'
+    | '/_authed/week'
     | '/admin/benchmark'
     | '/admin/feedback'
     | '/admin/matching'
+    | '/admin/payments'
     | '/admin/users'
     | '/admin/waitlist'
     | '/admin/why'
@@ -388,16 +407,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
-  AppRoute: typeof AppRoute
+  AuthedRoute: typeof AuthedRouteWithChildren
   DiscoverRoute: typeof DiscoverRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   ProfileRoute: typeof ProfileRoute
-  ShoppingRoute: typeof ShoppingRoute
   SignInRoute: typeof SignInRoute
   SignOutRoute: typeof SignOutRoute
   StyleguideRoute: typeof StyleguideRoute
-  WeekRoute: typeof WeekRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiLogRoute: typeof ApiLogRoute
   ApiPlanRoute: typeof ApiPlanRoute
@@ -413,13 +430,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/week': {
-      id: '/week'
-      path: '/week'
-      fullPath: '/week'
-      preLoaderRoute: typeof WeekRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/styleguide': {
       id: '/styleguide'
       path: '/styleguide'
@@ -439,13 +449,6 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/shopping': {
-      id: '/shopping'
-      path: '/shopping'
-      fullPath: '/shopping'
-      preLoaderRoute: typeof ShoppingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -476,11 +479,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DiscoverRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app': {
-      id: '/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AppRouteImport
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -560,6 +563,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/payments': {
+      id: '/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AdminPaymentsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/matching': {
       id: '/admin/matching'
       path: '/matching'
@@ -580,6 +590,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/benchmark'
       preLoaderRoute: typeof AdminBenchmarkRouteImport
       parentRoute: typeof AdminRouteRoute
+    }
+    '/_authed/week': {
+      id: '/_authed/week'
+      path: '/week'
+      fullPath: '/week'
+      preLoaderRoute: typeof AuthedWeekRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/shopping': {
+      id: '/_authed/shopping'
+      path: '/shopping'
+      fullPath: '/shopping'
+      preLoaderRoute: typeof AuthedShoppingRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/app': {
+      id: '/_authed/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AuthedAppRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/tip/$id/return': {
       id: '/tip/$id/return'
@@ -630,6 +661,7 @@ interface AdminRouteRouteChildren {
   AdminBenchmarkRoute: typeof AdminBenchmarkRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminMatchingRoute: typeof AdminMatchingRoute
+  AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminWaitlistRoute: typeof AdminWaitlistRoute
   AdminWhyRoute: typeof AdminWhyRoute
@@ -640,6 +672,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBenchmarkRoute: AdminBenchmarkRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
   AdminMatchingRoute: AdminMatchingRoute,
+  AdminPaymentsRoute: AdminPaymentsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminWaitlistRoute: AdminWaitlistRoute,
   AdminWhyRoute: AdminWhyRoute,
@@ -650,19 +683,32 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
   AdminRouteRouteChildren,
 )
 
+interface AuthedRouteChildren {
+  AuthedAppRoute: typeof AuthedAppRoute
+  AuthedShoppingRoute: typeof AuthedShoppingRoute
+  AuthedWeekRoute: typeof AuthedWeekRoute
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedAppRoute: AuthedAppRoute,
+  AuthedShoppingRoute: AuthedShoppingRoute,
+  AuthedWeekRoute: AuthedWeekRoute,
+}
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
-  AppRoute: AppRoute,
+  AuthedRoute: AuthedRouteWithChildren,
   DiscoverRoute: DiscoverRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   ProfileRoute: ProfileRoute,
-  ShoppingRoute: ShoppingRoute,
   SignInRoute: SignInRoute,
   SignOutRoute: SignOutRoute,
   StyleguideRoute: StyleguideRoute,
-  WeekRoute: WeekRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiLogRoute: ApiLogRoute,
   ApiPlanRoute: ApiPlanRoute,

@@ -1,6 +1,56 @@
 import { describe, it, expect } from 'vitest'
-import { shapeWaitlist, waitlistRowActions } from './admin-server'
+import {
+  shapeWaitlist,
+  waitlistRowActions,
+  pendingApprovableEmails,
+} from './admin-server'
+import type { WaitlistRowView } from './admin-server'
 import { ADMIN_EMAIL } from './access-rules'
+
+function row(over: Partial<WaitlistRowView>): WaitlistRowView {
+  return {
+    email: 'a@b.com',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    grant: 'none',
+    configAdmin: false,
+    revocable: false,
+    ...over,
+  }
+}
+
+describe('pendingApprovableEmails', () => {
+  it('returns only the not-yet-granted, non-admin emails', () => {
+    const emails = pendingApprovableEmails([
+      row({ email: 'new1@b.com', grant: 'none' }),
+      row({ email: 'new2@b.com', grant: 'none' }),
+      row({ email: 'approved@b.com', grant: 'user' }),
+      row({ email: 'admin@b.com', grant: 'admin' }),
+      row({ email: 'config@b.com', grant: 'none', configAdmin: true }),
+    ])
+    expect(emails).toEqual(['new1@b.com', 'new2@b.com'])
+  })
+
+  it('returns an empty list when nothing is pending', () => {
+    expect(
+      pendingApprovableEmails([
+        row({ grant: 'user' }),
+        row({ grant: 'admin' }),
+      ]),
+    ).toEqual([])
+  })
+
+  it('skips a config admin even with no DB grant', () => {
+    expect(
+      pendingApprovableEmails([
+        row({ email: 'cfg@b.com', grant: 'none', configAdmin: true }),
+      ]),
+    ).toEqual([])
+  })
+
+  it('handles an empty waitlist', () => {
+    expect(pendingApprovableEmails([])).toEqual([])
+  })
+})
 
 describe('shapeWaitlist', () => {
   it('returns count + newest-first rows, dates as ISO strings', () => {

@@ -50,12 +50,25 @@ function emit(level: LogLevel, event: string, context?: LogContext): void {
   else if (level === 'warn') console.warn(line)
   else console.log(line)
 
-  // SINKS: when Sentry/PostHog are wired, forward here, e.g.
-  //   if (level === 'error') Sentry.captureException(...)
-  //   posthog?.capture(event, entry)
+  // SINKS (client only): Sentry for errors, PostHog for events. Lazy-imported so
+  // the browser-only SDKs never enter the SSR/Worker bundle.
+  if (!isServer) forwardToSinks(level, event, entry)
 
   // Client warn/error -> server, so real-user issues reach Workers Logs.
   if (!isServer && (level === 'error' || level === 'warn')) ship(line)
+}
+
+function forwardToSinks(level: LogLevel, event: string, entry: LogEntry): void {
+  void import('./observability-client')
+    .then(({ captureError, captureEvent }) => {
+      if (level === 'error')
+        captureError(entry.error ?? new Error(event), entry)
+      // Every event also flows to PostHog (namespaced) for product analytics.
+      captureEvent(event, entry)
+    })
+    .catch(() => {
+      // Sinks are best-effort; never let telemetry break the app.
+    })
 }
 
 function ship(line: string): void {
