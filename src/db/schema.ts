@@ -40,6 +40,12 @@ export const household = sqliteTable('household', {
       /** Days they usually cook (0=Mon..6=Sun). Drives the default weekly
        * rhythm: only these days get a planned dinner. Empty/absent = all 7. */
       cookDays?: Array<number>
+      /** MANUAL skip-day override (0=Mon..6=Sun): the weekdays the household
+       * has explicitly told us they skip dinner. When set (non-null), it WINS
+       * over the auto-inferred skip-days in generation. null/absent = let Souso
+       * keep auto-inferring from past plans. An empty array means "I skip no
+       * days" (an explicit override that suppresses inference). */
+      skipDays?: Array<number> | null
       /** Kitchen appliances the household has (Oven, Microwave, Stovetop,
        * Blender, Multi cooker, Air fryer). Gates recipe feasibility. */
       equipment?: Array<string>

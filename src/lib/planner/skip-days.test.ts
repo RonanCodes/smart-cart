@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { inferSkipDays, skipDaysToOverride } from './skip-days'
+import { inferSkipDays, resolveSkipDays, skipDaysToOverride } from './skip-days'
 import type { PlannedDay } from './types'
 
 /**
@@ -85,5 +85,28 @@ describe('skipDaysToOverride', () => {
       undefined,
       undefined,
     ])
+  })
+})
+
+describe('resolveSkipDays (manual override wins, auto is fallback)', () => {
+  it('falls back to the inferred set when there is no manual override', () => {
+    expect(resolveSkipDays(null, new Set([4]))).toEqual(new Set([4]))
+    expect(resolveSkipDays(undefined, new Set([2, 5]))).toEqual(new Set([2, 5]))
+  })
+
+  it('uses the manual override verbatim when set, ignoring the inference', () => {
+    expect(resolveSkipDays([0, 1], new Set([4]))).toEqual(new Set([0, 1]))
+  })
+
+  it('honours an EMPTY manual override as "skip no days" (suppresses inference)', () => {
+    expect(resolveSkipDays([], new Set([4, 5]))).toEqual(new Set())
+  })
+
+  it('drops out-of-range indices from the manual override', () => {
+    expect(resolveSkipDays([4, 9, -1, 2.5], new Set())).toEqual(new Set([4]))
+  })
+
+  it('is a strict no-op for a fresh household (no override + no inference)', () => {
+    expect(resolveSkipDays(null, new Set())).toEqual(new Set())
   })
 })

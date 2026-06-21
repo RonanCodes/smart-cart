@@ -62,6 +62,38 @@ export function inferSkipDays(
 }
 
 /**
+ * Resolve the skip-day set the planner should use, choosing between a household's
+ * MANUAL override and the auto-inferred set (#data-points).
+ *
+ * The contract the data-points editor relies on:
+ *  - A manual override WINS whenever it is set (non-null). The household has told
+ *    us exactly which weekdays they skip, so we honour it verbatim — including an
+ *    EMPTY override (`[]`), which means "I skip no days" and deliberately
+ *    suppresses inference.
+ *  - When there is no manual override (null / undefined / absent), we fall back
+ *    to the auto-inferred set, exactly as before (so a household that never opens
+ *    the editor keeps the smarter-generation behaviour from #week-nav).
+ *
+ * Strict no-op for a fresh household: no override (null) + no inference (empty
+ * set) resolves to an empty set, so generation is byte-for-byte unchanged.
+ *
+ * Pure + deterministic — unit-testable with no DB.
+ *
+ * @param manual    The household's manual skipDays (0=Mon..6=Sun), or null/undefined.
+ * @param inferred  The auto-inferred skip-day set (from `inferSkipDays`).
+ */
+export function resolveSkipDays(
+  manual: ReadonlyArray<number> | null | undefined,
+  inferred: Set<number>,
+): Set<number> {
+  if (manual != null) {
+    // Manual wins, even when empty: only keep valid weekday indices (0..6).
+    return new Set(manual.filter((d) => Number.isInteger(d) && d >= 0 && d < 7))
+  }
+  return inferred
+}
+
+/**
  * Turn an inferred skip-day set into a `dayTypes` override the planner consumes
  * (#week-nav). Position i (0 = Monday .. 6 = Sunday) is 'out' when skipped, else
  * undefined so `generateWeek` falls back to the household's normal rhythm for
