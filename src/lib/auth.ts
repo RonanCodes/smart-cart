@@ -4,6 +4,7 @@ import { emailOTP, magicLink } from 'better-auth/plugins'
 import { getDb } from '../db/client'
 import * as schema from '../db/auth-schema'
 import { readEnv } from './env'
+import { log } from './log'
 import { sendApprovalEmail, sendOtpEmail } from './email'
 import {
   NEW_USER_DESTINATION,
@@ -16,13 +17,57 @@ import {
  * resolvable per-request inside the Worker. Sign-in is passwordless email OTP via
  * Resend, no Google Cloud / OAuth setup needed, fastest login to ship for the demo.
  */
+/**
+ * The origins Better Auth will accept a sign-in request from. Always includes the
+ * configured `baseURL`, the production custom domain, the Worker's `*.workers.dev`
+ * URL, and localhost (dev). A comma-separated `TRUSTED_ORIGINS` env can add more
+ * (e.g. a preview deploy) without a code change. Better Auth supports `*` wildcard
+ * patterns. De-duped and blank-stripped. Pure so it is easy to reason about.
+ */
+export function resolveTrustedOrigins(
+  baseURL: string,
+  extraEnv: string | undefined | null,
+): Array<string> {
+  const extra = (extraEnv ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return Array.from(
+    new Set(
+      [
+        baseURL,
+        'https://smartcart.ronanconnolly.dev',
+        'https://*.workers.dev',
+        'http://localhost:3000',
+        'http://localhost:5173',
+        ...extra,
+      ].filter(Boolean),
+    ),
+  )
+}
+
 async function buildAuth() {
   const db = await getDb()
   const secret = await readEnv('BETTER_AUTH_SECRET')
   const baseURL = (await readEnv('BETTER_AUTH_URL')) ?? 'http://localhost:3000'
+  const trustedOrigins = resolveTrustedOrigins(
+    baseURL,
+    await readEnv('TRUSTED_ORIGINS'),
+  )
+  log.info('auth.build', { baseURL, trustedOrigins })
+  if (!secret) {
+    // A missing secret breaks sign-in entirely; surface it loudly (never log the
+    // value, just its absence) so a misconfigured deploy is obvious in the logs.
+    log.error('auth.secret_missing', undefined, { baseURL })
+  }
   return betterAuth({
     secret,
     baseURL,
+    // Better Auth rejects any sign-in whose Origin header is not the baseURL or
+    // listed here ("Invalid origin"). The app is reachable via the custom domain,
+    // the *.workers.dev URL, and localhost in dev, so all are trusted; extra
+    // hosts (previews) can be added via the TRUSTED_ORIGINS env with no redeploy.
+    trustedOrigins,
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     // Passwordless: no password to manage. Sign-in is a 6-digit code by email.
     emailAndPassword: { enabled: false },
@@ -38,6 +83,7 @@ async function buildAuth() {
           // complete sign-in.
           const { isApproved, NOT_APPROVED_MESSAGE } = await import('./access')
           if (!(await isApproved(email))) {
+            log.warn('auth.otp_gated', { email })
             // Make the "you're on the waitlist" message TRUE: idempotently add
             // the email so an admin sees them at /admin/waitlist. Best-effort,
             // already swallows its own errors, so the gate still throws below.
@@ -46,6 +92,7 @@ async function buildAuth() {
             await addUnapprovedEmailToWaitlist(email)
             throw new Error(NOT_APPROVED_MESSAGE)
           }
+          log.info('auth.otp_send_start', { email })
           // Issue #259: send the OTP email WITH a one-tap magic sign-in link
           // below the code. signInMagicLink generates a single-use, short-TTL
           // token (existing `verification` table) and fires `sendMagicLink`,
@@ -73,14 +120,13 @@ async function buildAuth() {
               },
             })
           } catch (err) {
-            console.error('OTP magic-link send failed, falling back:', err)
+            log.warn('auth.otp_magiclink_failed', { email })
+            log.error('auth.otp_magiclink_error', err, { email })
             try {
               await sendOtpEmail(email, otp)
+              log.info('auth.otp_fallback_sent', { email })
             } catch (fallbackErr) {
-              console.error(
-                'sendOtpEmail fallback failed (continuing):',
-                fallbackErr,
-              )
+              log.error('auth.otp_fallback_failed', fallbackErr, { email })
             }
           }
         },
