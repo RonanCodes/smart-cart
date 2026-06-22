@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   normaliseFeedback,
+  normaliseFeedbackPhone,
+  feedbackEmailState,
   MAX_FEEDBACK_LENGTH,
   FEEDBACK_CONTACT_EMAIL,
 } from './app-feedback'
@@ -86,5 +88,66 @@ describe('normaliseFeedback', () => {
 
   it('exposes a real contact email for the fallback', () => {
     expect(FEEDBACK_CONTACT_EMAIL).toMatch(/@souso\.app$/)
+  })
+
+  it('keeps a plausible phone number, trimmed', () => {
+    const r = normaliseFeedback({
+      message: 'happy to chat',
+      phone: '  +31 6 12 34 56 78  ',
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.phone).toBe('+31 6 12 34 56 78')
+  })
+
+  it('drops a too-short / blank phone to null (never rejects)', () => {
+    const r = normaliseFeedback({ message: 'a note', phone: '123' })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.phone).toBeNull()
+
+    const blank = normaliseFeedback({ message: 'a note', phone: '   ' })
+    expect(blank.ok).toBe(true)
+    if (blank.ok) expect(blank.value.phone).toBeNull()
+  })
+
+  it('defaults phone to null when omitted', () => {
+    const r = normaliseFeedback({ message: 'no number here' })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.phone).toBeNull()
+  })
+})
+
+describe('normaliseFeedbackPhone', () => {
+  it('returns null for empty / nullish / too-short input', () => {
+    expect(normaliseFeedbackPhone(null)).toBeNull()
+    expect(normaliseFeedbackPhone(undefined)).toBeNull()
+    expect(normaliseFeedbackPhone('   ')).toBeNull()
+    expect(normaliseFeedbackPhone('12345')).toBeNull()
+  })
+
+  it('keeps a plausible number with its formatting', () => {
+    expect(normaliseFeedbackPhone(' 06-12345678 ')).toBe('06-12345678')
+    expect(normaliseFeedbackPhone('+31 6 1234 5678')).toBe('+31 6 1234 5678')
+  })
+})
+
+describe('feedbackEmailState', () => {
+  it('prefills + locks read-only when a session email exists', () => {
+    const s = feedbackEmailState('nico@example.com')
+    expect(s.value).toBe('nico@example.com')
+    expect(s.readOnly).toBe(true)
+  })
+
+  it('trims the session email', () => {
+    const s = feedbackEmailState('  nico@example.com  ')
+    expect(s.value).toBe('nico@example.com')
+    expect(s.readOnly).toBe(true)
+  })
+
+  it('is editable + empty when signed out (null / undefined / blank)', () => {
+    for (const input of [null, undefined, '   ']) {
+      const s = feedbackEmailState(input)
+      expect(s.value).toBe('')
+      expect(s.readOnly).toBe(false)
+    }
   })
 })

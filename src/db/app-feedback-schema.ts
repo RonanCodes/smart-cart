@@ -25,6 +25,8 @@ export const appFeedback = sqliteTable(
     userId: text('user_id'),
     /** A contact email the sender optionally left (or their session email). */
     email: text('email'),
+    /** An optional phone / WhatsApp number so the team can reach out for a chat. */
+    phone: text('phone'),
     /** The free-text feedback message. Always present (empty is rejected). */
     message: text('message').notNull(),
     /** Which screen / surface they sent it from, for triage ('bubble' | 'settings'). */

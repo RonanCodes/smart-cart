@@ -53,6 +53,7 @@ export const submitFeedback = createServerFn({ method: 'POST' })
       userId,
       // Prefer the email the sender typed; fall back to their session email.
       email: clean.email ?? sessionEmail,
+      phone: clean.phone,
       message: clean.message,
       source: clean.source,
       path: clean.path,
@@ -66,6 +67,7 @@ export interface AppFeedbackItem {
   id: string
   userId: string | null
   email: string | null
+  phone: string | null
   message: string
   source: string
   path: string | null
@@ -94,6 +96,7 @@ export const listAppFeedback = createServerFn({ method: 'GET' }).handler(
       id: r.id,
       userId: r.userId,
       email: r.email,
+      phone: r.phone,
       message: r.message,
       source: r.source,
       path: r.path,
