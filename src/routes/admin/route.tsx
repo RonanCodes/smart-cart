@@ -15,9 +15,9 @@ import {
   Palette,
   Beaker,
   SwatchBook,
+  Shield,
 } from 'lucide-react'
 import { requireAdminBeforeLoad } from '#/lib/admin-server'
-import { ScreenHeader } from '#/components/ui/app-shell'
 import { SafeArea } from '#/components/ui/safe-area'
 import { TabBar } from '#/components/ui/tab-bar'
 import { cn } from '#/lib/utils'
@@ -38,9 +38,10 @@ import { cn } from '#/lib/utils'
  * single-column at <= 1024px (every panel's own `lg:` grid handles the
  * stacking). The bottom TabBar still mounts as the always-present way back
  * into the user app, and the header keeps the explicit "Back to app"
- * affordance. The admin sub-nav is a segmented pill row (a rounded track with
- * the active tab raised as a card) that scrolls horizontally so all six tabs
- * reach on a narrow screen without wrapping.
+ * affordance. The admin sub-nav is a segmented pill row inside a rounded card
+ * track (hairline border + card surface); the active tab reads as a soft
+ * primary-tinted pill. The track scrolls horizontally so every tab is reachable
+ * on a narrow screen without wrapping.
  */
 export const Route = createFileRoute('/admin')({
   beforeLoad: requireAdminBeforeLoad,
@@ -57,30 +58,50 @@ function AdminLayout() {
         className="mx-auto w-full max-w-6xl flex-1"
         style={{ paddingBottom: 'calc(var(--tab-bar-space) + 1rem)' }}
       >
-        <ScreenHeader
-          title="Admin"
-          subtitle="Synthetic users, the data behind their tastes, and the recommender benchmark."
-          action={
+        {/* Admin header: a contained title bar rather than the consumer
+            large-title ScreenHeader, since admin is a wide desktop-leaning
+            console, not a phone screen. A small olive shield chip carries the
+            "this is the admin area" signal; the title + one-line subtitle sit
+            beside it, and the "Back to app" affordance lives top-right as an
+            on-brand ghost pill. */}
+        <header className="px-4 pt-5 pb-2 sm:px-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="bg-primary/10 text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl">
+                <Shield className="h-5 w-5" aria-hidden />
+              </span>
+              <div>
+                <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight">
+                  Admin
+                </h1>
+                <p className="text-muted-foreground mt-0.5 text-[0.95rem]">
+                  Synthetic users, the data behind their tastes, and the
+                  recommender benchmark.
+                </p>
+              </div>
+            </div>
             <Link
               to="/week"
-              className="text-muted-foreground hover:text-foreground -mr-1 flex items-center gap-0.5 rounded-full px-2 py-1 text-sm font-medium transition active:scale-95"
+              className="text-muted-foreground hover:text-foreground hover:bg-secondary -mr-1 flex shrink-0 items-center gap-0.5 rounded-full px-3 py-1.5 text-sm font-medium transition active:scale-95"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden />
               Back to app
             </Link>
-          }
-        />
+          </div>
+        </header>
 
         {/* Sub-nav: a segmented pill row, each tab a real route so refresh +
-            deep-link stay on the tab. The track is a rounded inset bar; the
-            active tab reads as a raised card inside it. Horizontally scrollable
-            on narrow widths (no wrap) so all six pills are reachable at 390px,
-            and the whole row fits comfortably on wide desktop. */}
-        <div className="mb-5 px-4 sm:px-6">
+            deep-link stay on the tab. The track is a rounded card (hairline
+            border + card surface, matching the design-system card treatment);
+            the active tab reads as a raised inset with a soft primary tint.
+            Horizontally scrollable on narrow widths (no wrap) so every tab is
+            reachable at 390px, and the whole row fits comfortably on wide
+            desktop. */}
+        <div className="mt-3 mb-5 px-4 sm:px-6">
           <nav
             role="tablist"
             aria-label="Admin sections"
-            className="bg-secondary ios-scroll flex gap-1 overflow-x-auto rounded-2xl p-1"
+            className="border-border bg-card ios-scroll flex gap-1 overflow-x-auto rounded-2xl border p-1.5 shadow-sm"
           >
             <TabLink
               to="/admin/users"
@@ -181,11 +202,11 @@ function TabLink({
       role="tab"
       className={cn(
         base,
-        'text-muted-foreground hover:text-foreground hover:bg-card/60',
+        'text-muted-foreground hover:text-foreground hover:bg-secondary',
       )}
       activeProps={{
         'aria-selected': true,
-        className: cn(base, 'bg-card text-foreground shadow-sm'),
+        className: cn(base, 'bg-primary/10 text-primary'),
       }}
     >
       {icon}
