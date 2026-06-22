@@ -5,7 +5,17 @@ Thin pointer file. The real context lives in:
 - `CONTEXT.md`: what Smart Cart is + the shared domain language + hard rules.
 - `docs/decisions.md`: locked decisions (no auto-buy, grounded recipes, Dutch-first) + open questions.
 - `docs/PRD.md`: scope, the one flow we polish, sliced into agent-sized issues.
-- `AGENTS.md`: TanStack/library skill mappings + the project-context section.
+- `AGENTS.md`: TanStack/library skill mappings + project context + the shared
+  "Engineering principles (all agents)" section.
+- `.claude/skills/`: the shared engineering skills every agent inherits.
+  Read the relevant one before the matching work:
+  - `ai-safe-and-fast`: embeddings (not synonym maps), LLM at decision points,
+    deterministic for reproducible, safe/fast/verifiable. (ADR-0004)
+  - `bounded-ai-on-request-paths`: bound/chunk/batch/degrade AI work on request
+    paths; the `/shopping` 1101 lesson. (ADR-0005)
+  - `reproduce-first-tdd`: failing test first, then the minimum fix.
+  - `ship-flow-and-ownership`: ship flow + which deep flows are owned (work at
+    the call-site, do not edit the matcher/pricing/cart/Mollie internals).
 
 Hard rules: no autonomous purchasing (fill the basket, user checks out); meal
 generation is grounded in the `recipe` table, never hallucinated; AH/Jumbo first.

@@ -87,6 +87,15 @@ and score them brute-force.
   is instant. If the catalogue ever grows past the low tens of thousands, the
   escape hatch is to put a real index behind the scorer. Not needed now.
 
+The accurate matcher is heavy (embed + multi-query retrieve + LLM rerank per
+uncached line, against the ~4 MB in-memory catalogue), so any request path that
+runs it must **bound the fan-out**. A Worker isolate has a hard ~128 MB / CPU
+cap; resolving an unbounded number of lines in one isolate blew it and returned a
+1101 on `/shopping` for big carts. The price compare now chunks the cart to 25
+lines per call and degrades per chunk rather than crashing. The rule (bound,
+chunk, batch, degrade) is `docs/adr/0005` and the `bounded-ai-on-request-paths`
+skill.
+
 ### Honest degradation, no hidden fallback
 
 Two matchers embed live user text and so need an API key at runtime; the rest run
@@ -216,19 +225,20 @@ quietly makes recommendations worse cannot merge.
 
 ## Map of the code
 
-| Area                      | Where                                                                     |
-| ------------------------- | ------------------------------------------------------------------------- |
-| Matching design notes     | `docs/matching.md`                                                        |
-| Decisions                 | `docs/adr/0001`..`0004` (0004 is the embeddings call)                     |
-| Preference recommender    | `src/lib/recsys/`                                                         |
-| Dish similarity           | `src/lib/vectors/`                                                        |
-| Ingredient to SKU pricing | `src/lib/pricing/`                                                        |
-| Embeddings model wiring   | `src/lib/models.ts`, `src/lib/embeddings/`                                |
-| Committed vectors         | `data/embeddings/*`                                                       |
-| Agent tools               | `src/lib/agent/tools.ts`, `src/lib/agent/memory-tools.ts`                 |
-| Agent runner              | `src/lib/agent/runner.ts`                                                 |
-| Voice dispatch            | `src/lib/vapi-dispatch.ts`                                                |
-| Braintrust wrapper        | `src/lib/braintrust-ai.ts`                                                |
-| Matcher eval              | `scripts/eval.ts`                                                         |
-| Agent evals               | `src/lib/agent/eval/`, `evals/replan-agent.eval.ts`                       |
-| Benchmark gate            | `src/lib/recsys/benchmark.guard.test.ts`, `docs/benchmarks/baseline.json` |
+| Area                      | Where                                                                                                           |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Matching design notes     | `docs/matching.md`                                                                                              |
+| Decisions                 | `docs/adr/0001`..`0006` (0004 embeddings, 0005 bounded request paths, 0006 evals+tracing)                       |
+| Shared agent skills       | `.claude/skills/` (ai-safe-and-fast, reproduce-first-tdd, bounded-ai-on-request-paths, ship-flow-and-ownership) |
+| Preference recommender    | `src/lib/recsys/`                                                                                               |
+| Dish similarity           | `src/lib/vectors/`                                                                                              |
+| Ingredient to SKU pricing | `src/lib/pricing/`                                                                                              |
+| Embeddings model wiring   | `src/lib/models.ts`, `src/lib/embeddings/`                                                                      |
+| Committed vectors         | `data/embeddings/*`                                                                                             |
+| Agent tools               | `src/lib/agent/tools.ts`, `src/lib/agent/memory-tools.ts`                                                       |
+| Agent runner              | `src/lib/agent/runner.ts`                                                                                       |
+| Voice dispatch            | `src/lib/vapi-dispatch.ts`                                                                                      |
+| Braintrust wrapper        | `src/lib/braintrust-ai.ts`                                                                                      |
+| Matcher eval              | `scripts/eval.ts`                                                                                               |
+| Agent evals               | `src/lib/agent/eval/`, `evals/replan-agent.eval.ts`                                                             |
+| Benchmark gate            | `src/lib/recsys/benchmark.guard.test.ts`, `docs/benchmarks/baseline.json`                                       |
