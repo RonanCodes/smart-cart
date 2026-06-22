@@ -29,6 +29,8 @@ const WEEK: WeekView = {
       alternatives: [],
     },
   ],
+  adults: 2,
+  children: 0,
 }
 
 const FEEDBACK: Array<MealFeedbackState> = [

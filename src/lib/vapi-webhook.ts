@@ -27,6 +27,38 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
+/** Why a webhook call was (not) authorized — named so a 401 is never silent. */
+export type VapiAuthReason = 'ok' | 'no_secret' | 'missing_header' | 'mismatch'
+
+export interface VapiAuthResult {
+  authorized: boolean
+  reason: VapiAuthReason
+}
+
+/**
+ * Decide whether a webhook request carrying `header` (the `X-Vapi-Secret` value)
+ * is authorized given the Worker's configured `secret`. Pure + timing-safe.
+ *
+ * The contract, and the bug it guards against: when a secret IS configured the
+ * header MUST be present and match — fail closed. The live incident was config
+ * drift — the Worker had VAPI_SERVER_SECRET set but the VAPI dashboard assistant
+ * had no `server.secret`, so VAPI sent no header and every tool call returned
+ * `missing_header` (401) before it could log, which made voice meal-updates fail
+ * silently while chat still worked. When no secret is configured we authorize
+ * here (`no_secret`); the HMAC call token remains the real identity guard.
+ */
+export function checkVapiSecret(
+  secret: string,
+  header: string,
+): VapiAuthResult {
+  if (!secret) return { authorized: true, reason: 'no_secret' }
+  if (!header) return { authorized: false, reason: 'missing_header' }
+  if (!timingSafeEqual(header, secret)) {
+    return { authorized: false, reason: 'mismatch' }
+  }
+  return { authorized: true, reason: 'ok' }
+}
+
 /** Coerce a possibly-stringified arguments field into an object. */
 function coerceArgs(raw: unknown): Record<string, unknown> {
   if (!raw) return {}

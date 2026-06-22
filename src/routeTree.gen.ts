@@ -41,6 +41,7 @@ import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminMatchingRouteImport } from './routes/admin/matching'
 import { Route as AdminLaunchRouteImport } from './routes/admin/launch'
 import { Route as AdminFeedbackRouteImport } from './routes/admin/feedback'
+import { Route as AdminEmailRouteImport } from './routes/admin/email'
 import { Route as AdminDesignSystemRouteImport } from './routes/admin/design-system'
 import { Route as AdminDataModeRouteImport } from './routes/admin/data-mode'
 import { Route as AdminBenchmarkRouteImport } from './routes/admin/benchmark'
@@ -51,6 +52,7 @@ import { Route as TipIdReturnRouteImport } from './routes/tip.$id.return'
 import { Route as RatePlanIdDayRouteImport } from './routes/rate.$planId.$day'
 import { Route as ApiVapiToolRouteImport } from './routes/api/vapi/tool'
 import { Route as ApiVapiTokenRouteImport } from './routes/api/vapi/token'
+import { Route as ApiResendInboundRouteImport } from './routes/api/resend/inbound'
 import { Route as ApiMollieWebhookRouteImport } from './routes/api/mollie/webhook'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
@@ -213,6 +215,11 @@ const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
   path: '/feedback',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminEmailRoute = AdminEmailRouteImport.update({
+  id: '/email',
+  path: '/email',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminDesignSystemRoute = AdminDesignSystemRouteImport.update({
   id: '/design-system',
   path: '/design-system',
@@ -263,6 +270,11 @@ const ApiVapiTokenRoute = ApiVapiTokenRouteImport.update({
   path: '/api/vapi/token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiResendInboundRoute = ApiResendInboundRouteImport.update({
+  id: '/api/resend/inbound',
+  path: '/api/resend/inbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMollieWebhookRoute = ApiMollieWebhookRouteImport.update({
   id: '/api/mollie/webhook',
   path: '/api/mollie/webhook',
@@ -291,6 +303,7 @@ export interface FileRoutesByFullPath {
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/data-mode': typeof AdminDataModeRoute
   '/admin/design-system': typeof AdminDesignSystemRoute
+  '/admin/email': typeof AdminEmailRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
@@ -314,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
+  '/api/resend/inbound': typeof ApiResendInboundRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
   '/rate/$planId/$day': typeof RatePlanIdDayRoute
@@ -335,6 +349,7 @@ export interface FileRoutesByTo {
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/data-mode': typeof AdminDataModeRoute
   '/admin/design-system': typeof AdminDesignSystemRoute
+  '/admin/email': typeof AdminEmailRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
@@ -358,6 +373,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
+  '/api/resend/inbound': typeof ApiResendInboundRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
   '/rate/$planId/$day': typeof RatePlanIdDayRoute
@@ -382,6 +398,7 @@ export interface FileRoutesById {
   '/admin/benchmark': typeof AdminBenchmarkRoute
   '/admin/data-mode': typeof AdminDataModeRoute
   '/admin/design-system': typeof AdminDesignSystemRoute
+  '/admin/email': typeof AdminEmailRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
@@ -405,6 +422,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
+  '/api/resend/inbound': typeof ApiResendInboundRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
   '/rate/$planId/$day': typeof RatePlanIdDayRoute
@@ -429,6 +447,7 @@ export interface FileRouteTypes {
     | '/admin/benchmark'
     | '/admin/data-mode'
     | '/admin/design-system'
+    | '/admin/email'
     | '/admin/feedback'
     | '/admin/launch'
     | '/admin/matching'
@@ -452,6 +471,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/auth/$'
     | '/api/mollie/webhook'
+    | '/api/resend/inbound'
     | '/api/vapi/token'
     | '/api/vapi/tool'
     | '/rate/$planId/$day'
@@ -473,6 +493,7 @@ export interface FileRouteTypes {
     | '/admin/benchmark'
     | '/admin/data-mode'
     | '/admin/design-system'
+    | '/admin/email'
     | '/admin/feedback'
     | '/admin/launch'
     | '/admin/matching'
@@ -496,6 +517,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/auth/$'
     | '/api/mollie/webhook'
+    | '/api/resend/inbound'
     | '/api/vapi/token'
     | '/api/vapi/tool'
     | '/rate/$planId/$day'
@@ -519,6 +541,7 @@ export interface FileRouteTypes {
     | '/admin/benchmark'
     | '/admin/data-mode'
     | '/admin/design-system'
+    | '/admin/email'
     | '/admin/feedback'
     | '/admin/launch'
     | '/admin/matching'
@@ -542,6 +565,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/auth/$'
     | '/api/mollie/webhook'
+    | '/api/resend/inbound'
     | '/api/vapi/token'
     | '/api/vapi/tool'
     | '/rate/$planId/$day'
@@ -574,6 +598,7 @@ export interface RootRouteChildren {
   DesignWeekRoute: typeof DesignWeekRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiMollieWebhookRoute: typeof ApiMollieWebhookRoute
+  ApiResendInboundRoute: typeof ApiResendInboundRoute
   ApiVapiTokenRoute: typeof ApiVapiTokenRoute
   ApiVapiToolRoute: typeof ApiVapiToolRoute
   RatePlanIdDayRoute: typeof RatePlanIdDayRoute
@@ -806,6 +831,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFeedbackRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/email': {
+      id: '/admin/email'
+      path: '/email'
+      fullPath: '/admin/email'
+      preLoaderRoute: typeof AdminEmailRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/design-system': {
       id: '/admin/design-system'
       path: '/design-system'
@@ -876,6 +908,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVapiTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/resend/inbound': {
+      id: '/api/resend/inbound'
+      path: '/api/resend/inbound'
+      fullPath: '/api/resend/inbound'
+      preLoaderRoute: typeof ApiResendInboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mollie/webhook': {
       id: '/api/mollie/webhook'
       path: '/api/mollie/webhook'
@@ -897,6 +936,7 @@ interface AdminRouteRouteChildren {
   AdminBenchmarkRoute: typeof AdminBenchmarkRoute
   AdminDataModeRoute: typeof AdminDataModeRoute
   AdminDesignSystemRoute: typeof AdminDesignSystemRoute
+  AdminEmailRoute: typeof AdminEmailRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminLaunchRoute: typeof AdminLaunchRoute
   AdminMatchingRoute: typeof AdminMatchingRoute
@@ -912,6 +952,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBenchmarkRoute: AdminBenchmarkRoute,
   AdminDataModeRoute: AdminDataModeRoute,
   AdminDesignSystemRoute: AdminDesignSystemRoute,
+  AdminEmailRoute: AdminEmailRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
   AdminLaunchRoute: AdminLaunchRoute,
   AdminMatchingRoute: AdminMatchingRoute,
@@ -968,6 +1009,7 @@ const rootRouteChildren: RootRouteChildren = {
   DesignWeekRoute: DesignWeekRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiMollieWebhookRoute: ApiMollieWebhookRoute,
+  ApiResendInboundRoute: ApiResendInboundRoute,
   ApiVapiTokenRoute: ApiVapiTokenRoute,
   ApiVapiToolRoute: ApiVapiToolRoute,
   RatePlanIdDayRoute: RatePlanIdDayRoute,

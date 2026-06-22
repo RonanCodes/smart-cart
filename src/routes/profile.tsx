@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ComponentType } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { requireUserBeforeLoad } from '#/lib/route-guards'
 import {
   User,
   LogOut,
@@ -17,7 +18,7 @@ import {
   Users,
   Ban,
   ChevronRight,
-  Sun,
+  MessageCircleHeart,
 } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
@@ -31,6 +32,7 @@ import { StoreSheet } from '#/components/profile/store-sheet'
 import { LanguageSheet } from '#/components/profile/language-sheet'
 import { PreferencesSheet } from '#/components/profile/preferences-sheet'
 import { SkipDaysSheet } from '#/components/profile/skip-days-sheet'
+import { HouseholdSheet } from '#/components/profile/household-sheet'
 import { storeLabel, loadProfileBootstrap } from '#/lib/store-pref-server'
 import type { StoreSlug, ProfileBootstrap } from '#/lib/store-pref-server'
 import { getLocale, localeLabel } from '#/lib/locale-pref-server'
@@ -48,6 +50,7 @@ import type {
 } from '#/lib/profile-edit-server'
 import { DAY_LABELS } from '#/lib/onboarding-rhythm'
 import { ProfileSkeleton } from '#/components/profile/ProfileSkeleton'
+import { FeedbackForm } from '#/components/feedback/FeedbackForm'
 
 /** The profile route's data: the settings bootstrap plus the taste summary (#268)
  * and the editable data points + inferred skip-days (#data-points). */
@@ -76,6 +79,11 @@ async function loadProfileData(): Promise<ProfileData> {
 }
 
 export const Route = createFileRoute('/profile')({
+  // Gate signed-out visitors server-side (auth-guards canon): redirect to
+  // sign-in in beforeLoad rather than rendering a client-side "sign in" empty
+  // state. The loader fns are already safe (they return null / throw for
+  // signed-out callers), so this is consistency + a clean redirect.
+  beforeLoad: requireUserBeforeLoad,
   // Server-decide admin status so the 'Admin console' row only renders for true
   // admins, read the current preferred store so its row shows the real value,
   // and read the taste summary for the 'Your taste' section (#268). ONE
@@ -180,8 +188,13 @@ function Profile() {
     initialData: loaderData,
   })
   const router = useRouter()
-  const { isAdmin, store: initialStore, summary, locale: initialLocale } = data
+  const { isAdmin, store: initialStore, locale: initialLocale } = data
+  // Local mirror of the household summary so an inline household-size edit
+  // reflects in the row at once, without a route reload (#household-inline-edit).
+  const [summary, setSummary] = useState<HouseholdSummary | null>(data.summary)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [householdOpen, setHouseholdOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [storeOpen, setStoreOpen] = useState(false)
   const [store, setStore] = useState<StoreSlug>(initialStore)
@@ -276,7 +289,8 @@ function Profile() {
       <ScreenHeader title="Profile" />
 
       <div className="px-5">
-        {/* Profile header: avatar tile + name + "Souso since <month>" + Pro. */}
+        {/* Profile header: avatar tile + name + "Souso since <month>". The old
+            "Pro" badge was removed (it implied a tier that does not exist). */}
         <div className="flex items-center gap-3.5 pb-2">
           <div className="bg-secondary text-primary flex h-14 w-14 items-center justify-center rounded-full border-4 border-white shadow-md">
             <User className="h-6 w-6" />
@@ -289,9 +303,6 @@ function Profile() {
                 : session.user.email}
             </p>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full border border-[#f1ce8e] bg-[#fbe6c2] px-2.5 py-1 text-[0.7rem] font-extrabold text-[#7a4d10]">
-            <Sun className="h-3.5 w-3.5" /> Pro
-          </span>
         </div>
 
         <div className="flex justify-end pt-1 pr-1">
@@ -305,9 +316,7 @@ function Profile() {
             icon={Users}
             label="Household"
             value={householdValue}
-            onClick={() => {
-              window.location.href = '/onboarding'
-            }}
+            onClick={() => setHouseholdOpen(true)}
           />
           <HairlineRow
             icon={Heart}
@@ -381,6 +390,11 @@ function Profile() {
             label="How Souso works"
             onClick={() => setHelpOpen(true)}
           />
+          <HairlineRow
+            icon={MessageCircleHeart}
+            label="Send feedback"
+            onClick={() => setFeedbackOpen(true)}
+          />
         </SettingsSection>
 
         {/* Weekly planning reminder (Part B): pick a day + time to be nudged. */}
@@ -437,8 +451,8 @@ function Profile() {
         <div className="text-muted-foreground space-y-4 pb-4 text-[0.95rem] leading-relaxed">
           <p>
             Souso learns how your household eats from a few swipes, plans a week
-            of dinners, and fills a ready-to-order basket at Albert Heijn or
-            Jumbo. You just check out.
+            of dinners, and fills a ready-to-order basket at Albert Heijn. You
+            just check out.
           </p>
           <p>
             Swap any meal with one tap, tell it what changed ("we're out
@@ -449,6 +463,14 @@ function Profile() {
             Got it
           </Button>
         </div>
+      </Sheet>
+
+      <Sheet
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        title="Send feedback"
+      >
+        <FeedbackForm source="settings" onDone={() => setFeedbackOpen(false)} />
       </Sheet>
 
       <NotificationsSheet
@@ -495,6 +517,13 @@ function Profile() {
             prev ? { ...prev, manual: next.skipDays } : prev,
           )
         }}
+      />
+
+      <HouseholdSheet
+        open={householdOpen}
+        onOpenChange={setHouseholdOpen}
+        summary={summary}
+        onSaved={setSummary}
       />
 
       <ConfirmDialog

@@ -375,6 +375,7 @@ function DesignWeek() {
             <DayCard
               key={d.day}
               day={d}
+              portionsLabel="2 adults + 2 kids"
               swapOptions={d.options}
               ingredients={d.ingredients}
               note={d.note}

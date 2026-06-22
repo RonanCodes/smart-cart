@@ -152,8 +152,38 @@ describe('consolidate — unparseable handling', () => {
   })
 
   it('falls back to a neutral amount when nothing is specified', () => {
-    const r = recipe('r1', 'A', 1, [{ name: 'water', unit: '' }])
+    const r = recipe('r1', 'A', 1, [{ name: 'salt', unit: '' }])
     const list = consolidate([r], { adults: 1 })
+    expect(list.lines[0]!.displayAmount).toBe('(unspecified amount)')
+  })
+
+  it('drops cooking water "from the tap" (it is a recipe step, not a grocery)', () => {
+    const r = recipe('r1', 'A', 1, [
+      { name: 'tap water', qty: '1200', unit: 'ml' },
+      { name: 'boiling water', qty: '900', unit: 'ml' },
+      { name: 'salt', qty: '5', unit: 'g' },
+    ])
+    const list = consolidate([r], { adults: 1 })
+    expect(list.lines.map((l) => l.name)).toEqual(['salt'])
+  })
+
+  it('merges chili / chilli spelling variants into one line, summing amounts', () => {
+    const r = recipe('r1', 'A', 1, [
+      { name: 'chili flakes', qty: '10', unit: 'g' },
+      { name: 'chilli flakes', qty: '20', unit: 'g' },
+    ])
+    const list = consolidate([r], { adults: 1 })
+    expect(list.lines).toHaveLength(1)
+    expect(list.lines[0]!.totalQty).toBe(30)
+    expect(list.lines[0]!.unit).toBe('g')
+  })
+
+  it('drops a zero amount rather than rendering "0 tsp"', () => {
+    const r = recipe('r1', 'A', 1, [
+      { name: 'chilli flakes', qty: '0', unit: 'tsp' },
+    ])
+    const list = consolidate([r], { adults: 1 })
+    expect(list.lines).toHaveLength(1)
     expect(list.lines[0]!.displayAmount).toBe('(unspecified amount)')
   })
 })
@@ -248,5 +278,111 @@ describe('consolidate — Dutch packed-qty path (the #292 bug)', () => {
     const list = consolidate([r1, r2], { adults: 4 })
     expect(list.lines).toHaveLength(1)
     expect(list.lines[0]!.displayAmount).toBe('500 g')
+  })
+})
+
+describe('consolidate — grams correctness (portion-scaled SUM across recipes)', () => {
+  it('consolidates the same ingredient across recipes to the SUM of scaled grams', () => {
+    // flour appears in three recipes at different per-recipe servings. The list
+    // must show the SUM of each recipe's PORTION-SCALED grams, not a raw sum and
+    // not any one recipe's amount.
+    //   r1: 100 g @ 2 servings, target 2 -> 100 * 2/2 = 100 g
+    //   r2: 300 g @ 4 servings, target 2 -> 300 * 2/4 = 150 g
+    //   r3: 250 g @ 1 serving,  target 2 -> 250 * 2/1 = 500 g
+    // expected total = 100 + 150 + 500 = 750 g (stays in grams, no kg rollover).
+    const r1 = recipe('r1', 'A', 2, [{ name: 'flour', qty: '100', unit: 'g' }])
+    const r2 = recipe('r2', 'B', 4, [{ name: 'flour', qty: '300', unit: 'g' }])
+    const r3 = recipe('r3', 'C', 1, [{ name: 'flour', qty: '250', unit: 'g' }])
+    const list = consolidate([r1, r2, r3], { adults: 2 })
+
+    const flour = list.lines.find((l) => l.name === 'flour')!
+    expect(list.lines).toHaveLength(1)
+    expect(flour.totalQty).toBe(750)
+    expect(flour.unit).toBe('g')
+    expect(flour.displayAmount).toBe('750 g')
+    expect(flour.usedInMeals).toEqual(['A', 'B', 'C'])
+  })
+
+  it('sums kg + g contributions into one mass total', () => {
+    // 500 g (r1, 1 serving, target 2 -> 1000 g) + 1 kg (r2, 1 serving -> 2000 g)
+    // = 3000 g = 3 kg.
+    const r1 = recipe('r1', 'A', 1, [{ name: 'sugar', qty: '500', unit: 'g' }])
+    const r2 = recipe('r2', 'B', 1, [{ name: 'sugar', qty: '1', unit: 'kg' }])
+    const list = consolidate([r1, r2], { adults: 2 })
+    const sugar = list.lines[0]!
+    expect(sugar.totalQty).toBe(3)
+    expect(sugar.unit).toBe('kg')
+  })
+})
+
+/**
+ * INGREDIENTS <-> RECIPES: the consolidation never invents or silently drops a
+ * real ingredient. Every consolidated cart-line name must trace back to a real
+ * recipe ingredient name (under the same lower-case/spelling-variant de-dupe key
+ * the engine uses). The ONLY allowed removals are the clean-list noise filters:
+ * cooking water "from the tap" and empty names. This is the guard that no junk
+ * line gets introduced between the recipes and the cart.
+ */
+describe('consolidate — ingredients trace back to real recipe ingredients (no junk)', () => {
+  // A small week fixture spanning shared ingredients, spelling variants, casing,
+  // a tap-water line (must drop), and a blank-name line (must drop).
+  const week: Array<ShoppingRecipe> = [
+    recipe('r1', 'Curry', 2, [
+      { name: 'Onion', qty: '1', unit: '' },
+      { name: 'chili flakes', qty: '10', unit: 'g' },
+      { name: 'rice', qty: '150', unit: 'g' },
+      { name: 'tap water', qty: '500', unit: 'ml' }, // dropped (clean-list)
+    ]),
+    recipe('r2', 'Soup', 2, [
+      { name: 'onion ', qty: '2', unit: '' }, // merges with 'Onion'
+      { name: 'chilli flakes', qty: '5', unit: 'g' }, // merges with 'chili flakes'
+      { name: 'stock', qty: '500', unit: 'ml' },
+      { name: '  ', qty: '1', unit: '' }, // blank name dropped
+    ]),
+  ]
+
+  /** The de-dupe key set the engine uses, computed from the raw recipe names. */
+  function dedupeKey(name: string): string {
+    return name.trim().toLowerCase().replace(/\s+/g, ' ')
+  }
+
+  it('every cart line name traces back to a real recipe ingredient name', () => {
+    const list = consolidate(week, { adults: 2 })
+
+    // The set of real ingredient keys present in the recipes (after clean-list's
+    // only allowed removals: tap water + blank names).
+    const realKeys = new Set<string>()
+    for (const r of week) {
+      for (const ing of r.ingredients) {
+        if (ing.name.trim() === '') continue
+        if (/\bwater\b/i.test(ing.name)) continue // tap-water style removal
+        // chili/chilli collapse to one key, like the engine's spelling map.
+        realKeys.add(dedupeKey(ing.name).replace(/\bchili\b/, 'chilli'))
+      }
+    }
+
+    // Every emitted line maps to a real ingredient key — nothing invented.
+    for (const line of list.lines) {
+      const key = dedupeKey(line.name).replace(/\bchili\b/, 'chilli')
+      expect(realKeys.has(key)).toBe(true)
+    }
+
+    // And no real grocery was dropped: the four distinct real groceries survive
+    // (onion, chilli flakes, rice, stock), with water + blank gone.
+    const names = list.lines.map((l) => l.name.toLowerCase())
+    expect(names.sort()).toEqual(['chili flakes', 'onion', 'rice', 'stock'])
+    expect(names.some((n) => /\bwater\b/.test(n))).toBe(false)
+  })
+
+  it('merges duplicates so a shared ingredient yields exactly one line', () => {
+    const list = consolidate(week, { adults: 2 })
+    // onion (Onion + onion ) and chilli flakes (chili + chilli) each collapse to
+    // ONE line — no duplicate cart entries invented.
+    expect(
+      list.lines.filter((l) => l.name.toLowerCase() === 'onion'),
+    ).toHaveLength(1)
+    expect(
+      list.lines.filter((l) => /chill?i flakes/i.test(l.name)),
+    ).toHaveLength(1)
   })
 })

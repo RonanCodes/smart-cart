@@ -73,10 +73,15 @@ async function loadEnvAdmins(): Promise<{
   superAdmins: Set<string>
 }> {
   const { readEnv } = await import('./env')
-  const { parseApprovedList, ADMIN_EMAIL } = await import('./access-rules')
+  const { parseApprovedList, buildSuperAdminSet } =
+    await import('./access-rules')
+  // ADMIN_EMAIL is the module-scope import (import-safe pure constant).
   const envAdmins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
   envAdmins.add(ADMIN_EMAIL)
-  const superAdmins = parseApprovedList(await readEnv('SUPER_ADMIN_EMAILS'))
+  // The super-admin set ALWAYS includes the SUPER_ADMIN_EMAIL constant, unioned
+  // with the SUPER_ADMIN_EMAILS secret, so with no secret ronanconnolly.dev is
+  // the only super-admin and the mission-critical gate can never be locked out.
+  const superAdmins = buildSuperAdminSet(await readEnv('SUPER_ADMIN_EMAILS'))
   // Super-admins are always admins too.
   for (const e of superAdmins) envAdmins.add(e)
   return { envAdmins, superAdmins }
@@ -100,6 +105,28 @@ async function adminViewer(): Promise<{
     email: u.email,
     isSuperAdmin: isSuperAdminWith(u.email, superAdmins),
   }
+}
+
+/**
+ * Gate a mission-critical action behind super-admin. Returns the viewer (so the
+ * caller can use their email) or throws 'forbidden' when the caller is not a
+ * super-admin. The single server-side guard reused by every super-admin-only
+ * action (grant admin, the launch toggle, the launch-email broadcast), so a
+ * regular admin is blocked server-side, not merely hidden in the UI.
+ *
+ * NOT exported: an exported plain async fn would be reachable from the client
+ * import of this module, dragging its transitive `cloudflare:workers` env import
+ * into the browser bundle (only `createServerFn().handler` bodies are stripped).
+ * Server fns here call it directly; launch-server gates via its own copy that
+ * reuses the exported `isSuperAdmin` server fn.
+ */
+async function requireSuperAdmin(): Promise<{
+  email: string
+  isSuperAdmin: boolean
+}> {
+  const v = await adminViewer()
+  if (!v || !v.isSuperAdmin) throw new Error('forbidden')
+  return v
 }
 
 /** Server fn: is the signed-in user a super-admin? Server-decided, never client. */
@@ -159,6 +186,18 @@ export interface AdminUserRow {
   configAdmin: boolean
   /** Viewing super-admin may revoke admin from this DB-granted admin row. */
   revocable: boolean
+  /**
+   * Account-creation time as epoch ms, or null for an env/grant-only person who
+   * never signed in (no `user` row). Drives the signups-over-time chart + the
+   * "new this week" total + the newest-first sort. Attached after the merge by
+   * joining back on userId (mergePeople stays badge-only by design).
+   */
+  createdAt: number | null
+  /** Optional phone/WhatsApp a beta tester left in onboarding (#407), so the
+   * team can reach out for a chat. null when not given. Attached post-merge. */
+  phone: string | null
+  /** Preferred contact method (#407): 'whatsapp' | 'call' | 'either' | null. */
+  contactPref: string | null
 }
 
 export const listUsers = createServerFn({ method: 'GET' }).handler(
@@ -177,9 +216,36 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
         email: user.email,
         householdId: household.id,
         profile: household.profile,
+        createdAt: user.createdAt,
       })
       .from(user)
       .leftJoin(household, eq(household.ownerId, user.id))
+    // Account-creation time per userId (epoch ms), for the analytics view. Built
+    // here and re-joined onto the merged rows below, so mergePeople stays a pure
+    // badge-only generic (its shared tests don't change). createdAt is a drizzle
+    // timestamp (Date); guard nulls and convert to epoch ms.
+    const createdAtByUserId = new Map<string, number>()
+    // Optional phone left in the onboarding beta step lives on profile.phone
+    // (#407); re-join it onto the merged rows the same way as createdAt.
+    const phoneByUserId = new Map<string, string>()
+    const contactPrefByUserId = new Map<string, string>()
+    for (const r of rows) {
+      if (r.userId && r.createdAt instanceof Date) {
+        createdAtByUserId.set(r.userId, r.createdAt.getTime())
+      }
+      const prof = r.profile as {
+        phone?: unknown
+        contactPref?: unknown
+      } | null
+      const phone = prof?.phone
+      if (r.userId && typeof phone === 'string' && phone.trim()) {
+        phoneByUserId.set(r.userId, phone)
+      }
+      const pref = prof?.contactPref
+      if (r.userId && typeof pref === 'string' && pref) {
+        contactPrefByUserId.set(r.userId, pref)
+      }
+    }
     const counts = await db
       .select({ hid: recipeSwipe.householdId, n: count() })
       .from(recipeSwipe)
@@ -193,7 +259,7 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
     const envApproved = parseApprovedList(await readEnv('APPROVED_EMAILS'))
     const grants = await loadAdminGrantMap()
 
-    return mergePeople<Badge>({
+    const merged = mergePeople<Badge>({
       userRows: rows.map((r) => ({
         userId: r.userId,
         email: r.email,
@@ -207,6 +273,16 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
       viewerEmail: viewer.email,
       viewerIsSuperAdmin: viewer.isSuperAdmin,
     })
+    // Re-attach createdAt by userId (env/grant-only people with no user row keep
+    // null), so AdminUserRow carries the signup time the analytics view needs.
+    return merged.map((p) => ({
+      ...p,
+      createdAt: p.userId ? (createdAtByUserId.get(p.userId) ?? null) : null,
+      phone: p.userId ? (phoneByUserId.get(p.userId) ?? null) : null,
+      contactPref: p.userId
+        ? (contactPrefByUserId.get(p.userId) ?? null)
+        : null,
+    }))
   },
 )
 
@@ -489,13 +565,15 @@ export const grantUser = createServerFn({ method: 'POST' })
 
 /**
  * Promote `email` to admin (role 'admin'; admin implies login access too).
- * Upsert keyed on the normalised email, so it is idempotent. Returns the
- * resulting grant state.
+ * SUPER-ADMIN-ONLY: granting/adding admins is mission-critical, so a regular
+ * admin is blocked server-side (requireSuperAdmin throws 'forbidden'), not just
+ * hidden in the UI. Upsert keyed on the normalised email, so it is idempotent.
+ * Returns the resulting grant state.
  */
 export const grantAdmin = createServerFn({ method: 'POST' })
   .inputValidator((d: { email: string }) => d)
   .handler(async ({ data }): Promise<{ email: string; grant: GrantState }> => {
-    if (!(await adminUser())) throw new Error('forbidden')
+    await requireSuperAdmin()
     const { normalizeEmail } = await import('./access-rules')
     const email = normalizeEmail(data.email)
     if (!email) throw new Error('email required')
@@ -697,12 +775,24 @@ async function wipeHousehold(
  * and finally the household row. The auth user/session is left intact, so the
  * person stays signed in but has no household; the route guards then send them
  * to /onboarding on next open. No-op (ok:false) if the user has no household.
+ *
+ * `wasSelf` reports whether the admin reset their OWN account, so the panel can
+ * drop them straight into /onboarding (the gate is now stale in the live router
+ * for the current session) instead of waiting for a manual reload.
  */
 export const resetUserData = createServerFn({ method: 'POST' })
   .inputValidator((d: { userId: string }) => d)
   .handler(
-    async ({ data }): Promise<{ ok: boolean; householdId: string | null }> => {
-      if (!(await adminUser())) throw new Error('forbidden')
+    async ({
+      data,
+    }): Promise<{
+      ok: boolean
+      householdId: string | null
+      wasSelf: boolean
+    }> => {
+      const viewer = await adminUser()
+      if (!viewer) throw new Error('forbidden')
+      const wasSelf = viewer.id === data.userId
       const { eq } = await import('drizzle-orm')
       const tables = await loadResetTables()
       const db = await getDbForReset()
@@ -713,9 +803,9 @@ export const resetUserData = createServerFn({ method: 'POST' })
           .where(eq(tables.household.ownerId, data.userId))
           .limit(1)
       )[0]
-      if (!hh) return { ok: false, householdId: null }
+      if (!hh) return { ok: false, householdId: null, wasSelf }
       await wipeHousehold(db, tables, hh.id)
-      return { ok: true, householdId: hh.id }
+      return { ok: true, householdId: hh.id, wasSelf }
     },
   )
 

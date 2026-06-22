@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   ADMIN_EMAIL,
+  SUPER_ADMIN_EMAIL,
   parseApprovedList,
   isApprovedIn,
   grantMapFrom,
@@ -10,6 +11,7 @@ import {
   normalizeEmail,
   mergePeople,
   isSuperAdminWith,
+  buildSuperAdminSet,
   canRevokeAdmin,
 } from './access-rules'
 
@@ -144,6 +146,38 @@ describe('grantStateFor', () => {
 describe('normalizeEmail', () => {
   it('trims and lowercases', () => {
     expect(normalizeEmail('  Foo@Bar.COM ')).toBe('foo@bar.com')
+  })
+})
+
+describe('buildSuperAdminSet (constant ∪ SUPER_ADMIN_EMAILS secret)', () => {
+  it('always includes the SUPER_ADMIN_EMAIL constant, even with an empty secret', () => {
+    const set = buildSuperAdminSet(undefined)
+    expect(set.has(SUPER_ADMIN_EMAIL)).toBe(true)
+    expect(buildSuperAdminSet('').has(SUPER_ADMIN_EMAIL)).toBe(true)
+    expect(buildSuperAdminSet(null).has(SUPER_ADMIN_EMAIL)).toBe(true)
+  })
+
+  it('with an empty secret, the constant is the ONLY super-admin', () => {
+    const set = buildSuperAdminSet(undefined)
+    expect(set.size).toBe(1)
+    // ronanconnolly.dev is a super-admin; nobody else is.
+    expect(isSuperAdminWith(SUPER_ADMIN_EMAIL, set)).toBe(true)
+    expect(isSuperAdminWith('someone-else@x.com', set)).toBe(false)
+  })
+
+  it('unions the secret with the constant (normalised)', () => {
+    const set = buildSuperAdminSet(' Extra@X.com , other@x.com ')
+    expect(set.has(SUPER_ADMIN_EMAIL)).toBe(true)
+    expect(set.has('extra@x.com')).toBe(true)
+    expect(set.has('other@x.com')).toBe(true)
+    expect(isSuperAdminWith('EXTRA@X.COM', set)).toBe(true)
+  })
+
+  it('ADMIN_EMAIL is ronanconnolly.dev and equals the super-admin constant', () => {
+    // The default owner / admin is ronanconnolly.dev, and ronanconnolly.dev is also the
+    // always-on super-admin, so the two constants agree.
+    expect(ADMIN_EMAIL).toBe('ronan@ronanconnolly.dev')
+    expect(SUPER_ADMIN_EMAIL).toBe('ronan@ronanconnolly.dev')
   })
 })
 

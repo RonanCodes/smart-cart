@@ -50,3 +50,92 @@ export async function notifyAdminsOfSignup(newEmail: string): Promise<void> {
     // swallow: admin notify is non-fatal; the signup / gate already succeeded
   }
 }
+
+/**
+ * SERVER-ONLY: email every opted-in admin that a REAL account was just created.
+ *
+ * Wired into Better Auth's `databaseHooks.user.create.after`, so it fires once
+ * per genuinely new account, whichever UI flow created it (the anonymous
+ * onboarding flow that ends in OTP verify, a plain sign-in of a first-time
+ * approved email, etc.). This is the gap that left admins un-notified: the old
+ * notifyAdminsOfSignup only fired on the waitlist-join and sign-in-gate paths,
+ * which an approved real sign-up never hits.
+ *
+ * Same default-on admin pref and same best-effort contract as
+ * notifyAdminsOfSignup: every error is swallowed so account creation can never
+ * be broken by a count, prefs read, or send. The total is the real account
+ * count from the `user` table, not the waitlist.
+ */
+export async function notifyAdminsOfNewUser(newEmail: string): Promise<void> {
+  try {
+    const { getDb } = await import('../db/client')
+    const db = await getDb()
+
+    const { user } = await import('../db/auth-schema')
+    const total = (await db.select({ n: count() }).from(user))[0]?.n ?? 0
+
+    const { adminNotificationPref } = await import('../db/admin-prefs-schema')
+    const prefs = await db
+      .select({
+        email: adminNotificationPref.email,
+        waitlistNotify: adminNotificationPref.waitlistNotify,
+      })
+      .from(adminNotificationPref)
+
+    const { resolveAdminEmails } = await import('./admin-emails')
+    const { recipientsForWaitlist } = await import('./admin-prefs')
+    const recipients = recipientsForWaitlist(await resolveAdminEmails(), prefs)
+
+    const { sendNewUserNotice } = await import('./email')
+    for (const to of recipients) {
+      try {
+        await sendNewUserNotice(newEmail, total, to)
+      } catch {
+        // one admin's send failing must not block the others
+      }
+    }
+  } catch {
+    // swallow: admin notify is non-fatal; the account was already created
+  }
+}
+
+/**
+ * SERVER-ONLY: email every opted-in admin that a new piece of in-app feedback
+ * came through, just like a signup ping (#444 follow-up). Same default-on admin
+ * pref + best-effort contract as the signup notifier: a count, prefs read, or
+ * send failure never affects the feedback submission (the row is already saved).
+ */
+export async function notifyAdminsOfFeedback(feedback: {
+  message: string
+  email?: string | null
+  phone?: string | null
+  source?: string | null
+}): Promise<void> {
+  try {
+    const { getDb } = await import('../db/client')
+    const db = await getDb()
+
+    const { adminNotificationPref } = await import('../db/admin-prefs-schema')
+    const prefs = await db
+      .select({
+        email: adminNotificationPref.email,
+        waitlistNotify: adminNotificationPref.waitlistNotify,
+      })
+      .from(adminNotificationPref)
+
+    const { resolveAdminEmails } = await import('./admin-emails')
+    const { recipientsForWaitlist } = await import('./admin-prefs')
+    const recipients = recipientsForWaitlist(await resolveAdminEmails(), prefs)
+
+    const { sendFeedbackNotice } = await import('./email')
+    for (const to of recipients) {
+      try {
+        await sendFeedbackNotice(feedback, to)
+      } catch {
+        // one admin's send failing must not block the others
+      }
+    }
+  } catch {
+    // swallow: admin notify is non-fatal; the feedback was already saved
+  }
+}

@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  redirect,
+  useNavigate,
+  useRouter,
+} from '@tanstack/react-router'
 import {
   ShoppingBasket,
   ChevronLeft,
@@ -21,10 +26,12 @@ import {
 } from '#/lib/week-server'
 import { weekLabel, offsetForWeekStart } from '#/lib/week-offset'
 import { weekPlanUrl } from '#/lib/week-url'
+import { replaceUrlSilently } from '#/lib/silent-url'
 import type { WeekView, WeekDayView, DayAlternative } from '#/lib/week-server'
 import { applyStreamedWeek, streamReplan } from '#/lib/agent/replan-client'
 import type { ReplanHistoryTurn } from '#/lib/agent/replan-client'
 import { mergeWeekPreservingIdentity } from '#/lib/week-merge'
+import { isWeekView, missingCount, weekDays } from '#/lib/week-loader-guards'
 import { detectTargetDays } from '#/lib/replan/target-days'
 import { getSimilarRecipes } from '#/lib/similar-server'
 import { applySimilarSwapToPlan } from '#/lib/swap-server'
@@ -39,6 +46,8 @@ import type { MealFeedbackState } from '#/lib/meal-feedback-server'
 import type { MealRating } from '#/lib/meal-feedback'
 import { Button } from '#/components/ui/button'
 import { DayCard } from '#/components/week/DayCard'
+import { DayCardSkeleton } from '#/components/week/DayCardSkeleton'
+import { householdPortionsLabel } from '#/lib/household-label'
 import { ChatReplan } from '#/components/week/ChatReplan'
 import { VoiceButton } from '#/components/week/VoiceButton'
 import type { VoiceButtonHandle } from '#/components/week/VoiceButton'
@@ -50,6 +59,7 @@ import { RatingReminders } from '#/components/week/RatingReminders'
 import { WeekSkeleton } from '#/components/week/WeekSkeleton'
 import { ReplanBanner } from '#/components/week/ReplanBanner'
 import type { PlanDayChange } from '#/lib/replan/diff'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
 interface WeekSearch {
   plan?: string
@@ -100,9 +110,21 @@ export const Route = createFileRoute('/_authed/week')({
     // plan returns an empty state we render with a "plan this week" CTA.
     if (deps.week !== undefined && !Number.isNaN(deps.week)) {
       const res = await loadWeekForOffset({ data: { offset: deps.week } })
-      if (res.kind === 'empty') {
-        return { kind: 'empty', offset: res.offset, weekStart: res.weekStart }
+      // The type says res is always a result, but a prod 500 surfaced here as
+      // `undefined` and crashed the route on `res.kind` (#week-crash). It also
+      // crashed later on `res.week.days` / `t.days` (#380) when `res.week` was
+      // a partial/empty object. Guard defensively both ways: a missing result
+      // OR an unusable week falls back to the empty state. The rule can't see
+      // the runtime state, so disable it here.
+      /* eslint-disable @typescript-eslint/no-unnecessary-condition */
+      if (!res || res.kind === 'empty' || !isWeekView(res.week)) {
+        return {
+          kind: 'empty',
+          offset: res ? res.offset : deps.week,
+          weekStart: res ? res.weekStart : '',
+        }
       }
+      /* eslint-enable @typescript-eslint/no-unnecessary-condition */
       const { listMealFeedback } = await import('#/lib/meal-feedback-server')
       const { countMissingFromWeek } =
         await import('#/lib/shopping-list-server')
@@ -114,8 +136,12 @@ export const Route = createFileRoute('/_authed/week')({
         kind: 'week',
         offset: res.offset,
         week: res.week,
-        feedback,
-        missingFromList: missing.missing,
+        // `feedback` can come back undefined on a partial fan-out failure; the
+        // render path maps over it, so coerce to [] (#380).
+        feedback: Array.isArray(feedback) ? feedback : [],
+        // `missing` resolved to undefined on a prod 500 and crashed the loader
+        // on `.missing` (#384). missingCount() reads it safely, defaulting to 0.
+        missingFromList: missingCount(missing),
       }
     }
     // No plan id and no week offset means "land on this week". Redirect to the
@@ -130,10 +156,20 @@ export const Route = createFileRoute('/_authed/week')({
     // 2): an in-place swap/replan rewrites the URL to `?plan=`, and before this
     // the nav vanished because offset was null.
     const bootstrap = await loadWeekBootstrap({ data: { planId: deps.plan } })
+    // A prod 500 can resolve the bootstrap (or its `week`) to undefined; reading
+    // `bootstrap.week.weekStart` then crashed on `t.week` (#380). Fall back to
+    // the empty state for this week (offset 0) so the route still renders.
+    /* eslint-disable @typescript-eslint/no-unnecessary-condition */
+    if (!bootstrap || !isWeekView(bootstrap.week)) {
+      return { kind: 'empty', offset: 0, weekStart: '' }
+    }
+    /* eslint-enable @typescript-eslint/no-unnecessary-condition */
     return {
       kind: 'week',
       offset: offsetForWeekStart(bootstrap.week.weekStart),
-      ...bootstrap,
+      week: bootstrap.week,
+      feedback: Array.isArray(bootstrap.feedback) ? bootstrap.feedback : [],
+      missingFromList: missingCount({ missing: bootstrap.missingFromList }),
     }
   },
   // Skeleton while the loader resolves (#226). The loader still runs on the
@@ -146,6 +182,30 @@ export const Route = createFileRoute('/_authed/week')({
 
 function WeekPage() {
   const loaderData = Route.useLoaderData()
+
+  // Record the route + the SHAPE of its loader data on Sentry (the undefined
+  // route/loader-data crashes on /week had no such context). Lazy-imported so the
+  // browser-only Sentry SDK never enters the loader/SSR bundle; a no-op until init.
+  // Must run before the guard below — hooks cannot sit after an early return.
+  useEffect(() => {
+    void import('#/lib/observability-client').then(({ setRouteContext }) =>
+      setRouteContext('/week', loaderData),
+    )
+  }, [loaderData])
+
+  // Defensive: if the loader payload is ever missing or unusable (a partial /
+  // failed result that slipped past the loader guards), render the empty state
+  // for this week rather than crashing on `loaderData.kind` / `t.week` (#380).
+  // The type says `loaderData` is always a valid union member; the runtime
+  // proved otherwise on prod, so the rule is disabled across this guard.
+  /* eslint-disable @typescript-eslint/no-unnecessary-condition */
+  if (
+    !loaderData ||
+    (loaderData.kind === 'week' && !isWeekView(loaderData.week))
+  ) {
+    return <EmptyWeek offset={loaderData?.offset ?? 0} />
+  }
+  /* eslint-enable @typescript-eslint/no-unnecessary-condition */
 
   // An empty week (a past week never planned, or a future week not yet
   // generated): show an empty state, plus the same prev/next nav so the user can
@@ -213,6 +273,7 @@ function WeekNav({ offset }: { offset: number }) {
  */
 function EmptyWeek({ offset }: { offset: number }) {
   const navigate = useNavigate()
+  const router = useRouter()
   const [busy, setBusy] = useState(false)
   const isFuture = offset > 0
   const canBuild = offset >= 0
@@ -222,12 +283,35 @@ function EmptyWeek({ offset }: { offset: number }) {
   async function act() {
     if (busy) return
     setBusy(true)
+    // Build-week clicked: the top of the planning funnel (also fired from
+    // onboarding's "Build my week"). `offset` distinguishes this-week vs a
+    // future generate.
+    track(FUNNEL_EVENTS.onboardingStepCompleted, {
+      step: isFuture ? 'generate_future_week_clicked' : 'build_week_clicked',
+      offset,
+    })
     try {
       if (canBuild) {
         await generateWeekForOffset({ data: { offset } })
+        track(FUNNEL_EVENTS.weekBuilt, { offset, source: 'week_empty_state' })
         await navigate({ to: '/week', search: { week: offset } })
+        // The URL is already `?week=offset` while sitting on the empty state, so
+        // navigate alone won't re-run the loader; invalidate forces it to pick up
+        // the freshly-generated plan and render the new week without a manual
+        // reload (#377). The "Building…/Generating…" busy label covers the wait.
+        await router.invalidate()
       } else {
         await navigate({ to: '/week', search: { week: 0 } })
+      }
+    } catch (err) {
+      // Building a week needs a household. A signed-in user who never finished
+      // onboarding (e.g. after an account reset, then logging back in) has none,
+      // so generatePlanForHousehold throws "No household, onboard first". Send
+      // them to onboarding to set up first instead of failing silently. Other
+      // failures just clear busy so they can retry.
+      const msg = err instanceof Error ? err.message.toLowerCase() : ''
+      if (msg.includes('household') || msg.includes('onboard')) {
+        await navigate({ to: '/onboarding' })
       }
     } finally {
       setBusy(false)
@@ -314,6 +398,7 @@ function LoadedWeek({
   offset: number
 }) {
   const navigate = useNavigate()
+  const router = useRouter()
   const [week, setWeek] = useState<WeekView>(initial)
   const [busyDay, setBusyDay] = useState<string | null>(null)
   const [voiceLive, setVoiceLive] = useState(false)
@@ -488,11 +573,16 @@ function LoadedWeek({
   const locked = busyDay !== null || replanning || voiceLive
   lockedRef.current = locked
   ratingBusyRef.current = ratingBusy
+  // Total view of the week's days for the render path (#380). `week` is always a
+  // real WeekView here (the loader + WeekPage guard it), but a streamed/optimistic
+  // update could momentarily hand a half-built week to the grid; `weekDays` keeps
+  // every `.map`/`.find` below from throwing `t.days` if so.
+  const days = weekDays(week)
   const recipeViewing = recipeDay
-    ? (week.days.find((d) => d.day === recipeDay) ?? null)
+    ? (days.find((d) => d.day === recipeDay) ?? null)
     : null
   const swapping = swapDay
-    ? (week.days.find((d) => d.day === swapDay) ?? null)
+    ? (days.find((d) => d.day === swapDay) ?? null)
     : null
 
   /**
@@ -500,15 +590,22 @@ function LoadedWeek({
    *
    * The week data updates in place via `setWeek` (optimistic, no refetch), so the
    * URL only needs the `plan` search param rewritten for shareability and the back
-   * button. We do this with a SHALLOW `history.replaceState` rather than a router
-   * `navigate` (#236): a router navigation to a new `plan` value re-runs the route
-   * loader, which fires the route's full-page WeekSkeleton pendingComponent (added
-   * in #226) and jumps scroll to the top, so every swap/similar/alternative pick
-   * flashed the whole page even though the new week was already in hand. A
-   * `replaceState` updates the address bar without touching the loader, the
-   * pendingComponent, or scroll, so only the affected day's card changes in place
-   * (preserving the #145 keep-scroll intent). A genuine cold /week load still runs
-   * the loader and shows the skeleton.
+   * button. We do this WITHOUT a router `navigate` (#236): a router navigation to a
+   * new `plan` value re-runs the route loader, which fires the route's full-page
+   * WeekSkeleton pendingComponent (added in #226) and jumps scroll to the top, so
+   * every swap/similar/alternative pick flashed the whole page even though the new
+   * week was already in hand.
+   *
+   * #week-swap-skeleton: a plain `window.history.replaceState` is NOT enough.
+   * TanStack Router's browser history monkey-patches `window.history.replaceState`
+   * on the instance to observe out-of-band URL changes, so a raw call notifies the
+   * router's subscribers → it re-reads the changed `?plan=` → `loaderDeps.plan`
+   * changed → the loader re-runs and the full-page skeleton flashed on every swap
+   * anyway. `replaceUrlSilently` calls the original (prototype) `replaceState`,
+   * which slips past that patch: the address bar updates with zero router
+   * involvement, so only the affected day's card changes in place (preserving the
+   * #145 keep-scroll intent). A genuine cold /week load still runs the loader and
+   * shows the skeleton.
    */
   // `adopt` and the per-day handlers below are STABLE (`useCallback([])`,
   // reading mutable state from refs) so DayCard's `React.memo` actually holds: a
@@ -521,9 +618,7 @@ function LoadedWeek({
     // `setWeek(next)` swapped the whole week object, handing all seven cards new
     // props and letting a single-day swap jitter its siblings.
     setWeek((prev) => mergeWeekPreservingIdentity(prev, next))
-    if (typeof window !== 'undefined') {
-      window.history.replaceState(window.history.state, '', weekPlanUrl(planId))
-    }
+    replaceUrlSilently(weekPlanUrl(planId))
   }, [])
 
   /**
@@ -561,9 +656,14 @@ function LoadedWeek({
         })
         const next = await loadWeek({ data: { planId: res.planId } })
         adopt(res.planId, next)
+        track(FUNNEL_EVENTS.recipeSwapped, { day, source: 'similar' })
       } catch {
+        // Surface a recoverable banner instead of rethrowing (#385). The deck's
+        // onSwapTo / the sheet's onPick both fire this as a fire-and-forget
+        // `void` promise, so a re-throw became an UNHANDLED rejection that
+        // tripped `window.unhandledrejection` ("similar swap failed") rather
+        // than telling the user anything. Resolve quietly with the banner set.
         setMessage('Could not swap that day, try again.')
-        throw new Error('similar swap failed')
       } finally {
         setBusyDay(null)
       }
@@ -588,6 +688,10 @@ function LoadedWeek({
       })
       const next = await loadWeek({ data: { planId: res.planId } })
       adopt(res.planId, next)
+      track(FUNNEL_EVENTS.recipeSwapped, {
+        day,
+        source: adding ? 'add_meal' : 'alternative',
+      })
       closeSwapSheet()
     } catch {
       setMessage(
@@ -748,6 +852,12 @@ function LoadedWeek({
       if (changed) {
         const next = await loadWeek({ data: { planId: finalPlanId } })
         adopt(next.planId, next)
+        // A chat/voice replan regenerated the week: count it as a recipe swap
+        // (the change can span multiple days) so the funnel sees the edit.
+        track(FUNNEL_EVENTS.recipeSwapped, {
+          source: 'replan',
+          changedDays: finalChanges.length,
+        })
         // Open the step-through review on exactly the days the diff says moved,
         // in calendar order, so the user can walk each change one at a time.
         const changedSet = new Set(finalChanges.map((c) => c.day))
@@ -776,7 +886,7 @@ function LoadedWeek({
   // and `React.memo` holds. Recipe-dependent actions (rate) resolve the current
   // recipe at call time via `weekRef`, so binding by the stable day label is safe
   // even after a swap changes the day's recipe.
-  const dayKeys = week.days.map((d) => d.day).join('|')
+  const dayKeys = days.map((d) => d.day).join('|')
   const dayCallbacks = useMemo(() => {
     const map = new Map<
       string,
@@ -828,26 +938,26 @@ function LoadedWeek({
   const decks = useMemo(() => {
     const prev = decksRef.current
     const map = new Map<string, Array<WeekDayView>>()
-    for (const d of week.days) {
+    for (const d of days) {
       const cached = prev.get(d.day)
       const deck = cached && cached.src === d ? cached.deck : swapDeckFor(d)
       map.set(d.day, deck)
     }
     decksRef.current = new Map(
-      week.days.map((d) => [d.day, { src: d, deck: map.get(d.day)! }]),
+      days.map((d) => [d.day, { src: d, deck: map.get(d.day)! }]),
     )
     return map
-  }, [week.days])
+  }, [days])
 
   // "You might also like" (#week-align): a short tail of real household-ranked
   // recipes drawn from the alternatives the week already shipped (so no extra
   // round-trip), de-duplicated across days and excluding anything already in the
   // week. These are honest suggestions the recommender picked, not fixtures.
   const suggestions = useMemo(() => {
-    const inWeek = new Set(week.days.map((d) => d.recipeRef).filter(Boolean))
+    const inWeek = new Set(days.map((d) => d.recipeRef).filter(Boolean))
     const seen = new Set<string>()
     const out: Array<DayAlternative> = []
-    for (const d of week.days) {
+    for (const d of days) {
       for (const a of d.alternatives) {
         if (inWeek.has(a.recipeRef) || seen.has(a.recipeRef)) continue
         seen.add(a.recipeRef)
@@ -856,28 +966,59 @@ function LoadedWeek({
       }
     }
     return out
-  }, [week.days])
+  }, [days])
 
   // The first day with no dinner, if any: where a "You might also like" pick
   // lands when added. The tail only shows when there's an open day to fill, so
   // the Add button is never a dead end.
-  const firstOpenDay = week.days.find((d) => !d.recipeRef)?.day ?? null
+  const firstOpenDay = days.find((d) => !d.recipeRef)?.day ?? null
 
   // The AI replan + voice live behind one subtle "Ask Souso" button that opens a
   // sheet, keeping the week screen calm and Julienne-quiet by default (#design).
   const [aiOpen, setAiOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
 
-  // #week-control: wipe this week's plan so it returns to the empty state with a
-  // "Build my week" CTA (a clean slate for a demo). Hard-nav so the loader
-  // re-runs against the now-deleted plan.
+  /**
+   * Days whose dinner is being rewritten right now, shown as a per-card skeleton
+   * IN PLACE of just that day's card while the rest of the list stays live
+   * (#week-card-loading). Two sources, unioned:
+   *  - `busyDay`: a single-day write in flight (swipe-to-swap, similar pick,
+   *    alternative pick, day cleared) — exactly one day.
+   *  - `workingDays`: the day(s) a streaming replan is targeting — one or more,
+   *    derived from the instruction (`detectTargetDays`) up front and confirmed by
+   *    the real diff. A replan with no named day shows no per-card skeleton (the
+   *    chat card glows instead, see `workingGlow`), so the whole list never blanks.
+   * The full-page WeekSkeleton stays for the cold loader only; nothing here ever
+   * triggers it.
+   */
+  const updatingDays = useMemo(() => {
+    const set = new Set<string>(workingDays)
+    if (busyDay) set.add(busyDay)
+    return set
+  }, [busyDay, workingDays])
+
+  // #week-control / #377: wipe this week's plan so it returns to the empty state
+  // with a "Build my week" CTA (a clean slate for a demo). Reactive: instead of a
+  // full-page `window.location.href` reload (which blanked the screen and lost
+  // the "Clearing…" status), we navigate to the week's canonical `?week=offset`
+  // and invalidate the route so its loader re-runs in place against the
+  // now-deleted plan. The pendingComponent (WeekSkeleton) covers the reload, and
+  // the freshly-resolved empty state renders without a manual refresh.
   async function clearThisWeek() {
     if (clearing) return
     setClearing(true)
+    setMessage(null)
+    setChanges([])
     try {
       await clearWeekForOffset({ data: { offset } })
-      window.location.href = `/week?week=${offset}`
+      await navigate({ to: '/week', search: { week: offset } })
+      // The URL may already be `?week=offset` (clearing the current week), so a
+      // navigate alone won't re-run the loader; invalidate forces it to refetch
+      // and adopt the empty state reactively (#377).
+      await router.invalidate()
     } catch {
+      setMessage('Could not clear this week, try again.')
+    } finally {
       setClearing(false)
     }
   }
@@ -926,30 +1067,44 @@ function LoadedWeek({
             rather than a gapped grid. The dish is a swipe-deck built from the
             day's pre-ranked alternatives; swiping persists the pick (onSwapTo). */}
         <div>
-          {week.days.map((d) => {
+          {days.map((d) => {
             const cbs = dayCallbacks.get(d.day)!
+            // #373: the portions pill spells out who the week cooks for
+            // ("2 adults + 2 kids") so it's never misread as a bare head count.
+            const portionsLabel = householdPortionsLabel({
+              adults: week.adults,
+              children: week.children,
+            })
             return (
               // Anchor so the step-through review can scroll each changed day into
               // view by id (`day-Monday`, …). `scroll-mt` clears the sticky header.
               <div key={d.day} id={`day-${d.day}`} className="scroll-mt-20">
-                <DayCard
-                  day={d}
-                  swapOptions={decks.get(d.day)}
-                  busy={busyDay === d.day}
-                  locked={locked}
-                  glowing={glowDays.has(d.day)}
-                  working={workingDays.has(d.day)}
-                  onEdit={cbs.onEdit}
-                  onAdd={cbs.onAdd}
-                  onSwap={cbs.onSwap}
-                  onSwapTo={cbs.onSwapTo}
-                  onLoadSimilar={cbs.onLoadSimilar}
-                  onPickSimilar={cbs.onPickSimilar}
-                  rating={feedback.get(d.recipeRef)?.rating ?? null}
-                  ratingNote={feedback.get(d.recipeRef)?.note ?? null}
-                  ratingBusy={ratingBusy === d.recipeRef}
-                  onRate={cbs.onRate}
-                />
+                {updatingDays.has(d.day) ? (
+                  // This day's dinner is being rewritten: a per-card skeleton in
+                  // place of just this card, while every sibling stays interactive
+                  // (#week-card-loading).
+                  <DayCardSkeleton day={d.day} />
+                ) : (
+                  <DayCard
+                    day={d}
+                    portionsLabel={portionsLabel}
+                    swapOptions={decks.get(d.day)}
+                    busy={busyDay === d.day}
+                    locked={locked}
+                    glowing={glowDays.has(d.day)}
+                    working={workingDays.has(d.day)}
+                    onEdit={cbs.onEdit}
+                    onAdd={cbs.onAdd}
+                    onSwap={cbs.onSwap}
+                    onSwapTo={cbs.onSwapTo}
+                    onLoadSimilar={cbs.onLoadSimilar}
+                    onPickSimilar={cbs.onPickSimilar}
+                    rating={feedback.get(d.recipeRef)?.rating ?? null}
+                    ratingNote={feedback.get(d.recipeRef)?.note ?? null}
+                    ratingBusy={ratingBusy === d.recipeRef}
+                    onRate={cbs.onRate}
+                  />
+                )}
               </div>
             )
           })}

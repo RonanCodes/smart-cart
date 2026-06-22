@@ -1,12 +1,18 @@
 import { Resend } from 'resend'
 import { readEnv } from './env'
 
-// Sends from the verified ronanconnolly.dev Resend account (the RESEND_API_KEY
-// secret holds that key).
-const FROM = 'Souso <hello@ronanconnolly.dev>'
-// Where waitlist-signup pings land.
-const ADMIN_NOTIFY_TO = 'tech@discopenguin.com'
-const MASCOT = 'https://smartcart.ronanconnolly.dev/brand/souso-v3-hello.png'
+// Sends from the souso.app domain (Verified in Resend, with DKIM/SPF/DMARC in
+// Cloudflare). The branded From matching the brand + domain auth is what keeps
+// these out of spam. noreply@ (not hello@): receiving is OFF on the domain, so a
+// reply would bounce; noreply signals the mailbox is unmonitored. No Reply-To.
+const FROM = 'Souso <noreply@souso.app>'
+// Default recipient for admin pings (signups, feedback) when no per-admin list
+// resolves. Kept to the one address that should get these.
+const ADMIN_NOTIFY_TO = 'ronan@ronanconnolly.dev'
+// The full Souso brand mark (chef's toque + "Souso" wordmark) rendered cream on
+// transparent so it reads on the green header band. Email clients render PNG,
+// not SVG, and need an absolute URL, so this points at the prod email-logo.
+const MASCOT = 'https://souso.app/email-logo.png?v=5'
 const GREEN = '#43A047'
 const CANVAS = '#FBFDF9'
 
@@ -20,8 +26,7 @@ function emailShell(inner: string): string {
   <div style="background:${CANVAS};padding:32px 0;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;">
     <div style="max-width:440px;margin:0 auto;background:#ffffff;border:1px solid #e7eee7;border-radius:16px;overflow:hidden;">
       <div style="background:${GREEN};padding:20px 28px;text-align:center;">
-        <img src="${MASCOT}" alt="Souso" width="64" height="64" style="display:inline-block;border-radius:12px;vertical-align:middle;" />
-        <span style="color:#ffffff;font-size:20px;font-weight:700;vertical-align:middle;margin-left:10px;">Souso</span>
+        <img src="${MASCOT}" alt="Souso" width="180" height="111" style="display:inline-block;vertical-align:middle;" />
       </div>
       <div style="padding:32px 28px;text-align:center;">
         ${inner}
@@ -45,7 +50,6 @@ function tapButton(href: string, label: string): string {
  * typing. No magic link -> code-only, the original layout.
  */
 function otpHtml(code: string, magicLinkUrl?: string): string {
-  const spaced = code.split('').join('&nbsp;')
   const tapBlock = magicLinkUrl
     ? `<p style="color:#9aa89a;font-size:13px;margin:0 0 12px;">or just tap here to sign in</p>
        ${tapButton(magicLinkUrl, 'Sign in to Souso')}
@@ -53,7 +57,7 @@ function otpHtml(code: string, magicLinkUrl?: string): string {
     : ''
   return emailShell(`
         <p style="color:#5b6b5b;margin:0 0 20px;font-size:15px;">Your sign-in code:</p>
-        <p style="font-size:38px;font-weight:800;letter-spacing:8px;color:#1f2a1f;margin:0 0 24px;">${spaced}</p>
+        <p style="font-size:38px;font-weight:800;letter-spacing:8px;color:#1f2a1f;margin:0 0 24px;">${code}</p>
         <p style="color:#8a988a;font-size:13px;line-height:1.5;margin:0 0 ${magicLinkUrl ? '24px' : '0'};">It expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
         ${tapBlock}`)
 }
@@ -67,7 +71,7 @@ function launchHtml(signInUrl: string): string {
   return emailShell(`
         <p style="font-size:40px;margin:0 0 8px;">🎉</p>
         <p style="color:#1f2a1f;font-size:22px;font-weight:800;margin:0 0 8px;">Souso is live</p>
-        <p style="color:#5b6b5b;margin:0 0 24px;font-size:15px;line-height:1.5;">The wait is over. Your sous-chef is ready to plan the week and write the shopping list. Tap below and tell Souso who you're cooking for.</p>
+        <p style="color:#5b6b5b;margin:0 0 24px;font-size:15px;line-height:1.5;">Your sous-chef is ready to plan your week of dinners and turn it into one grocery cart. Tap below and tell Souso who you're cooking for.</p>
         ${tapButton(signInUrl, 'Open Souso')}
         <p style="color:#b6c2b6;font-size:11px;line-height:1.5;margin:16px 0 0;">Sign in with your email, we'll send a 6-digit code.</p>`)
 }
@@ -148,6 +152,24 @@ export async function sendApprovalEmail(
   }
 }
 
+/** The launch email subject line. Exported so the admin UI can preview the exact
+ * subject that will be sent without re-typing it (single source of truth). */
+export const LAUNCH_EMAIL_SUBJECT = 'Souso is live 🎉'
+
+/**
+ * The launch email plain-text body, exported so the admin broadcast panel can show
+ * a readable preview of what every recipient receives. `{signInUrl}` is the only
+ * variable; `launchEmailText` fills it for the real send. Plain and warm, no
+ * em-dashes. The HTML version (`launchHtml`) carries the same message visually.
+ */
+export const LAUNCH_EMAIL_BODY =
+  "Souso is live. Your sous-chef is ready to plan your week of dinners and turn it into one grocery cart. Open Souso, sign in with your email, and tell it who you're cooking for."
+
+/** Build the launch email plain-text fallback, appending the sign-in link. */
+export function launchEmailText(signInUrl: string): string {
+  return `${LAUNCH_EMAIL_BODY}\n\nOpen Souso: ${signInUrl}`
+}
+
 /**
  * Send ONE person the "Souso is live" launch email. Best-effort: returns
  * { sent } and never throws (the launch toggle has already committed by the time
@@ -165,8 +187,8 @@ export async function sendLaunchEmail(
   const { error } = await resend.emails.send({
     from: FROM,
     to,
-    subject: 'Souso is live 🎉',
-    text: `Souso is live! Your sous-chef is ready to plan the week and write the shopping list. Open Souso and sign in with your email: ${signInUrl}`,
+    subject: LAUNCH_EMAIL_SUBJECT,
+    text: launchEmailText(signInUrl),
     html: launchHtml(signInUrl),
   })
   return { sent: !error }
@@ -193,6 +215,96 @@ export async function sendWaitlistSignupNotice(
     to,
     subject: `New Souso waitlist signup: ${newEmail}`,
     text: `${newEmail} just joined the Souso waitlist. Total signups: ${totalCount}.`,
+  })
+  return { sent: !error }
+}
+
+/**
+ * Tell ONE admin a NEW account was just created (a real sign-up completing OTP
+ * verify), with the running total of accounts. Same best-effort contract as
+ * sendWaitlistSignupNotice: callers swallow errors so a Resend outage can never
+ * break the sign-up. `to` defaults to the owner; the notifier passes each
+ * opted-in admin individually so recipients never see each other's addresses.
+ */
+export async function sendNewUserNotice(
+  newEmail: string,
+  totalUsers: number,
+  to: string = ADMIN_NOTIFY_TO,
+): Promise<{ sent: boolean }> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) return { sent: false }
+  const resend = new Resend(apiKey)
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `New Souso signup: ${newEmail}`,
+    text: `${newEmail} just created a Souso account. Total accounts: ${totalUsers}.`,
+  })
+  return { sent: !error }
+}
+
+/**
+ * Forward ONE inbound email (received at hello@souso.app) to ONE admin (#457).
+ *
+ * Receiving is enabled on the domain via a Resend inbound webhook; when someone
+ * mails hello@, the webhook forwards it to every admin so the team sees it
+ * without a shared mailbox. Best-effort, same contract as the notice senders:
+ * a missing RESEND_API_KEY is a no-op `{ sent: false }` and the function never
+ * throws, so one bad address or a Resend outage can't break the webhook (which
+ * must always 200 to Resend). The original sender goes in the subject + body and
+ * as Reply-To, so an admin can reply straight to the person who wrote in.
+ */
+export async function forwardInboundEmail(
+  inbound: { from: string; subject: string; text: string; html: string },
+  to: string,
+): Promise<{ sent: boolean }> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) return { sent: false }
+  const resend = new Resend(apiKey)
+  const subject = `[Souso inbox] ${inbound.subject || '(no subject)'} — from ${inbound.from}`
+  const intro = `Forwarded from hello@souso.app\nFrom: ${inbound.from}\nSubject: ${inbound.subject || '(no subject)'}\n\n`
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    replyTo: inbound.from,
+    subject,
+    text: `${intro}${inbound.text || '(no text body)'}`,
+    ...(inbound.html
+      ? {
+          html: `<p style="color:#9aa89a;font-size:13px;margin:0 0 16px;">Forwarded from <strong>hello@souso.app</strong> · From: ${inbound.from}</p>${inbound.html}`,
+        }
+      : {}),
+  })
+  return { sent: !error }
+}
+
+/**
+ * Tell ONE admin a new piece of in-app feedback came through (#444 follow-up:
+ * email admins on feedback just like on signups). Same best-effort contract:
+ * callers swallow errors so a Resend outage never affects the submission. The
+ * full message + any contact the sender left are included so the team can act
+ * + reach out without opening the admin inbox.
+ */
+export async function sendFeedbackNotice(
+  feedback: {
+    message: string
+    email?: string | null
+    phone?: string | null
+    source?: string | null
+  },
+  to: string = ADMIN_NOTIFY_TO,
+): Promise<{ sent: boolean }> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) return { sent: false }
+  const resend = new Resend(apiKey)
+  const contact =
+    [feedback.email, feedback.phone].filter(Boolean).join(' · ') ||
+    'no contact left'
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `New Souso feedback${feedback.source ? ` (${feedback.source})` : ''}`,
+    text: `${feedback.message}\n\nContact: ${contact}`,
   })
   return { sent: !error }
 }

@@ -1,18 +1,33 @@
 import { describe, expect, it } from 'vitest'
-import { basketForStore, compareBaskets } from './basket'
-import { buildCatalogues } from './normalise'
+import { basketForStore, compareBaskets, packsForAmount } from './basket'
+import { buildCatalogues, parseSize } from './normalise'
 import type { RawStore, StoreCatalogue } from './types'
 
-/** Build a one-store catalogue from [name, priceEur, packSize] tuples. */
+/**
+ * Build a one-store catalogue from [name, priceEur, packSize] tuples. Each
+ * product gets a slug derived from its name so it is addable to the store cart
+ * (a real catalogue row always carries a slug). Pass a 4th tuple element to
+ * override the slug — `null` models a priced-but-unaddable product (#plan-cart-mismatch).
+ */
 function cat(
   slug: string,
-  products: Array<[string, number, string]>,
+  products: Array<
+    [string, number, string] | [string, number, string, string | null]
+  >,
 ): StoreCatalogue {
   const raw: Array<RawStore> = [
     {
       n: slug,
       c: slug.toUpperCase(),
-      d: products.map(([n, p, s]) => ({ n, p, s })),
+      d: products.map(([n, p, s, l]) => ({
+        n,
+        p,
+        s,
+        l:
+          l === undefined
+            ? n.toLowerCase().replace(/\s+/g, '-')
+            : (l ?? undefined),
+      })),
     },
   ]
   return buildCatalogues(raw)[slug]!
@@ -117,6 +132,29 @@ describe('basketForStore: pack rounding + waste', () => {
     expect(basket.unavailable[0]!.ingredient).toBe('saffron threads')
   })
 
+  it('excludes a priced-but-unaddable product (no slug) from the basket total', () => {
+    // A product with no slug is priced but cannot be added to the store cart
+    // (cart-build skips no-SKU items). Pricing it would inflate the shown total
+    // above the real basket, so it must be excluded entirely (#plan-cart-mismatch).
+    const ah = cat('ah', [
+      ['Penne pasta', 1.19, '500 g'],
+      ['Saffraan', 5.0, '1 g', null],
+    ])
+    const basket = basketForStore(
+      [
+        { name: 'penne pasta', amount: '500 g' },
+        { name: 'saffraan', amount: '1 g' },
+      ],
+      ah,
+    )
+    // Only the addable (slugged) pasta is priced; the slug-less saffron is dropped.
+    expect(basket.lineItems).toHaveLength(1)
+    expect(basket.lineItems[0]!.ingredient).toBe('penne pasta')
+    expect(basket.totalCents).toBe(119)
+    // It is reported as unavailable rather than silently swallowed.
+    expect(basket.unavailable.map((u) => u.ingredient)).toContain('saffraan')
+  })
+
   it('flags estimated (soft) matches so the UI can mark them', () => {
     // A loose partial match scores below 'high' => estimated true.
     const ah = cat('ah', [['Verse gesneden broccoliroosjes', 1.5, '300 g']])
@@ -124,6 +162,53 @@ describe('basketForStore: pack rounding + waste', () => {
     if (basket.lineItems.length > 0) {
       expect(basket.estimatedCount).toBeGreaterThanOrEqual(0)
     }
+  })
+})
+
+describe('packsForAmount: grams -> pack-count correctness', () => {
+  /** A product whose pack size is the parsed free-text size (the real path). */
+  function product(packSize: string) {
+    return { size: parseSize(packSize) }
+  }
+
+  it('returns ceil(required / packBase) packs for a comparable mass amount', () => {
+    // Need 1200 g flour; pack is 500 g => ceil(1200/500) = 3 packs.
+    expect(packsForAmount('1200 g', product('500 g'))).toBe(3)
+    // Exactly one pack when the amount fits inside it.
+    expect(packsForAmount('300 g', product('500 g'))).toBe(1)
+    // Exact multiple: 1000 g of a 500 g pack = 2 packs, no rounding up past it.
+    expect(packsForAmount('1000 g', product('500 g'))).toBe(2)
+    // Just over a multiple rounds up: 1001 g of 500 g = 3 packs.
+    expect(packsForAmount('1001 g', product('500 g'))).toBe(3)
+  })
+
+  it('normalises units before counting (kg amount vs g pack)', () => {
+    // 1.5 kg = 1500 g; pack 1 kg = 1000 g => ceil(1500/1000) = 2 packs.
+    expect(packsForAmount('1.5 kg', product('1 kg'))).toBe(2)
+    // 2 l = 2000 ml; pack 500 ml => 4 packs.
+    expect(packsForAmount('2 l', product('500 ml'))).toBe(4)
+  })
+
+  it('returns 1 pack for a non-comparable cooking unit (tsp / pinch / snufje)', () => {
+    // None of these reduce to a comparable mass/volume vs a gram pack, so the
+    // shopper buys exactly ONE pack (never three bottles for "1 tsp vanilla").
+    expect(packsForAmount('1 tsp', product('500 g'))).toBe(1)
+    expect(packsForAmount('a pinch', product('500 g'))).toBe(1)
+    expect(packsForAmount('snufje', product('500 g'))).toBe(1)
+    expect(packsForAmount('2 cloves', product('500 g'))).toBe(1)
+    // Mismatched dimensions (need volume, pack in grams) also fall to 1 pack.
+    expect(packsForAmount('100 ml', product('250 g'))).toBe(1)
+  })
+
+  it('returns 1 pack when the pack size is missing / unparseable', () => {
+    expect(packsForAmount('300 g', product(''))).toBe(1)
+    expect(packsForAmount('300 g', product('per stuk'))).toBe(1)
+  })
+
+  it('counts matching count units (stuks) the same way', () => {
+    // 12 stuks needed, 6-pack => 2 packs.
+    expect(packsForAmount('12 stuks', product('6 stuks'))).toBe(2)
+    expect(packsForAmount('7 stuks', product('6 stuks'))).toBe(2)
   })
 })
 

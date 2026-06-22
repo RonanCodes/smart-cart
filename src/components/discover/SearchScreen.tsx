@@ -4,11 +4,13 @@ import {
   Clock,
   Flame,
   Plus,
+  Minus,
   X,
   Heart,
   Package,
   Check,
   Loader2,
+  ChefHat,
 } from 'lucide-react'
 import { cn } from '#/lib/utils'
 import { searchCatalogue, browseRecipes } from '#/lib/search-server'
@@ -17,8 +19,11 @@ import type {
   SearchProduct,
   SearchTheme,
 } from '#/lib/search-server'
+import type { RecipeDetailResult } from '#/lib/recipe-detail-server'
 import { addShoppingItem } from '#/lib/shopping-list-server'
 import { Sheet } from '#/components/ui/sheet'
+import { Button } from '#/components/ui/button'
+import { StickyNote } from '#/components/ui/sticky-note'
 import { RecipeDetail } from '#/components/week/RecipeDetail'
 import { RecipeFacts } from '#/components/week/RecipeFacts'
 
@@ -239,35 +244,191 @@ export function SearchScreen() {
         </div>
       )}
 
-      {/* Recipe detail sheet — same RecipeDetail + "Souso knows" cards the week
-          uses, opened from any card. Renders only while a recipe is selected. */}
-      <Sheet
-        open={openRecipe !== null}
-        onOpenChange={(open) => {
-          if (!open) setOpenRecipe(null)
-        }}
-        title={openRecipe?.title}
-      >
-        <div className="pb-2">
-          {openRecipe?.imageUrl && (
-            <img
-              src={openRecipe.imageUrl}
-              alt={openRecipe.title}
-              className="souso-sticker bg-secondary mx-auto mb-2 h-40 w-40 object-contain"
-            />
-          )}
-          {openRecipe && <RecipeDetail recipeId={openRecipe.id} active />}
-          {openRecipe && (
-            <RecipeFacts
-              recipeId={openRecipe.id}
-              title={openRecipe.title}
-              cuisine={openRecipe.cuisine}
-              active
-            />
-          )}
-        </div>
-      </Sheet>
+      {/* Recipe detail sheet — the /design/recipe layout against the real recipe:
+          cream hero + title + facts + ingredient stickers + steps, with an
+          "Add all" pill and a serves stepper, opened from any card. Keyed by the
+          recipe id so its serves/add state resets cleanly per dish. */}
+      <RecipeDetailSheet
+        key={openRecipe?.id ?? 'closed'}
+        recipe={openRecipe}
+        liked={openRecipe ? liked.has(openRecipe.id) : false}
+        onClose={() => setOpenRecipe(null)}
+      />
     </>
+  )
+}
+
+/**
+ * The Search recipe sheet aligned to the /design/recipe prototype, against the
+ * real catalogue recipe. The cream layout: a die-cut hero sticker (with an
+ * optional "a household favourite" note when the user has liked it), the bold
+ * title + a one-line factual subtitle, then the shared RecipeDetail card (facts /
+ * ingredient stickers / numbered steps) driven with a serves stepper and an
+ * "Add all" pill, plus a sticky bottom bar carrying the stepper and a Cook CTA.
+ *
+ * The detail data is fetched ONCE by RecipeDetail; it reports back via onLoaded
+ * so this sheet can seed the serves stepper from the recipe's own serving count,
+ * and the "Add all" pill calls back with the (scaled) ingredient list to write.
+ */
+function RecipeDetailSheet({
+  recipe,
+  liked,
+  onClose,
+}: {
+  recipe: SearchRecipe | null
+  liked: boolean
+  onClose: () => void
+}) {
+  const [serves, setServes] = useState<number | null>(null)
+  const [addState, setAddState] = useState<'idle' | 'busy' | 'done'>('idle')
+  // Guard against a double-add if the user taps "Add all" twice mid-write.
+  const inflight = useRef(false)
+
+  function handleLoaded(d: RecipeDetailResult) {
+    // Seed the stepper from the recipe's own base; default to 2 when unknown so
+    // the control is still usable (it just won't rescale amounts without a base).
+    setServes((prev) => prev ?? d.servings ?? 2)
+  }
+
+  async function addAll(
+    ingredients: ReadonlyArray<{ name: string; amount: string | null }>,
+  ) {
+    if (addState !== 'idle' || inflight.current || ingredients.length === 0)
+      return
+    inflight.current = true
+    setAddState('busy')
+    try {
+      // "Add all" is the explicit action that puts items in the cart (the
+      // inclusion model the week page uses), so adding here respects the rule
+      // that nothing enters the basket without a deliberate tap.
+      for (const ing of ingredients) {
+        await addShoppingItem({
+          data: { name: ing.name, amount: ing.amount },
+        })
+      }
+      setAddState('done')
+    } catch {
+      // Leave it addable so the user can retry.
+      setAddState('idle')
+    } finally {
+      inflight.current = false
+    }
+  }
+
+  // A grounded one-line subtitle from real facts only (cuisine + prep time);
+  // omitted when the recipe carries neither, so nothing is fabricated.
+  const subtitleParts: Array<string> = []
+  if (recipe?.cuisine) subtitleParts.push(recipe.cuisine)
+  if (recipe?.prepMinutes != null)
+    subtitleParts.push(`ready in ${recipe.prepMinutes} minutes`)
+  const subtitle = subtitleParts.join(' · ')
+
+  return (
+    <Sheet
+      open={recipe !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+      className="bg-background text-foreground"
+    >
+      {/* Hero + title + subtitle. The sheet's own centred header is left empty
+          (no title prop) so the big bold title reads as the design intends. */}
+      {recipe && (
+        <div className="-mt-1 pb-2">
+          {recipe.imageUrl && (
+            <div className="relative flex justify-center pt-1 pb-1">
+              <img
+                src={recipe.imageUrl}
+                alt={recipe.title}
+                className="souso-sticker h-44 w-44 object-contain"
+                style={{ transform: 'rotate(-4deg)' }}
+              />
+              {liked && (
+                <StickyNote
+                  tilt={6}
+                  className="absolute top-2 right-1 text-[0.9rem]"
+                >
+                  a household favourite ✶
+                </StickyNote>
+              )}
+            </div>
+          )}
+
+          <h1
+            className="text-center text-[1.7rem] leading-tight font-bold"
+            style={{ letterSpacing: '-0.03em' }}
+          >
+            {recipe.title}
+          </h1>
+          {subtitle && (
+            <p className="text-muted-foreground mt-1 text-center text-sm">
+              {subtitle}
+            </p>
+          )}
+
+          <RecipeDetail
+            recipeId={recipe.id}
+            active
+            calories={recipe.calories}
+            protein={recipe.protein}
+            onLoaded={handleLoaded}
+            serves={serves ?? undefined}
+            onAddAll={addAll}
+            addAllState={addState}
+          />
+
+          <RecipeFacts
+            recipeId={recipe.id}
+            title={recipe.title}
+            cuisine={recipe.cuisine}
+            active
+          />
+
+          {/* Bottom bar: serves stepper + Cook. Pinned within the sheet so it
+              stays in view as the recipe scrolls. The stepper rescales the
+              ingredient amounts client-side via RecipeDetail's `serves`. */}
+          <div className="bg-background/95 sticky bottom-0 -mx-5 mt-4 px-5 pt-3 pb-1 backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <div className="border-border flex items-center gap-3 rounded-full border px-2 py-1.5">
+                <button
+                  type="button"
+                  aria-label="Fewer servings"
+                  onClick={() => setServes((s) => Math.max(1, (s ?? 2) - 1))}
+                  className="text-muted-foreground flex h-7 w-7 items-center justify-center"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="w-12 text-center text-sm font-semibold tabular-nums">
+                  {serves ?? 2} serves
+                </span>
+                <button
+                  type="button"
+                  aria-label="More servings"
+                  onClick={() => setServes((s) => (s ?? 2) + 1)}
+                  className="text-primary flex h-7 w-7 items-center justify-center"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+              {/* Cook: kept from the design for layout, but there is no cook-mode
+                  route yet, so it is a clearly-secondary, disabled affordance
+                  rather than an invented flow. The real explicit action is the
+                  "Add all" pill in the Ingredients header above. */}
+              <Button
+                size="pill"
+                variant="secondary"
+                className="flex-1"
+                disabled
+                aria-label="Cook (coming soon)"
+              >
+                <ChefHat className="h-5 w-5" />
+                Cook
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Sheet>
   )
 }
 

@@ -18,6 +18,7 @@ import {
   priceMapForStore,
   usePriceComparison,
 } from '#/lib/use-price-comparison'
+import { effectiveStore } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
 
 interface ShoppingSearch {
@@ -37,17 +38,15 @@ export const Route = createFileRoute('/_authed/shopping')({
   loaderDeps: ({ search }) => ({ plan: search.plan }),
   loader: ({ deps }): Promise<ShoppingBootstrap> =>
     // ONE round-trip (#251): loadShoppingBootstrap composes loadShoppingList +
-    // staples + frequently-bought + saved items + store, plus the auto-seed
-    // branch, server-side. The auto-seed fires once per plan; a deliberate
-    // "Clear all" stays cleared via the household's durable lastSeededPlanId
-    // (#311), so no `cleared` URL flag is needed.
+    // staples + frequently-bought + saved items + store server-side. The cart is
+    // never auto-seeded — items land only via the week view's "Add to shopping
+    // list", so a deliberate "Clear all" stays cleared with no URL flag.
     loadShoppingBootstrap({
       data: { planId: deps.plan },
     }),
-  // Skeleton while the loader resolves (#226). The loader can auto-seed the list
-  // from the week, so this is the slice's most visible loading win. SSR is
-  // untouched: the loader runs server-side and hydrates first paint; the
-  // skeleton only shows on client navigations and slow loads.
+  // Skeleton while the loader resolves (#226). SSR is untouched: the loader runs
+  // server-side and hydrates first paint; the skeleton only shows on client
+  // navigations and slow loads.
   pendingComponent: ShoppingSkeleton,
   component: Shopping,
 })
@@ -71,27 +70,44 @@ export const Route = createFileRoute('/_authed/shopping')({
  * the real behaviour is kept: check/uncheck, edit, add, remove, clear, order.
  */
 function Shopping() {
+  // The loader is typed non-nullable, but a degraded backend could resolve it to
+  // null at runtime; widen through `unknown` so the fail-safe guard below is real
+  // (a direct `as ShoppingBootstrap | null` is flagged as an unnecessary cast).
+  const data = Route.useLoaderData() as unknown as
+    | ShoppingBootstrap
+    | null
+    | undefined
+
+  // Fail-safe (server-hardening): if the loader ever resolves to null/undefined
+  // (a backend hiccup degrading gracefully rather than 500-ing), render the
+  // graceful empty-cart state instead of destructuring null (which crashed the
+  // client with "Cannot destructure property 'view' from null" in Sentry).
+  if (!data) return <EmptyCart initialStaples={[]} />
+
   const {
     view,
     staples: initialStaples,
-    frequentlyBought,
     items: initialItems,
     preferredStore,
-  } = Route.useLoaderData()
+  } = data
   const hasSavedItems = initialItems.length > 0
 
-  // The route OWNS the live list + extras + their checked state (#311), plus the
+  // The route OWNS the live list + extras + their selected state (#311), plus the
   // selected store (#cart-align), so the store switch, the per-item prices, the
-  // floating total and the order button all recompute together from the UNCHECKED
-  // set with no full reload.
+  // floating total and the order button all recompute together from the SELECTED
+  // (in-order) set with no full reload.
   const [liveItems, setLiveItems] = useState<Array<ShoppingItem>>(initialItems)
   const [liveStaples, setLiveStaples] =
     useState<Array<StapleLine>>(initialStaples)
-  const [checkedExtraIds, setCheckedExtraIds] = useState<Set<string>>(new Set())
-  const [store, setStore] = useState<StoreSlug>(preferredStore)
+  const [selectedExtraIds, setSelectedExtraIds] = useState<Set<string>>(
+    new Set(),
+  )
+  // Coerce any parked "Coming soon" preference (e.g. a saved 'jumbo') to the
+  // default so the switch, pricing and order bar never land on an untested store.
+  const [store, setStore] = useState<StoreSlug>(effectiveStore(preferredStore))
 
   // The extras as cart-set shape: a staple's saved slug already carries its
-  // store, so a tick excludes it from that store's basket + cart.
+  // store, so selecting it includes it in that store's basket + cart.
   const extras: Array<CartExtra> = useMemo(
     () =>
       liveStaples.map((s) => ({
@@ -103,10 +119,10 @@ function Shopping() {
     [liveStaples],
   )
 
-  // The single live UNCHECKED set the comparison + cart consume.
+  // The single live SELECTED (in-order) set the comparison + cart consume.
   const liveSet = useMemo(
-    () => deriveLiveCartSet(liveItems, extras, checkedExtraIds),
-    [liveItems, extras, checkedExtraIds],
+    () => deriveLiveCartSet(liveItems, extras, selectedExtraIds),
+    [liveItems, extras, selectedExtraIds],
   )
 
   // ONE shared price comparison feeds the switch, the per-item prices and the
@@ -128,9 +144,9 @@ function Shopping() {
     return meals.size
   }, [view.list.lines])
 
-  // Nothing to shop for yet: no saved rows and no staples. The bare empty
-  // state, but still let the user start a list from staples alone (a top-up
-  // shop without a meal plan).
+  // A `?plan=` deep-link to a plan that is not in this account: never show the
+  // household's own saved list as if it were that week. Offer a way back to the
+  // real week, and still let the user start a list from staples (#plan-cart-mismatch).
   if (view.missingPlanId) {
     return (
       <AppShell>
@@ -149,40 +165,17 @@ function Shopping() {
           }
         />
         <div className="px-5 pt-6 pb-4">
-          <StaplesSection
-            initialStaples={initialStaples}
-            frequentlyBought={frequentlyBought}
-          />
+          <StaplesSection initialStaples={initialStaples} />
         </div>
       </AppShell>
     )
   }
 
+  // Nothing to shop for yet: no saved rows and no staples. The bare empty
+  // state, but still let the user start a list from staples alone (a top-up
+  // shop without a meal plan).
   if (!hasSavedItems && initialStaples.length === 0) {
-    return (
-      <AppShell>
-        <ScreenHeader
-          title="Cart"
-          subtitle="Your week, turned into one cart with exact amounts."
-        />
-        <EmptyState
-          icon={<ShoppingBag aria-hidden />}
-          title="Your cart is empty"
-          hint="Plan a week and Souso adds up every ingredient across your dinners, scaled to your household. Or add a few staples below to start a list."
-          action={
-            <Link to="/week">
-              <Button size="pill">Plan my week</Button>
-            </Link>
-          }
-        />
-        <div className="px-5 pt-6 pb-4">
-          <StaplesSection
-            initialStaples={initialStaples}
-            frequentlyBought={frequentlyBought}
-          />
-        </div>
-      </AppShell>
-    )
+    return <EmptyCart initialStaples={initialStaples} />
   }
 
   return (
@@ -231,8 +224,9 @@ function Shopping() {
 
       {/* The week's recipe ingredients WITH amounts, the primary editable list,
           grouped into airy hairline aisle sections with the selected store's
-          per-item price per row. Tick, rename, re-amount, add, remove all survive
-          a reload; state mirrors up so the totals + cart recompute on a tick. */}
+          per-item price per row. Select, rename, re-amount, add, remove all
+          survive a reload; state mirrors up so the totals + cart recompute on a
+          tick. */}
       {hasSavedItems && (
         <div className="px-5 pt-3 pb-2">
           <EditableShoppingList
@@ -243,14 +237,13 @@ function Shopping() {
         </div>
       )}
 
-      {/* "Also on my list" extras / staples. A ticked extra leaves the basket +
+      {/* "Also on my list" extras / staples. A selected extra joins the basket +
           cart (#311). */}
       <div className="px-5 pt-2 pb-2">
         <StaplesSection
           initialStaples={initialStaples}
-          frequentlyBought={frequentlyBought}
           onStaplesChange={setLiveStaples}
-          onCheckedChange={setCheckedExtraIds}
+          onCheckedChange={setSelectedExtraIds}
         />
       </div>
 
@@ -258,15 +251,45 @@ function Shopping() {
       <div aria-hidden className="h-32" />
 
       {/* Floating total + "Order at <store>" CTA, pinned above the tab bar. Reads
-          the SELECTED store's real total, sends the UNCHECKED set to its cart. */}
+          the SELECTED store's real total, sends the SELECTED (in-order) set to
+          its cart. */}
       {hasSavedItems && (
         <FloatingOrderBar
           store={store}
           data={priceData}
           compareLines={liveSet.compareLines}
-          extras={extras.filter((e) => !checkedExtraIds.has(e.id))}
+          extras={extras.filter((e) => selectedExtraIds.has(e.id))}
         />
       )}
+    </AppShell>
+  )
+}
+
+/**
+ * The graceful empty-cart screen — "Your cart is empty" with a Plan-my-week link,
+ * plus the staples section so a top-up shop can start without a meal plan. Shared
+ * by the genuine no-items case AND the loader-degraded (null data) fail-safe.
+ */
+function EmptyCart({ initialStaples }: { initialStaples: Array<StapleLine> }) {
+  return (
+    <AppShell>
+      <ScreenHeader
+        title="Cart"
+        subtitle="Your week, turned into one cart with exact amounts."
+      />
+      <EmptyState
+        icon={<ShoppingBag aria-hidden />}
+        title="Your cart is empty"
+        hint="Plan a week and Souso adds up every ingredient across your dinners, scaled to your household. Or add a few staples below to start a list."
+        action={
+          <Link to="/week">
+            <Button size="pill">Plan my week</Button>
+          </Link>
+        }
+      />
+      <div className="px-5 pt-6 pb-4">
+        <StaplesSection initialStaples={initialStaples} />
+      </div>
     </AppShell>
   )
 }

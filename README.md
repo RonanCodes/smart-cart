@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./public/brand/souso-hero.png" alt="Souso, your sous chef" width="640" />
+  <img src="./public/souso-mark.svg" alt="Souso, your sous chef" width="360" />
   <h1>Souso</h1>
   <p><strong>Never wonder what's for dinner again.</strong></p>
   <p>

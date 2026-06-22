@@ -5,6 +5,7 @@ import {
   resolveSessionUserOrNull,
 } from '#/lib/route-guards'
 import { getLaunchState } from '#/lib/launch-server'
+import { getUserCount } from '#/lib/landing-server'
 import { Landing } from '#/components/marketing/Landing'
 
 /**
@@ -29,11 +30,17 @@ export const Route = createFileRoute('/')({
     const target = entryRedirectTarget({ signedIn: Boolean(user), onboarded })
     if (target) throw redirect({ to: target })
   },
-  loader: async () => ({ launched: (await getLaunchState()).launched }),
+  loader: async () => {
+    const [launch, users] = await Promise.all([
+      getLaunchState(),
+      getUserCount(),
+    ])
+    return { launched: launch.launched, userCount: users.count }
+  },
   component: IndexPage,
 })
 
 function IndexPage() {
-  const { launched } = Route.useLoaderData()
-  return <Landing launched={launched} />
+  const { launched, userCount } = Route.useLoaderData()
+  return <Landing launched={launched} userCount={userCount} />
 }

@@ -18,6 +18,9 @@ export interface OnboardingPets {
   dogs: number
 }
 
+/** How a tester prefers to be reached for a feedback chat (#407). */
+export type ContactPref = 'whatsapp' | 'call' | 'either'
+
 export interface OnboardingDraft {
   /** Household size. Adults default to 2, the common case. */
   adults: number
@@ -42,6 +45,11 @@ export interface OnboardingDraft {
   store: string | null
   /** Recipe-content language: 'en' | 'nl'. Defaults to English (#310). */
   locale: 'en' | 'nl'
+  /** Optional phone/WhatsApp, for beta testers happy to be reached out to for a
+   * chat (#407). Never required; stored on the household profile. */
+  phone: string | null
+  /** Preferred way to be reached, when a phone is given (#407). */
+  contactPref: ContactPref | null
 }
 
 export const EMPTY_DRAFT: OnboardingDraft = {
@@ -57,6 +65,45 @@ export const EMPTY_DRAFT: OnboardingDraft = {
   cuisinesDisliked: [],
   store: null,
   locale: 'en',
+  phone: null,
+  contactPref: null,
+}
+
+/**
+ * sessionStorage key for the in-flight draft. The draft lives in the reducer
+ * while the flow is mounted; this mirror is a belt-and-braces backup so an
+ * accidental reload mid-flow (notably during the email/OTP step) does not lose
+ * the answers. sessionStorage (not localStorage) so it is scoped to the tab and
+ * cleared when the tab closes — a half-finished draft never leaks across visits.
+ */
+export const DRAFT_STORAGE_KEY = 'souso.onboarding.draft'
+
+/**
+ * Restore a draft saved by {@link saveDraft}, or null when there is none / it is
+ * unreadable. Merges over EMPTY_DRAFT so a draft saved by an older shape still
+ * loads (missing keys fall back to defaults). No-throw: storage can be disabled
+ * (private mode) or hold garbage, neither of which must break onboarding.
+ */
+export function loadDraft(): OnboardingDraft | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(DRAFT_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<OnboardingDraft>
+    return { ...EMPTY_DRAFT, ...parsed }
+  } catch {
+    return null
+  }
+}
+
+/** Mirror the draft to sessionStorage. No-throw (storage may be unavailable). */
+export function saveDraft(draft: OnboardingDraft): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+  } catch {
+    // Private mode / quota: the in-memory reducer is still the source of truth.
+  }
 }
 
 export type OnboardingAction = {

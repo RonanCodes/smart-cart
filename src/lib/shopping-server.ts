@@ -278,16 +278,16 @@ export interface ShoppingBootstrap {
 }
 
 /**
- * The /shopping loader, batched into ONE round-trip (#251). The route used to fan
- * out five GET server fns per visit (loadShoppingList + loadStaples +
- * frequentlyBoughtStaples + listShoppingItems + getStore) plus a conditional
- * auto-seed write. This composes the same reads INSIDE one server handler.
+ * The /shopping loader, batched into ONE round-trip (#251). The route fans the
+ * reads (loadShoppingList + loadStaples + frequentlyBoughtStaples + getStore)
+ * into one server handler instead of separate GET server fns per visit.
  *
- * Auto-seed intent is now DURABLE (#311): a plan auto-seeds exactly once, keyed
- * on the household's `lastSeededPlanId`, so an explicit "Clear all" stays cleared
- * across navigations (same plan id, already seeded -> no re-seed) and only a NEW
- * plan re-seeds. The old `cleared` search-param was ephemeral and lost on a
- * fresh visit, which let the loader re-fill a just-cleared list.
+ * The cart is NEVER auto-seeded from the week. Ingredients land on the saved
+ * list ONLY when the user taps "Add to shopping list" on the week view, so an
+ * explicit "Clear all" stays cleared and nothing the user did not ask for ever
+ * appears in their cart. The loader still tops up blank amounts on existing
+ * recipe rows (#292) — a backfill that never inserts a new row — so a list saved
+ * before the Dutch-qty split gets its amounts without a clear + re-add.
  */
 export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
   .inputValidator((d?: { planId?: string }) => d ?? {})
@@ -339,30 +339,20 @@ export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
 
     const { loadStaples, frequentlyBoughtStaples } =
       await import('./staples-server')
-    const {
-      listShoppingItems,
-      addWeekToShoppingList,
-      backfillShoppingAmounts,
-      getLastSeededPlanId,
-      markPlanSeeded,
-    } = await import('./shopping-list-server')
+    const { backfillShoppingAmounts } = await import('./shopping-list-server')
     const { getStore } = await import('./store-pref-server')
-    const { shouldAutoSeed, shouldReplaceRecipeItemsOnSeed } =
-      await import('./shopping')
 
     const planArg = data.planId ? { planId: data.planId } : {}
-    const [view, staplesRes, frequentRes, itemsRes, preferredStore, seedState] =
-      await Promise.all([
-        loadShoppingList({ data: planArg }),
-        loadStaples(),
-        frequentlyBoughtStaples(),
-        listShoppingItems(),
-        getStore(),
-        getLastSeededPlanId(),
-      ])
+    const [view, staplesRes, frequentRes, preferredStore] = await Promise.all([
+      loadShoppingList({ data: planArg }),
+      loadStaples(),
+      frequentlyBoughtStaples(),
+      getStore(),
+    ])
 
     // A deep-link to someone else's plan id must not show this household's stale
-    // saved list as if it were that week (#plan-cart-mismatch).
+    // saved list as if it were that week (#plan-cart-mismatch). Return an empty
+    // cart (staples still load so a top-up shop without a plan still works).
     if (view.missingPlanId) {
       return {
         view,
@@ -373,30 +363,13 @@ export const loadShoppingBootstrap = createServerFn({ method: 'GET' })
       }
     }
 
-    let items = itemsRes.items
-    if (
-      shouldAutoSeed({
-        planId: view.planId,
-        lastSeededPlanId: seedState.lastSeededPlanId,
-      })
-    ) {
-      const replaceRecipeItems = shouldReplaceRecipeItemsOnSeed({
-        planId: view.planId,
-        lastSeededPlanId: seedState.lastSeededPlanId,
-      })
-      const seeded = await addWeekToShoppingList({
-        data: { ...planArg, replaceRecipeItems },
-      })
-      items = seeded.items
-      if (view.planId) await markPlanSeeded({ data: { planId: view.planId } })
-    } else {
-      // Existing list: top up any stale recipe rows whose amount was dropped
-      // before the Dutch-qty split shipped (#243), matched against the current
-      // week, without clobbering user-typed amounts (#292). A no-op when nothing
-      // is stale, so the common case stays a single extra cheap read.
-      const filled = await backfillShoppingAmounts({ data: planArg })
-      items = filled.items
-    }
+    // Never auto-seed: the saved list is the single source of truth, filled only
+    // by the week view's "Add to shopping list". We still top up any stale recipe
+    // rows whose amount was dropped before the Dutch-qty split shipped (#243),
+    // matched against the current week, without clobbering user-typed amounts
+    // (#292). backfillShoppingAmounts never inserts a row and returns the current
+    // persisted list (a no-op cheap read when nothing is stale).
+    const { items } = await backfillShoppingAmounts({ data: planArg })
 
     return {
       view,

@@ -74,45 +74,6 @@ export function lineToNewItem(line: ShoppingLine): NewShoppingItem {
 }
 
 /**
- * Should the Shopping tab auto-seed its editable list from the week on load?
- *
- * The page is the clean editable list by default: when the household has a
- * planned week we seed the list from that week once, so the user lands on the
- * real list instead of a read-only preview, with no dead "Add to shopping list"
- * tap required. The seed itself is idempotent on the server (planMerge dedupes).
- *
- * Intent is tracked DURABLY by `lastSeededPlanId` (the plan id we last seeded
- * for this household), NOT by the live row count: a plan auto-seeds exactly
- * once, so an explicit "Clear all" stays cleared (same plan id, already seeded
- * -> no re-seed) even after navigating away and back, and only a NEW plan
- * re-seeds. The old row-count + ephemeral `clearedByUser` search-param signal
- * was lost on a fresh visit, which let the loader re-fill a just-cleared list
- * (#311).
- */
-export function shouldAutoSeed(input: {
-  planId: string | null
-  lastSeededPlanId: string | null
-}): boolean {
-  return input.planId !== null && input.planId !== input.lastSeededPlanId
-}
-
-/**
- * When auto-seeding a NEW plan (not the first seed, not a re-visit to the same
- * plan), drop prior `source: 'recipe'` rows first so the cart matches the week
- * the user opened, not an accumulated mix of old weeks.
- */
-export function shouldReplaceRecipeItemsOnSeed(input: {
-  planId: string | null
-  lastSeededPlanId: string | null
-}): boolean {
-  return (
-    input.planId !== null &&
-    input.lastSeededPlanId !== null &&
-    input.planId !== input.lastSeededPlanId
-  )
-}
-
-/**
  * Try to sum two amount strings that share a single trailing unit, e.g.
  * '450 g' + '200 g' => '650 g', '2' + '3' => '5'. Returns null when either side
  * is compound ('2 + 15 g'), carries unparsed notes, or the units differ, in

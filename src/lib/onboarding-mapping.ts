@@ -1,4 +1,7 @@
-import type { OnboardingDraft } from '#/components/onboarding/form-state'
+import type {
+  OnboardingDraft,
+  ContactPref,
+} from '#/components/onboarding/form-state'
 import type { StoreSlug } from './store-pref-server'
 import type { Locale } from './recipe-locale'
 import { clampHouseholdCount } from './onboarding-rhythm'
@@ -35,6 +38,25 @@ export interface MappedProfile {
   pets: { cats: number; dogs: number }
   /** Children ages (years) — sizes child portions. */
   childrenAges: Array<number>
+  /** Preferred contact method when a phone is given (#407). null if unset. */
+  contactPref?: ContactPref | null
+  /** Optional phone/WhatsApp the tester left to be reached for feedback (#407).
+   * null when not given. Never used by the planner; the team reads it in admin. */
+  phone?: string | null
+}
+
+/**
+ * Normalise an optional phone/WhatsApp number. Trims and keeps a plausible
+ * number (digits, with the usual +, spaces, -, (), separators); returns null for
+ * empty or too-short input so a stray keypress is not stored as a "number".
+ * Pure + lenient on purpose (international formats vary).
+ */
+export function normalisePhone(raw: string | null | undefined): string | null {
+  const trimmed = (raw ?? '').trim()
+  if (!trimmed) return null
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length < 6) return null
+  return trimmed
 }
 
 export interface MappedHousehold {
@@ -71,7 +93,20 @@ const TAG_DIETS: ReadonlyArray<string> = ['vegan', 'vegetarian']
 const EXCLUSION_DIETS: Record<string, ReadonlyArray<string>> = {
   'dairy free': ['milk', 'cheese', 'butter', 'cream', 'yoghurt', 'yogurt'],
   'gluten free': ['wheat', 'flour', 'bread', 'pasta', 'noodle', 'couscous'],
-  porkless: ['pork', 'ham', 'bacon', 'prosciutto', 'chorizo'],
+  // Every form pork shows up as in an AH/Jumbo catalogue, EN + NL. The planner
+  // also expands any one of these to the full set at filter time (#422), but
+  // persisting the whole list keeps the stored profile honest.
+  porkless: [
+    'pork',
+    'ham',
+    'bacon',
+    'gammon',
+    'chorizo',
+    'lardon',
+    'pancetta',
+    'prosciutto',
+    'spek',
+  ],
 }
 
 function normalise(s: string): string {
@@ -139,6 +174,11 @@ export function draftToHousehold(draft: OnboardingDraft): MappedHousehold {
       cuisinesDisliked,
       pets: { cats: draft.pets.cats, dogs: draft.pets.dogs },
       childrenAges: [...draft.childrenAges],
+      phone: normalisePhone(draft.phone),
+      // Only meaningful with a phone, but store as given (null when unset).
+      contactPref: normalisePhone(draft.phone)
+        ? (draft.contactPref ?? null)
+        : null,
     },
   }
 }

@@ -307,6 +307,95 @@ describe('WeekSession.makeQuicker / addMeal / regenerate', () => {
   })
 })
 
+/**
+ * The replan / regenerate path must filter IDENTICALLY to the first build
+ * (#422 / #423). It passes the same household profile (incl. dislikes + disliked
+ * cuisines) into the WeekSession, so a porkless / no-Indian household never sees
+ * a banned dish via regenerate, swap, or add — the bug Renée hit was a pork dish
+ * surfacing when generating a NEW week.
+ */
+describe('WeekSession honours hard prefs through the regenerate path', () => {
+  /** A catalogue of safe dinners plus pork + Indian dishes the planner must drop. */
+  function mixed(): Array<PlannerRecipe> {
+    const out: Array<PlannerRecipe> = []
+    let id = 0
+    for (let i = 0; i < 14; i++) {
+      out.push({
+        id: `safe-${id++}`,
+        title: `Chicken dinner ${i}`,
+        cuisine: 'Italian',
+        category: 'Main',
+        mealType: 'dinner',
+        dietaryTags: [],
+        ingredients: [{ name: 'chicken breast' }, { name: 'onion' }],
+        calories: null,
+        protein: null,
+        prepMinutes: null,
+      })
+    }
+    out.push({
+      id: 'bacon-risotto',
+      title: 'Cauliflower risotto with smoked bacon',
+      cuisine: 'Italian',
+      category: 'Main',
+      mealType: 'dinner',
+      dietaryTags: [],
+      ingredients: [{ name: 'smoked bacon' }, { name: 'rice' }],
+      calories: null,
+      protein: null,
+      prepMinutes: null,
+    })
+    out.push({
+      id: 'indian-curry',
+      title: 'Butter chicken',
+      cuisine: 'Indian',
+      category: 'Main',
+      mealType: 'dinner',
+      dietaryTags: [],
+      ingredients: [{ name: 'chicken' }, { name: 'cream' }],
+      calories: null,
+      protein: null,
+      prepMinutes: null,
+    })
+    return out
+  }
+
+  const profile = {
+    allergies: ['pork', 'ham', 'bacon', 'prosciutto', 'chorizo'],
+    cuisinesDisliked: ['indian'],
+  }
+  const banned = new Set(['bacon-risotto', 'indian-curry'])
+
+  function porklessSession() {
+    const recipes = mixed()
+    return new WeekSession({
+      week: generateWeek(recipes, profile, [], { seed: 7 }),
+      recipes,
+      profile,
+      swipes: [],
+      seed: 7,
+    })
+  }
+
+  it('regenerate never produces a banned dish', () => {
+    const s = porklessSession()
+    s.regenerate()
+    for (const d of s.getWeek().days) {
+      expect(banned.has(d.recipeRef)).toBe(false)
+    }
+  })
+
+  it('swap + add never produce a banned dish', () => {
+    const s = porklessSession()
+    s.swapDays(['Monday', 'Tuesday'])
+    s.skipDays(['Wednesday'])
+    s.addMeal('Wednesday')
+    for (const d of s.getWeek().days) {
+      expect(banned.has(d.recipeRef)).toBe(false)
+    }
+  })
+})
+
 describe('WeekSession.describe', () => {
   it('reads back the week as day: meal lines', () => {
     const s = session()

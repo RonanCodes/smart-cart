@@ -7,6 +7,7 @@ import type {
   RecipeWhy,
 } from '#/lib/admin-server'
 import { Badge } from '#/components/ui/badge'
+import { Card } from '#/components/ui/card'
 import { cn } from '#/lib/utils'
 
 /**
@@ -32,54 +33,68 @@ export function WhyPanel({ users }: { users: Array<AdminUserRow> }) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_2.4fr]">
-      {/* User picker */}
-      <div className="min-w-0 space-y-2">
-        <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
-          Pick a user
+    <div className="space-y-5 pb-10">
+      <div>
+        <h2 className="text-foreground flex items-center gap-2 text-lg font-semibold">
+          Why these recipes
+        </h2>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Pick a user and follow the chain from their swipes to the inferred
+          tastes to the recommendations they drive.
         </p>
-        {/*
-          Only real user rows have swipes to explain; people who are merely
-          admin/approved-by-env with no `user` row (userId null) have nothing to
-          graph, so they are filtered out of the Why picker.
-        */}
-        {users
-          .filter((u): u is typeof u & { userId: string } => u.userId !== null)
-          .map((u) => (
-            <button
-              key={u.userId}
-              onClick={() => open(u.userId)}
-              className={cn(
-                'border-border flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition',
-                selectedId === u.userId
-                  ? 'border-primary bg-secondary'
-                  : 'hover:bg-secondary',
-              )}
-            >
-              <span className="min-w-0 truncate text-sm font-medium">
-                {u.email}
-              </span>
-              <span className="text-muted-foreground ml-3 shrink-0 text-xs">
-                {u.swipes} swipes
-              </span>
-            </button>
-          ))}
-        {users.length === 0 && (
-          <p className="text-muted-foreground text-sm">No users yet.</p>
-        )}
       </div>
 
-      {/* The graph */}
-      <div className="border-border min-h-[60vh] min-w-0 rounded-xl border p-5">
-        {loadingId ? (
-          <p className="text-muted-foreground text-sm">Loading…</p>
-        ) : explanation ? (
-          <WhyGraph explanation={explanation} />
-        ) : (
-          <p className="text-muted-foreground text-sm">
-            Pick a user to see why their recipes were chosen.
+      <div className="grid gap-6 lg:grid-cols-[1fr_2.4fr]">
+        {/* User picker */}
+        <div className="min-w-0 space-y-2">
+          <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
+            Pick a user
           </p>
-        )}
+          {/*
+            Only real user rows have swipes to explain; people who are merely
+            admin/approved-by-env with no `user` row (userId null) have nothing to
+            graph, so they are filtered out of the Why picker.
+          */}
+          {users
+            .filter(
+              (u): u is typeof u & { userId: string } => u.userId !== null,
+            )
+            .map((u) => (
+              <button
+                key={u.userId}
+                onClick={() => open(u.userId)}
+                className={cn(
+                  'bg-card border-border flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition active:scale-[0.99]',
+                  selectedId === u.userId
+                    ? 'border-primary bg-secondary'
+                    : 'hover:bg-secondary',
+                )}
+              >
+                <span className="min-w-0 truncate text-sm font-medium">
+                  {u.email}
+                </span>
+                <span className="text-muted-foreground ml-3 shrink-0 text-xs">
+                  {u.swipes} swipes
+                </span>
+              </button>
+            ))}
+          {users.length === 0 && (
+            <p className="text-muted-foreground text-sm">No users yet.</p>
+          )}
+        </div>
+
+        {/* The graph */}
+        <Card className="min-h-[60vh] min-w-0 p-5">
+          {loadingId ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : explanation ? (
+            <WhyGraph explanation={explanation} />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              Pick a user to see why their recipes were chosen.
+            </p>
+          )}
+        </Card>
       </div>
     </div>
   )
@@ -111,7 +126,7 @@ function WhyGraph({ explanation }: { explanation: UserExplanation }) {
             {datapoints.map((d, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between gap-2 border-b py-1.5 text-sm"
+                className="border-border flex items-center justify-between gap-2 border-b py-1.5 text-sm"
               >
                 <span className="flex min-w-0 items-center gap-2">
                   {d.like ? (
@@ -227,7 +242,7 @@ function Edge() {
 function RecommendationRow({ rank, why }: { rank: number; why: RecipeWhy }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="border-b">
+    <div className="border-border border-b">
       <button
         onClick={() => setOpen((o) => !o)}
         className="hover:bg-secondary/60 flex w-full items-center justify-between gap-2 rounded py-1.5 text-left text-sm transition"

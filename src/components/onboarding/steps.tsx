@@ -1,3 +1,4 @@
+import { BetaStep } from './steps/beta-step'
 import { HouseholdStep } from './steps/household-step'
 import { DislikesStep } from './steps/dislikes-step'
 import { DietStep } from './steps/diet-step'
@@ -67,5 +68,14 @@ export const STEPS: Array<OnboardingStep> = [
     title: 'Your goals',
     subtitle: 'What matters most? We weight the week toward it.',
     Component: GoalsStep,
+  },
+  {
+    // Last step, just before the email/auth phase (#407): the beta-tester
+    // framing + optional contact land after the user has invested the form. The
+    // step owns its own layout, so the shell renders only the back arrow +
+    // progress + the 'Next' CTA (which advances, never gates).
+    id: 'beta',
+    title: '',
+    Component: BetaStep,
   },
 ]

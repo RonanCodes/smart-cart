@@ -38,34 +38,45 @@ function cat(
     {
       n: slug,
       c: slug.toUpperCase(),
-      d: products.map(([n, p, s]) => ({ n, p, s })),
+      // Derive a slug so each product is addable to the store cart (a real
+      // catalogue row always carries one); slug-less products are excluded from
+      // pricing now (#plan-cart-mismatch).
+      d: products.map(([n, p, s]) => ({
+        n,
+        p,
+        s,
+        l: n.toLowerCase().replace(/\s+/g, '-'),
+      })),
     },
   ]
   return buildCatalogues(raw)[slug]!
 }
 
-describe('deriveLiveCartSet: excludes checked, includes extras', () => {
-  it('keeps unchecked recipe lines and drops checked ones from every output', () => {
+describe('deriveLiveCartSet: includes the CHECKED (in-order) set + selected extras', () => {
+  it('keeps checked recipe lines and drops unchecked ones from every output', () => {
     const items = [
-      item({ name: 'broccoli', amount: '300 g', checked: false }),
-      item({ name: 'rice', amount: '500 g', checked: true }),
+      item({ name: 'broccoli', amount: '300 g', checked: true }),
+      item({ name: 'rice', amount: '500 g', checked: false }),
     ]
     const set = deriveLiveCartSet(items, [], new Set())
 
+    // Only the CHECKED (in-order) broccoli survives; the unchecked rice drops.
     expect(set.itemNames).toEqual(['broccoli'])
     expect(set.compareLines).toEqual([{ name: 'broccoli', amount: '300 g' }])
     expect(set.staples).toEqual([])
   })
 
-  it('folds the extras into the comparison and the cart staples', () => {
-    const items = [item({ name: 'broccoli', amount: '300 g' })]
+  it('folds SELECTED extras into the comparison and the cart staples', () => {
+    const items = [item({ name: 'broccoli', amount: '300 g', checked: true })]
     const extras = [
-      extra({ name: 'koffie', store: 'ah', slug: 'koffie-9' }),
-      extra({ name: 'melk', store: 'jumbo', slug: 'melk-3' }),
+      extra({ id: 'a', name: 'koffie', store: 'ah', slug: 'koffie-9' }),
+      extra({ id: 'b', name: 'melk', store: 'jumbo', slug: 'melk-3' }),
     ]
-    const set = deriveLiveCartSet(items, extras, new Set())
+    // Both extras selected (in the order).
+    const set = deriveLiveCartSet(items, extras, new Set(['a', 'b']))
 
-    // The combined comparison set = recipe lines PLUS extras (extras have no amount).
+    // The combined comparison set = checked recipe lines PLUS selected extras
+    // (extras have no amount).
     expect(set.compareLines).toEqual([
       { name: 'broccoli', amount: '300 g' },
       { name: 'koffie', amount: null },
@@ -79,25 +90,25 @@ describe('deriveLiveCartSet: excludes checked, includes extras', () => {
     ])
   })
 
-  it('drops a checked extra from the comparison and the cart, reactively', () => {
-    const items = [item({ name: 'broccoli', amount: '300 g' })]
+  it('includes only the SELECTED extra in the comparison and the cart, reactively', () => {
+    const items = [item({ name: 'broccoli', amount: '300 g', checked: true })]
     const extras = [
       extra({ id: 'a', name: 'koffie' }),
       extra({ id: 'b', name: 'melk' }),
     ]
 
-    // Tick the second extra off ("already have melk"): it leaves both outputs.
-    const set = deriveLiveCartSet(items, extras, new Set(['b']))
+    // Only the first extra is selected (in the order): melk stays out.
+    const set = deriveLiveCartSet(items, extras, new Set(['a']))
 
     expect(set.compareLines.map((l) => l.name)).toEqual(['broccoli', 'koffie'])
     expect(set.staples).toHaveLength(1)
     expect(set.staples[0]!.slug).toBe('koffie-1')
   })
 
-  it('returns an empty set when everything is checked', () => {
-    const items = [item({ name: 'broccoli', checked: true })]
+  it('returns an empty set when nothing is selected', () => {
+    const items = [item({ name: 'broccoli', checked: false })]
     const extras = [extra({ id: 'a', name: 'koffie' })]
-    const set = deriveLiveCartSet(items, extras, new Set(['a']))
+    const set = deriveLiveCartSet(items, extras, new Set())
 
     expect(set.compareLines).toEqual([])
     expect(set.itemNames).toEqual([])
@@ -105,8 +116,8 @@ describe('deriveLiveCartSet: excludes checked, includes extras', () => {
   })
 })
 
-describe('basket math over the combined (recipe + extras) set', () => {
-  it('prices the combined set and a checked item is excluded from price + waste', () => {
+describe('basket math over the combined (recipe + extras) SELECTED set', () => {
+  it('prices the SELECTED set and an unchecked item is excluded from price + waste', () => {
     const ah = cat('ah', [
       ['Broccoli', 1.0, '500 g'],
       ['Rijst', 2.0, '1 kg'],
@@ -114,15 +125,16 @@ describe('basket math over the combined (recipe + extras) set', () => {
     ])
 
     const items = [
-      item({ name: 'broccoli', amount: '300 g' }), // 1 pack, 200 g waste, 100c
-      item({ name: 'rijst', amount: '500 g', checked: true }), // CHECKED -> excluded
+      item({ name: 'broccoli', amount: '300 g', checked: true }), // 1 pack, 200 g waste, 100c
+      item({ name: 'rijst', amount: '500 g', checked: false }), // UNCHECKED -> excluded
     ]
-    const extras = [extra({ name: 'koffie' })] // no amount -> one pack, 400c
+    const extras = [extra({ id: 'k', name: 'koffie' })] // no amount -> one pack, 400c
 
-    const set = deriveLiveCartSet(items, extras, new Set())
+    // Recipe broccoli (checked) + the selected koffie extra are in the order.
+    const set = deriveLiveCartSet(items, extras, new Set(['k']))
     const basket = basketForStore(set.compareLines, ah)
 
-    // Only broccoli (recipe) + koffie (extra) are priced; rijst is ticked off.
+    // Only broccoli (recipe) + koffie (extra) are priced; rijst is not in order.
     expect(basket.lineItems.map((l) => l.ingredient)).toEqual([
       'broccoli',
       'koffie',
@@ -133,14 +145,14 @@ describe('basket math over the combined (recipe + extras) set', () => {
     expect(basket.totalWaste.cents).toBe(40)
   })
 
-  it('adds the checked item back to the basket when it is unticked', () => {
+  it('adds the item to the basket when it is selected (checked) into the order', () => {
     const ah = cat('ah', [
       ['Broccoli', 1.0, '500 g'],
       ['Rijst', 2.0, '1 kg'],
     ])
     const items = [
-      item({ name: 'broccoli', amount: '300 g' }),
-      item({ name: 'rijst', amount: '500 g', checked: false }), // now unticked
+      item({ name: 'broccoli', amount: '300 g', checked: true }),
+      item({ name: 'rijst', amount: '500 g', checked: true }), // now selected
     ]
     const set = deriveLiveCartSet(items, [], new Set())
     const basket = basketForStore(set.compareLines, ah)

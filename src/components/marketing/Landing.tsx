@@ -5,7 +5,9 @@ import { joinWaitlist } from '#/lib/waitlist-server'
 import { SafeArea } from '#/components/ui/safe-area'
 import { Button, buttonVariants } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { StickyNote } from '#/components/ui/sticky-note'
+import { BetaBadge } from '#/components/ui/beta-badge'
+import { HeroStickers } from './hero-stickers'
+import { useLiveUserCount } from './use-user-count'
 
 /**
  * Souso marketing landing: conversion-focused, mobile-first (390px), built for
@@ -15,17 +17,13 @@ import { StickyNote } from '#/components/ui/sticky-note'
  * lets already-approved users reach /login.
  *
  * Once the app is live (`launched`), the waitlist capture is replaced by a
- * "get started" CTA into /sign-in, since anyone can now sign in.
+ * "get started" CTA. EMAIL-LAST (TJ's design): "Get started" goes straight into
+ * /onboarding (anonymous — no email prompt up front); the email is collected at
+ * the END of the form. "Already have access? Log in" routes existing users to
+ * sign-in.
  *
  * Mounted at the public entry route / (the swipe-deck opener is retired).
  */
-
-/** Hero dish stickers (slug, sticker height class, tilt deg). */
-const HERO = [
-  { img: 'chicken-orzo', h: 'h-24', rot: -8 },
-  { img: 'gnocchi-romesco', h: 'h-32', rot: 4 },
-  { img: 'roast-veg', h: 'h-24', rot: 8 },
-]
 
 interface Benefit {
   icon: typeof Clock
@@ -51,14 +49,27 @@ const BENEFITS: Array<Benefit> = [
   },
 ]
 
+/**
+ * Below this, the social-proof line stays hidden. Kept at 1 so the count shows
+ * as soon as there is a real signed-up user (it only hides at 0, where "0 home
+ * cooks" would read worse than no line at all).
+ */
+const SOCIAL_PROOF_MIN = 1
+
 export function Landing({
   launched = false,
-  signInTo = '/sign-in',
+  userCount = 0,
+  signInTo = '/onboarding',
   loginTo = '/login',
 }: {
   launched?: boolean
-  /** Where the "Get started" CTA points. Overridden by the design prototype so
-   * the walkthrough stays inside /design/* instead of jumping to real auth. */
+  /** Total registered users, from the public getUserCount server fn. Drives the
+   * social-proof line; hidden below SOCIAL_PROOF_MIN. */
+  userCount?: number
+  /** Where the "Get started" CTA points. EMAIL-LAST: defaults to /onboarding so
+   * a visitor runs the form first and gives their email at the end. Overridden
+   * by the design prototype so the walkthrough stays inside /design/* instead of
+   * jumping to real onboarding. */
   signInTo?: string
   /** Where the "Already have access? Log in" link points (same reason). */
   loginTo?: string
@@ -68,6 +79,10 @@ export function Landing({
     'idle',
   )
   const [error, setError] = useState<string | null>(null)
+  // Poll the public count every few seconds and animate it up, so a visitor on
+  // the page watches "N home cooks" climb as people sign up (the real-time DO
+  // push was reverted; this is the safe, zero-infra equivalent). SSR-seeded.
+  const liveCount = useLiveUserCount(userCount)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -93,28 +108,17 @@ export function Landing({
       <div className="mx-auto flex w-full max-w-md flex-col px-6 pb-16">
         {/* Hero */}
         <section className="pt-8 text-center">
-          <img
-            src="/souso-mark.svg"
-            alt="Souso"
-            className="mx-auto h-11 w-auto"
-          />
-
-          {/* A little board of dishes. */}
-          <div className="relative mt-7 flex items-end justify-center gap-2">
-            {HERO.map((s) => (
-              <img
-                key={s.img}
-                src={`/stickers/recipes/${s.img}.png`}
-                alt=""
-                aria-hidden
-                className={`souso-sticker ${s.h} w-auto object-contain`}
-                style={{ transform: `rotate(${s.rot}deg)` }}
-              />
-            ))}
-            <StickyNote tilt={6} className="absolute -top-3 right-0">
-              no more &ldquo;what&rsquo;s for dinner?&rdquo;
-            </StickyNote>
+          {/* Wordmark stays dead-centre; the Beta tag sits quietly under it so it
+              never pushes the mark off-centre (#407). */}
+          <div className="flex flex-col items-center gap-1.5">
+            <img src="/souso-mark.svg" alt="Souso" className="h-11 w-auto" />
+            <BetaBadge />
           </div>
+
+          {/* A little board of dishes, with gentle drift + cycling motion. The
+              component owns its own stage height so a drifting sticker never
+              rises into the wordmark above (#465). */}
+          <HeroStickers />
 
           <h1
             className="mt-8 text-[2.5rem] leading-[1.02] font-bold"
@@ -126,6 +130,16 @@ export function Landing({
             Souso plans your whole week of dinners and fills a ready-to-order
             basket. Save time, spend less, waste less food.
           </p>
+          {liveCount >= SOCIAL_PROOF_MIN && (
+            <p
+              className="text-primary mt-4 text-sm font-semibold"
+              aria-live="polite"
+            >
+              {liveCount.toLocaleString('en')} home cooks planning with Souso
+            </p>
+          )}
+          {/* The beta message lives in the "We're live (in beta)" CTA card
+              below, so the hero no longer repeats it (was a duplicate). */}
         </section>
 
         {/* Primary CTA: once live, a "get started" button into sign-in; before
@@ -136,10 +150,13 @@ export function Landing({
               <div className="bg-secondary text-primary flex h-14 w-14 items-center justify-center rounded-full">
                 <PartyPopper className="h-7 w-7" />
               </div>
-              <p className="mt-4 text-lg font-bold">We&apos;re live</p>
+              <p className="mt-4 text-lg font-bold">
+                We&apos;re live (in beta)
+              </p>
               <p className="text-muted-foreground mt-2 text-sm">
-                Souso is open. Plan your week and build your shopping list in
-                minutes.
+                Souso is open and in beta, so you&rsquo;re one of our first
+                testers. Plan your week and build your basket in minutes, and
+                tell us what to improve.
               </p>
               <Link
                 to={signInTo}
@@ -229,8 +246,9 @@ export function Landing({
           </p>
         </section>
 
-        {/* Discrete entry for already-approved users. */}
-        <div className="mt-10 text-center">
+        {/* Discrete entry for already-approved users, pushed well down the page
+            (#465) so it never competes with the hero or the primary CTA. */}
+        <div className="mt-16 pt-4 text-center">
           <Link
             to={loginTo}
             className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 transition hover:underline"

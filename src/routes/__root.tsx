@@ -9,7 +9,11 @@ import {
 import appCss from '../styles.css?url'
 import { registerServiceWorker } from '../lib/push-client'
 import { QueryClientProvider } from '../lib/query-client'
-import { ErrorBoundary } from '../components/ErrorBoundary'
+import {
+  ErrorBoundary,
+  reloadOnceForChunkError,
+  CHUNK_RELOAD_KEY,
+} from '../components/ErrorBoundary'
 import { log } from '../lib/log'
 import { useSession } from '../lib/auth-client'
 
@@ -64,16 +68,17 @@ export const Route = createRootRoute({
       { property: 'og:url', content: SITE_URL },
       { property: 'og:site_name', content: 'Souso' },
       // Share-card image (link previews on iMessage/Slack/WhatsApp/X). Absolute
-      // URL, the Souso brand hero. summary_large_image renders it wide.
-      { property: 'og:image', content: `${SITE_URL}/brand/souso-hero.png` },
-      { property: 'og:image:width', content: '1536' },
-      { property: 'og:image:height', content: '1024' },
+      // URL, the Souso brand card (toque mark + wordmark on cream).
+      // summary_large_image renders it wide.
+      { property: 'og:image', content: `${SITE_URL}/og-card.png?v=4` },
+      { property: 'og:image:width', content: '1200' },
+      { property: 'og:image:height', content: '630' },
       {
         property: 'og:image:alt',
         content: 'Souso, your sous chef for recipes and the weekly shop',
       },
       { name: 'twitter:card', content: 'summary_large_image' },
-      { name: 'twitter:image', content: `${SITE_URL}/brand/souso-hero.png` },
+      { name: 'twitter:image', content: `${SITE_URL}/og-card.png?v=4` },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
@@ -91,23 +96,24 @@ export const Route = createRootRoute({
         href: '/fonts/schoolbell.woff2',
         crossOrigin: 'anonymous',
       },
-      { rel: 'icon', href: '/favicon.ico?v=2', sizes: 'any' },
+      { rel: 'icon', href: '/favicon.ico?v=6', sizes: 'any' },
+      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=6' },
       {
         rel: 'icon',
         type: 'image/png',
         sizes: '32x32',
-        href: '/favicon-32x32.png?v=2',
+        href: '/favicon-32x32.png?v=6',
       },
       {
         rel: 'icon',
         type: 'image/png',
         sizes: '16x16',
-        href: '/favicon-16x16.png?v=2',
+        href: '/favicon-16x16.png?v=6',
       },
       {
         rel: 'apple-touch-icon',
         sizes: '180x180',
-        href: '/apple-touch-icon.png?v=2',
+        href: '/apple-touch-icon.png?v=6',
       },
       { rel: 'manifest', href: '/site.webmanifest' },
     ],
@@ -138,7 +144,10 @@ function RootComponent() {
     void import('../lib/observability-client').then(
       ({ setObservabilityUser }) => setObservabilityUser(session?.user ?? null),
     )
-  }, [session?.user.id, session?.user.email])
+    // Depend on the user object itself (not user.id/.email): prod telemetry
+    // showed session can be truthy while session.user is undefined, and reading
+    // `.user.id` in the deps array then crashed the whole app (#root-crash).
+  }, [session?.user])
 
   // Register the PWA service worker once on the client (guarded; no-op in SSR or
   // browsers without service workers). It powers Web Push rating reminders (#149)
@@ -163,19 +172,49 @@ function RootComponent() {
       'serviceWorker' in navigator ? navigator.serviceWorker : null
     swContainer?.addEventListener('message', onSwMessage)
     // Global client error catchers -> logger -> /api/log -> Workers Logs.
-    const onError = (e: ErrorEvent) =>
+    // Both first try the one-time self-heal reload (#369 + #416): the /week
+    // lazy-route match-resolve race surfaces in an `async Promise.all` frame
+    // (Sentry SOUSO-T), so it can escape the React boundary as a window error /
+    // unhandled rejection. reloadOnceForChunkError is guarded + a no-op for any
+    // non-recoverable error, so a genuine bug still falls through to the log.
+    const onError = (e: ErrorEvent) => {
+      if (reloadOnceForChunkError(e.error ?? e.message)) return
       log.error('window.error', e.error ?? e.message, {
         filename: e.filename,
         lineno: e.lineno,
       })
-    const onRejection = (e: PromiseRejectionEvent) =>
+    }
+    const onRejection = (e: PromiseRejectionEvent) => {
+      if (reloadOnceForChunkError(e.reason)) return
       log.error('window.unhandledrejection', e.reason)
+    }
     window.addEventListener('error', onError)
     window.addEventListener('unhandledrejection', onRejection)
+    // Vite fires this when a code-split chunk preload fails (the stale-chunk case
+    // after a deploy). Catch it BEFORE React renders the error boundary, so the
+    // tab reloads to the new build with no "flashing" loop (#chunk-reload).
+    const onPreloadError = (e: Event) => {
+      e.preventDefault()
+      reloadOnceForChunkError(
+        new Error('Failed to fetch dynamically imported module'),
+      )
+    }
+    window.addEventListener('vite:preloadError', onPreloadError)
+    // A clean run means the new build loaded fine; clear the once-per-episode
+    // guard so a LATER deploy's stale chunk can recover too.
+    const clearGuard = window.setTimeout(() => {
+      try {
+        sessionStorage.removeItem(CHUNK_RELOAD_KEY)
+      } catch {
+        // sessionStorage unavailable; nothing to clear.
+      }
+    }, 10_000)
     return () => {
       swContainer?.removeEventListener('message', onSwMessage)
       window.removeEventListener('error', onError)
       window.removeEventListener('unhandledrejection', onRejection)
+      window.removeEventListener('vite:preloadError', onPreloadError)
+      window.clearTimeout(clearGuard)
     }
   }, [])
 

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus } from 'lucide-react'
 import { getRecipeDetail } from '#/lib/recipe-detail-server'
 import type { RecipeDetailResult } from '#/lib/recipe-detail-server'
+import { scaleAmount } from '#/lib/recipe-amount'
 import { ingredientSticker } from '#/lib/ingredient-sticker'
 
 interface RecipeDetailProps {
@@ -16,6 +17,28 @@ interface RecipeDetailProps {
   calories?: number | null
   /** grams of protein per serving from the week row, for the "Protein" fact. */
   protein?: number | null
+  /**
+   * Fires once the detail has loaded, so a parent (the Search sheet) can drive a
+   * serves stepper / "Cook" bar off the same fetch this card already makes.
+   * Optional: the week sheet doesn't pass it.
+   */
+  onLoaded?: (detail: RecipeDetailResult) => void
+  /**
+   * When set, the displayed ingredient amounts are rescaled by
+   * `serves / baseServes` (the recipe's own serving count), so the parent's
+   * serves stepper can scale the list. Omitted -> amounts shown as stored.
+   */
+  serves?: number
+  /**
+   * When set, an "+ Add all" pill renders in the Ingredients header and calls
+   * this with every loaded ingredient so the parent can add them to the cart.
+   * Omitted -> no pill (the week sheet adds the whole plan elsewhere).
+   */
+  onAddAll?: (
+    ingredients: ReadonlyArray<{ name: string; amount: string | null }>,
+  ) => void
+  /** Disables / labels the Add-all pill while a write is inflight or done. */
+  addAllState?: 'idle' | 'busy' | 'done'
 }
 
 /**
@@ -40,6 +63,10 @@ export function RecipeDetail({
   active,
   calories,
   protein,
+  onLoaded,
+  serves,
+  onAddAll,
+  addAllState = 'idle',
 }: RecipeDetailProps) {
   const [loading, setLoading] = useState(false)
   const [detail, setDetail] = useState<RecipeDetailResult | null>(null)
@@ -58,6 +85,7 @@ export function RecipeDetail({
         if (cancelled) return
         setDetail(res)
         setLoadedFor(recipeId)
+        onLoaded?.(res)
       })
       .catch(() => {
         // Degrade to hidden: a failed fetch leaves detail null, card stays gone.
@@ -77,7 +105,7 @@ export function RecipeDetail({
     return () => {
       cancelled = true
     }
-  }, [active, recipeId, loadedFor])
+  }, [active, recipeId, loadedFor, onLoaded])
 
   if (active && loading && loadedFor !== recipeId) {
     return (
@@ -103,6 +131,18 @@ export function RecipeDetail({
   if (calories != null) facts.push(['Per serve', `${calories}`])
   if (protein != null) facts.push(['Protein', `${protein}g`])
 
+  // Serves stepper scaling: the parent's chosen serves over the recipe's own
+  // base. Only applied when the parent passed a target AND the recipe declares a
+  // (positive) base count, so a recipe with no serving data shows amounts as
+  // stored. Non-numeric amounts ("snufje") pass through scaleAmount unchanged.
+  const baseServes = detail.servings
+  const scaleFactor =
+    serves != null && baseServes != null && baseServes > 0
+      ? serves / baseServes
+      : 1
+  const displayAmount = (amount: string | null) =>
+    scaleFactor === 1 ? amount : scaleAmount(amount, scaleFactor)
+
   return (
     <section className="mt-1 mb-2 space-y-6">
       {facts.length > 0 && (
@@ -125,17 +165,41 @@ export function RecipeDetail({
 
       {hasIngredients && (
         <div>
-          <h2
-            className="text-lg font-bold"
-            style={{ letterSpacing: '-0.02em' }}
-          >
-            Ingredients
-            {detail.amountsEstimated && (
-              <span className="text-muted-foreground ml-1.5 text-xs font-normal">
-                (approx amounts)
-              </span>
+          <div className="flex items-center justify-between gap-2">
+            <h2
+              className="text-lg font-bold"
+              style={{ letterSpacing: '-0.02em' }}
+            >
+              Ingredients
+              {detail.amountsEstimated && (
+                <span className="text-muted-foreground ml-1.5 text-xs font-normal">
+                  (approx amounts)
+                </span>
+              )}
+            </h2>
+            {onAddAll && (
+              <button
+                type="button"
+                disabled={addAllState !== 'idle'}
+                onClick={() =>
+                  onAddAll(
+                    detail.ingredients.map((ing) => ({
+                      name: ing.name,
+                      amount: displayAmount(ing.amount),
+                    })),
+                  )
+                }
+                className="border-primary text-primary inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-transparent px-3.5 py-1.5 text-sm font-semibold transition active:scale-95 disabled:opacity-60"
+              >
+                <Plus className="h-4 w-4" />
+                {addAllState === 'done'
+                  ? 'Added'
+                  : addAllState === 'busy'
+                    ? 'Adding...'
+                    : 'Add all'}
+              </button>
             )}
-          </h2>
+          </div>
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             {detail.ingredients.map((ing, i) => {
               const sticker = ingredientSticker(ing.name)
@@ -159,9 +223,9 @@ export function RecipeDetail({
                     <p className="truncate text-[0.8rem] font-semibold">
                       {ing.name}
                     </p>
-                    {ing.amount && (
+                    {displayAmount(ing.amount) && (
                       <p className="text-muted-foreground text-[0.7rem]">
-                        {ing.amount}
+                        {displayAmount(ing.amount)}
                       </p>
                     )}
                   </div>

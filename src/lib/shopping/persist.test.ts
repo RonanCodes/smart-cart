@@ -6,8 +6,6 @@ import {
   concatAmounts,
   mergeAmount,
   planMerge,
-  shouldAutoSeed,
-  shouldReplaceRecipeItemsOnSeed,
   countMissing,
   backfillAmounts,
   addToListCta,
@@ -61,61 +59,6 @@ describe('lineToNewItem', () => {
     )
     expect(result.amount).toBeNull()
     expect(result.unit).toBeNull()
-  })
-})
-
-describe('shouldAutoSeed', () => {
-  it('seeds a planned week we have not seeded yet', () => {
-    expect(shouldAutoSeed({ planId: 'plan-1', lastSeededPlanId: null })).toBe(
-      true,
-    )
-  })
-
-  it('does not seed when there is no planned week', () => {
-    expect(shouldAutoSeed({ planId: null, lastSeededPlanId: null })).toBe(false)
-  })
-
-  it('does not re-seed a plan already seeded (Clear all stays cleared)', () => {
-    // The household seeded plan-1 once; after a deliberate Clear all the SAME
-    // plan id must not refill on the next visit.
-    expect(
-      shouldAutoSeed({ planId: 'plan-1', lastSeededPlanId: 'plan-1' }),
-    ).toBe(false)
-  })
-
-  it('re-seeds when a NEW plan replaces the previously seeded one', () => {
-    expect(
-      shouldAutoSeed({ planId: 'plan-2', lastSeededPlanId: 'plan-1' }),
-    ).toBe(true)
-  })
-})
-
-describe('shouldReplaceRecipeItemsOnSeed', () => {
-  it('replaces recipe rows when switching to a new plan', () => {
-    expect(
-      shouldReplaceRecipeItemsOnSeed({
-        planId: 'plan-2',
-        lastSeededPlanId: 'plan-1',
-      }),
-    ).toBe(true)
-  })
-
-  it('does not replace on the first seed', () => {
-    expect(
-      shouldReplaceRecipeItemsOnSeed({
-        planId: 'plan-1',
-        lastSeededPlanId: null,
-      }),
-    ).toBe(false)
-  })
-
-  it('does not replace when revisiting the same seeded plan', () => {
-    expect(
-      shouldReplaceRecipeItemsOnSeed({
-        planId: 'plan-1',
-        lastSeededPlanId: 'plan-1',
-      }),
-    ).toBe(false)
   })
 })
 

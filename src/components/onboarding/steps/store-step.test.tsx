@@ -44,10 +44,15 @@ describe('StoreStep', () => {
     expect(screen.getAllByRole('radio')).toHaveLength(3)
   })
 
-  it('selects Jumbo into draft.store with its slug', () => {
+  it('shows Jumbo as a disabled "Coming soon" option that cannot be picked', () => {
     const latest = withForm(<StoreStep />)
-    fireEvent.click(screen.getByRole('radio', { name: /Jumbo/ }))
-    expect(latest.draft.store).toBe('jumbo')
+    const jumbo = screen.getByRole('radio', { name: /Jumbo/ })
+    expect(jumbo.getAttribute('aria-disabled')).toBe('true')
+    expect((jumbo as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('Coming soon')).toBeTruthy()
+    // A click on the disabled option must not change the draft store.
+    fireEvent.click(jumbo)
+    expect(latest.draft.store).toBeNull()
   })
 
   it('selects Albert Heijn into draft.store with the ah slug', () => {

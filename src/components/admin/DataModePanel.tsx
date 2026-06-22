@@ -4,6 +4,14 @@ import { Beaker } from 'lucide-react'
 import { setGlobalDataMode, setHouseholdDataMode } from '#/lib/data-mode-server'
 import type { DataMode, DataModeSettings } from '#/lib/data-mode-server'
 import type { AdminUserRow } from '#/lib/admin-server'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '#/components/ui/card'
+import { Badge } from '#/components/ui/badge'
 import { cn } from '#/lib/utils'
 
 /**
@@ -85,35 +93,48 @@ export function DataModePanel({
 
   return (
     <div className="max-w-2xl space-y-6">
-      {/* Global default */}
-      <section className="border-border bg-card space-y-3 rounded-xl border p-4">
-        <div className="flex items-start gap-3">
-          <Beaker
-            className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0"
-            aria-hidden
-          />
-          <div>
-            <h2 className="text-lg font-semibold">Data mode</h2>
-            <p className="text-muted-foreground text-sm">
-              The default for every household. Demo makes the Week + Cart
-              screens render fixed canned data (a polished example week and
-              basket) instead of the household&apos;s real DB data, for a fast,
-              deterministic pitch.
-            </p>
-          </div>
-        </div>
+      <header className="space-y-1">
+        <p className="text-primary text-[0.64rem] font-bold tracking-[0.16em] uppercase">
+          Demo data
+        </p>
+        <h1 className="text-2xl font-bold tracking-[-0.02em]">Data mode</h1>
+        <p className="text-muted-foreground text-sm">
+          Swap the Week and Cart screens between real household data and the
+          canned demo set, globally or per household.
+        </p>
+      </header>
 
-        <ModeSegmented
-          value={global}
-          onChange={(m) => void changeGlobal(m)}
-          disabled={savingGlobal}
-          ariaLabel="Global data mode"
-        />
-      </section>
+      {/* Global default */}
+      <Card ios>
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <span className="bg-secondary text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
+              <Beaker className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="space-y-1">
+              <CardTitle>Data mode</CardTitle>
+              <CardDescription>
+                The default for every household. Demo makes the Week + Cart
+                screens render fixed canned data (a polished example week and
+                basket) instead of the household&apos;s real DB data, for a
+                fast, deterministic pitch.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ModeSegmented
+            value={global}
+            onChange={(m) => void changeGlobal(m)}
+            disabled={savingGlobal}
+            ariaLabel="Global data mode"
+          />
+        </CardContent>
+      </Card>
 
       {/* Per-household overrides */}
       <section className="space-y-3">
-        <div>
+        <div className="space-y-1">
           <h2 className="text-lg font-semibold">Per-household overrides</h2>
           <p className="text-muted-foreground text-sm">
             Inherit follows the global default. Set a household to Real or Demo
@@ -128,18 +149,24 @@ export function DataModePanel({
             const effective: DataMode = override ?? global
             const selection: 'inherit' | DataMode = override ?? 'inherit'
             return (
-              <div
+              <Card
                 key={u.householdId}
-                className="border-border flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3"
+                ios
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
               >
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{u.email}</div>
-                  <div className="text-muted-foreground mt-0.5 text-xs">
-                    Effective:{' '}
-                    <span className="text-foreground font-semibold">
+                  <div className="text-muted-foreground mt-1 flex items-center gap-1.5 text-xs">
+                    <span>Effective</span>
+                    <Badge
+                      variant={effective === 'demo' ? 'primary' : 'outline'}
+                      className="px-2 py-0.5 text-[0.7rem]"
+                    >
                       {effective === 'demo' ? 'Demo' : 'Real'}
-                    </span>
-                    {override === null && ' (inherited)'}
+                    </Badge>
+                    {override === null && (
+                      <span className="text-muted-foreground">inherited</span>
+                    )}
                   </div>
                 </div>
                 <ThreeWaySegmented
@@ -153,13 +180,15 @@ export function DataModePanel({
                   disabled={savingHousehold === u.householdId}
                   ariaLabel={`Data mode for ${u.email}`}
                 />
-              </div>
+              </Card>
             )
           })}
           {households.length === 0 && (
-            <p className="text-muted-foreground text-sm">
-              No onboarded households yet.
-            </p>
+            <Card ios className="px-4 py-6">
+              <p className="text-muted-foreground text-center text-sm">
+                No onboarded households yet.
+              </p>
+            </Card>
           )}
         </div>
       </section>

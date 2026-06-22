@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useRouter } from '@tanstack/react-router'
 import {
   ThumbsUp,
   ThumbsDown,
@@ -7,6 +8,7 @@ import {
   ShieldOff,
   RotateCcw,
   AlertTriangle,
+  Search,
 } from 'lucide-react'
 import {
   getUserDatapoints,
@@ -15,9 +17,18 @@ import {
   resetAllUsersData,
 } from '#/lib/admin-server'
 import type { AdminUserRow, UserDatapoints } from '#/lib/admin-server'
+import {
+  summarizeUsers,
+  signupsByDay,
+  filterUsers,
+  sortUsers,
+} from '#/lib/admin/users-view'
+import type { AccessFilter, SortKey } from '#/lib/admin/users-view'
 import { sendRateMealPush } from '#/lib/push-server'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
+import { Card } from '#/components/ui/card'
+import { Input } from '#/components/ui/input'
 import { Sheet } from '#/components/ui/sheet'
 
 /**
@@ -50,6 +61,7 @@ export function UsersPanel({
   viewerIsSuperAdmin?: boolean
 }) {
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [detail, setDetail] = useState<UserDatapoints | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   // Mobile-only: tapping a user opens the detail in a bottom sheet (there is no
@@ -63,6 +75,26 @@ export function UsersPanel({
   // a reload) and the email mid-revoke (disable its button).
   const [revoked, setRevoked] = useState<Set<string>>(() => new Set())
   const [revokingEmail, setRevokingEmail] = useState<string | null>(null)
+
+  // Analytics view controls (all client-side, live): a search box, an access
+  // filter, and a sort key. Default sort is newest-first by signup date.
+  const [query, setQuery] = useState('')
+  const [access, setAccess] = useState<AccessFilter>('all')
+  const [sortKey, setSortKey] = useState<SortKey>('newest')
+
+  // Totals + the 30-day signups chart are derived from the FULL row set (not the
+  // filtered view) so the headline numbers describe the whole product, not the
+  // current search. `now` is read once per render and passed in (the helpers are
+  // pure + take it as an argument) so totals stay stable across a render.
+  const now = Date.now()
+  const summary = useMemo(() => summarizeUsers(users, now), [users, now])
+  const chart = useMemo(() => signupsByDay(users, now, 30), [users, now])
+
+  // The list the operator actually sees: filtered by email + access, then sorted.
+  const visible = useMemo(
+    () => sortUsers(filterUsers(users, { query, access }), sortKey),
+    [users, query, access, sortKey],
+  )
 
   async function revoke(email: string) {
     if (revokingEmail) return
@@ -97,7 +129,16 @@ export function UsersPanel({
     if (resettingId) return
     setResettingId(userId)
     try {
-      await resetUserData({ data: { userId } })
+      const res = await resetUserData({ data: { userId } })
+      // Resetting your OWN account wipes your household, but the live router's
+      // auth context still thinks you have one — so drop straight into
+      // onboarding instead of leaving you on a now-stale admin page. Invalidate
+      // first so the guard + onboarding loader re-resolve server-side.
+      if (res.wasSelf) {
+        await router.invalidate()
+        await router.navigate({ to: '/onboarding' })
+        return
+      }
       await refreshUsers()
     } catch {
       // leave the row as-is; the server rejected it.
@@ -154,229 +195,408 @@ export function UsersPanel({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-      {/* Users */}
-      <div className="min-w-0 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pushBusy !== null}
-            onClick={() => void sendPush('all')}
-          >
-            <Bell className="h-4 w-4" aria-hidden />
-            {pushBusy === 'all' ? 'Sending…' : 'Send rate-meal push to all'}
-          </Button>
-          {/* Reset ALL users: super-admin only, destructive, two-step confirm.
-              First tap arms (turns red + says "Tap again"), second tap fires. */}
-          {viewerIsSuperAdmin && (
+    <div className="space-y-6">
+      {/* Page header: title + one-line description, matching the consumer
+          screens' calm, legible header rhythm. */}
+      <header className="space-y-1">
+        <h1 className="text-foreground text-xl font-semibold tracking-tight">
+          Users &amp; data points
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          Everyone in the product, what we think they like, and the admin
+          actions to nudge or reset them.
+        </p>
+      </header>
+
+      {/* Analytics: totals + the signups-over-time chart describe the whole
+          product (derived from the full row set, not the filtered view). */}
+      <UsersAnalytics summary={summary} chart={chart} />
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+        {/* Users */}
+        <Card className="border-border bg-card min-w-0 space-y-4 rounded-[var(--radius-ios)] border p-5">
+          {/* Filter + sort controls. Live, client-side; they narrow the list only,
+            never the headline totals above. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1">
+              <Search
+                className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2"
+                aria-hidden
+              />
+              <Input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filter by email…"
+                aria-label="Filter users by email"
+                className="pl-9"
+              />
+            </div>
+            <select
+              value={access}
+              onChange={(e) => setAccess(e.target.value as AccessFilter)}
+              aria-label="Filter by access"
+              className="border-input bg-background focus-visible:ring-ring h-10 rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              <option value="all">All</option>
+              <option value="onboarded">Onboarded</option>
+              <option value="not-onboarded">Not onboarded</option>
+              <option value="admins">Admins</option>
+            </select>
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              aria-label="Sort users"
+              className="border-input bg-background focus-visible:ring-ring h-10 rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              <option value="newest">Newest</option>
+              <option value="email">Email A–Z</option>
+              <option value="swipes">Most swipes</option>
+            </select>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <Button
               size="sm"
-              variant={resetAllArmed ? 'destructive' : 'outline'}
-              disabled={resetAllBusy}
-              onClick={() => void resetAll()}
+              variant="outline"
+              disabled={pushBusy !== null}
+              onClick={() => void sendPush('all')}
             >
-              <AlertTriangle className="h-4 w-4" aria-hidden />
-              {resetAllBusy
-                ? 'Resetting all…'
-                : resetAllArmed
-                  ? 'Tap again to reset ALL users'
-                  : 'Reset ALL users to fresh'}
+              <Bell className="h-4 w-4" aria-hidden />
+              {pushBusy === 'all' ? 'Sending…' : 'Send rate-meal push to all'}
             </Button>
-          )}
-        </div>
-        {viewerIsSuperAdmin && resetAllArmed && !resetAllBusy && (
-          <p
-            role="alert"
-            className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950 dark:text-red-300"
-          >
-            This wipes EVERY user&apos;s household data (swipes, plans, shopping
-            lists, staples, push) and forces them all to re-onboard. Accounts
-            stay signed in. Tap again to confirm.
-          </p>
-        )}
-        {resetAllMsg && (
-          <p
-            role="status"
-            className="text-muted-foreground bg-secondary rounded-lg px-3 py-2 text-xs"
-          >
-            {resetAllMsg}
-          </p>
-        )}
-        {pushMsg && (
-          <p
-            role="status"
-            className="text-muted-foreground bg-secondary rounded-lg px-3 py-2 text-xs"
-          >
-            {pushMsg}
-          </p>
-        )}
-        {users.map((u) => {
-          // No user row -> nothing to drill into; render a static card so the
-          // operator still sees the person, their admin badge + access tag.
-          const interactive = u.userId !== null
-          const isRevoked = revoked.has(u.email)
-          // Hide the Admin badge + revoke action once revoked this session.
-          const showAdmin = u.isAdmin && !isRevoked
-          return (
-            <div key={u.email} className="flex items-stretch gap-2">
-              <button
-                onClick={() => interactive && open(u.userId!)}
-                disabled={!interactive}
-                className="border-border enabled:hover:bg-secondary flex min-w-0 flex-1 items-center justify-between rounded-lg border px-4 py-3 text-left transition disabled:cursor-default disabled:opacity-70"
+            {/* Reset ALL users: super-admin only, destructive, two-step confirm.
+              First tap arms (turns red + says "Tap again"), second tap fires. */}
+            {viewerIsSuperAdmin && (
+              <Button
+                size="sm"
+                variant={resetAllArmed ? 'destructive' : 'outline'}
+                disabled={resetAllBusy}
+                onClick={() => void resetAll()}
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="truncate text-sm font-medium">
-                      {u.email}
-                    </span>
-                    {showAdmin && (
-                      <Badge variant="primary" className="shrink-0">
-                        Admin
-                      </Badge>
-                    )}
-                    {u.configAdmin && !isRevoked && (
-                      <Badge variant="outline" className="shrink-0">
-                        config admin
-                      </Badge>
-                    )}
-                    {/* One status tag per row. Admins are covered by the
+                <AlertTriangle className="h-4 w-4" aria-hidden />
+                {resetAllBusy
+                  ? 'Resetting all…'
+                  : resetAllArmed
+                    ? 'Tap again to reset ALL users'
+                    : 'Reset ALL users to fresh'}
+              </Button>
+            )}
+          </div>
+          {viewerIsSuperAdmin && resetAllArmed && !resetAllBusy && (
+            <p
+              role="alert"
+              className="rounded-xl bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-700 dark:bg-red-950 dark:text-red-300"
+            >
+              This wipes EVERY user&apos;s household data (swipes, plans,
+              shopping lists, staples, push) and forces them all to re-onboard.
+              Accounts stay signed in. Tap again to confirm.
+            </p>
+          )}
+          {resetAllMsg && (
+            <p
+              role="status"
+              className="text-muted-foreground bg-secondary rounded-xl px-3 py-2 text-xs"
+            >
+              {resetAllMsg}
+            </p>
+          )}
+          {pushMsg && (
+            <p
+              role="status"
+              className="text-muted-foreground bg-secondary rounded-xl px-3 py-2 text-xs"
+            >
+              {pushMsg}
+            </p>
+          )}
+          <div className="space-y-2">
+            {visible.map((u) => {
+              // No user row -> nothing to drill into; render a static card so the
+              // operator still sees the person, their admin badge + access tag.
+              const interactive = u.userId !== null
+              const isRevoked = revoked.has(u.email)
+              // Hide the Admin badge + revoke action once revoked this session.
+              const showAdmin = u.isAdmin && !isRevoked
+              return (
+                <div key={u.email} className="flex items-stretch gap-1.5">
+                  <button
+                    onClick={() => interactive && open(u.userId!)}
+                    disabled={!interactive}
+                    className="border-border bg-card enabled:hover:bg-secondary flex min-w-0 flex-1 items-center justify-between rounded-xl border px-4 py-3 text-left transition enabled:active:scale-[0.99] disabled:cursor-default disabled:opacity-70"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="truncate text-sm font-medium">
+                          {u.email}
+                        </span>
+                        {showAdmin && (
+                          <Badge variant="primary" className="shrink-0">
+                            Admin
+                          </Badge>
+                        )}
+                        {u.configAdmin && !isRevoked && (
+                          <Badge variant="outline" className="shrink-0">
+                            config admin
+                          </Badge>
+                        )}
+                        {/* One status tag per row. Admins are covered by the
                         primary 'Admin' badge above (accessTag returns null),
                         so no duplicate 'Admin' tag here. Once an admin is
                         revoked this session, surface their underlying user
                         state instead of leaving the row untagged. */}
-                    {(() => {
-                      const tag =
-                        isRevoked && u.access === 'admin'
-                          ? u.onboarded
-                            ? 'Onboarded'
-                            : 'Approved user'
-                          : accessTag(u)
-                      return tag ? (
-                        <Badge variant="outline" className="shrink-0">
-                          {tag}
-                        </Badge>
-                      ) : null
-                    })()}
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {u.badges.slice(0, 3).map((b) => (
-                      <span key={b.label} className="text-xs">
-                        {b.emoji} {b.label}
-                      </span>
-                    ))}
-                    {u.badges.length === 0 && (
-                      <span className="text-muted-foreground text-xs">
-                        {u.onboarded ? 'no badges yet' : 'not onboarded'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <span className="text-muted-foreground ml-3 shrink-0 text-xs">
-                  {u.swipes} swipes
-                </span>
-              </button>
-              {interactive && (
-                <button
-                  type="button"
-                  aria-label={`Send rate-meal push to ${u.email}`}
-                  disabled={pushBusy !== null}
-                  onClick={() => void sendPush(u.userId!)}
-                  className="border-border text-muted-foreground enabled:hover:bg-secondary inline-flex w-11 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-50"
-                >
-                  <Bell className="h-4 w-4" aria-hidden />
-                </button>
-              )}
-              {/* Remove admin: super-admin only (server sets revocable), on
+                        {(() => {
+                          const tag =
+                            isRevoked && u.access === 'admin'
+                              ? u.onboarded
+                                ? 'Onboarded'
+                                : 'Approved user'
+                              : accessTag(u)
+                          return tag ? (
+                            <Badge variant="outline" className="shrink-0">
+                              {tag}
+                            </Badge>
+                          ) : null
+                        })()}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {u.badges.slice(0, 3).map((b) => (
+                          <span key={b.label} className="text-xs">
+                            {b.emoji} {b.label}
+                          </span>
+                        ))}
+                        {u.badges.length === 0 && (
+                          <span className="text-muted-foreground text-xs">
+                            {u.onboarded ? 'no badges yet' : 'not onboarded'}
+                          </span>
+                        )}
+                      </div>
+                      {/* Phone a beta tester left to be reached out to (#407).
+                        Text, not a tel: link, since the row is itself a button. */}
+                      {u.phone && (
+                        <div className="text-accent mt-1 text-xs font-medium">
+                          📞 {u.phone}
+                          {u.contactPref ? ` · ${u.contactPref}` : ''}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-muted-foreground ml-3 shrink-0 text-xs">
+                      {u.swipes} swipes
+                    </span>
+                  </button>
+                  {interactive && (
+                    <button
+                      type="button"
+                      aria-label={`Send rate-meal push to ${u.email}`}
+                      disabled={pushBusy !== null}
+                      onClick={() => void sendPush(u.userId!)}
+                      className="border-border bg-card text-muted-foreground enabled:hover:bg-secondary enabled:hover:text-foreground inline-flex w-11 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-50"
+                    >
+                      <Bell className="h-4 w-4" aria-hidden />
+                    </button>
+                  )}
+                  {/* Remove admin: super-admin only (server sets revocable), on
                   DB-granted admins only. Hidden once revoked this session. */}
-              {u.revocable && !isRevoked && (
-                <button
-                  type="button"
-                  aria-label={`Remove admin from ${u.email}`}
-                  disabled={revokingEmail !== null}
-                  onClick={() => void revoke(u.email)}
-                  className="inline-flex w-11 shrink-0 items-center justify-center rounded-lg border border-red-300 text-red-600 transition enabled:hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:enabled:hover:bg-red-950"
-                >
-                  <ShieldOff className="h-4 w-4" aria-hidden />
-                </button>
-              )}
-              {/* Reset this user to fresh: admin action with an inline confirm.
+                  {u.revocable && !isRevoked && (
+                    <button
+                      type="button"
+                      aria-label={`Remove admin from ${u.email}`}
+                      disabled={revokingEmail !== null}
+                      onClick={() => void revoke(u.email)}
+                      className="inline-flex w-11 shrink-0 items-center justify-center rounded-xl border border-red-300 text-red-600 transition enabled:hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:enabled:hover:bg-red-950"
+                    >
+                      <ShieldOff className="h-4 w-4" aria-hidden />
+                    </button>
+                  )}
+                  {/* Reset this user to fresh: admin action with an inline confirm.
                   First tap arms (shows a red "Reset?" + cancel), second fires.
                   Only on real user rows (a userId to reset). */}
-              {interactive &&
-                (confirmResetId === u.userId ? (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      aria-label={`Confirm reset ${u.email} to fresh`}
-                      disabled={resettingId !== null}
-                      onClick={() => void resetUser(u.userId!)}
-                      className="inline-flex h-full items-center justify-center rounded-lg border border-red-300 px-2 text-xs font-semibold text-red-600 transition enabled:hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:enabled:hover:bg-red-950"
-                    >
-                      {resettingId === u.userId ? 'Resetting…' : 'Reset?'}
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Cancel reset ${u.email}`}
-                      disabled={resettingId !== null}
-                      onClick={() => setConfirmResetId(null)}
-                      className="border-border text-muted-foreground enabled:hover:bg-secondary inline-flex h-full items-center justify-center rounded-lg border px-2 text-xs transition disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    aria-label={`Reset ${u.email} to fresh`}
-                    disabled={resettingId !== null}
-                    onClick={() => setConfirmResetId(u.userId)}
-                    className="border-border text-muted-foreground enabled:hover:bg-secondary inline-flex w-11 shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-50"
-                  >
-                    <RotateCcw className="h-4 w-4" aria-hidden />
-                  </button>
-                ))}
-            </div>
-          )
-        })}
-        {users.length === 0 && (
-          <p className="text-muted-foreground text-sm">No users yet.</p>
-        )}
-      </div>
+                  {interactive &&
+                    (confirmResetId === u.userId ? (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          aria-label={`Confirm reset ${u.email} to fresh`}
+                          disabled={resettingId !== null}
+                          onClick={() => void resetUser(u.userId!)}
+                          className="inline-flex h-full items-center justify-center rounded-xl border border-red-300 px-2.5 text-xs font-semibold text-red-600 transition enabled:hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:enabled:hover:bg-red-950"
+                        >
+                          {resettingId === u.userId ? 'Resetting…' : 'Reset?'}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Cancel reset ${u.email}`}
+                          disabled={resettingId !== null}
+                          onClick={() => setConfirmResetId(null)}
+                          className="border-border bg-card text-muted-foreground enabled:hover:bg-secondary inline-flex h-full items-center justify-center rounded-xl border px-2.5 text-xs transition disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        aria-label={`Reset ${u.email} to fresh`}
+                        disabled={resettingId !== null}
+                        onClick={() => setConfirmResetId(u.userId)}
+                        className="border-border bg-card text-muted-foreground enabled:hover:bg-secondary enabled:hover:text-foreground inline-flex w-11 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-50"
+                      >
+                        <RotateCcw className="h-4 w-4" aria-hidden />
+                      </button>
+                    ))}
+                </div>
+              )
+            })}
+            {visible.length === 0 && (
+              <p className="text-muted-foreground py-2 text-sm">
+                {users.length === 0
+                  ? 'No users yet.'
+                  : 'No users match the filter.'}
+              </p>
+            )}
+          </div>
+        </Card>
 
-      {/* Detail — desktop only. At lg+ the detail sits side-by-side with the
+        {/* Detail — desktop only. At lg+ the detail sits side-by-side with the
           list in the real width the data needs. Below lg it is hidden (the
           column would have no room) and the mobile sheet takes over, so the
           old squashed "Select a user on the left" sliver is gone on phones. */}
-      <div className="border-border hidden min-h-[60vh] min-w-0 rounded-xl border p-5 lg:block">
-        {loadingId && !detail ? (
-          <p className="text-muted-foreground text-sm">Loading…</p>
-        ) : detail ? (
-          <DatapointsDetail detail={detail} />
-        ) : (
-          <p className="text-muted-foreground text-sm">
-            Select a user on the left.
-          </p>
-        )}
-      </div>
+        <Card className="border-border bg-card hidden min-h-[60vh] min-w-0 rounded-[var(--radius-ios)] border p-5 lg:block">
+          {loadingId && !detail ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : detail ? (
+            <DatapointsDetail detail={detail} />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              Select a user on the left.
+            </p>
+          )}
+        </Card>
 
-      {/* Detail — mobile sheet. Slides up when a user is tapped on a narrow
+        {/* Detail — mobile sheet. Slides up when a user is tapped on a narrow
           screen; desktop never sees it (lg:hidden), so there is no double
           render. */}
-      <div className="lg:hidden">
-        <Sheet
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
-          title={detail?.email ?? 'User data points'}
-        >
-          {loadingId && !detail ? (
-            <p className="text-muted-foreground py-6 text-sm">Loading…</p>
-          ) : detail ? (
-            <div className="pb-2">
-              <DatapointsDetail detail={detail} hideEmailHeader />
+        <div className="lg:hidden">
+          <Sheet
+            open={sheetOpen}
+            onOpenChange={setSheetOpen}
+            title={detail?.email ?? 'User data points'}
+          >
+            {loadingId && !detail ? (
+              <p className="text-muted-foreground py-6 text-sm">Loading…</p>
+            ) : detail ? (
+              <div className="pb-2">
+                <DatapointsDetail detail={detail} hideEmailHeader />
+              </div>
+            ) : null}
+          </Sheet>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The analytics header: a row of small stat cards (totals) plus a compact,
+ * dependency-free inline-SVG chart of accounts created per day over the last
+ * ~30 days. On-brand (forest-green bars, mustard "today" accent) and small;
+ * degrades to a friendly note when there is not enough signup data yet.
+ */
+function UsersAnalytics({
+  summary,
+  chart,
+}: {
+  summary: ReturnType<typeof summarizeUsers>
+  chart: ReturnType<typeof signupsByDay>
+}) {
+  const stats: Array<{ label: string; value: number }> = [
+    { label: 'Accounts', value: summary.total },
+    { label: 'Onboarded', value: summary.onboarded },
+    { label: 'Admins', value: summary.admins },
+    { label: 'Swipes', value: summary.swipes },
+    { label: 'New this week', value: summary.newThisWeek },
+  ]
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+      {/* Totals */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {stats.map((s) => (
+          <Card
+            key={s.label}
+            className="border-border bg-card rounded-2xl border px-4 py-3"
+          >
+            <div className="text-foreground text-2xl font-semibold tabular-nums">
+              {s.value}
             </div>
-          ) : null}
-        </Sheet>
+            <div className="text-muted-foreground mt-0.5 text-xs">
+              {s.label}
+            </div>
+          </Card>
+        ))}
+      </div>
+      {/* Signups over time */}
+      <Card className="border-border bg-card rounded-2xl border px-4 py-3.5">
+        <div className="flex items-baseline justify-between">
+          <h3 className="text-foreground text-sm font-semibold">Sign-ups</h3>
+          <span className="text-muted-foreground text-xs">last 30 days</span>
+        </div>
+        <SignupsChart chart={chart} />
+      </Card>
+    </div>
+  )
+}
+
+/**
+ * Inline-SVG bar chart of daily signups (no chart lib — none is installed). Bars
+ * are forest green (the brand --primary), today's bar is mustard (--accent) so
+ * the most recent day reads at a glance. The viewBox scales to the container
+ * width; an all-zero window shows a "not enough data yet" note instead.
+ */
+function SignupsChart({ chart }: { chart: ReturnType<typeof signupsByDay> }) {
+  const max = chart.reduce((m, d) => Math.max(m, d.count), 0)
+  if (max === 0) {
+    return (
+      <p className="text-muted-foreground mt-3 text-xs">
+        Not enough sign-up data yet.
+      </p>
+    )
+  }
+  const W = 300
+  const H = 64
+  const n = chart.length
+  const gap = 1.5
+  const barW = (W - gap * (n - 1)) / n
+  const total = chart.reduce((sum, d) => sum + d.count, 0)
+  return (
+    <div className="mt-2">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height={H}
+        role="img"
+        aria-label={`Sign-ups per day over the last ${n} days, ${total} total`}
+        preserveAspectRatio="none"
+      >
+        {chart.map((d, i) => {
+          // At least 2px tall for any non-zero day so a single signup is visible.
+          const h = d.count === 0 ? 0 : Math.max(2, (d.count / max) * H)
+          const isToday = i === n - 1
+          return (
+            <rect
+              key={d.date}
+              x={i * (barW + gap)}
+              y={H - h}
+              width={barW}
+              height={h}
+              rx={0.75}
+              className={isToday ? 'fill-accent' : 'fill-primary'}
+            >
+              <title>{`${d.date}: ${d.count} sign-up${d.count === 1 ? '' : 's'}`}</title>
+            </rect>
+          )
+        })}
+      </svg>
+      <div className="text-muted-foreground mt-1 flex justify-between text-[10px]">
+        <span>{chart[0]?.date.slice(5)}</span>
+        <span>today</span>
       </div>
     </div>
   )
@@ -428,14 +648,14 @@ function DatapointsDetail({
         ))}
       </div>
       <div>
-        <h3 className="mb-2 text-sm font-semibold">
+        <h3 className="text-foreground mb-2 text-sm font-semibold">
           Data points ({detail.swipes.length} swipes)
         </h3>
-        <div className="max-h-[50vh] space-y-1 overflow-auto">
+        <div className="max-h-[50vh] space-y-0.5 overflow-auto">
           {detail.swipes.map((s, i) => (
             <div
               key={i}
-              className="flex items-center justify-between border-b py-1.5 text-sm"
+              className="border-border flex items-center justify-between border-b py-2 text-sm last:border-b-0"
             >
               <span className="flex items-center gap-2 truncate">
                 {s.direction === 'like' ? (

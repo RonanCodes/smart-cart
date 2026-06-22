@@ -21,5 +21,11 @@ import { requireAuthedBeforeLoad } from '#/lib/route-guards'
  */
 export const Route = createFileRoute('/_authed')({
   beforeLoad: () => requireAuthedBeforeLoad(),
-  component: () => <Outlet />,
+  // The persistent feedback affordance is now Sentry's user-feedback widget
+  // (#404), auto-injected by `feedbackIntegration` in observability-client so it
+  // hovers bottom-right on EVERY page (landing + signed-in) as the single
+  // always-available button. The old custom floating FeedbackBubble was removed
+  // here to avoid two competing bottom-right widgets; the in-app feedback form
+  // (Settings "Send feedback" + the `app_feedback` table + admin inbox) stays.
+  component: Outlet,
 })

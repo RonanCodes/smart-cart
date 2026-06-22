@@ -37,8 +37,6 @@ export {
   concatAmounts,
   mergeAmount,
   planMerge,
-  shouldAutoSeed,
-  shouldReplaceRecipeItemsOnSeed,
   countMissing,
   backfillAmounts,
   addToListCta,
@@ -49,3 +47,13 @@ export type {
   NewShoppingItem,
   MergePlan,
 } from './persist'
+
+export {
+  cleanRows,
+  dedupeKey,
+  isNonGroceryWater,
+  isZeroAmount,
+} from './clean-list'
+export type { CleanableRow } from './clean-list'
+
+export { isPantryStaple } from './pantry-staples'

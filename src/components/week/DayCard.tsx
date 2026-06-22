@@ -52,6 +52,13 @@ interface DayCardProps {
    */
   swapOptions?: Array<WeekDayView>
   /**
+   * Human-readable household the week is sized for, e.g. "2 adults + 2 kids"
+   * (#373). Shown on the portions pill so the number is never misread as the
+   * whole head count. Falls back to the recipe's serving count wording when the
+   * household isn't known.
+   */
+  portionsLabel?: string
+  /**
    * Optional persist hook for the deck (#week-align). When `swapOptions` is a real
    * pre-ranked deck, the local cycle is only an instant preview; pass this to
    * write the committed pick to the plan (the design route omits it, so its deck
@@ -84,6 +91,7 @@ function DayCardImpl({
   onSwapTo,
   note,
   swapOptions,
+  portionsLabel,
 }: DayCardProps) {
   const skipped = !day.recipeRef
   const options = swapOptions && swapOptions.length > 1 ? swapOptions : null
@@ -127,7 +135,17 @@ function DayCardImpl({
     const dx = e.clientX - startX.current
     if (Math.abs(dx) > 6) {
       dragged.current = true
-      e.currentTarget.setPointerCapture(e.pointerId)
+      // Pointer capture keeps the drag glued to the dish even if the finger
+      // strays off it. It is a nice-to-have, NOT load-bearing: some in-app
+      // webviews (and a stray pointer state) throw from setPointerCapture, and
+      // an unguarded throw here aborted the whole move handler so the swipe
+      // never tracked and silently never committed (#409 — "swipe doesn't
+      // work"). Swallow the failure; the swipe still commits without capture.
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+      } catch {
+        // no-op: capture is optional, the swipe works without it
+      }
     }
     // Left-only; a touch of give to the right so it feels physical.
     const clamped = dx < 0 ? Math.max(dx, -SWIPE_MAX) : Math.min(dx * 0.3, 12)
@@ -282,8 +300,14 @@ function DayCardImpl({
 
           {!skipped && (
             <div className="mt-2.5 flex items-center gap-2">
-              <span className="border-border bg-card text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm">
-                <Utensils className="h-3.5 w-3.5" />2
+              <span
+                className="border-border bg-card text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm"
+                aria-label={
+                  portionsLabel ? `Cooks for ${portionsLabel}` : undefined
+                }
+              >
+                <Utensils className="h-3.5 w-3.5" />
+                {portionsLabel ?? '2'}
               </span>
               <button
                 type="button"

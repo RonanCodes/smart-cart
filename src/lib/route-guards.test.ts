@@ -58,6 +58,22 @@ describe('authedRedirectTarget (shared _authed guard, #251)', () => {
       '/sign-in',
     )
   })
+
+  // #381: `/week` crashed into the error boundary with `e.user` because the
+  // resolved auth context was itself `undefined` (a prod 500 made the server fn
+  // resolve to nothing, same failure mode as the #380 loader). The guard must
+  // fail closed to /sign-in instead of reading `.user` off undefined.
+  it('fails closed to /sign-in when the whole context is undefined (#381)', () => {
+    expect(authedRedirectTarget(undefined as unknown as AuthContext)).toBe(
+      '/sign-in',
+    )
+  })
+
+  it('fails closed to /sign-in when the context is null (#381)', () => {
+    expect(authedRedirectTarget(null as unknown as AuthContext)).toBe(
+      '/sign-in',
+    )
+  })
 })
 
 describe('AuthContext shape (resolveAuthContext return, #251)', () => {

@@ -267,7 +267,14 @@ function baseUnit(dimension: RequiredAmount['dimension']): string {
 /* The basket builder                                                          */
 /* -------------------------------------------------------------------------- */
 
-/** Whole packs needed for a required amount vs a product's pack size; 1 when n/a. */
+/**
+ * Whole packs needed for a required amount vs a product's pack size; 1 when n/a.
+ *
+ * A cooking measure we cannot compare to a pack (a teaspoon, a pinch, "to taste"
+ * -> parseRequired null) buys exactly ONE pack. That already handles the
+ * "1 tsp vanilla" case: it adds one bottle, never three. When the recipe gives a
+ * real comparable mass/volume (e.g. 1200 g flour), normal pack rounding applies.
+ */
 export function packsForAmount(
   amount: string | null | undefined,
   product: { size: ParsedSize },
@@ -286,7 +293,16 @@ function accumulateMatchedLine(
   lineItems: Array<BasketLineItem>,
   waste: BasketWasteSummary,
 ): { lineCents: number; estimated: boolean } | null {
-  if (match.product === null || match.priceCents === null) return null
+  // A product with no slug can be PRICED but cannot be added to the store cart
+  // (cart-build skips items with no SKU), so the displayed total would exceed the
+  // real basket. Exclude it from pricing too, so the total only counts items that
+  // can actually be added (#plan-cart-mismatch).
+  if (
+    match.product === null ||
+    match.priceCents === null ||
+    match.product.slug === null
+  )
+    return null
 
   const product = match.product
   const required = parseRequired(req.amount)
