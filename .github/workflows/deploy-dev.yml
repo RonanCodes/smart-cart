@@ -28,18 +28,31 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # CRITICAL: build with CLOUDFLARE_ENV=dev. The @cloudflare/vite-plugin emits
+      # a FLATTENED dist/server/wrangler.json (single env, no `env` block) plus a
+      # .wrangler/deploy/config.json redirect, and `wrangler deploy` reads that
+      # redirected file. Without CLOUDFLARE_ENV the plugin flattens the TOP-LEVEL
+      # (prod) config, so `deploy --env dev` finds no `dev` env in the redirected
+      # file and silently deploys PROD (name smart-cart, prod D1, souso.app). With
+      # CLOUDFLARE_ENV=dev the plugin flattens the `env.dev` block instead, so the
+      # redirected config already targets smart-cart-dev / smart_cart_db_dev /
+      # dev.souso.app and we deploy WITHOUT `--env dev`.
       - run: pnpm build
+        env:
+          CLOUDFLARE_ENV: dev
       # Apply only new D1 migrations to the dev database. wrangler tracks applied
       # ones in the d1_migrations table. Never a per-file execute loop (rate limits).
+      # The explicit DB name targets dev directly (no --env needed).
       - name: Apply D1 migrations (dev)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 migrations apply smart_cart_db_dev --remote --env dev
+          command: d1 migrations apply smart_cart_db_dev --remote
+      # No `--env dev`: the dev-flattened redirected config IS the dev worker.
       - name: Deploy worker (dev)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --env dev
+          command: deploy
