@@ -1,0 +1,19 @@
+name: Guard main source
+# Promotion gate: main may ONLY be updated from `develop`. Feature work goes to
+# develop (deploys to dev.souso.app); promoting develop -> main deploys to prod.
+# This stops a stray feature branch (or a contributor) from PR'ing straight to prod.
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  guard:
+    name: PR into main must come from develop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch
+        run: |
+          if [ "${{ github.head_ref }}" != "develop" ]; then
+            echo "::error::PRs into main must come from 'develop' (got '${{ github.head_ref }}'). Merge your work into develop first, then open a develop -> main PR."
+            exit 1
+          fi
+          echo "Source branch is develop ✓"
