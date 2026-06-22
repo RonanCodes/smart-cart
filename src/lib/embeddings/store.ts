@@ -9,7 +9,7 @@
  * codec (topK) and the matchers, which take the loaded entries as input.
  */
 
-import { isNotNull } from 'drizzle-orm'
+import { and, eq, isNotNull } from 'drizzle-orm'
 import { getDb } from '../../db/client'
 import { storeProduct } from '../../db/store-product-schema'
 import { recipeEmbedding } from '../../db/recipe-embedding-schema'
@@ -22,6 +22,7 @@ export interface ProductVectorEntry extends VectorEntry {
 }
 
 let productCache: Promise<Array<ProductVectorEntry>> | null = null
+const productStoreCache = new Map<string, Promise<Array<ProductVectorEntry>>>()
 let recipeCache: Promise<Array<VectorEntry>> | null = null
 
 async function loadProductVectors(): Promise<Array<ProductVectorEntry>> {
@@ -34,6 +35,31 @@ async function loadProductVectors(): Promise<Array<ProductVectorEntry>> {
     })
     .from(storeProduct)
     .where(isNotNull(storeProduct.embedding))
+  const out: Array<ProductVectorEntry> = []
+  for (const r of rows) {
+    if (!r.embedding) continue
+    out.push({ id: r.id, store: r.store, vector: decodeVector(r.embedding) })
+  }
+  return out
+}
+
+async function loadProductVectorsForStore(
+  store: string,
+): Promise<Array<ProductVectorEntry>> {
+  const db = await getDb()
+  const rows = await db
+    .select({
+      id: storeProduct.id,
+      store: storeProduct.store,
+      embedding: storeProduct.embedding,
+    })
+    .from(storeProduct)
+    .where(
+      and(
+        eq(storeProduct.store, store.toLowerCase()),
+        isNotNull(storeProduct.embedding),
+      ),
+    )
   const out: Array<ProductVectorEntry> = []
   for (const r of rows) {
     if (!r.embedding) continue
@@ -63,8 +89,13 @@ export function getProductVectors(): Promise<Array<ProductVectorEntry>> {
 export async function getProductVectorsForStore(
   store: string,
 ): Promise<Array<ProductVectorEntry>> {
-  const all = await getProductVectors()
-  return all.filter((e) => e.store === store)
+  const key = store.toLowerCase()
+  let cached = productStoreCache.get(key)
+  if (!cached) {
+    cached = loadProductVectorsForStore(key)
+    productStoreCache.set(key, cached)
+  }
+  return cached
 }
 
 /** All recipe vectors, memoised per isolate. */
@@ -84,5 +115,6 @@ export async function getRecipeVectorMap(): Promise<
 /** Test/replan-seam hook: drop the per-isolate cache (used after a re-seed). */
 export function resetEmbeddingCache(): void {
   productCache = null
+  productStoreCache.clear()
   recipeCache = null
 }
