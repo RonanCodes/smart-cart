@@ -61,7 +61,7 @@ describe('friendlyTipError (#307 user-facing mapping)', () => {
     })
     const msg = friendlyTipError(err)
     expect(msg).toContain('Live payments are not enabled')
-    expect(msg).toContain('no charge was made')
+    expect(msg).toContain('No charge was made')
     // Never leaks the raw Mollie blob to the UI.
     expect(msg).not.toContain('Unprocessable Entity')
   })

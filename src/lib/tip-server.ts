@@ -64,11 +64,11 @@ export function friendlyTipError(err: unknown): string {
       text.includes('method') &&
       (text.includes('not activated') || text.includes('not enabled'))
     ) {
-      return 'Live payments are not enabled on this account yet. Your cart still opened, no charge was made.'
+      return 'Live payments are not enabled on this account yet. No charge was made.'
     }
-    return "We couldn't start that payment. Your cart still opened, no charge was made."
+    return "We couldn't start that payment. No charge was made."
   }
-  return "We couldn't start that payment. Your cart still opened, no charge was made."
+  return "We couldn't start that payment. No charge was made."
 }
 
 /** Minimal shape of the Mollie client the webhook needs, for injection in tests. */
