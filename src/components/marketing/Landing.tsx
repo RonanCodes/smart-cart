@@ -8,6 +8,7 @@ import { Input } from '#/components/ui/input'
 import { StickyNote } from '#/components/ui/sticky-note'
 import { BetaBadge } from '#/components/ui/beta-badge'
 import { BETA_NOTE } from '#/lib/beta'
+import { useLiveCount, useCountUp } from './use-live-count'
 
 /**
  * Souso marketing landing: conversion-focused, mobile-first (390px), built for
@@ -87,6 +88,12 @@ export function Landing({
   )
   const [error, setError] = useState<string | null>(null)
 
+  // Live counter: open a WebSocket to the CounterDO, seeded with the SSR
+  // userCount, and ease the displayed number up as people sign up. Degrades to
+  // the static SSR count if the socket can't open (see useLiveCount).
+  const liveCount = useLiveCount(userCount)
+  const displayCount = useCountUp(liveCount)
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!email.trim()) return
@@ -145,9 +152,12 @@ export function Landing({
             Souso plans your whole week of dinners and fills a ready-to-order
             basket. Save time, spend less, waste less food.
           </p>
-          {userCount >= SOCIAL_PROOF_MIN && (
-            <p className="text-primary mt-4 text-sm font-semibold">
-              {userCount.toLocaleString('en')} home cooks planning with Souso
+          {liveCount >= SOCIAL_PROOF_MIN && (
+            <p
+              className="text-primary mt-4 text-sm font-semibold"
+              aria-live="polite"
+            >
+              {displayCount.toLocaleString('en')} home cooks planning with Souso
             </p>
           )}
           <p className="text-muted-foreground mx-auto mt-4 max-w-sm text-xs">
