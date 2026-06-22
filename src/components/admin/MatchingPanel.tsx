@@ -10,7 +10,7 @@ import { Card } from '#/components/ui/card'
 /**
  * Admin "Matching" scenario runner (ADR-0004). Type an ingredient (or pick a
  * golden case) and see the embedding ingredient -> SKU matcher work: the cosine
- * top-K candidates, the cheap top-1, and the LLM-reranked pick side by side. This
+ * top-K candidates and the LLM-reranked pick side by side. This
  * is the demo proof that "mushroom" finds the Dutch "champignons" with no synonym
  * table, and the gap the other admin tabs do not cover (they measure the
  * recommender, not match quality).
@@ -133,14 +133,9 @@ export function MatchingPanel() {
               no model).
             </p>
           )}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3">
             <Pick
-              title="Cheap tier (cosine top-1)"
-              hit={result.cheap}
-              store={result.store}
-            />
-            <Pick
-              title="Accurate tier (LLM rerank)"
+              title="Reranked match"
               hit={result.reranked}
               store={result.store}
             />
@@ -192,7 +187,7 @@ function Pick({
   store,
 }: {
   title: string
-  hit: MatchScenarioResult['cheap'] | null
+  hit: MatchScenarioResult['reranked'] | null
   /** The store the scenario ran against ('ah'), so the badge / link can resolve. */
   store: string
 }) {

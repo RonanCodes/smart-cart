@@ -54,13 +54,13 @@ that D1 (see "Where the data lives").
   so we can price the basket per store and fill the AH cart.
 - **Where:** `src/lib/pricing/` (`normalise.ts`, `match.ts`, `catalogue.ts`,
   `price-list.ts`).
-- **Mechanism: embeddings + cosine, LLM rerank at the cart decision point.** The
+- **Mechanism: embeddings + cosine retrieval, LLM rerank for product truth.** The
   ingredient text is embedded and scored by cosine against committed product vectors.
-  - **Cart path:** cosine top-K, then a `generateObject` rerank (`models.fast`) picks the
-    right SKU and sanity-checks quantity plausibility. This is the one place a wrong pick
-    is expensive, so it gets the LLM.
-  - **Price totals and staples search:** cheap cosine top-1, **no LLM** (a week's list is
-    ~60 lines; a per-line LLM call is too slow and too costly).
+  - **Cart and price paths:** cosine top-K, then a `generateObject` rerank picks the
+    right SKU or declines. Price comparison uses the same accurate path through
+    `match_cache` so repeated store/name resolutions do not keep paying the model cost.
+  - **No cosine-only product truth:** raw embedding neighbours are candidates, not final
+    matches.
   - A **confidence flag on every match** so estimated lines never silently inflate the
     "save money" claim. Grounded and explainable, as the hard rules require.
 - **Mechanism replaced:** the earlier token / fuzzy-string matcher in `match.ts`, which

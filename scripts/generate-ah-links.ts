@@ -119,12 +119,17 @@ async function main() {
   const { decodeVector } = await import('#/lib/embeddings/codec')
   const { getCatalogue } = await import('#/lib/pricing/catalogue')
   const { storeProductId } = await import('#/lib/pricing/store-product-rows')
-  const { selectCandidates, cheapMatch } =
+  const { selectCandidatesFromQueries, rerankMatch } =
     await import('#/lib/pricing/match-semantic')
+  const { expandIngredientSearchTerms } =
+    await import('#/lib/pricing/expand-ingredient')
   const { embedQueries } = await import('#/lib/embeddings/embed')
+  const { models } = await import('#/lib/models')
+  const { generateObject } = await import('#/lib/braintrust-ai')
   const { basketForStoreWithMatches, packsForAmount } =
     await import('#/lib/pricing/basket')
   const { buildAllItemsCartUrl } = await import('#/lib/cart-build')
+  const { splitAmount } = await import('#/lib/pricing/resolve-lines')
   const { assertManifest } = await import('#/lib/embeddings/manifest')
 
   const dir = join(process.cwd(), 'data', 'embeddings')
@@ -146,26 +151,38 @@ async function main() {
   const catalogue = getCatalogue(store)!
   const lookup = new Map(catalogue.products.map((p) => [storeProductId(p), p]))
 
-  const names = lines.map((l) => l.name)
-  const vectors = await embedQueries(names)
-  const resolved = names.map((name, i) => {
-    const vec = vectors[i]
-    if (!vec) {
-      return {
-        name,
-        match: {
+  const resolved = await Promise.all(
+    lines.map(async (line) => {
+      try {
+        const { terms } = await expandIngredientSearchTerms(line.name, {
+          model: models.rerank,
+          generateObject,
+        })
+        const vectors = await embedQueries(terms)
+        const cands = selectCandidatesFromQueries(vectors, entries, lookup, 10)
+        const { qty, unit } = splitAmount(line.amount)
+        const { match } = await rerankMatch(
+          { name: line.name, qty, unit },
+          cands,
           store,
-          product: null,
-          priceCents: null,
-          confidence: 'none' as const,
-          estimated: true,
-          score: 0,
-        },
+          { model: models.rerank, generateObject },
+        )
+        return { name: line.name, match }
+      } catch {
+        return {
+          name: line.name,
+          match: {
+            store,
+            product: null,
+            priceCents: null,
+            confidence: 'none' as const,
+            estimated: true,
+            score: 0,
+          },
+        }
       }
-    }
-    const cands = selectCandidates(vec, entries, lookup, 1)
-    return { name, match: cheapMatch(store, cands) }
-  })
+    }),
+  )
 
   const basket = basketForStoreWithMatches(lines, resolved, catalogue)
   const cartItems = resolved.map(({ name, match }) => ({

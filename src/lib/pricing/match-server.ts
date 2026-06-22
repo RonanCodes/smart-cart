@@ -3,13 +3,11 @@ import { createServerFn } from '@tanstack/react-start'
 /**
  * Server seam for the embedding ingredient -> SKU matcher (ADR-0004). Wires the
  * pure matcher (match-semantic.ts) to the live bindings: embeds the ingredient
- * (OpenAI), loads the store's product vectors from D1, and runs BOTH tiers so the
- * admin Matching view can show the cheap cosine top-1 next to the LLM rerank for
- * the same ingredient. Server-only: every server import is lazy so none of it
+ * (OpenAI), loads the store's product vectors from D1, and reranks the retrieved
+ * cosine candidates. Server-only: every server import is lazy so none of it
  * reaches the client bundle (the admin-server / replan-server pattern).
  *
- * This is also the entry the cart path will call (rerank tier) once price-list is
- * moved onto it; for now it powers the scenario runner that proves match quality.
+ * This powers the scenario runner that proves match quality.
  */
 
 export interface MatchHit {
@@ -42,23 +40,12 @@ export interface MatchScenarioResult {
     priceCents: number
     score: number
   }>
-  /** Cheap tier: cosine top-1, confidence from the score. No LLM. */
-  cheap: MatchHit
   /** Accurate tier: the LLM-reranked pick. Null when there was nothing to rerank. */
   reranked: MatchHit | null
   /** Terms embedded for cosine retrieval (shown in admin for debugging). */
   searchTerms: Array<string>
   /** True when Dutch term expansion fell back to the raw ingredient only. */
   expandFallback?: boolean
-}
-
-const EMPTY_HIT: MatchHit = {
-  name: null,
-  slug: null,
-  priceCents: null,
-  confidence: 'none',
-  score: 0,
-  estimated: true,
 }
 
 export const runMatchScenario = createServerFn({ method: 'POST' })
@@ -78,7 +65,6 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
         store,
         keyPresent,
         candidates: [],
-        cheap: EMPTY_HIT,
         reranked: null,
         searchTerms: [],
       }
@@ -87,7 +73,7 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
     const { getProductVectorsForStore } = await import('../embeddings/store')
     const { getCatalogue } = await import('./catalogue')
     const { storeProductId } = await import('./store-product-rows')
-    const { selectCandidatesFromQueries, cheapMatch, rerankMatch } =
+    const { selectCandidatesFromQueries, rerankMatch } =
       await import('./match-semantic')
     const { candidateId } = await import('./rerank-sku')
     const { expandIngredientSearchTerms } = await import('./expand-ingredient')
@@ -129,7 +115,6 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
             10,
           )
 
-          const cheap = cheapMatch(store, candidates)
           const {
             match: reranked,
             reason: rerankReason,
@@ -141,7 +126,7 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
           })
 
           const toHit = (
-            m: typeof cheap,
+            m: typeof reranked,
             opts?: {
               reason?: string | null
               declined?: boolean
@@ -172,7 +157,6 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
               priceCents: c.product.priceCents,
               score: c.score,
             })),
-            cheap: toHit(cheap),
             reranked: candidates.length
               ? toHit(reranked, {
                   reason: rerankReason,

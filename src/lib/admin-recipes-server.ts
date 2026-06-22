@@ -59,7 +59,7 @@ export const listAdminRecipes = createServerFn({ method: 'GET' }).handler(
   },
 )
 
-/** One ingredient with its best AH product match (cheap cosine tier, no LLM). */
+/** One ingredient with its best reranked AH product match. */
 export interface IngredientSkuMatch {
   ingredient: string
   /** Matched product name, or null when nothing cleared the floor. */
@@ -85,12 +85,10 @@ export interface AdminRecipeDetail {
 }
 
 /**
- * Load one recipe and match each of its ingredients to an AH SKU using the pure
- * matcher (selectCandidates + cheapMatch) over the D1 product vectors. The cheap
- * tier is one batched embed for all the ingredient lines plus an in-memory cosine
- * scan, so the whole detail loads in one round-trip, no per-line LLM. If the
- * embed call has no key or fails, ingredients are returned WITHOUT matches rather
- * than breaking the page (graceful degrade).
+ * Load one recipe and match each of its ingredients to an AH SKU using the same
+ * accurate cached resolver as the cart/price path. If the embed/rerank path has
+ * no key or fails, ingredients are returned WITHOUT matches rather than breaking
+ * the page (graceful degrade).
  */
 export const getRecipeDetail = createServerFn({ method: 'GET' })
   .inputValidator((d: { recipeId: string }) => d)
@@ -134,10 +132,9 @@ export const getRecipeDetail = createServerFn({ method: 'GET' })
   })
 
 /**
- * Match a list of ingredient names to AH SKUs (cheap cosine tier). One batched
- * embed for all lines, then a cosine top-K + cheapMatch per line over the loaded
- * D1 product vectors. Degrades to no-match (key absent or any error) so the
- * detail page always renders.
+ * Match a list of ingredient names to AH SKUs using embedding retrieval plus
+ * rerank validation. Degrades to no-match (key absent or any error) so the detail
+ * page always renders.
  */
 async function matchIngredients(names: Array<string>): Promise<{
   matches: Array<IngredientSkuMatch>
@@ -159,44 +156,23 @@ async function matchIngredients(names: Array<string>): Promise<{
   }
 
   try {
-    const { embedQueries } = await import('./embeddings/embed')
-    const { getProductVectorsForStore } = await import('./embeddings/store')
-    const { getCatalogue } = await import('./pricing/catalogue')
-    const { storeProductId } = await import('./pricing/store-product-rows')
-    const { selectCandidates, cheapMatch } =
-      await import('./pricing/match-semantic')
-
     const store = 'ah'
-    const [vectors, entries] = await Promise.all([
-      embedQueries(names),
-      getProductVectorsForStore(store),
-    ])
-    const catalogue = getCatalogue(store)
-    const lookup = new Map(
-      (catalogue?.products ?? []).map((p) => [storeProductId(p), p]),
+    const { resolveLinesForStoreCached } = await import('./pricing/match-cache')
+    const resolved = await resolveLinesForStoreCached(
+      names.map((name) => ({ name })),
+      store,
     )
-
-    const matches = names.map((ingredient, i): IngredientSkuMatch => {
-      const qv = vectors[i]
-      if (!qv) {
+    const matches = resolved.map(
+      ({ name: ingredient, match: hit }): IngredientSkuMatch => {
         return {
           ingredient,
-          productName: null,
-          priceCents: null,
-          confidence: 'none',
-          slug: null,
+          productName: hit.product?.name ?? null,
+          priceCents: hit.priceCents,
+          confidence: hit.confidence,
+          slug: hit.product?.slug ?? null,
         }
-      }
-      const candidates = selectCandidates(qv, entries, lookup, 10)
-      const hit = cheapMatch(store, candidates)
-      return {
-        ingredient,
-        productName: hit.product?.name ?? null,
-        priceCents: hit.priceCents,
-        confidence: hit.confidence,
-        slug: hit.product?.slug ?? null,
-      }
-    })
+      },
+    )
     return { matches, keyPresent }
   } catch {
     // Matching is best-effort: show ingredient names without a match rather than
