@@ -6,6 +6,8 @@ import { SafeArea } from '#/components/ui/safe-area'
 import { Button, buttonVariants } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { StickyNote } from '#/components/ui/sticky-note'
+import { BetaBadge } from '#/components/ui/beta-badge'
+import { BETA_NOTE } from '#/lib/beta'
 
 /**
  * Souso marketing landing: conversion-focused, mobile-first (390px), built for
@@ -109,11 +111,10 @@ export function Landing({
       <div className="mx-auto flex w-full max-w-md flex-col px-6 pb-16">
         {/* Hero */}
         <section className="pt-8 text-center">
-          <img
-            src="/souso-mark.svg"
-            alt="Souso"
-            className="mx-auto h-11 w-auto"
-          />
+          <div className="flex items-center justify-center gap-2">
+            <img src="/souso-mark.svg" alt="Souso" className="h-11 w-auto" />
+            <BetaBadge />
+          </div>
 
           {/* A little board of dishes. */}
           <div className="relative mt-7 flex items-end justify-center gap-2">
@@ -147,6 +148,9 @@ export function Landing({
               {userCount.toLocaleString('en')} home cooks planning with Souso
             </p>
           )}
+          <p className="text-muted-foreground mx-auto mt-4 max-w-sm text-xs">
+            {BETA_NOTE}
+          </p>
         </section>
 
         {/* Primary CTA: once live, a "get started" button into sign-in; before

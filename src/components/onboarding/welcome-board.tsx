@@ -1,4 +1,6 @@
 import { Button } from '#/components/ui/button'
+import { BetaBadge } from '#/components/ui/beta-badge'
+import { BETA_NOTE } from '#/lib/beta'
 
 /**
  * WelcomeBoard — the Souso welcome screen that opens onboarding. A scattered
@@ -76,7 +78,10 @@ export function WelcomeBoard({
 
       {/* Menu over the board. */}
       <div className="relative mt-auto flex flex-col items-center px-7 pb-16 text-center">
-        <img src="/souso-mark.svg" alt="Souso" className="h-14 w-auto" />
+        <div className="flex items-center gap-2">
+          <img src="/souso-mark.svg" alt="Souso" className="h-14 w-auto" />
+          <BetaBadge />
+        </div>
         <h1
           className="mt-4 text-[2.1rem] leading-[1.04] font-bold"
           style={{ letterSpacing: '-0.03em' }}
@@ -86,6 +91,9 @@ export function WelcomeBoard({
         <p className="text-muted-foreground mt-2.5 max-w-[20rem] text-[0.95rem]">
           Tell Souso how your household eats once. Every week of dinners just
           works, basket and all.
+        </p>
+        <p className="text-muted-foreground mt-3 max-w-[20rem] text-xs">
+          {BETA_NOTE}
         </p>
         <Button size="pill" className="mt-7" onClick={onGetStarted}>
           Get started
