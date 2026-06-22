@@ -4,12 +4,9 @@
  * ingredient finds the Dutch product ("mushroom" -> champignons) with no synonym
  * table, because the vectors carry the meaning.
  *
- * Two tiers, so we only pay for the LLM where accuracy matters:
- *  - CHEAP (cosine top-1, no LLM): price totals + staples search. A week's list
- *    across stores is ~60 lines; per-line LLM reranks would be too slow/costly.
- *    Confidence comes from the cosine score.
- *  - ACCURATE (cosine top-K -> LLM rerank): the AH cart path, where we build the
- *    real basket. The model picks the right SKU + judges quantity plausibility.
+ * Embeddings retrieve candidates; the reranker validates the actual product.
+ * Cosine alone is not product truth: "almond flour" can sit near almond cake,
+ * and "chilli flakes" can sit near Doritos Sweet chilli.
  *
  * The retrieval (loading the D1 vector index) is injected as `candidates` /
  * `queryVector`, so this module is pure and unit-tested; the server wrapper
@@ -107,33 +104,6 @@ export function selectCandidates(
   return out
 }
 
-/**
- * Catalogue product names that signal a wrong TYPE for a basic raw ingredient:
- * snacks, crisps, ready-meal kits, desserts, sweets, drinks. The cheap (no-LLM)
- * tier has no judgement of its own, so it would happily return "Doritos Sweet
- * chilli" for "chilli flakes" at a medium cosine. This name-signal guard drops
- * such a candidate so the price total reads as an honest no-match instead of
- * confident junk, bringing the displayed total closer to the LLM-reranked cart.
- * Name signals only (the checkjebon catalogue carries no category field).
- */
-const JUNK_TYPE_PATTERNS: ReadonlyArray<RegExp> = [
-  /\b(doritos|lay's|lays|chips|crisps|tortilla|nacho|nachos|borrel|snack|popcorn)\b/i,
-  /\b(cake|taart|gebak|koek|koekjes|biscuits?|cookies?|brownie|muffins?|croissants?|dessert|toetje|ijs|ice\s*cream)\b/i,
-  /\b(chocolate|chocolade|candy|snoep|reep|bonbon)\b/i,
-  /\b(verspakket|eenpans|maaltijd|maaltijdpakket|ready\s*meal|kant-en-klaar|kant\s*en\s*klaar)\b/i,
-  /\b(saus|sauce|dressing|dip|spread|smeer)\b/i,
-  /\b(frisdrank|soda|limonade|cola|sap\b|juice|smoothie|vla|pudding)\b/i,
-]
-
-/**
- * True when a candidate product's name reads as a clearly wrong TYPE (snack,
- * cake, ready-meal, dessert, sweet, drink, sauce) for a basic ingredient. The
- * cheap tier uses this to drop a high-cosine-but-wrong-type nearest neighbour.
- */
-export function looksTypeMismatched(productName: string): boolean {
-  return JUNK_TYPE_PATTERNS.some((re) => re.test(productName))
-}
-
 function toMatch(
   store: string,
   candidate: ProductCandidate,
@@ -150,37 +120,10 @@ function toMatch(
 }
 
 /**
- * CHEAP tier: the top candidate, confidence from its cosine score. No LLM.
- *
- * When `ingredientName` is given, candidates whose name reads as a clearly wrong
- * TYPE (snack/cake/ready-meal/dessert/drink/sauce) are skipped, UNLESS the
- * ingredient itself names that type (so "doritos" can still match Doritos). This
- * stops a basic ingredient ("chilli flakes") returning junk ("Doritos Sweet
- * chilli") as a confident price line; if every candidate is junk, it is an
- * honest no-match. Without `ingredientName` the old top-1 behaviour is unchanged.
- */
-export function cheapMatch(
-  store: string,
-  candidates: ReadonlyArray<ProductCandidate>,
-  ingredientName?: string,
-): IngredientMatch {
-  const ingredientIsJunkType = ingredientName
-    ? looksTypeMismatched(ingredientName)
-    : true // no name given: don't filter (preserve old behaviour)
-  const pick = ingredientIsJunkType
-    ? candidates[0]
-    : candidates.find((c) => !looksTypeMismatched(c.product.name))
-  if (!pick) return NO_MATCH(store)
-  const confidence = confidenceFromCosine(pick.score)
-  if (confidence === 'none') return NO_MATCH(store)
-  return toMatch(store, pick, confidence)
-}
-
-/**
  * ACCURATE tier: LLM rerank over the candidates. The model's pick + confidence
- * win. A real decline (productId null) is honoured as NO_MATCH. With no model
- * (no key) we fall back to the cheap top-1 so the cart still fills; a model error
- * does the same (never crash a basket build).
+ * win. A real decline (productId null) is honoured as NO_MATCH. With no model,
+ * or when the model errors, return NO_MATCH rather than accepting raw cosine as
+ * product truth.
  */
 export async function rerankMatch(
   ingredient: IngredientQuery,
@@ -195,7 +138,7 @@ export async function rerankMatch(
 }> {
   if (candidates.length === 0) return { match: NO_MATCH(store) }
   if (!deps.model) {
-    return { match: cheapMatch(store, candidates), llmFallback: true }
+    return { match: NO_MATCH(store), llmFallback: true }
   }
 
   try {
@@ -209,7 +152,7 @@ export async function rerankMatch(
       reason: result.reason,
     }
   } catch {
-    return { match: cheapMatch(store, candidates), llmFallback: true }
+    return { match: NO_MATCH(store), llmFallback: true }
   }
 }
 

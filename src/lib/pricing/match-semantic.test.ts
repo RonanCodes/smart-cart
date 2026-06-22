@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  cheapMatch,
   confidenceFromCosine,
-  looksTypeMismatched,
   rerankMatch,
   selectCandidates,
   selectCandidatesFromQueries,
@@ -110,181 +108,16 @@ describe('selectCandidatesFromQueries', () => {
   })
 })
 
-describe('cheapMatch (no LLM)', () => {
-  it('takes the top candidate, confidence from cosine', () => {
-    const m = cheapMatch('ah', [
-      candidate('AH Champignons', 149, 'champignons', 0.72),
-      candidate('AH Tomaat', 99, 'tomaat', 0.4),
-    ])
-    expect(m.product?.name).toBe('AH Champignons')
-    expect(m.confidence).toBe('high')
-    expect(m.estimated).toBe(false)
-    expect(m.priceCents).toBe(149)
-  })
-
-  it('no match on empty candidates', () => {
-    const m = cheapMatch('ah', [])
-    expect(m.product).toBeNull()
-    expect(m.confidence).toBe('none')
-  })
-
-  it('skips a wrong-type junk candidate for a basic ingredient', () => {
-    // "chilli flakes" should NOT match "Doritos Sweet chilli" even at a higher
-    // cosine; the guard drops the snack and falls to the real spice.
-    const m = cheapMatch(
-      'ah',
-      [
-        candidate('Doritos Sweet chilli pepper', 299, 'doritos', 0.61),
-        candidate('Verstegen Chili vlokken', 199, 'chili-vlokken', 0.58),
-      ],
-      'chilli flakes',
-    )
-    expect(m.product?.slug).toBe('chili-vlokken')
-  })
-
-  it('no-match when every candidate is wrong-type junk', () => {
-    const m = cheapMatch(
-      'ah',
-      [
-        candidate('Picard Almond croissants', 549, 'croissants', 0.55),
-        candidate('Alter Eco Almond dark chocolate', 419, 'choc', 0.54),
-      ],
-      'almond flour',
-    )
-    expect(m.product).toBeNull()
-    expect(m.confidence).toBe('none')
-  })
-
-  it('still matches a snack when the ingredient IS that snack', () => {
-    const m = cheapMatch(
-      'ah',
-      [candidate('Doritos Sweet chilli pepper', 299, 'doritos', 0.7)],
-      'doritos chips',
-    )
-    expect(m.product?.slug).toBe('doritos')
-  })
-
-  it('keeps old top-1 behaviour when no ingredient name is given', () => {
-    const m = cheapMatch('ah', [
-      candidate('Doritos Sweet chilli pepper', 299, 'doritos', 0.7),
-    ])
-    expect(m.product?.slug).toBe('doritos')
-  })
-})
-
-describe('looksTypeMismatched', () => {
-  it('flags snacks, croissants, ready-meals, desserts, drinks, sauces', () => {
-    expect(looksTypeMismatched('Doritos Sweet chilli pepper')).toBe(true)
-    expect(looksTypeMismatched('Picard Almond croissants')).toBe(true)
-    expect(looksTypeMismatched("AH Culi's nduja eenpanspasta verspakket")).toBe(
-      true,
-    )
-    expect(looksTypeMismatched('Go-Tan Hot chilli saus')).toBe(true)
-    expect(looksTypeMismatched('Campina Vla vanille smaak')).toBe(true)
-  })
-
-  it('passes real raw ingredients', () => {
-    expect(looksTypeMismatched('Verstegen Chili vlokken')).toBe(false)
-    expect(looksTypeMismatched('AH Biologisch Amandelmeel')).toBe(false)
-    expect(looksTypeMismatched('AH Nduja')).toBe(false)
-    expect(looksTypeMismatched('Tilda Wholegrain basmati rice')).toBe(false)
-  })
-})
-
-/**
- * Real-world failure names, pure + key-free. The accurate tier (cart path) is
- * eval-gated in scripts/eval.ts (needs a live OPENAI key, runs in pre-push). This
- * block locks the same TYPE-mismatch judgement at the cheap-tier guard so a
- * regression is caught even with no key: each basic ingredient must REJECT the
- * junk product type and accept the real one. These mirror the cases that broke
- * the cart (Doritos for "chilli flakes", a cake for "almond flour", a ready-meal
- * for "'nduja", gluten-free-only for lasagne sheets).
- */
-describe('real-world junk-rejection (cheap-tier guard, no key)', () => {
-  it('chilli flakes -> chili vlokken, NOT Doritos / a snack', () => {
-    expect(looksTypeMismatched('Doritos Sweet chilli pepper')).toBe(true)
-    expect(looksTypeMismatched('Verstegen Chili vlokken')).toBe(false)
-    const m = cheapMatch(
-      'ah',
-      [
-        candidate('Doritos Sweet chilli pepper', 299, 'doritos', 0.63),
-        candidate('Verstegen Chili vlokken', 199, 'chili-vlokken', 0.58),
-      ],
-      'chilli flakes',
-    )
-    expect(m.product?.slug).toBe('chili-vlokken')
-  })
-
-  it('almond flour / amandelmeel -> almond flour, NOT a cake or croissant', () => {
-    // The guard matches the wrong-type word on a word boundary, so a
-    // space-separated "Amandel cake" / croissant is rejected.
-    expect(looksTypeMismatched('AH Amandel cake')).toBe(true)
-    expect(looksTypeMismatched('Picard Almond croissants')).toBe(true)
-    expect(looksTypeMismatched('AH Biologisch Amandelmeel')).toBe(false)
-    const m = cheapMatch(
-      'ah',
-      [
-        candidate('AH Amandel cake', 349, 'amandel-cake', 0.62),
-        candidate('AH Biologisch Amandelmeel', 299, 'amandelmeel', 0.58),
-      ],
-      'amandelmeel',
-    )
-    expect(m.product?.slug).toBe('amandelmeel')
-  })
-
-  it('KNOWN GAP: the cheap guard misses Dutch compound junk words', () => {
-    // Word-boundary regex only catches space-separated wrong-type words, so a
-    // compound like "Amandelcake" / "Amandeltaart" / "Amandelkoekjes" slips
-    // through the CHEAP guard. The cart uses the ACCURATE (LLM-rerank) tier,
-    // which rejects these by judgement, so the cart is still protected — but if
-    // anything ever routes the cart back through the cheap tier, these compounds
-    // would NOT be filtered. Documented so the gap is intentional, not silent.
-    expect(looksTypeMismatched('AH Amandelcake')).toBe(false)
-    expect(looksTypeMismatched('Amandeltaart')).toBe(false)
-    expect(looksTypeMismatched('AH Amandelkoekjes')).toBe(false)
-  })
-
-  it("'nduja -> nduja sausage, NOT a ready-meal eenpansgerecht", () => {
-    expect(looksTypeMismatched("AH Culi's Nduja eenpanspasta verspakket")).toBe(
-      true,
-    )
-    expect(looksTypeMismatched('AH Nduja worst')).toBe(false)
-    const m = cheapMatch(
-      'ah',
-      [
-        candidate(
-          "AH Culi's Nduja eenpanspasta verspakket",
-          499,
-          'verspakket',
-          0.62,
-        ),
-        candidate('AH Nduja worst', 399, 'nduja-worst', 0.57),
-      ],
-      "'nduja",
-    )
-    expect(m.product?.slug).toBe('nduja-worst')
-  })
-
-  it('basmati rice -> a real rice pack (not a snack)', () => {
-    expect(looksTypeMismatched('Tilda Wholegrain basmati rice')).toBe(false)
-    const m = cheapMatch(
-      'ah',
-      [candidate('Tilda Pure basmati rijst', 279, 'basmati-rijst', 0.66)],
-      'basmati rice',
-    )
-    expect(m.product?.slug).toBe('basmati-rijst')
-  })
-})
-
 describe('rerankMatch (accurate tier)', () => {
   const cands = [
     candidate('AH Tomatenblokjes', 89, 'tomatenblokjes', 0.55),
     candidate('AH Champignons', 149, 'champignons', 0.5),
   ]
 
-  it('falls back to cheap top-1 with no model', async () => {
+  it('returns no-match with no model instead of trusting raw cosine', async () => {
     const m = await rerankMatch({ name: 'mushroom' }, cands, 'ah', {})
-    expect(m.match.product?.slug).toBe('tomatenblokjes') // top cosine, no LLM
+    expect(m.match.product).toBeNull()
+    expect(m.llmFallback).toBe(true)
   })
 
   it('uses the model-chosen product + confidence (cross-lingual)', async () => {
@@ -345,7 +178,7 @@ describe('rerankMatch (accurate tier)', () => {
     expect(m.reason).toBe('real beef over plant-based')
   })
 
-  it('falls back to cheap top-1 on a model error', async () => {
+  it('returns no-match on a model error instead of trusting raw cosine', async () => {
     const failing: GenerateObjectFn = async () => {
       throw new Error('rate limited')
     }
@@ -353,7 +186,7 @@ describe('rerankMatch (accurate tier)', () => {
       model: MODEL,
       generateObject: failing,
     })
-    expect(m.match.product?.slug).toBe('tomatenblokjes')
+    expect(m.match.product).toBeNull()
     expect(m.llmFallback).toBe(true)
   })
 })

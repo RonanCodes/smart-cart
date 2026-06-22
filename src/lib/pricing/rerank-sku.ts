@@ -6,8 +6,9 @@
  * dish, champignons not champignonsoep). It can only choose a candidate's
  * productId or decline; it never invents a product.
  *
- * Used only on the cart decision point (bounded call count). Price totals and
- * staples search use the cheap cosine top-1 tier, no LLM.
+ * Used on cart and pricing decision points through the cache-aware resolver.
+ * Cosine retrieval is candidate generation only; the reranker must pick or
+ * decline before a product is accepted.
  *
  * Pure schema + prompt; the live call is gated and injectable so tests stub it.
  */

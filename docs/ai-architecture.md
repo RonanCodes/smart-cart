@@ -51,13 +51,12 @@ rerank at exactly one decision point. This is the part that replaced the slop.
    ("200g spaghetti") to a real supermarket SKU so the basket can be priced per
    store and the Albert Heijn cart filled. Code: `src/lib/pricing/`. The
    ingredient text is embedded and scored by cosine against committed product
-   vectors. This is the one path where a wrong pick costs the user money, so it
-   is the one path that gets an LLM: cosine top-K, then a `generateObject` rerank
-   on the fast model picks the right SKU and sanity-checks quantity. Price totals
-   and the staples search use cheap cosine top-1 with no LLM, because a week's
-   list is around 60 lines and a per-line model call is too slow and too costly.
-   Every match carries a confidence flag, so estimated lines never silently
-   inflate the "save money" claim.
+   vectors. Cosine top-K is candidate retrieval only; a `generateObject` rerank
+   picks the right SKU or declines before any product is accepted. Price totals
+   use the same accurate path through `match_cache`, so repeated store/name
+   resolutions do not keep paying the model cost. Every match carries a
+   confidence flag, so estimated lines never silently inflate the "save money"
+   claim.
 
 3. **Replan term-match (exclude and more-of).** A plain-language replan term
    ("no mushrooms", "more pasta") has to find the recipes it refers to so the

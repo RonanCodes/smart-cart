@@ -11,10 +11,10 @@ import {
 import type { SousoKnows } from '#/lib/recipe-media-server'
 
 /**
- * The recipe inspector detail: ingredients matched to AH SKUs (the embedding
- * matcher, cheap cosine tier), a "Souso knows" health/food panel, and a Pixverse
- * cooking video. Both generate buttons hit cache-first server fns, so a second
- * load reads the cached value and never re-calls the API.
+ * The recipe inspector detail: ingredients matched to AH SKUs with embedding
+ * retrieval + rerank validation, a "Souso knows" health/food panel, and a
+ * Pixverse cooking video. Both generate buttons hit cache-first server fns, so a
+ * second load reads the cached value and never re-calls the API.
  */
 
 function euro(cents: number | null): string {
