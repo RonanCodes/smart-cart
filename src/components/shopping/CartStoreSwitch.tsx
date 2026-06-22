@@ -10,8 +10,9 @@ import { cn } from '#/lib/utils'
  *
  * The design prototype faked this with hardcoded per-store prices. Here the
  * prices are REAL: each store's total comes from the shared price comparison
- * (usePriceComparison -> comparePrices, the vendored catalogue priced
- * server-side). Picking a store drives the per-item prices in the list, the
+ * (usePriceComparison, fanning out one comparePriceForStore call per store so the
+ * totals fill in progressively, the vendored catalogue priced server-side, #439).
+ * Picking a store drives the per-item prices in the list, the
  * floating total, and the order button all at once, so the whole screen reprices
  * in a tap.
  *
@@ -45,6 +46,11 @@ export function CartStoreSwitch({
         const basket = data?.baskets.find((b) => b.store === option.slug)
         const total =
           basket && basket.lineItems.length > 0 ? basket.totalCents : null
+        // #439: prices fill in PER STORE as each fan-out call lands. A store that
+        // hasn't reported yet (no basket in the comparison) still shows a spinner
+        // while any fetch is in flight, so an already-arrived store shows its real
+        // total immediately instead of every cell spinning until the slowest one.
+        const pending = loading && basket === undefined
         const isCheapest = cheapest === option.slug
         return (
           <button
@@ -80,7 +86,7 @@ export function CartStoreSwitch({
             >
               {comingSoon ? (
                 'Coming soon'
-              ) : loading ? (
+              ) : pending ? (
                 <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
               ) : total !== null ? (
                 formatCents(total)

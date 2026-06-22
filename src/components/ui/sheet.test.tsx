@@ -38,6 +38,24 @@ describe('Sheet', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  // #438: on an iOS standalone PWA the dim backdrop must cover the FULL screen,
+  // including env(safe-area-inset-top) (the notch / camera area). The backdrop
+  // sits in a full-screen fixed container and is explicitly extended past the
+  // top inset so the notch is dimmed too, never left as a bright uncovered strip.
+  it('extends the backdrop into the top safe-area (#438)', () => {
+    render(
+      <Sheet open onOpenChange={() => {}} title="Send to your store">
+        <p>body</p>
+      </Sheet>,
+    )
+    const backdrop = document.querySelector('.sheet-backdrop') as HTMLElement
+    expect(backdrop).not.toBeNull()
+    // The backdrop pulls up by the top inset and grows by the same amount so it
+    // paints the notch area, rather than starting at the inset boundary.
+    expect(backdrop.style.top).toContain('safe-area-inset-top')
+    expect(backdrop.style.height).toContain('safe-area-inset-top')
+  })
+
   it('closes on Escape', () => {
     const onOpenChange = vi.fn()
     render(

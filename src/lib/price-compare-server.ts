@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import type { BasketComparison } from './pricing'
+import type { BasketComparison, StoreBasket } from './pricing'
 
 /**
  * Server seam for the shopping-tab price comparison (#293).
@@ -66,4 +66,45 @@ export const comparePrices = createServerFn({ method: 'POST' })
       if (cheapest === null || b.totalCents < cheapest.totalCents) cheapest = b
     }
     return { baskets, cheapest }
+  })
+
+/**
+ * The covered store slugs the comparison should price, resolved server-side so
+ * the catalogue never reaches the client (#439). Cheap: it only reads the
+ * vendored catalogue's store keys, no matching. The client fans out one
+ * {@link comparePriceForStore} call per slug so the cart renders immediately and
+ * each store's total fills in as it resolves, instead of one slow call blocking
+ * on every store's accurate-tier matching at once.
+ */
+export const listCompareStores = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<Array<string>> => {
+    const { coveredStoreSlugs } = await import('./pricing/catalogue')
+    return coveredStoreSlugs()
+  },
+)
+
+/**
+ * Price ONE store's basket with the accurate (cache-aware) tier (#439). Same
+ * maths as {@link comparePrices} but for a single store, so the client can fan
+ * out the covered stores in parallel and let each total arrive independently
+ * (progressive fill) rather than waiting for the slowest store. Returns null
+ * when the store isn't a covered/known store or there are no priceable lines.
+ */
+export const comparePriceForStore = createServerFn({ method: 'POST' })
+  .inputValidator((d: { store: string; lines: Array<PriceCompareLine> }) => d)
+  .handler(async ({ data }): Promise<StoreBasket | null> => {
+    const lines = data.lines.filter(
+      (l) => typeof l.name === 'string' && l.name.trim() !== '',
+    )
+    if (lines.length === 0) return null
+
+    const { getCatalogue } = await import('./pricing/catalogue')
+    const { basketForStoreWithMatches } = await import('./pricing/basket')
+    const { resolveLinesForStoreCached } = await import('./pricing/match-cache')
+
+    const catalogue = getCatalogue(data.store)
+    if (!catalogue) return null
+
+    const resolved = await resolveLinesForStoreCached(lines, catalogue.store)
+    return basketForStoreWithMatches(lines, resolved, catalogue)
   })
