@@ -56,6 +56,51 @@ Before writing code or a PRD, read:
 
 Hard rules: no autonomous purchasing (we fill the basket, the user checks out); meal generation is grounded in the `recipe` table, never free-form/hallucinated; Dutch supermarkets (AH/Jumbo) first.
 
+## Engineering principles (all agents)
+
+The shared engineering thinking, so Claude, Codex, and Cursor all build the same
+way. Each bullet points at the ADR or skill with the full reasoning. Claude reads
+the long form in `.claude/skills/`; these summaries are the universal pickup.
+
+- **Right tool per AI job.** Embeddings for matching (multilingual, NL/EN), an
+  LLM only at decision points (replan intent, SKU rerank, substitution confirm),
+  deterministic set-maths for anything reproducible (week ranking, hard
+  allergy/diet filters, consolidation, cart-URL building). Embeddings are
+  pre-computed offline and committed, never embedded at request time. See
+  `docs/adr/0004`, skill `ai-safe-and-fast`.
+- **No synonym/heuristic maps.** Synonym tables, substring matching,
+  token-overlap, `CROSSLANG_EXCLUSION_GROUPS`, term-synonyms are all the same
+  mistake: the embedding already gives cross-language semantics. Reach for the
+  matcher, never a hand-maintained map. See `docs/adr/0004`, skill
+  `ai-safe-and-fast`.
+- **Safe by default.** Fail closed on missing secrets; hard filters
+  (allergy/diet) stay deterministic and never trust the LLM; conservative rerank
+  thresholds; wrong-type guards (Dutch compound traps); soft penalties over hard
+  bans for preferences; degrade honestly with no hidden fallback. See skill
+  `ai-safe-and-fast` (PRs #478, #479, #477, #331).
+- **Bound AI work on request paths.** Workers have a hard ~128 MB / CPU cap and
+  D1 has subrequest limits; "fans out per-item over a big input" is a memory/CPU
+  risk. Bound, chunk, batch, and degrade rather than crash. This caused the
+  `/shopping` 1101; the fix chunked the price compare to 25 lines at the
+  call-site. See `docs/adr/0005`, skill `bounded-ai-on-request-paths`.
+- **Reproduce-first TDD.** Any bug, Sentry issue, or user report starts with a
+  failing test/eval that reproduces it, then the minimum fix, then refactor; the
+  regression test ships with the fix. The three cart invariants and the evals are
+  part of `pnpm quality`. See skill `reproduce-first-tdd` and `CLAUDE.md`.
+- **Evals + tracing as gates.** Braintrust traces every AI call; the matcher
+  eval, replan-agent eval, memory-classifier eval, and recall benchmark gate run
+  in the pre-push gate so a regression turns it red. See `docs/adr/0006` and
+  `docs/adr/0002`.
+- **Ship flow + ownership.** Branch off fresh `origin/main`, one PR, the local
+  gate (`pnpm quality`) is the real gate, squash-merge, never push `main`,
+  emoji-conventional commits. The deep AI/data flows (onboarding-to-recipes,
+  recipe-to-ingredients, the AH matcher in `src/lib/pricing/*`, add-to-cart, the
+  Mollie tipping flow) are owned and locked by evals: work at the call-site, do
+  not edit their internals. See skill `ship-flow-and-ownership`.
+
+Full record: `docs/ai-architecture.md` (how the AI actually works),
+`docs/adr/0001`..`0006`, `docs/matching.md`.
+
 ## AI SDK
 
 This project uses the Vercel AI SDK. For patterns (streamText, generateObject, tool loops, prompt caching), load /ro:vercel-ai-sdk before adding or modifying any AI feature.
