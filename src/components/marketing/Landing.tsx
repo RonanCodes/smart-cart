@@ -158,9 +158,16 @@ export function Landing({
               {liveCount.toLocaleString('en')} home cooks planning with Souso
             </p>
           )}
-          <p className="text-muted-foreground mx-auto mt-4 max-w-sm text-xs">
-            {BETA_NOTE}
-          </p>
+          {/* Beta callout: a branded, harder-to-miss banner (not the old muted
+              one-liner) so testers clearly know it's beta + that feedback is
+              wanted. The fuller dedicated beta moment lives in onboarding. */}
+          <div className="border-accent/50 bg-accent/15 mx-auto mt-5 flex max-w-sm items-start gap-2.5 rounded-2xl border px-4 py-3 text-left">
+            <Sparkles
+              className="text-accent mt-0.5 h-4 w-4 shrink-0"
+              aria-hidden
+            />
+            <p className="text-foreground text-sm font-medium">{BETA_NOTE}</p>
+          </div>
         </section>
 
         {/* Primary CTA: once live, a "get started" button into sign-in; before
