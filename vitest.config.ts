@@ -14,7 +14,9 @@ export default defineConfig({
     globals: true,
     passWithNoTests: true,
     // Never pick up tests inside isolated agent worktrees (.claude/worktrees/*).
-    exclude: [...configDefaults.exclude, '.claude/**'],
+    // `e2e/*.spec.ts` are Playwright specs (a Playwright `test.describe` throws
+    // under the Vitest runner) — they run via `playwright test`, not here (#480).
+    exclude: [...configDefaults.exclude, '.claude/**', 'e2e/**'],
   },
   resolve: {
     alias: {

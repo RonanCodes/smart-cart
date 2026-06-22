@@ -18,8 +18,17 @@ const SENTRY_PROJECT = 'souso'
  * deep-link out to the event in Sentry. When live data is unavailable the
  * server-supplied `note` is shown in a calm card rather than an error.
  */
-export function SentryFeedbackPanel({ data }: { data: SentryFeedbackResult }) {
-  const { items, note } = data
+export function SentryFeedbackPanel({
+  data,
+}: {
+  // SOUSO-19: the loader's source really can arrive undefined (RPC torn down /
+  // failed) even though the server fn's static return type says it can't. Widen
+  // the prop so the runtime guard below is honest, not stripped as "always
+  // truthy" by the no-unnecessary-condition lint (the push-client.ts precedent).
+  data: SentryFeedbackResult | null | undefined
+}) {
+  const items = data?.items ?? []
+  const note = data?.note ?? null
   return (
     <section className="space-y-4">
       <header>

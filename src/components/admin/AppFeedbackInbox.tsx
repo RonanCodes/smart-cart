@@ -13,7 +13,16 @@ import type { AppFeedbackItem } from '#/lib/app-feedback-server'
  * its own iOS-radius card with a source Badge, contact links, and the path +
  * time as quiet metadata.
  */
-export function AppFeedbackInbox({ items }: { items: Array<AppFeedbackItem> }) {
+export function AppFeedbackInbox({
+  items,
+}: {
+  // SOUSO-19: the loader's source really can arrive undefined (RPC torn down /
+  // failed) even though the server fn's static return type says it can't. Widen
+  // the prop so the runtime guard below is honest, not stripped as "always
+  // truthy" by the no-unnecessary-condition lint (the push-client.ts precedent).
+  items: Array<AppFeedbackItem> | null | undefined
+}) {
+  const safeItems = items ?? []
   return (
     <section className="space-y-4">
       <header>
@@ -24,7 +33,7 @@ export function AppFeedbackInbox({ items }: { items: Array<AppFeedbackItem> }) {
         </p>
       </header>
 
-      {items.length === 0 ? (
+      {safeItems.length === 0 ? (
         <Card
           ios
           className="text-muted-foreground flex flex-col items-center gap-2 px-4 py-10 text-center text-sm"
@@ -37,7 +46,7 @@ export function AppFeedbackInbox({ items }: { items: Array<AppFeedbackItem> }) {
         </Card>
       ) : (
         <ul className="space-y-3">
-          {items.map((item) => (
+          {safeItems.map((item) => (
             <li
               key={item.id}
               className="bg-card rounded-[var(--radius-ios)] px-4 py-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_-12px_rgba(0,0,0,0.12)]"
