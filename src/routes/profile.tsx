@@ -19,6 +19,7 @@ import {
   Ban,
   ChevronRight,
   Sun,
+  MessageCircleHeart,
 } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
@@ -50,6 +51,7 @@ import type {
 } from '#/lib/profile-edit-server'
 import { DAY_LABELS } from '#/lib/onboarding-rhythm'
 import { ProfileSkeleton } from '#/components/profile/ProfileSkeleton'
+import { FeedbackForm } from '#/components/feedback/FeedbackForm'
 
 /** The profile route's data: the settings bootstrap plus the taste summary (#268)
  * and the editable data points + inferred skip-days (#data-points). */
@@ -192,6 +194,7 @@ function Profile() {
   // reflects in the row at once, without a route reload (#household-inline-edit).
   const [summary, setSummary] = useState<HouseholdSummary | null>(data.summary)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [householdOpen, setHouseholdOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [storeOpen, setStoreOpen] = useState(false)
@@ -390,6 +393,11 @@ function Profile() {
             label="How Souso works"
             onClick={() => setHelpOpen(true)}
           />
+          <HairlineRow
+            icon={MessageCircleHeart}
+            label="Send feedback"
+            onClick={() => setFeedbackOpen(true)}
+          />
         </SettingsSection>
 
         {/* Weekly planning reminder (Part B): pick a day + time to be nudged. */}
@@ -458,6 +466,14 @@ function Profile() {
             Got it
           </Button>
         </div>
+      </Sheet>
+
+      <Sheet
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        title="Send feedback"
+      >
+        <FeedbackForm source="settings" onDone={() => setFeedbackOpen(false)} />
       </Sheet>
 
       <NotificationsSheet
