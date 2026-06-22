@@ -24,6 +24,8 @@ import {
 } from '#/lib/admin-server'
 import { setMyWaitlistNotify } from '#/lib/admin-prefs-server'
 import { Button } from '#/components/ui/button'
+import { Card } from '#/components/ui/card'
+import { Badge } from '#/components/ui/badge'
 import { ConfirmDialog } from '#/components/ui/confirm-dialog'
 import { cn } from '#/lib/utils'
 
@@ -33,6 +35,10 @@ import { cn } from '#/lib/utils'
  * plus two actions, "Approve as user" and "Make admin", that grant DB-backed
  * access with no redeploy and reflect the current grant state. Admin-gated
  * upstream by the /admin guard.
+ *
+ * Styled to the Souso design system: an on-brand page header, the per-admin
+ * notify switch in its own iOS-radius card, and the signups grouped into one
+ * calm card with airy hairline rows.
  */
 export function WaitlistPanel({
   waitlist,
@@ -72,19 +78,21 @@ export function WaitlistPanel({
   }
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-2xl space-y-5">
+      <header>
+        <h1 className="text-xl font-bold tracking-[-0.01em]">Waitlist</h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Emails captured by the marketing landing, newest first. Approve to
+          grant login access, or make someone an admin, no redeploy needed.
+        </p>
+      </header>
+
       <NotifyToggle initial={notifyEnabled} />
 
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">
-            {waitlist.count} {waitlist.count === 1 ? 'signup' : 'signups'}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            Emails captured by the marketing landing, newest first. Approve to
-            grant login access, or make someone an admin, no redeploy needed.
-          </p>
-        </div>
+        <p className="text-foreground text-base font-semibold">
+          {waitlist.count} {waitlist.count === 1 ? 'signup' : 'signups'}
+        </p>
         {/* Approve all: only when there is something pending. Guarded by a
             confirm dialog so a tap can't grant access to everyone by accident. */}
         {pending.length > 0 && (
@@ -104,22 +112,22 @@ export function WaitlistPanel({
       {approveMsg && (
         <p
           role="status"
-          className="text-muted-foreground bg-secondary rounded-lg px-3 py-2 text-xs"
+          className="text-muted-foreground bg-secondary rounded-xl px-3 py-2 text-xs"
         >
           {approveMsg}
         </p>
       )}
 
-      <div className="border-border divide-border divide-y rounded-xl border">
+      <Card ios className="divide-border divide-y overflow-hidden">
         {waitlist.rows.map((r) => (
           <WaitlistRow key={r.email} row={r} />
         ))}
         {waitlist.rows.length === 0 && (
-          <p className="text-muted-foreground px-4 py-3 text-sm">
+          <p className="text-muted-foreground px-4 py-6 text-center text-sm">
             No signups yet.
           </p>
         )}
-      </div>
+      </Card>
 
       <ConfirmDialog
         open={confirmOpen}
@@ -196,9 +204,9 @@ function WaitlistRow({ row }: { row: WaitlistRowView }) {
     // buttons for width, so it can always render (truncating with an ellipsis
     // only when the email itself is too long). From `sm` up the controls sit
     // inline to the right of the email.
-    <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <div className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{email}</span>
+        <span className="block truncate text-sm font-semibold">{email}</span>
         {/*
           toLocaleString resolves to the runtime's locale + timezone, which
           differs between the SSR Worker (UTC) and the browser, so the server and
@@ -227,24 +235,24 @@ function WaitlistRow({ row }: { row: WaitlistRowView }) {
 
         {/* Approved: a plain user who already has login access. Static tag. */}
         {actions.approvedTag && (
-          <span className="text-muted-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium">
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs font-medium">
             <Check className="h-4 w-4" /> Approved
           </span>
         )}
 
         {/* Admin badge: any admin (DB-granted OR config). */}
         {actions.adminBadge && (
-          <span className="text-primary inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium">
-            <Shield className="h-4 w-4" /> Admin
-          </span>
+          <Badge variant="primary" className="gap-1.5">
+            <Shield className="h-3.5 w-3.5" /> Admin
+          </Badge>
         )}
 
         {/* config admin: env/owner admin, not a DB grant -> no revoke, no
             approve/make-admin. */}
         {actions.configAdminTag && (
-          <span className="text-muted-foreground border-border inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium">
+          <Badge variant="outline" className="text-muted-foreground">
             config admin
-          </span>
+          </Badge>
         )}
 
         {/* Make admin: non-admin rows only (relabels to the Admin badge above
@@ -288,7 +296,11 @@ function WaitlistRow({ row }: { row: WaitlistRowView }) {
   )
 }
 
-/** A single grant action button. Touch-friendly (min 44px tall via py-2 + text). */
+/**
+ * A single grant action button on the Souso primitives. Touch-friendly (the
+ * `sm` size is a 44px-tall pill). `primary` is the green action, `destructive`
+ * the red revoke, the default an outline.
+ */
 function GrantButton({
   label,
   icon,
@@ -305,23 +317,17 @@ function GrantButton({
   onClick: () => void
 }) {
   return (
-    <button
+    <Button
       type="button"
+      size="sm"
+      variant={destructive ? 'destructive' : primary ? 'default' : 'outline'}
       disabled={saving}
       onClick={onClick}
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-        destructive
-          ? 'bg-card border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950'
-          : primary
-            ? 'bg-primary text-primary-foreground hover:opacity-90'
-            : 'border-border bg-card text-foreground hover:bg-muted border',
-        saving && 'opacity-60',
-      )}
+      className={cn('text-xs', saving && 'opacity-60')}
     >
       {icon}
       {label}
-    </button>
+    </Button>
   )
 }
 
@@ -348,15 +354,22 @@ function NotifyToggle({ initial }: { initial: boolean }) {
   }
 
   return (
-    <div className="border-border bg-card flex items-center justify-between rounded-xl border px-4 py-3">
-      <div className="flex items-center gap-3">
-        {on ? (
-          <Bell className="text-primary h-5 w-5" />
-        ) : (
-          <BellOff className="text-muted-foreground h-5 w-5" />
-        )}
-        <div>
-          <p className="text-sm font-medium">Email me on every new signup</p>
+    <Card ios className="flex items-center justify-between gap-3 px-4 py-3.5">
+      <div className="flex min-w-0 items-center gap-3">
+        <span
+          className={cn(
+            'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
+            on ? 'bg-secondary text-primary' : 'bg-muted text-muted-foreground',
+          )}
+        >
+          {on ? (
+            <Bell className="h-[1.15rem] w-[1.15rem]" />
+          ) : (
+            <BellOff className="h-[1.15rem] w-[1.15rem]" />
+          )}
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Email me on every new signup</p>
           <p className="text-muted-foreground text-xs">
             {on
               ? 'You will get an email each time someone joins the waitlist.'
@@ -384,6 +397,6 @@ function NotifyToggle({ initial }: { initial: boolean }) {
           )}
         />
       </button>
-    </div>
+    </Card>
   )
 }
