@@ -33,13 +33,6 @@ export interface OnboardingStep {
 
 export const STEPS: Array<OnboardingStep> = [
   {
-    id: 'beta',
-    // The step owns its own callout layout; the shell renders just the back
-    // arrow + progress + the bottom 'Next' CTA (which advances, never gates).
-    title: '',
-    Component: BetaStep,
-  },
-  {
     id: 'household',
     title: 'Who is eating?',
     subtitle: 'Adults and children, so we can size your portions.',
@@ -75,5 +68,14 @@ export const STEPS: Array<OnboardingStep> = [
     title: 'Your goals',
     subtitle: 'What matters most? We weight the week toward it.',
     Component: GoalsStep,
+  },
+  {
+    // Last step, just before the email/auth phase (#407): the beta-tester
+    // framing + optional contact land after the user has invested the form. The
+    // step owns its own layout, so the shell renders only the back arrow +
+    // progress + the 'Next' CTA (which advances, never gates).
+    id: 'beta',
+    title: '',
+    Component: BetaStep,
   },
 ]

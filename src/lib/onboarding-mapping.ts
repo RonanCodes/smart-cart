@@ -1,4 +1,7 @@
-import type { OnboardingDraft } from '#/components/onboarding/form-state'
+import type {
+  OnboardingDraft,
+  ContactPref,
+} from '#/components/onboarding/form-state'
 import type { StoreSlug } from './store-pref-server'
 import type { Locale } from './recipe-locale'
 import { clampHouseholdCount } from './onboarding-rhythm'
@@ -35,6 +38,8 @@ export interface MappedProfile {
   pets: { cats: number; dogs: number }
   /** Children ages (years) — sizes child portions. */
   childrenAges: Array<number>
+  /** Preferred contact method when a phone is given (#407). null if unset. */
+  contactPref?: ContactPref | null
   /** Optional phone/WhatsApp the tester left to be reached for feedback (#407).
    * null when not given. Never used by the planner; the team reads it in admin. */
   phone?: string | null
@@ -170,6 +175,10 @@ export function draftToHousehold(draft: OnboardingDraft): MappedHousehold {
       pets: { cats: draft.pets.cats, dogs: draft.pets.dogs },
       childrenAges: [...draft.childrenAges],
       phone: normalisePhone(draft.phone),
+      // Only meaningful with a phone, but store as given (null when unset).
+      contactPref: normalisePhone(draft.phone)
+        ? (draft.contactPref ?? null)
+        : null,
     },
   }
 }

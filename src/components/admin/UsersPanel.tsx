@@ -359,6 +359,7 @@ export function UsersPanel({
                     {u.phone && (
                       <div className="text-accent mt-1 text-xs font-medium">
                         📞 {u.phone}
+                        {u.contactPref ? ` · ${u.contactPref}` : ''}
                       </div>
                     )}
                   </div>

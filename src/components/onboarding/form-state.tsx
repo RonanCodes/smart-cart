@@ -18,6 +18,9 @@ export interface OnboardingPets {
   dogs: number
 }
 
+/** How a tester prefers to be reached for a feedback chat (#407). */
+export type ContactPref = 'whatsapp' | 'call' | 'either'
+
 export interface OnboardingDraft {
   /** Household size. Adults default to 2, the common case. */
   adults: number
@@ -45,6 +48,8 @@ export interface OnboardingDraft {
   /** Optional phone/WhatsApp, for beta testers happy to be reached out to for a
    * chat (#407). Never required; stored on the household profile. */
   phone: string | null
+  /** Preferred way to be reached, when a phone is given (#407). */
+  contactPref: ContactPref | null
 }
 
 export const EMPTY_DRAFT: OnboardingDraft = {
@@ -61,6 +66,7 @@ export const EMPTY_DRAFT: OnboardingDraft = {
   store: null,
   locale: 'en',
   phone: null,
+  contactPref: null,
 }
 
 /**
