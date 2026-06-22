@@ -5,8 +5,8 @@ import { joinWaitlist } from '#/lib/waitlist-server'
 import { SafeArea } from '#/components/ui/safe-area'
 import { Button, buttonVariants } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { StickyNote } from '#/components/ui/sticky-note'
 import { BetaBadge } from '#/components/ui/beta-badge'
+import { HeroStickers } from './hero-stickers'
 import { useLiveUserCount } from './use-user-count'
 
 /**
@@ -24,13 +24,6 @@ import { useLiveUserCount } from './use-user-count'
  *
  * Mounted at the public entry route / (the swipe-deck opener is retired).
  */
-
-/** Hero dish stickers (slug, sticker height class, tilt deg). */
-const HERO = [
-  { img: 'chicken-orzo', h: 'h-24', rot: -8 },
-  { img: 'gnocchi-romesco', h: 'h-32', rot: 4 },
-  { img: 'roast-veg', h: 'h-24', rot: 8 },
-]
 
 interface Benefit {
   icon: typeof Clock
@@ -122,22 +115,10 @@ export function Landing({
             <BetaBadge />
           </div>
 
-          {/* A little board of dishes. */}
-          <div className="relative mt-7 flex items-end justify-center gap-2">
-            {HERO.map((s) => (
-              <img
-                key={s.img}
-                src={`/stickers/recipes/${s.img}.png`}
-                alt=""
-                aria-hidden
-                className={`souso-sticker ${s.h} w-auto object-contain`}
-                style={{ transform: `rotate(${s.rot}deg)` }}
-              />
-            ))}
-            <StickyNote tilt={6} className="absolute -top-3 right-0">
-              no more &ldquo;what&rsquo;s for dinner?&rdquo;
-            </StickyNote>
-          </div>
+          {/* A little board of dishes, with gentle drift + cycling motion. The
+              component owns its own stage height so a drifting sticker never
+              rises into the wordmark above (#465). */}
+          <HeroStickers />
 
           <h1
             className="mt-8 text-[2.5rem] leading-[1.02] font-bold"
@@ -265,8 +246,9 @@ export function Landing({
           </p>
         </section>
 
-        {/* Discrete entry for already-approved users. */}
-        <div className="mt-10 text-center">
+        {/* Discrete entry for already-approved users, pushed well down the page
+            (#465) so it never competes with the hero or the primary CTA. */}
+        <div className="mt-16 pt-4 text-center">
           <Link
             to={loginTo}
             className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 transition hover:underline"
