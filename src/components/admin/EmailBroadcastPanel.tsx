@@ -19,8 +19,12 @@ import { ConfirmDialog } from '#/components/ui/confirm-dialog'
  */
 export function EmailBroadcastPanel({
   preview,
+  canSend = false,
 }: {
   preview: LaunchEmailPreview
+  /** Whether the viewer is a super-admin. The broadcast is super-admin-only
+   * (server-gated); a regular admin sees the send button disabled. */
+  canSend?: boolean
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -68,16 +72,18 @@ export function EmailBroadcastPanel({
         <Card ios className="space-y-3 p-5">
           <Button
             size="lg"
-            disabled={busy || count === 0}
+            disabled={busy || count === 0 || !canSend}
             onClick={() => setConfirmOpen(true)}
           >
             <Mail className="h-4 w-4" aria-hidden />
             {busy ? 'Sending…' : "Email all users: we're live"}
           </Button>
           <p className="text-muted-foreground text-xs">
-            {count === 0
-              ? 'No registered users to send to yet.'
-              : `Sends to ${count} ${count === 1 ? 'user' : 'users'}.`}
+            {!canSend
+              ? 'Only a super-admin can send the launch broadcast.'
+              : count === 0
+                ? 'No registered users to send to yet.'
+                : `Sends to ${count} ${count === 1 ? 'user' : 'users'}.`}
           </p>
           {msg && (
             <p

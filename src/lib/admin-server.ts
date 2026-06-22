@@ -73,10 +73,15 @@ async function loadEnvAdmins(): Promise<{
   superAdmins: Set<string>
 }> {
   const { readEnv } = await import('./env')
-  const { parseApprovedList, ADMIN_EMAIL } = await import('./access-rules')
+  const { parseApprovedList, buildSuperAdminSet } =
+    await import('./access-rules')
+  // ADMIN_EMAIL is the module-scope import (import-safe pure constant).
   const envAdmins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
   envAdmins.add(ADMIN_EMAIL)
-  const superAdmins = parseApprovedList(await readEnv('SUPER_ADMIN_EMAILS'))
+  // The super-admin set ALWAYS includes the SUPER_ADMIN_EMAIL constant, unioned
+  // with the SUPER_ADMIN_EMAILS secret, so with no secret bluebramble is the
+  // only super-admin and the mission-critical gate can never be locked out.
+  const superAdmins = buildSuperAdminSet(await readEnv('SUPER_ADMIN_EMAILS'))
   // Super-admins are always admins too.
   for (const e of superAdmins) envAdmins.add(e)
   return { envAdmins, superAdmins }
@@ -100,6 +105,28 @@ async function adminViewer(): Promise<{
     email: u.email,
     isSuperAdmin: isSuperAdminWith(u.email, superAdmins),
   }
+}
+
+/**
+ * Gate a mission-critical action behind super-admin. Returns the viewer (so the
+ * caller can use their email) or throws 'forbidden' when the caller is not a
+ * super-admin. The single server-side guard reused by every super-admin-only
+ * action (grant admin, the launch toggle, the launch-email broadcast), so a
+ * regular admin is blocked server-side, not merely hidden in the UI.
+ *
+ * NOT exported: an exported plain async fn would be reachable from the client
+ * import of this module, dragging its transitive `cloudflare:workers` env import
+ * into the browser bundle (only `createServerFn().handler` bodies are stripped).
+ * Server fns here call it directly; launch-server gates via its own copy that
+ * reuses the exported `isSuperAdmin` server fn.
+ */
+async function requireSuperAdmin(): Promise<{
+  email: string
+  isSuperAdmin: boolean
+}> {
+  const v = await adminViewer()
+  if (!v || !v.isSuperAdmin) throw new Error('forbidden')
+  return v
 }
 
 /** Server fn: is the signed-in user a super-admin? Server-decided, never client. */
@@ -538,13 +565,15 @@ export const grantUser = createServerFn({ method: 'POST' })
 
 /**
  * Promote `email` to admin (role 'admin'; admin implies login access too).
- * Upsert keyed on the normalised email, so it is idempotent. Returns the
- * resulting grant state.
+ * SUPER-ADMIN-ONLY: granting/adding admins is mission-critical, so a regular
+ * admin is blocked server-side (requireSuperAdmin throws 'forbidden'), not just
+ * hidden in the UI. Upsert keyed on the normalised email, so it is idempotent.
+ * Returns the resulting grant state.
  */
 export const grantAdmin = createServerFn({ method: 'POST' })
   .inputValidator((d: { email: string }) => d)
   .handler(async ({ data }): Promise<{ email: string; grant: GrantState }> => {
-    if (!(await adminUser())) throw new Error('forbidden')
+    await requireSuperAdmin()
     const { normalizeEmail } = await import('./access-rules')
     const email = normalizeEmail(data.email)
     if (!email) throw new Error('email required')

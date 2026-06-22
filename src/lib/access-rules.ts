@@ -9,6 +9,16 @@
  * recipient, so keep it to the ONE address that should get those emails. */
 export const ADMIN_EMAIL = 'ronan@bluebramble.net'
 
+/**
+ * The ONE email that is ALWAYS a super-admin, even with the SUPER_ADMIN_EMAILS
+ * secret unset/empty. Mirrors ADMIN_EMAIL: it is folded into the super-admin set
+ * by `buildSuperAdminSet` so mission-critical actions (grant admin, broadcast
+ * email, the launch toggle) can never be locked out, and so that with no secret
+ * configured bluebramble is the only super-admin and nobody else is. Keep it the
+ * one address that should hold that power by default.
+ */
+export const SUPER_ADMIN_EMAIL = 'ronan@bluebramble.net'
+
 /** Message surfaced to a non-approved person trying to sign in. */
 export const NOT_APPROVED_MESSAGE =
   "You're on the waitlist. We'll email you when your spot opens."
@@ -137,6 +147,23 @@ export function isSuperAdminWith(
   const e = normalize(email)
   if (!e) return false
   return superAdmins.has(e)
+}
+
+/**
+ * Build the canonical super-admin set: the always-on SUPER_ADMIN_EMAIL constant
+ * UNIONED with the comma-separated SUPER_ADMIN_EMAILS secret (normalised). With
+ * the secret empty/unset the set is exactly { SUPER_ADMIN_EMAIL }, so bluebramble
+ * is a super-admin and nobody else is. The env-bound `adminViewer` in
+ * admin-server.ts sources `raw` from the secret and feeds the result to
+ * `isSuperAdminWith`; this pure form keeps the constant-∪-secret rule
+ * unit-testable in one place.
+ */
+export function buildSuperAdminSet(
+  raw: string | undefined | null,
+): Set<string> {
+  const set = parseApprovedList(raw)
+  set.add(normalize(SUPER_ADMIN_EMAIL))
+  return set
 }
 
 /**

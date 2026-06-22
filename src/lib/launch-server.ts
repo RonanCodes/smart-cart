@@ -16,6 +16,20 @@ async function requireAdmin(): Promise<void> {
   if (!(await isAdmin())) throw new Error('forbidden')
 }
 
+/**
+ * Gate: the signed-in viewer must be a SUPER-admin, or this throws 'forbidden'.
+ * Used by the mission-critical launch actions — flipping the site live / back to
+ * waitlist (setLaunchState) and the launch-email broadcast
+ * (sendLaunchEmailToAllUsers / the setLaunchState notify path) — so a regular
+ * admin is blocked server-side, not merely hidden in the UI. Reuses the
+ * server-decided `isSuperAdmin` server fn (adminViewer + isSuperAdminWith) in
+ * admin-server.ts.
+ */
+async function requireSuperAdmin(): Promise<void> {
+  const { isSuperAdmin } = await import('./admin-server')
+  if (!(await isSuperAdmin())) throw new Error('forbidden')
+}
+
 export interface LaunchStateView {
   launched: boolean
   /** Epoch millis of first go-live, or null. Serialisable across the fn boundary. */
@@ -40,7 +54,7 @@ export const getLaunchState = createServerFn({ method: 'GET' }).handler(
 )
 
 /**
- * Flip the global launch state. Admin-gated. Upserts the single scope='global'
+ * Flip the global launch state. SUPER-ADMIN-gated. Upserts the single scope='global'
  * row; `launchedAt` is stamped on the first go-live and preserved thereafter.
  *
  * When going live with `notify` set, every email we know about (waitlist ∪
@@ -56,7 +70,9 @@ export const setLaunchState = createServerFn({ method: 'POST' })
   }))
   .handler(
     async ({ data }): Promise<{ launched: boolean; notified: number }> => {
-      await requireAdmin()
+      // SUPER-ADMIN-ONLY: toggling the site live / back to waitlist (and the
+      // notify broadcast it can trigger) is mission-critical.
+      await requireSuperAdmin()
       const { getDb } = await import('../db/client')
       const { launchState } = await import('../db/launch-state-schema')
       const { eq } = await import('drizzle-orm')
@@ -171,8 +187,9 @@ export const getLaunchEmailPreview = createServerFn({ method: 'GET' }).handler(
 )
 
 /**
- * Send the "Souso is live" launch email to EVERY registered user. Admin-gated
- * (throws 'forbidden' otherwise), POST so it never fires on load. Iterates the
+ * Send the "Souso is live" launch email to EVERY registered user.
+ * SUPER-ADMIN-gated (mission-critical broadcast; throws 'forbidden' otherwise),
+ * POST so it never fires on load. Iterates the
  * de-duped `user` table emails and sends best-effort: one failed address never
  * aborts the rest. Returns { sent, failed, total } so the panel can report the
  * outcome. Use this to (re)send the launch email after go-live, independent of
@@ -182,7 +199,7 @@ export const sendLaunchEmailToAllUsers = createServerFn({
   method: 'POST',
 }).handler(
   async (): Promise<{ sent: number; failed: number; total: number }> => {
-    await requireAdmin()
+    await requireSuperAdmin()
     const { getDb } = await import('../db/client')
     const { user } = await import('../db/schema')
     const { dedupeEmails } = await import('./launch')
