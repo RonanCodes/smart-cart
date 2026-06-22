@@ -52,6 +52,7 @@ import { Route as TipIdReturnRouteImport } from './routes/tip.$id.return'
 import { Route as RatePlanIdDayRouteImport } from './routes/rate.$planId.$day'
 import { Route as ApiVapiToolRouteImport } from './routes/api/vapi/tool'
 import { Route as ApiVapiTokenRouteImport } from './routes/api/vapi/token'
+import { Route as ApiResendInboundRouteImport } from './routes/api/resend/inbound'
 import { Route as ApiMollieWebhookRouteImport } from './routes/api/mollie/webhook'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
@@ -269,6 +270,11 @@ const ApiVapiTokenRoute = ApiVapiTokenRouteImport.update({
   path: '/api/vapi/token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiResendInboundRoute = ApiResendInboundRouteImport.update({
+  id: '/api/resend/inbound',
+  path: '/api/resend/inbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMollieWebhookRoute = ApiMollieWebhookRouteImport.update({
   id: '/api/mollie/webhook',
   path: '/api/mollie/webhook',
@@ -321,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
+  '/api/resend/inbound': typeof ApiResendInboundRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
   '/rate/$planId/$day': typeof RatePlanIdDayRoute
@@ -366,6 +373,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
+  '/api/resend/inbound': typeof ApiResendInboundRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
   '/rate/$planId/$day': typeof RatePlanIdDayRoute
@@ -414,6 +422,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
+  '/api/resend/inbound': typeof ApiResendInboundRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
   '/api/vapi/tool': typeof ApiVapiToolRoute
   '/rate/$planId/$day': typeof RatePlanIdDayRoute
@@ -462,6 +471,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/auth/$'
     | '/api/mollie/webhook'
+    | '/api/resend/inbound'
     | '/api/vapi/token'
     | '/api/vapi/tool'
     | '/rate/$planId/$day'
@@ -507,6 +517,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/auth/$'
     | '/api/mollie/webhook'
+    | '/api/resend/inbound'
     | '/api/vapi/token'
     | '/api/vapi/tool'
     | '/rate/$planId/$day'
@@ -554,6 +565,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/auth/$'
     | '/api/mollie/webhook'
+    | '/api/resend/inbound'
     | '/api/vapi/token'
     | '/api/vapi/tool'
     | '/rate/$planId/$day'
@@ -586,6 +598,7 @@ export interface RootRouteChildren {
   DesignWeekRoute: typeof DesignWeekRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiMollieWebhookRoute: typeof ApiMollieWebhookRoute
+  ApiResendInboundRoute: typeof ApiResendInboundRoute
   ApiVapiTokenRoute: typeof ApiVapiTokenRoute
   ApiVapiToolRoute: typeof ApiVapiToolRoute
   RatePlanIdDayRoute: typeof RatePlanIdDayRoute
@@ -895,6 +908,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVapiTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/resend/inbound': {
+      id: '/api/resend/inbound'
+      path: '/api/resend/inbound'
+      fullPath: '/api/resend/inbound'
+      preLoaderRoute: typeof ApiResendInboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mollie/webhook': {
       id: '/api/mollie/webhook'
       path: '/api/mollie/webhook'
@@ -989,6 +1009,7 @@ const rootRouteChildren: RootRouteChildren = {
   DesignWeekRoute: DesignWeekRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiMollieWebhookRoute: ApiMollieWebhookRoute,
+  ApiResendInboundRoute: ApiResendInboundRoute,
   ApiVapiTokenRoute: ApiVapiTokenRoute,
   ApiVapiToolRoute: ApiVapiToolRoute,
   RatePlanIdDayRoute: RatePlanIdDayRoute,

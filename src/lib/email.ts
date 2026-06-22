@@ -244,6 +244,41 @@ export async function sendNewUserNotice(
 }
 
 /**
+ * Forward ONE inbound email (received at hello@souso.app) to ONE admin (#457).
+ *
+ * Receiving is enabled on the domain via a Resend inbound webhook; when someone
+ * mails hello@, the webhook forwards it to every admin so the team sees it
+ * without a shared mailbox. Best-effort, same contract as the notice senders:
+ * a missing RESEND_API_KEY is a no-op `{ sent: false }` and the function never
+ * throws, so one bad address or a Resend outage can't break the webhook (which
+ * must always 200 to Resend). The original sender goes in the subject + body and
+ * as Reply-To, so an admin can reply straight to the person who wrote in.
+ */
+export async function forwardInboundEmail(
+  inbound: { from: string; subject: string; text: string; html: string },
+  to: string,
+): Promise<{ sent: boolean }> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) return { sent: false }
+  const resend = new Resend(apiKey)
+  const subject = `[Souso inbox] ${inbound.subject || '(no subject)'} — from ${inbound.from}`
+  const intro = `Forwarded from hello@souso.app\nFrom: ${inbound.from}\nSubject: ${inbound.subject || '(no subject)'}\n\n`
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    replyTo: inbound.from,
+    subject,
+    text: `${intro}${inbound.text || '(no text body)'}`,
+    ...(inbound.html
+      ? {
+          html: `<p style="color:#9aa89a;font-size:13px;margin:0 0 16px;">Forwarded from <strong>hello@souso.app</strong> · From: ${inbound.from}</p>${inbound.html}`,
+        }
+      : {}),
+  })
+  return { sent: !error }
+}
+
+/**
  * Tell ONE admin a new piece of in-app feedback came through (#444 follow-up:
  * email admins on feedback just like on signups). Same best-effort contract:
  * callers swallow errors so a Resend outage never affects the submission. The
