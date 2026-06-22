@@ -85,9 +85,17 @@ export function usePushSubscription(): UsePushSubscription {
       } catch {
         // fall through to the config probe
       }
-      const cfg = await getPushConfig()
+      // On sign-in / page teardown the getPushConfig RPC can resolve to
+      // null/undefined (SOUSO-Z); reading `.publicKey` off that threw a
+      // TypeError. The static return type says it's always present, but the
+      // runtime really can deliver null, so widen here to keep the guard honest
+      // (not stripped as "always truthy" by no-unnecessary-condition).
+      const cfg = (await getPushConfig()) as
+        | { publicKey: string | null }
+        | null
+        | undefined
       if (cancelled) return
-      if (!cfg.publicKey) {
+      if (!cfg?.publicKey) {
         setState('unconfigured')
         return
       }

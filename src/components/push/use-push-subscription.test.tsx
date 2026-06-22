@@ -114,6 +114,19 @@ describe('usePushSubscription', () => {
     )
   })
 
+  it('settles on unconfigured (never throws) when getPushConfig resolves null (SOUSO-Z)', async () => {
+    // On sign-in / page teardown the getPushConfig RPC can resolve to
+    // null/undefined. Destructuring/reading `.publicKey` off that threw a
+    // TypeError. The hook must degrade to a quiet terminal state, never throw.
+    getPushConfig.mockResolvedValue(null)
+    setServiceWorker()
+    setNotificationPermission('default')
+    render(<Probe />)
+    await waitFor(() =>
+      expect(screen.getByTestId('state').textContent).toBe('unconfigured'),
+    )
+  })
+
   it('settles on denied when notifications are browser-blocked', async () => {
     setServiceWorker()
     setNotificationPermission('denied')

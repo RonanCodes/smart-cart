@@ -14,8 +14,17 @@ import type { InboundEmailResult } from '#/lib/inbound-email'
  * the server-supplied `note` is shown calmly — the inbound mail still reaches the
  * admins via the forward (see #457).
  */
-export function InboundEmailPanel({ data }: { data: InboundEmailResult }) {
-  const { items, note } = data
+export function InboundEmailPanel({
+  data,
+}: {
+  // SOUSO-19: the loader's source really can arrive undefined (RPC torn down /
+  // failed) even though the server fn's static return type says it can't. Widen
+  // the prop so the runtime guard below is honest, not stripped as "always
+  // truthy" by the no-unnecessary-condition lint (the push-client.ts precedent).
+  data: InboundEmailResult | null | undefined
+}) {
+  const items = data?.items ?? []
+  const note = data?.note ?? null
   return (
     <section className="space-y-4">
       <header>
