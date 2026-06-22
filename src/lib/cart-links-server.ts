@@ -182,6 +182,24 @@ export const buildCartLinks = createServerFn({ method: 'POST' })
         )
     }
 
+    if (import.meta.env.DEV) {
+      const { readEnv } = await import('./env')
+      if (
+        import.meta.env.VITE_PLAYWRIGHT_E2E_CART_LINKS === '1' ||
+        (await readEnv('PLAYWRIGHT_E2E_CART_LINKS')) === '1'
+      ) {
+        const total = Math.max(lines.length + stapleRows.length, 1)
+        const slug =
+          store === 'ah'
+            ? 'wi123456/e2e-albert-heijn-product'
+            : 'e2e-jumbo-product-123456'
+        return buildAllItemsCartUrl(
+          store,
+          Array.from({ length: total }, () => ({ slug, qty: 1 })),
+        )
+      }
+    }
+
     const amountByName = new Map(lines.map((l) => [l.name, l.amount ?? null]))
 
     // Semantic resolution (ADR-0004): per line we try raw embedding retrieval,

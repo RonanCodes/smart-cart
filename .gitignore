@@ -33,6 +33,8 @@ drizzle/seed/*.sql
 
 # playwright-mcp browser session artifacts
 .playwright-mcp/
+playwright-report/
+test-results/
 # Added by Braintrust Wizard
 .braintrust.json
 .tmp-replicate/

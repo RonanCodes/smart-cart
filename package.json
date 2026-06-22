@@ -17,6 +17,9 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
     "db:generate": "drizzle-kit generate --config drizzle/d1.config.ts",
     "db:migrate:local": "wrangler d1 migrations apply smart_cart_db --local",
     "db:migrate:remote": "wrangler d1 migrations apply smart_cart_db --remote",
@@ -66,6 +69,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260617.1",
     "@commitlint/cli": "^21.0.2",
+    "@playwright/test": "^1.61.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "0.7.0",
     "@tanstack/eslint-config": "^0.4.0",
