@@ -48,7 +48,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 migrations apply smart_cart_db_dev --remote
+          command: d1 migrations apply smart_cart_db_dev --remote --env dev
       # No `--env dev`: the dev-flattened redirected config IS the dev worker.
       - name: Deploy worker (dev)
         uses: cloudflare/wrangler-action@v3
