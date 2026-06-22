@@ -30,6 +30,20 @@ async function readRealSession(): Promise<SessionUser | undefined> {
   return { id: u.id, email: u.email, name: u.name ?? u.email }
 }
 
+/**
+ * #846: the raw `Cookie` header from the inbound request, or null. Lets the route
+ * guard tell a GENUINE signed-out visitor (no session cookie) from a logged-in
+ * user whose session resolution merely errored (cookie present). Never throws —
+ * if `getRequest()` is unavailable the answer is "no cookie", which fails closed.
+ */
+export function getRequestCookieHeader(): string | null {
+  try {
+    return getRequest().headers.get('cookie')
+  } catch {
+    return null
+  }
+}
+
 // Insert the dev user row at most once per isolate (insurance in case D1 ever
 // enforces the household.ownerId -> user.id foreign key; today it does not).
 let devUserEnsured = false
