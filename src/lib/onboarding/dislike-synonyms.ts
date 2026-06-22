@@ -112,6 +112,44 @@ const CROSSLANG_EXCLUSION_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
   ['egg', 'ei', 'eieren'],
 ]
 
+/**
+ * Generic-fish exclusion (dietary-safety, #496). Distinct from the per-species
+ * groups above: excluding the "Fish" avoid-chip ('fish') or its NL word ('vis')
+ * must drop EVERY common finfish, because the catalogue is Dutch-first and names
+ * fish as 'zalm' / 'tonijn' / 'kabeljauw' etc, none of which contains the substring
+ * "fish". For a "no fish" household we take the SAFER (broader finfish)
+ * interpretation and fan the exclusion out to the common species spellings below.
+ *
+ * Why a SEPARATE one-directional map instead of one more CROSSLANG group: the
+ * crosslang map is symmetric (every member expands to the whole group), so folding
+ * 'zalm' into a big fish group there would make excluding "salmon" alone ALSO drop
+ * tuna/cod/etc. Keeping this generic fan-out one-way ('fish'/'vis' -> all finfish,
+ * but 'zalm' -> just salmon via its own narrow group) preserves the precise
+ * per-species groups while still making the "Fish" chip safe.
+ *
+ * FINFISH ONLY: shellfish stays its own group, so a "no fish" pick does NOT
+ * silently also exclude prawns/shellfish (a separate allergy the user picks on its
+ * own chip). NB: long-term this hand-maintained spelling list should be replaced by
+ * embedding-based exclusion (ADR-0004) so we stop curating fish names by hand.
+ */
+const GENERIC_FISH_TERMS: ReadonlyArray<string> = [
+  'fish',
+  'vis',
+  'zalm', // salmon
+  'tonijn', // tuna
+  'kabeljauw', // cod
+  'haring', // herring
+  'makreel', // mackerel
+  'schol', // plaice
+  'forel', // trout
+  'zeebaars', // sea bass
+  'pangasius',
+  'tilapia',
+]
+
+/** The generic words that should fan out to every finfish spelling. */
+const GENERIC_FISH_TRIGGERS: ReadonlySet<string> = new Set(['fish', 'vis'])
+
 /** lowercased alias -> every term (incl. itself) in its cross-language group. */
 const CROSSLANG_BY_ALIAS: ReadonlyMap<string, ReadonlyArray<string>> = (() => {
   const map = new Map<string, ReadonlyArray<string>>()
@@ -134,10 +172,18 @@ const CROSSLANG_BY_ALIAS: ReadonlyMap<string, ReadonlyArray<string>> = (() => {
  * to just itself (lowercased), so a no-synonym exclusion behaves exactly as the
  * literal substring match did before. Returned terms are lowercased, deduped, and
  * always include the input.
+ *
+ * Generic "fish" / "vis" additionally fan out to every common finfish spelling
+ * (dietary-safety, #496) so the Dutch-first catalogue ('zalm'/'tonijn'/...) is
+ * caught; this is one-directional, so a per-species exclusion ('salmon') stays
+ * narrow (see GENERIC_FISH_TERMS).
  */
 export function expandExclusionSynonyms(term: string): Array<string> {
   const key = term.trim().toLowerCase()
   if (!key) return []
+  if (GENERIC_FISH_TRIGGERS.has(key)) {
+    return [...new Set([key, ...GENERIC_FISH_TERMS])]
+  }
   const group = CROSSLANG_BY_ALIAS.get(key)
   if (!group) return [key]
   return [...new Set([key, ...group])]
