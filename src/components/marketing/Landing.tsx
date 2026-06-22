@@ -178,10 +178,13 @@ export function Landing({
               <div className="bg-secondary text-primary flex h-14 w-14 items-center justify-center rounded-full">
                 <PartyPopper className="h-7 w-7" />
               </div>
-              <p className="mt-4 text-lg font-bold">We&apos;re live</p>
+              <p className="mt-4 text-lg font-bold">
+                We&apos;re live (in beta)
+              </p>
               <p className="text-muted-foreground mt-2 text-sm">
-                Souso is open. Plan your week and build your shopping list in
-                minutes.
+                Souso is open and in beta, so you&rsquo;re one of our first
+                testers. Plan your week and build your basket in minutes, and
+                tell us what to improve.
               </p>
               <Link
                 to={signInTo}
