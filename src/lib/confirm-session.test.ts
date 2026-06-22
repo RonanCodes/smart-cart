@@ -47,4 +47,14 @@ describe('confirmSession (#414 Set-Cookie race)', () => {
     const ok = await confirmSession({ timeoutMs: 20, intervalMs: 5 })
     expect(ok).toBe(false)
   })
+
+  it('reads with the cookie-cache bypassed so a stale cache cannot false-positive (#437)', async () => {
+    getSession.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    await confirmSession()
+    expect(getSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({ disableCookieCache: true }),
+      }),
+    )
+  })
 })

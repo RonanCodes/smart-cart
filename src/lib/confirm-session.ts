@@ -20,12 +20,12 @@ import { authClient } from '#/lib/auth-client'
  * Never throws — a getSession error is treated as "not yet" and retried.
  */
 export async function confirmSession(opts?: {
-  /** Total time to wait for the cookie before giving up. Default 3000ms. */
+  /** Total time to wait for the cookie before giving up. Default 5000ms. */
   timeoutMs?: number
   /** Delay between polls. Default 100ms. */
   intervalMs?: number
 }): Promise<boolean> {
-  const timeoutMs = opts?.timeoutMs ?? 3000
+  const timeoutMs = opts?.timeoutMs ?? 5000
   const intervalMs = opts?.intervalMs ?? 100
   const deadline = Date.now() + timeoutMs
 
@@ -34,7 +34,18 @@ export async function confirmSession(opts?: {
   for (;;) {
     let hasUser = false
     try {
-      const res = await authClient.getSession()
+      // CRITICAL (#437): bypass Better Auth's session-data cookie-cache AND the
+      // HTTP cache so this is a REAL server round-trip that depends on the actual
+      // auth-token cookie. Without this, getSession could return the just-created
+      // session from cache and report a user BEFORE the token cookie is committed
+      // to the jar — a false positive that let the navigation race ahead and the
+      // SSR guard then bounced the user back to /sign-in (the intermittent login
+      // bounce). A cache-bypassing read only resolves a user once the cookie the
+      // navigation will send is genuinely present.
+      const res = await authClient.getSession({
+        query: { disableCookieCache: true },
+        fetchOptions: { cache: 'no-store' },
+      })
       hasUser = Boolean(res.data?.user)
     } catch {
       // Treat a transient getSession failure as "not yet" and keep polling.
