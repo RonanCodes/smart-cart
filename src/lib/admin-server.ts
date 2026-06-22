@@ -159,6 +159,13 @@ export interface AdminUserRow {
   configAdmin: boolean
   /** Viewing super-admin may revoke admin from this DB-granted admin row. */
   revocable: boolean
+  /**
+   * Account-creation time as epoch ms, or null for an env/grant-only person who
+   * never signed in (no `user` row). Drives the signups-over-time chart + the
+   * "new this week" total + the newest-first sort. Attached after the merge by
+   * joining back on userId (mergePeople stays badge-only by design).
+   */
+  createdAt: number | null
 }
 
 export const listUsers = createServerFn({ method: 'GET' }).handler(
@@ -177,9 +184,20 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
         email: user.email,
         householdId: household.id,
         profile: household.profile,
+        createdAt: user.createdAt,
       })
       .from(user)
       .leftJoin(household, eq(household.ownerId, user.id))
+    // Account-creation time per userId (epoch ms), for the analytics view. Built
+    // here and re-joined onto the merged rows below, so mergePeople stays a pure
+    // badge-only generic (its shared tests don't change). createdAt is a drizzle
+    // timestamp (Date); guard nulls and convert to epoch ms.
+    const createdAtByUserId = new Map<string, number>()
+    for (const r of rows) {
+      if (r.userId && r.createdAt instanceof Date) {
+        createdAtByUserId.set(r.userId, r.createdAt.getTime())
+      }
+    }
     const counts = await db
       .select({ hid: recipeSwipe.householdId, n: count() })
       .from(recipeSwipe)
@@ -193,7 +211,7 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
     const envApproved = parseApprovedList(await readEnv('APPROVED_EMAILS'))
     const grants = await loadAdminGrantMap()
 
-    return mergePeople<Badge>({
+    const merged = mergePeople<Badge>({
       userRows: rows.map((r) => ({
         userId: r.userId,
         email: r.email,
@@ -207,6 +225,12 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
       viewerEmail: viewer.email,
       viewerIsSuperAdmin: viewer.isSuperAdmin,
     })
+    // Re-attach createdAt by userId (env/grant-only people with no user row keep
+    // null), so AdminUserRow carries the signup time the analytics view needs.
+    return merged.map((p) => ({
+      ...p,
+      createdAt: p.userId ? (createdAtByUserId.get(p.userId) ?? null) : null,
+    }))
   },
 )
 
