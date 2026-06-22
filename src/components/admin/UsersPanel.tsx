@@ -354,6 +354,13 @@ export function UsersPanel({
                         </span>
                       )}
                     </div>
+                    {/* Phone a beta tester left to be reached out to (#407).
+                        Text, not a tel: link, since the row is itself a button. */}
+                    {u.phone && (
+                      <div className="text-accent mt-1 text-xs font-medium">
+                        📞 {u.phone}
+                      </div>
+                    )}
                   </div>
                   <span className="text-muted-foreground ml-3 shrink-0 text-xs">
                     {u.swipes} swipes

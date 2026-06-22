@@ -166,6 +166,9 @@ export interface AdminUserRow {
    * joining back on userId (mergePeople stays badge-only by design).
    */
   createdAt: number | null
+  /** Optional phone/WhatsApp a beta tester left in onboarding (#407), so the
+   * team can reach out for a chat. null when not given. Attached post-merge. */
+  phone: string | null
 }
 
 export const listUsers = createServerFn({ method: 'GET' }).handler(
@@ -193,9 +196,16 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
     // badge-only generic (its shared tests don't change). createdAt is a drizzle
     // timestamp (Date); guard nulls and convert to epoch ms.
     const createdAtByUserId = new Map<string, number>()
+    // Optional phone left in the onboarding beta step lives on profile.phone
+    // (#407); re-join it onto the merged rows the same way as createdAt.
+    const phoneByUserId = new Map<string, string>()
     for (const r of rows) {
       if (r.userId && r.createdAt instanceof Date) {
         createdAtByUserId.set(r.userId, r.createdAt.getTime())
+      }
+      const phone = (r.profile as { phone?: unknown } | null)?.phone
+      if (r.userId && typeof phone === 'string' && phone.trim()) {
+        phoneByUserId.set(r.userId, phone)
       }
     }
     const counts = await db
@@ -230,6 +240,7 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
     return merged.map((p) => ({
       ...p,
       createdAt: p.userId ? (createdAtByUserId.get(p.userId) ?? null) : null,
+      phone: p.userId ? (phoneByUserId.get(p.userId) ?? null) : null,
     }))
   },
 )

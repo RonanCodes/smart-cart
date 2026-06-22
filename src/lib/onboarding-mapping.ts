@@ -35,6 +35,23 @@ export interface MappedProfile {
   pets: { cats: number; dogs: number }
   /** Children ages (years) — sizes child portions. */
   childrenAges: Array<number>
+  /** Optional phone/WhatsApp the tester left to be reached for feedback (#407).
+   * null when not given. Never used by the planner; the team reads it in admin. */
+  phone?: string | null
+}
+
+/**
+ * Normalise an optional phone/WhatsApp number. Trims and keeps a plausible
+ * number (digits, with the usual +, spaces, -, (), separators); returns null for
+ * empty or too-short input so a stray keypress is not stored as a "number".
+ * Pure + lenient on purpose (international formats vary).
+ */
+export function normalisePhone(raw: string | null | undefined): string | null {
+  const trimmed = (raw ?? '').trim()
+  if (!trimmed) return null
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length < 6) return null
+  return trimmed
 }
 
 export interface MappedHousehold {
@@ -152,6 +169,7 @@ export function draftToHousehold(draft: OnboardingDraft): MappedHousehold {
       cuisinesDisliked,
       pets: { cats: draft.pets.cats, dogs: draft.pets.dogs },
       childrenAges: [...draft.childrenAges],
+      phone: normalisePhone(draft.phone),
     },
   }
 }

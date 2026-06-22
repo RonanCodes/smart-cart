@@ -78,7 +78,9 @@ describe('OnboardingFlow', () => {
     render(<OnboardingFlow onComplete={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
     expect(screen.getByTestId('onboarding-steps')).toBeTruthy()
-    expect(screen.getByText(STEPS[0]!.title)).toBeTruthy()
+    // The first step is the beta-intent step (it owns its layout, empty shell
+    // title), so assert its body renders rather than a (now-empty) title string.
+    expect(screen.getByTestId('beta-step')).toBeTruthy()
     expect(screen.getByText(`1/${STEPS.length}`)).toBeTruthy()
   })
 
