@@ -22,6 +22,89 @@ export function cheapestOf(baskets: Array<StoreBasket>): StoreBasket | null {
 }
 
 /**
+ * The maximum number of lines sent to the matcher in ONE comparePriceForStore
+ * invocation (#shopping-1101).
+ *
+ * The accurate tier runs an embedding + multi-query retrieval + LLM rerank PER
+ * uncached line against the in-memory ~4 MB catalogue. A single invocation that
+ * resolved every line of a big cart blew the Cloudflare Worker isolate's hard
+ * 128 MB / CPU cap, killing it -> a Cloudflare 1101 for the whole request. The
+ * cart now splits its lines into chunks of this size and fans one call per chunk
+ * (per store), so no single isolate invocation ever fans out across an unbounded
+ * N. This is a CALL-SITE bound; the matcher internals are untouched.
+ *
+ * 25 keeps the worst-case per-invocation work well under the limit while staying
+ * a single chunk for an ordinary week's cart (so no extra round-trips there).
+ */
+export const PRICE_COMPARE_CHUNK_SIZE = 25
+
+/**
+ * Split a line set into fixed-size chunks of at most `size` (#shopping-1101), in
+ * order, so the matcher fan-out per request is bounded. Pure; the order + count
+ * invariant is locked by the test. An empty list yields no chunks.
+ */
+export function chunkLines<T>(
+  lines: ReadonlyArray<T>,
+  size: number,
+): Array<Array<T>> {
+  const safeSize = size > 0 ? size : 1
+  const chunks: Array<Array<T>> = []
+  for (let i = 0; i < lines.length; i += safeSize) {
+    chunks.push(lines.slice(i, i + safeSize))
+  }
+  return chunks
+}
+
+/**
+ * Recombine the per-chunk baskets for ONE store back into a single basket
+ * (#shopping-1101). Because the lines were chunked across several invocations,
+ * each chunk returns its own partial StoreBasket; this sums their totals and
+ * concatenates their line items / unavailable / waste into the whole-store
+ * basket the UI expects. A null chunk basket (the chunk errored, or had no
+ * priceable lines) is skipped, so a partial set still produces a basket. Returns
+ * null only when EVERY chunk failed, so the store is dropped (never crashes).
+ */
+export function mergeChunkBaskets(
+  store: string,
+  displayName: string,
+  chunks: ReadonlyArray<StoreBasket | null>,
+): StoreBasket | null {
+  const present = chunks.filter((b): b is StoreBasket => b !== null)
+  if (present.length === 0) return null
+
+  const merged: StoreBasket = {
+    store,
+    displayName: present[0]?.displayName ?? displayName,
+    lineItems: [],
+    totalCents: 0,
+    totalWaste: {
+      cents: 0,
+      massGrams: 0,
+      volumeMl: 0,
+      count: 0,
+      unknownLines: 0,
+      hasUnknown: false,
+    },
+    unavailable: [],
+    estimatedCount: 0,
+  }
+  for (const b of present) {
+    merged.lineItems.push(...b.lineItems)
+    merged.totalCents += b.totalCents
+    merged.unavailable.push(...b.unavailable)
+    merged.estimatedCount += b.estimatedCount
+    merged.totalWaste.cents += b.totalWaste.cents
+    merged.totalWaste.massGrams += b.totalWaste.massGrams
+    merged.totalWaste.volumeMl += b.totalWaste.volumeMl
+    merged.totalWaste.count += b.totalWaste.count
+    merged.totalWaste.unknownLines += b.totalWaste.unknownLines
+    merged.totalWaste.hasUnknown =
+      merged.totalWaste.hasUnknown || b.totalWaste.hasUnknown
+  }
+  return merged
+}
+
+/**
  * Merge one freshly-resolved store basket into a running comparison, keeping the
  * baskets de-duped by store and the cheapest recomputed. A null basket (a store
  * with no priceable lines / not covered) is dropped, not stored. Pure, so the
@@ -121,21 +204,46 @@ export function usePriceComparison(lines: Array<PriceCompareLine>): {
       // store keeps its spinner (CartStoreSwitch shows price-or-spinner per store).
       // Each task returns whether it landed (true) or errored (false) so the
       // all-failed check reads off the settled results, not a closure counter.
+      //
+      // #shopping-1101: a big cart used to send EVERY line in ONE invocation per
+      // store. The accurate matcher's per-line embedding + rerank against the
+      // in-memory ~4 MB catalogue blew the Worker isolate's 128 MB / CPU cap, so
+      // Cloudflare killed it (1101) for the whole request. We now split the lines
+      // into PRICE_COMPARE_CHUNK_SIZE chunks and fan one call PER CHUNK, so no
+      // single isolate invocation ever resolves more than the cap. A chunk that
+      // throws (or the isolate that runs it) degrades to a null partial basket
+      // instead of bubbling; the store still shows whatever its other chunks
+      // priced. The store counts as landed if ANY chunk resolved.
+      const chunks = chunkLines(snapshot, PRICE_COMPARE_CHUNK_SIZE)
       const outcomes = await Promise.all(
         stores.map(async (store): Promise<boolean> => {
-          try {
-            const basket = await comparePriceForStore({
-              data: { store, lines: snapshot },
-            })
-            if (!cancelled()) setData((prev) => mergeStoreBasket(prev, basket))
-            return true
-          } catch (err) {
-            log.warn('price-compare store failed', {
-              store,
-              err: String(err),
-            })
-            return false
-          }
+          const chunkBaskets = await Promise.all(
+            chunks.map(async (chunk): Promise<StoreBasket | null> => {
+              try {
+                return await comparePriceForStore({
+                  data: { store, lines: chunk },
+                })
+              } catch (err) {
+                // A single chunk overran / errored: degrade THIS chunk to null so
+                // the store still totals from the chunks that did resolve. Never
+                // rethrow — a failed comparePrices must never reach a page error.
+                log.warn('price-compare chunk failed', {
+                  event: 'price_compare.chunk_degraded',
+                  store,
+                  chunkLines: chunk.length,
+                  totalLines: snapshot.length,
+                  err: String(err),
+                })
+                return null
+              }
+            }),
+          )
+          const basket = mergeChunkBaskets(store, store, chunkBaskets)
+          // Every chunk failed for this store: count it as not-landed so the
+          // all-failed check can surface `failed` when no store priced at all.
+          if (basket === null) return false
+          if (!cancelled()) setData((prev) => mergeStoreBasket(prev, basket))
+          return true
         }),
       )
       if (cancelled()) return
