@@ -172,13 +172,22 @@ function RootComponent() {
       'serviceWorker' in navigator ? navigator.serviceWorker : null
     swContainer?.addEventListener('message', onSwMessage)
     // Global client error catchers -> logger -> /api/log -> Workers Logs.
-    const onError = (e: ErrorEvent) =>
+    // Both first try the one-time self-heal reload (#369 + #416): the /week
+    // lazy-route match-resolve race surfaces in an `async Promise.all` frame
+    // (Sentry SOUSO-T), so it can escape the React boundary as a window error /
+    // unhandled rejection. reloadOnceForChunkError is guarded + a no-op for any
+    // non-recoverable error, so a genuine bug still falls through to the log.
+    const onError = (e: ErrorEvent) => {
+      if (reloadOnceForChunkError(e.error ?? e.message)) return
       log.error('window.error', e.error ?? e.message, {
         filename: e.filename,
         lineno: e.lineno,
       })
-    const onRejection = (e: PromiseRejectionEvent) =>
+    }
+    const onRejection = (e: PromiseRejectionEvent) => {
+      if (reloadOnceForChunkError(e.reason)) return
       log.error('window.unhandledrejection', e.reason)
+    }
     window.addEventListener('error', onError)
     window.addEventListener('unhandledrejection', onRejection)
     // Vite fires this when a code-split chunk preload fails (the stale-chunk case
