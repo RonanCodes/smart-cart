@@ -103,7 +103,17 @@ export function Sheet({
     >
       <div
         data-state={state}
-        className="sheet-backdrop absolute inset-0 bg-black/40"
+        className="sheet-backdrop absolute inset-x-0 bg-black/40"
+        // #438: on an iOS standalone PWA the dim backdrop must reach the very top
+        // of the screen, into env(safe-area-inset-top) (the notch / camera area).
+        // The fixed container already spans inset-0 with viewport-fit=cover, but
+        // we make the backdrop itself extend ABOVE top:0 by the top inset (and grow
+        // its height by the same amount) so the curved notch area is dimmed too,
+        // never left as a bright uncovered strip.
+        style={{
+          top: 'calc(-1 * env(safe-area-inset-top, 0px))',
+          height: 'calc(100% + env(safe-area-inset-top, 0px))',
+        }}
         onClick={() => dismissible && onOpenChange(false)}
         aria-hidden
         onAnimationEnd={(e) => {
