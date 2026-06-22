@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { cheapestOf, mergeStoreBasket } from './use-price-comparison'
+import {
+  cheapestOf,
+  mergeStoreBasket,
+  chunkLines,
+  mergeChunkBaskets,
+  PRICE_COMPARE_CHUNK_SIZE,
+} from './use-price-comparison'
+import type { PriceCompareLine } from '#/lib/price-compare-server'
 import type { StoreBasket } from '#/lib/pricing'
 
 /**
@@ -71,5 +78,78 @@ describe('mergeStoreBasket (progressive price fill, #439)', () => {
 describe('cheapestOf', () => {
   it('returns null when nothing matched anywhere', () => {
     expect(cheapestOf([basket('ah', 0, 0), basket('jumbo', 0, 0)])).toBeNull()
+  })
+})
+
+/**
+ * P0 #shopping-1101: a big cart used to 1101 because the cart sent EVERY line to
+ * the matcher in ONE comparePriceForStore invocation per store. The accurate
+ * tier runs an embedding + retrieval + LLM rerank per uncached line against the
+ * in-memory ~4 MB catalogue, so one invocation resolving N lines blew the Worker
+ * isolate's 128 MB / CPU cap and Cloudflare killed it -> 1101 for the request.
+ *
+ * The fix bounds the work PER INVOCATION at the call site: split the lines into
+ * fixed-size chunks and fan one comparePriceForStore call per chunk, so no single
+ * isolate invocation ever resolves more than PRICE_COMPARE_CHUNK_SIZE lines. The
+ * partial baskets for the same store are then merged back into one. These are the
+ * two pure seams the hook composes; locked here without React.
+ */
+function lines(n: number): Array<PriceCompareLine> {
+  return Array.from({ length: n }, (_, i) => ({
+    name: `ingredient-${i}`,
+    amount: '1 stuks',
+  }))
+}
+
+describe('chunkLines (bound the matcher fan-out per request, #shopping-1101)', () => {
+  it('splits a big line set into fixed-size chunks no larger than the cap', () => {
+    const all = lines(57)
+    const chunks = chunkLines(all, PRICE_COMPARE_CHUNK_SIZE)
+    expect(chunks.length).toBeGreaterThan(1)
+    for (const c of chunks) {
+      expect(c.length).toBeLessThanOrEqual(PRICE_COMPARE_CHUNK_SIZE)
+      expect(c.length).toBeGreaterThan(0)
+    }
+    // Every line is preserved, in order, with none lost or duplicated.
+    expect(chunks.flat()).toEqual(all)
+  })
+
+  it('keeps the cap sane (a real Worker-memory bound, not unbounded)', () => {
+    // A guard against someone setting the cap so high it stops bounding anything.
+    expect(PRICE_COMPARE_CHUNK_SIZE).toBeGreaterThan(0)
+    expect(PRICE_COMPARE_CHUNK_SIZE).toBeLessThanOrEqual(40)
+  })
+
+  it('returns a single chunk for a small cart (no extra round-trips)', () => {
+    const all = lines(3)
+    const chunks = chunkLines(all, PRICE_COMPARE_CHUNK_SIZE)
+    expect(chunks).toEqual([all])
+  })
+
+  it('returns no chunks for an empty list', () => {
+    expect(chunkLines([], PRICE_COMPARE_CHUNK_SIZE)).toEqual([])
+  })
+})
+
+describe('mergeChunkBaskets (recombine chunked baskets for one store, #shopping-1101)', () => {
+  it('sums totals and concatenates line items across chunks', () => {
+    const a = basket('ah', 1200, 2)
+    const b = basket('ah', 800, 3)
+    const merged = mergeChunkBaskets('ah', 'Albert Heijn', [a, b])
+    expect(merged).not.toBeNull()
+    expect(merged?.store).toBe('ah')
+    expect(merged?.totalCents).toBe(2000)
+    expect(merged?.lineItems).toHaveLength(5)
+  })
+
+  it('ignores null chunk baskets (a chunk that errored / had no priceable lines)', () => {
+    const a = basket('ah', 999, 1)
+    const merged = mergeChunkBaskets('ah', 'Albert Heijn', [a, null])
+    expect(merged?.totalCents).toBe(999)
+    expect(merged?.lineItems).toHaveLength(1)
+  })
+
+  it('returns null when every chunk failed (so the store is simply dropped)', () => {
+    expect(mergeChunkBaskets('ah', 'Albert Heijn', [null, null])).toBeNull()
   })
 })
