@@ -528,3 +528,11 @@ body {
     drop-shadow(2px 2px 0 #fff) drop-shadow(-2px 2px 0 #fff)
     drop-shadow(0 8px 11px rgba(22, 52, 31, 0.2));
 }
+
+/* Lift the Sentry user-feedback button above the bottom TabBar so it never
+   covers the Profile tab. The injected actor host #sentry-feedback positions
+   itself from these CSS vars; sit it just above the tab bar + safe area. */
+#sentry-feedback {
+  --bottom: calc(var(--tab-bar-space) + 1rem);
+  --right: 1rem;
+}

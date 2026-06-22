@@ -18,7 +18,6 @@ import {
   Users,
   Ban,
   ChevronRight,
-  Sun,
   MessageCircleHeart,
 } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
@@ -290,7 +289,8 @@ function Profile() {
       <ScreenHeader title="Profile" />
 
       <div className="px-5">
-        {/* Profile header: avatar tile + name + "Souso since <month>" + Pro. */}
+        {/* Profile header: avatar tile + name + "Souso since <month>". The old
+            "Pro" badge was removed (it implied a tier that does not exist). */}
         <div className="flex items-center gap-3.5 pb-2">
           <div className="bg-secondary text-primary flex h-14 w-14 items-center justify-center rounded-full border-4 border-white shadow-md">
             <User className="h-6 w-6" />
@@ -303,9 +303,6 @@ function Profile() {
                 : session.user.email}
             </p>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full border border-[#f1ce8e] bg-[#fbe6c2] px-2.5 py-1 text-[0.7rem] font-extrabold text-[#7a4d10]">
-            <Sun className="h-3.5 w-3.5" /> Pro
-          </span>
         </div>
 
         <div className="flex justify-end pt-1 pr-1">
