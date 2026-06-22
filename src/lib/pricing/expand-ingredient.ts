@@ -37,6 +37,30 @@ export type ExpandGenerateObject = (args: {
   span_info?: { name?: string; metadata?: Record<string, unknown> }
 }) => Promise<{ object: z.infer<typeof expandSchema> }>
 
+const EXPAND_CACHE_CAP = 1000
+const expandCache = new Map<
+  string,
+  Promise<{ terms: Array<string>; expandFallback: boolean }>
+>()
+
+function expandKey(ingredient: string): string {
+  return ingredient.trim().toLowerCase()
+}
+
+function rememberExpansion(
+  key: string,
+  promise: Promise<{ terms: Array<string>; expandFallback: boolean }>,
+): Promise<{ terms: Array<string>; expandFallback: boolean }> {
+  if (expandCache.has(key)) expandCache.delete(key)
+  expandCache.set(key, promise)
+  while (expandCache.size > EXPAND_CACHE_CAP) {
+    const oldest = expandCache.keys().next().value
+    if (oldest === undefined) break
+    expandCache.delete(oldest)
+  }
+  return promise
+}
+
 /** Dedupe, trim, drop empties; always keep at least the original ingredient. */
 export function normaliseSearchTerms(
   ingredient: string,
@@ -69,23 +93,41 @@ export async function expandIngredientSearchTerms(
 ): Promise<{ terms: Array<string>; expandFallback: boolean }> {
   const base = ingredient.trim()
   if (!base || !deps.model) return { terms: [base], expandFallback: true }
+  const model = deps.model
+  const key = expandKey(base)
+  const cached = expandCache.get(key)
+  if (cached) return cached
 
-  try {
-    const gen = deps.generateObject ?? (await loadExpandGenerateObject())
-    const { object } = await gen({
-      model: deps.model,
-      schema: expandSchema,
-      system: SYSTEM,
-      prompt: `Ingredient: ${base}`,
-      span_info: { name: 'expand-ingredient', metadata: { ingredient: base } },
-    })
-    return {
-      terms: normaliseSearchTerms(base, expandSchema.parse(object).terms),
-      expandFallback: false,
-    }
-  } catch {
-    return { terms: [base], expandFallback: true }
-  }
+  return rememberExpansion(
+    key,
+    (async () => {
+      try {
+        const gen = deps.generateObject ?? (await loadExpandGenerateObject())
+        const { object } = await gen({
+          model,
+          schema: expandSchema,
+          system: SYSTEM,
+          prompt: `Ingredient: ${base}`,
+          span_info: {
+            name: 'expand-ingredient',
+            metadata: { ingredient: base },
+          },
+        })
+        return {
+          terms: normaliseSearchTerms(base, expandSchema.parse(object).terms),
+          expandFallback: false,
+        }
+      } catch {
+        expandCache.delete(key)
+        return { terms: [base], expandFallback: true }
+      }
+    })(),
+  )
+}
+
+/** Visible for tests and local reseed/dev flows. */
+export function resetIngredientExpansionCache(): void {
+  expandCache.clear()
 }
 
 async function loadExpandGenerateObject(): Promise<ExpandGenerateObject> {
