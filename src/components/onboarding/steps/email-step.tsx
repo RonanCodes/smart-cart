@@ -177,6 +177,9 @@ export function EmailStep({
           </p>
           <Input
             inputMode="numeric"
+            // Focus the code field the moment it appears (right after the code
+            // email is sent) so the keyboard pops straight up.
+            autoFocus
             autoComplete="one-time-code"
             placeholder="123456"
             value={code}
