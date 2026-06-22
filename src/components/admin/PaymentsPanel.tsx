@@ -10,6 +10,14 @@ import type {
   PaymentModeSettings,
 } from '#/lib/payment-mode-server'
 import type { AdminUserRow } from '#/lib/admin-server'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '#/components/ui/card'
+import { Badge } from '#/components/ui/badge'
 import { cn } from '#/lib/utils'
 
 /**
@@ -94,35 +102,48 @@ export function PaymentsPanel({
 
   return (
     <div className="max-w-2xl space-y-6">
+      <header className="space-y-1">
+        <p className="text-primary text-[0.64rem] font-bold tracking-[0.16em] uppercase">
+          Payments
+        </p>
+        <h1 className="text-2xl font-bold tracking-[-0.02em]">Mollie mode</h1>
+        <p className="text-muted-foreground text-sm">
+          Pick the test or live Mollie key tips run through, globally or per
+          household.
+        </p>
+      </header>
+
       {/* Global default */}
-      <section className="border-border bg-card space-y-3 rounded-xl border p-4">
-        <div className="flex items-start gap-3">
-          <CreditCard
-            className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0"
-            aria-hidden
-          />
-          <div>
-            <h2 className="text-lg font-semibold">Mollie mode</h2>
-            <p className="text-muted-foreground text-sm">
-              The default for every household. Tips use the test key in Test
-              mode and the live key in Live mode.
-            </p>
+      <Card ios>
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <span className="bg-secondary text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
+              <CreditCard className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="space-y-1">
+              <CardTitle>Mollie mode</CardTitle>
+              <CardDescription>
+                The default for every household. Tips use the test key in Test
+                mode and the live key in Live mode.
+              </CardDescription>
+            </div>
           </div>
-        </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ModeSegmented
+            value={global}
+            onChange={(m) => void changeGlobal(m)}
+            disabled={savingGlobal}
+            ariaLabel="Global Mollie mode"
+          />
 
-        <ModeSegmented
-          value={global}
-          onChange={(m) => void changeGlobal(m)}
-          disabled={savingGlobal}
-          ariaLabel="Global Mollie mode"
-        />
-
-        {global === 'live' && <LiveWarning scope="every household" />}
-      </section>
+          {global === 'live' && <LiveWarning scope="every household" />}
+        </CardContent>
+      </Card>
 
       {/* Per-household overrides */}
       <section className="space-y-3">
-        <div>
+        <div className="space-y-1">
           <h2 className="text-lg font-semibold">Per-household overrides</h2>
           <p className="text-muted-foreground text-sm">
             Inherit follows the global default. Set a household to Test or Live
@@ -137,25 +158,28 @@ export function PaymentsPanel({
             const effective: PaymentMode = override ?? global
             const selection: 'inherit' | PaymentMode = override ?? 'inherit'
             return (
-              <div
+              <Card
                 key={u.householdId}
-                className="border-border flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3"
+                ios
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
               >
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{u.email}</div>
-                  <div className="text-muted-foreground mt-0.5 text-xs">
-                    Effective:{' '}
-                    <span
+                  <div className="text-muted-foreground mt-1 flex items-center gap-1.5 text-xs">
+                    <span>Effective</span>
+                    <Badge
+                      variant={effective === 'live' ? 'accent' : 'outline'}
                       className={cn(
-                        'font-semibold',
-                        effective === 'live'
-                          ? 'text-destructive'
-                          : 'text-foreground',
+                        'px-2 py-0.5 text-[0.7rem]',
+                        effective === 'live' &&
+                          'bg-destructive text-destructive-foreground',
                       )}
                     >
                       {effective === 'live' ? 'Live' : 'Test'}
-                    </span>
-                    {override === null && ' (inherited)'}
+                    </Badge>
+                    {override === null && (
+                      <span className="text-muted-foreground">inherited</span>
+                    )}
                   </div>
                 </div>
                 <ThreeWaySegmented
@@ -169,13 +193,15 @@ export function PaymentsPanel({
                   disabled={savingHousehold === u.householdId}
                   ariaLabel={`Mollie mode for ${u.email}`}
                 />
-              </div>
+              </Card>
             )
           })}
           {households.length === 0 && (
-            <p className="text-muted-foreground text-sm">
-              No onboarded households yet.
-            </p>
+            <Card ios className="px-4 py-6">
+              <p className="text-muted-foreground text-center text-sm">
+                No onboarded households yet.
+              </p>
+            </Card>
           )}
         </div>
       </section>
@@ -188,7 +214,7 @@ function LiveWarning({ scope }: { scope: string }) {
   return (
     <p
       role="alert"
-      className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950 dark:text-red-300"
+      className="bg-destructive/10 text-destructive flex items-start gap-2 rounded-[var(--radius-ios)] px-3 py-2.5 text-xs"
     >
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
       <span>

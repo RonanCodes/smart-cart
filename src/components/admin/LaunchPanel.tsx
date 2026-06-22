@@ -5,6 +5,8 @@ import { Rocket, PartyPopper, Undo2 } from 'lucide-react'
 import { setLaunchState } from '#/lib/launch-server'
 import type { LaunchStateView } from '#/lib/launch-server'
 import { Button } from '#/components/ui/button'
+import { Badge } from '#/components/ui/badge'
+import { Card } from '#/components/ui/card'
 import { ConfirmDialog } from '#/components/ui/confirm-dialog'
 
 /**
@@ -72,25 +74,30 @@ export function LaunchPanel({ state }: { state: LaunchStateView }) {
   }
 
   return (
-    <div className="max-w-2xl space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold">Launch</h2>
+    <div className="max-w-2xl space-y-6">
+      <header className="space-y-1">
+        <p className="text-primary text-[0.64rem] font-bold tracking-[0.16em] uppercase">
+          Launch
+        </p>
+        <h1 className="text-2xl font-bold tracking-[-0.02em]">Go live</h1>
         <p className="text-muted-foreground text-sm">
           Flip Souso from waitlist mode to live. Going live removes the waitlist
           from the homepage and lets anyone sign in.
         </p>
-      </div>
+      </header>
 
       {/* Current status */}
-      <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4">
+      <Card ios className="flex items-center gap-3 p-5">
         {state.launched ? (
           <>
-            <PartyPopper
-              className="text-primary h-6 w-6 shrink-0"
-              aria-hidden
-            />
-            <div>
-              <p className="font-semibold">Live</p>
+            <span className="bg-secondary text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+              <PartyPopper className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold">Live</p>
+                <Badge variant="primary">Live</Badge>
+              </div>
               <p className="text-muted-foreground text-sm">
                 {launchedDate
                   ? `Live since ${launchedDate.toLocaleDateString(undefined, {
@@ -104,12 +111,14 @@ export function LaunchPanel({ state }: { state: LaunchStateView }) {
           </>
         ) : (
           <>
-            <Rocket
-              className="text-muted-foreground h-6 w-6 shrink-0"
-              aria-hidden
-            />
-            <div>
-              <p className="font-semibold">Waitlist mode</p>
+            <span className="bg-secondary text-muted-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+              <Rocket className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold">Waitlist mode</p>
+                <Badge variant="outline">Waitlist</Badge>
+              </div>
               <p className="text-muted-foreground text-sm">
                 The homepage shows the waitlist; only approved emails can sign
                 in.
@@ -117,7 +126,7 @@ export function LaunchPanel({ state }: { state: LaunchStateView }) {
             </div>
           </>
         )}
-      </div>
+      </Card>
 
       {/* The action */}
       {state.launched ? (
@@ -130,7 +139,7 @@ export function LaunchPanel({ state }: { state: LaunchStateView }) {
           Switch back to waitlist
         </Button>
       ) : (
-        <div className="space-y-3">
+        <Card ios className="space-y-4 p-5">
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"
@@ -155,13 +164,13 @@ export function LaunchPanel({ state }: { state: LaunchStateView }) {
             <Rocket className="h-4 w-4" aria-hidden />
             {busy ? 'Going live…' : 'Go live'}
           </Button>
-        </div>
+        </Card>
       )}
 
       {msg && (
         <p
           role="status"
-          className="text-muted-foreground bg-secondary rounded-lg px-3 py-2 text-sm"
+          className="text-muted-foreground bg-secondary rounded-[var(--radius-ios)] px-4 py-3 text-sm"
         >
           {msg}
         </p>

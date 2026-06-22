@@ -3,6 +3,7 @@ import { Mail } from 'lucide-react'
 import { sendLaunchEmailToAllUsers } from '#/lib/launch-server'
 import type { LaunchEmailPreview } from '#/lib/launch-server'
 import { Button } from '#/components/ui/button'
+import { Card } from '#/components/ui/card'
 import { ConfirmDialog } from '#/components/ui/confirm-dialog'
 
 /**
@@ -47,19 +48,24 @@ export function EmailBroadcastPanel({
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold">Email all users</h2>
+    <div className="space-y-6">
+      <header className="space-y-1">
+        <p className="text-primary text-[0.64rem] font-bold tracking-[0.16em] uppercase">
+          Email all
+        </p>
+        <h1 className="text-2xl font-bold tracking-[-0.02em]">
+          Email all users
+        </h1>
         <p className="text-muted-foreground text-sm">
           Send the &ldquo;Souso is live&rdquo; launch email to every registered
           user. Use this if the launch email never went out at go-live. Review
           the exact email below before sending.
         </p>
-      </div>
+      </header>
 
       <div className="grid gap-6 lg:grid-cols-[auto_1fr] lg:items-start">
         {/* The action */}
-        <div className="space-y-2">
+        <Card ios className="space-y-3 p-5">
           <Button
             size="lg"
             disabled={busy || count === 0}
@@ -76,16 +82,16 @@ export function EmailBroadcastPanel({
           {msg && (
             <p
               role="status"
-              className="text-muted-foreground bg-secondary rounded-lg px-3 py-2 text-sm"
+              className="text-muted-foreground bg-secondary rounded-[var(--radius-ios)] px-3 py-2 text-sm"
             >
               {msg}
             </p>
           )}
-        </div>
+        </Card>
 
         {/* The preview — exactly what every recipient receives. */}
-        <div className="border-border bg-card min-w-0 space-y-3 rounded-xl border p-5">
-          <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+        <Card ios className="min-w-0 space-y-3 p-5">
+          <p className="text-primary text-[0.64rem] font-bold tracking-[0.16em] uppercase">
             Email preview
           </p>
           <div>
@@ -102,7 +108,7 @@ export function EmailBroadcastPanel({
             The &ldquo;Open Souso&rdquo; button links to{' '}
             <span className="break-all">{preview.signInUrl}</span>
           </p>
-        </div>
+        </Card>
       </div>
 
       <ConfirmDialog
