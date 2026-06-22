@@ -8,7 +8,7 @@ import { readEnv } from './env'
 const FROM = 'Souso <noreply@souso.app>'
 // Default recipient for admin pings (signups, feedback) when no per-admin list
 // resolves. Kept to the one address that should get these.
-const ADMIN_NOTIFY_TO = 'ronan@bluebramble.net'
+const ADMIN_NOTIFY_TO = 'ronan@ronanconnolly.dev'
 // The full Souso brand mark (chef's toque + "Souso" wordmark) rendered cream on
 // transparent so it reads on the green header band. Email clients render PNG,
 // not SVG, and need an absolute URL, so this points at the prod email-logo.

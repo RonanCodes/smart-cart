@@ -18,7 +18,15 @@ import { ConfirmDialog } from '#/components/ui/confirm-dialog'
  * collected (waitlist ∪ users). Reverting to waitlist mode is the quiet inverse:
  * a confirm, no confetti, no email.
  */
-export function LaunchPanel({ state }: { state: LaunchStateView }) {
+export function LaunchPanel({
+  state,
+  canLaunch = false,
+}: {
+  state: LaunchStateView
+  /** Whether the viewer is a super-admin. The launch toggle is super-admin-only
+   * (server-gated); a regular admin sees it disabled with a note. */
+  canLaunch?: boolean
+}) {
   const queryClient = useQueryClient()
   const [notify, setNotify] = useState(true)
   const [confirmGoLive, setConfirmGoLive] = useState(false)
@@ -128,8 +136,15 @@ export function LaunchPanel({ state }: { state: LaunchStateView }) {
         )}
       </Card>
 
-      {/* The action */}
-      {state.launched ? (
+      {/* The action — super-admin only. */}
+      {!canLaunch ? (
+        <p
+          role="status"
+          className="text-muted-foreground bg-secondary rounded-[var(--radius-ios)] px-4 py-3 text-sm"
+        >
+          Only a super-admin can change the launch state.
+        </p>
+      ) : state.launched ? (
         <Button
           variant="outline"
           disabled={busy}

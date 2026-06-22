@@ -120,7 +120,11 @@ export function WaitlistPanel({
 
       <Card ios className="divide-border divide-y overflow-hidden">
         {waitlist.rows.map((r) => (
-          <WaitlistRow key={r.email} row={r} />
+          <WaitlistRow
+            key={r.email}
+            row={r}
+            viewerIsSuperAdmin={waitlist.viewerIsSuperAdmin}
+          />
         ))}
         {waitlist.rows.length === 0 && (
           <p className="text-muted-foreground px-4 py-6 text-center text-sm">
@@ -166,8 +170,18 @@ function fmtDateTime(iso: string): string {
  * admin" action. An env/owner admin (`row.configAdmin`) shows a static "config
  * admin" tag and no revoke (it is config, not a runtime grant). Non-super-admins
  * never receive a revocable row, so the action never renders for them.
+ *
+ * "Make admin" (grantAdmin) is ALSO super-admin only — granting admins is
+ * mission-critical and gated server-side. For a non-super-admin we hide the
+ * button (courtesy); the server fn is the real guard.
  */
-function WaitlistRow({ row }: { row: WaitlistRowView }) {
+function WaitlistRow({
+  row,
+  viewerIsSuperAdmin,
+}: {
+  row: WaitlistRowView
+  viewerIsSuperAdmin: boolean
+}) {
   const { email, createdAt, configAdmin, revocable } = row
   const [grant, setGrant] = useState<GrantState>(row.grant)
   const [saving, setSaving] = useState(false)
@@ -256,8 +270,9 @@ function WaitlistRow({ row }: { row: WaitlistRowView }) {
         )}
 
         {/* Make admin: non-admin rows only (relabels to the Admin badge above
-            once promoted). Confirmed first, since it elevates access. */}
-        {actions.makeAdmin && (
+            once promoted). Confirmed first, since it elevates access.
+            Super-admin only — a regular admin never sees it (server-gated). */}
+        {actions.makeAdmin && viewerIsSuperAdmin && (
           <GrantButton
             label="Make admin"
             icon={<Shield className="h-4 w-4" />}
