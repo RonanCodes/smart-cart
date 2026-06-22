@@ -7,6 +7,7 @@ import {
   isExpectedOtpError,
 } from '#/lib/otp-error'
 import { promptForNotifications } from '#/lib/push-client'
+import { confirmSession } from '#/lib/confirm-session'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 
@@ -127,9 +128,16 @@ export function EmailStep({
       }
       return setError(verifyErrorMessage(reason, signErr))
     }
-    // Fire the push opt-in inside this click-driven success handler so the
-    // browser permission prompt counts as user-gesture-adjacent. Fire-and-forget:
-    // it must never block or break completing onboarding (#149 prompt-on-auth).
+    // #414: onVerified() hands off to the parent, which immediately calls the
+    // completeOnboarding server fn that READS the session cookie. The verify fetch
+    // resolves before the browser commits that Set-Cookie, so on iOS Safari the
+    // server fn can run before the cookie is readable and fail / bounce. Confirm
+    // the session client-side FIRST (same cookie jar), then hand off. confirmSession
+    // never throws and times out so onboarding never hangs.
+    await confirmSession()
+    // Push opt-in moved OFF the verify tick (it raced the handoff and threw
+    // SOUSO-Z). Fully fire-and-forget AFTER the session is confirmed; never blocks
+    // or breaks completing onboarding (#149 prompt-on-auth).
     void promptForNotifications()
     onVerified()
   }

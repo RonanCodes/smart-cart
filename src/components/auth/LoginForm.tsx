@@ -8,6 +8,7 @@ import {
   isExpectedOtpError,
 } from '#/lib/otp-error'
 import { promptForNotifications } from '#/lib/push-client'
+import { confirmSession } from '#/lib/confirm-session'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import {
@@ -115,10 +116,13 @@ export function LoginForm() {
       }
       return setError(verifyErrorMessage(reason, signErr))
     }
-    // Fire the push opt-in inside this click-driven success handler so the
-    // browser permission prompt counts as user-gesture-adjacent. Kicked off
-    // before the redirect (fire-and-forget) so the prompt shows; navigation
-    // never waits on it (#149 prompt-on-auth).
+    // #414: confirm the session cookie is committed BEFORE the guarded hard
+    // navigation, so iOS Safari can't race the Set-Cookie and bounce us back to
+    // sign-in. confirmSession never throws and times out so we never hang.
+    await confirmSession()
+    // Push opt-in moved OFF the verify tick (it raced the navigation and threw
+    // SOUSO-Z). Fully fire-and-forget AFTER the session is confirmed; never blocks
+    // or aborts the navigation (#149 prompt-on-auth).
     void promptForNotifications()
     window.location.href = '/app'
   }

@@ -1,6 +1,27 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { promptForNotifications, urlBase64ToUint8Array } from './push-client'
 
+// #414 (Sentry SOUSO-Z): on iOS, when the page is tearing down for the post-auth
+// navigation, `await import('./push-server')` resolves to a null/empty module and
+// the destructure `const { getPushConfig } = mod` throws
+// "Cannot destructure property 'getPushConfig' from null or undefined value".
+// Simulate a torn-down module (the expected server fns are absent) so the guard
+// is exercised. push-server imports server-only code anyway, so it must be mocked
+// in jsdom regardless. (vitest factories cannot return raw null; an empty module
+// drives the same guard: `typeof mod.getPushConfig !== 'function'`.)
+vi.mock('./push-server', () => ({
+  getPushConfig: undefined,
+  subscribePush: undefined,
+}))
+const logError = vi.fn()
+vi.mock('./log', () => ({
+  log: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: (...a: Array<unknown>) => logError(...a),
+  },
+}))
+
 describe('urlBase64ToUint8Array', () => {
   it('decodes a standard base64url string to the right bytes', () => {
     // "hello" -> base64 "aGVsbG8="; base64url drops padding -> "aGVsbG8"
@@ -44,5 +65,27 @@ describe('promptForNotifications', () => {
     vi.stubGlobal('Notification', { permission: 'denied', requestPermission })
     await expect(promptForNotifications()).resolves.toBeUndefined()
     expect(requestPermission).not.toHaveBeenCalled()
+  })
+
+  it('resolves WITHOUT throwing when import("./push-server") yields null (#414 / SOUSO-Z)', async () => {
+    // Browser looks push-capable so we get PAST pushSupported() and reach the
+    // dynamic import — the exact line that throws in the wild during teardown.
+    // pushSupported() checks 'PushManager' in window AND 'Notification' in window.
+    const NotificationStub = Object.assign(function () {}, {
+      permission: 'default',
+      requestPermission: vi.fn(),
+    })
+    vi.stubGlobal('window', {
+      PushManager: function () {},
+      Notification: NotificationStub,
+    })
+    vi.stubGlobal('navigator', { serviceWorker: {} })
+    vi.stubGlobal('Notification', NotificationStub)
+    logError.mockReset()
+    // Must resolve cleanly. With the unguarded destructure the TypeError is caught
+    // and logged as `push.prompt_failed` (the SOUSO-Z noise). The guard makes a
+    // null module a SILENT no-op: no throw, no error log, nothing reaching Sentry.
+    await expect(promptForNotifications()).resolves.toBeUndefined()
+    expect(logError).not.toHaveBeenCalled()
   })
 })
