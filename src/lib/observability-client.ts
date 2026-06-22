@@ -9,6 +9,10 @@ import {
 import type { SessionLike } from './observability-user'
 import { toObservabilityUser } from './observability-user'
 import { getClientTraceId } from './trace'
+import {
+  isIgnorableNetworkError,
+  shouldDropSentryEvent,
+} from './ignorable-error'
 
 /**
  * Browser observability: Sentry (errors) + PostHog (product analytics + session
@@ -36,6 +40,10 @@ export function initObservability(): void {
     tracesSampleRate: 0.2,
     sendDefaultPii: false,
     environment: 'production',
+    // Drop benign server-fn network/abort blips (SOUSO-A/Y/X, #417). The Sentry
+    // browser SDK also auto-captures unhandled rejections from createServerFn's
+    // fetch, so the filter belongs here as well as in captureError.
+    beforeSend: (event) => (shouldDropSentryEvent(event) ? null : event),
   })
 
   // The per-session trace id (diagnose canon): tag every Sentry event with it and
@@ -222,6 +230,10 @@ export function captureError(
   context?: Record<string, unknown>,
 ): void {
   if (!started) return
+  // Benign server-fn network/abort blips (SOUSO-A/Y/X, #417) are not actionable
+  // crashes — drop them at the log.error sink before they reach Sentry, so the
+  // real signal isn't buried. `beforeSend` is the backstop for SDK auto-capture.
+  if (isIgnorableNetworkError(error)) return
   const event = context?.event
   Sentry.captureException(materialiseError(error), {
     ...(context ? { extra: context } : {}),
