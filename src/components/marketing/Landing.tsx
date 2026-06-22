@@ -7,7 +7,6 @@ import { Button, buttonVariants } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { StickyNote } from '#/components/ui/sticky-note'
 import { BetaBadge } from '#/components/ui/beta-badge'
-import { BETA_NOTE } from '#/lib/beta'
 import { useLiveUserCount } from './use-user-count'
 
 /**
@@ -158,16 +157,8 @@ export function Landing({
               {liveCount.toLocaleString('en')} home cooks planning with Souso
             </p>
           )}
-          {/* Beta callout: a branded, harder-to-miss banner (not the old muted
-              one-liner) so testers clearly know it's beta + that feedback is
-              wanted. The fuller dedicated beta moment lives in onboarding. */}
-          <div className="border-accent/50 bg-accent/15 mx-auto mt-5 flex max-w-sm items-start gap-2.5 rounded-2xl border px-4 py-3 text-left">
-            <Sparkles
-              className="text-accent mt-0.5 h-4 w-4 shrink-0"
-              aria-hidden
-            />
-            <p className="text-foreground text-sm font-medium">{BETA_NOTE}</p>
-          </div>
+          {/* The beta message lives in the "We're live (in beta)" CTA card
+              below, so the hero no longer repeats it (was a duplicate). */}
         </section>
 
         {/* Primary CTA: once live, a "get started" button into sign-in; before
