@@ -119,16 +119,16 @@ export function TabBar() {
               onClick={() => setFeedbackOpen(true)}
               className={cn(
                 // Raised above the bar so it reads as a distinct affordance.
-                'absolute -top-5 left-1/2 -translate-x-1/2',
-                'flex h-14 w-14 items-center justify-center rounded-full',
+                'absolute -top-4 left-1/2 -translate-x-1/2',
+                'flex h-12 w-12 items-center justify-center rounded-full',
                 // On-brand mustard accent + a forest-green glyph.
                 'bg-[#e8a33d] text-[#16341f] shadow-lg',
-                'ring-4 ring-[var(--material)]',
+                'ring-[3px] ring-[var(--material)]',
                 'transition hover:brightness-105 active:scale-95',
               )}
             >
               <MessageCircle
-                className="h-7 w-7"
+                className="h-6 w-6"
                 strokeWidth={2.2}
                 aria-hidden
               />
