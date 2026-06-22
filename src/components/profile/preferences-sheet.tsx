@@ -1,22 +1,10 @@
 import * as React from 'react'
-import {
-  Heart,
-  ThumbsDown,
-  Plus,
-  X,
-  Check,
-  Salad,
-  PiggyBank,
-  ChefHat,
-  ShoppingCart,
-  Sprout,
-  Loader2,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Heart, ThumbsDown, Plus, X, Check, Loader2 } from 'lucide-react'
 import { Sheet } from '#/components/ui/sheet'
 import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 import { suggestDislikes } from '#/lib/onboarding/common-dislikes'
+import { GOAL_OPTIONS } from '#/lib/onboarding/goals'
 import { updateHouseholdProfile } from '#/lib/profile-edit-server'
 import type { EditableProfile, ProfilePatch } from '#/lib/profile-edit-server'
 
@@ -78,16 +66,6 @@ const DIET_OPTIONS: ReadonlyArray<string> = [
   'Vegan',
   'Vegetarian',
   'Pescatarian',
-]
-
-// Lucide icons (no emoji), matching the onboarding goals-step so the profile
-// editor and onboarding read identically.
-const GOAL_OPTIONS: ReadonlyArray<{ label: string; icon: LucideIcon }> = [
-  { label: 'Eat a more balanced diet', icon: Salad },
-  { label: 'Pay less for my groceries', icon: PiggyBank },
-  { label: 'Cook and discover new recipes', icon: ChefHat },
-  { label: 'Avoid unnecessary purchases', icon: ShoppingCart },
-  { label: 'Eat less meat', icon: Sprout },
 ]
 
 function includesCI(list: ReadonlyArray<string>, value: string): boolean {

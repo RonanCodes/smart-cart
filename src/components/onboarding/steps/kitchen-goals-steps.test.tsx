@@ -75,7 +75,7 @@ describe('KitchenStep', () => {
 })
 
 describe('GoalsStep', () => {
-  it('renders all five goal options', () => {
+  it('renders all eight goal options', () => {
     withForm(<GoalsStep />)
     for (const label of [
       'Eat a more balanced diet',
@@ -83,11 +83,35 @@ describe('GoalsStep', () => {
       'Cook and discover new recipes',
       'Avoid unnecessary purchases',
       'Eat less meat',
+      'More protein',
+      'Quick meals',
+      'Low-cal meals',
     ]) {
       expect(
         screen.getByRole('button', { name: new RegExp(label) }),
       ).toBeTruthy()
     }
+  })
+
+  it('selects and persists each of the new protein / quick / low-cal goals', () => {
+    const latest = withForm(<GoalsStep />)
+    fireEvent.click(screen.getByRole('button', { name: /More protein/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Quick meals/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Low-cal meals/ }))
+    expect(latest.draft.goals).toEqual([
+      'More protein',
+      'Quick meals',
+      'Low-cal meals',
+    ])
+  })
+
+  it('toggles a new goal off when tapped twice', () => {
+    const latest = withForm(<GoalsStep />)
+    const goal = screen.getByRole('button', { name: /More protein/ })
+    fireEvent.click(goal)
+    expect(latest.draft.goals).toContain('More protein')
+    fireEvent.click(goal)
+    expect(latest.draft.goals).not.toContain('More protein')
   })
 
   it('multi-selects goals into draft.goals', () => {
