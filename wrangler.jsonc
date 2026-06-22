@@ -25,13 +25,6 @@
       "migrations_dir": "drizzle/migrations",
     },
   ],
-  // Live landing user-counter (real-time "N home cooks" number). One global
-  // CounterDO holds the count + the open landing WebSockets; the count lives in
-  // the DO's own storage (KV-style get/put, available under new_sqlite_classes).
-  "durable_objects": {
-    "bindings": [{ "name": "COUNTER_DO", "class_name": "CounterDO" }],
-  },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CounterDO"] }],
   "routes": [
     { "pattern": "smartcart.ronanconnolly.dev", "custom_domain": true },
     { "pattern": "souso.app", "custom_domain": true },

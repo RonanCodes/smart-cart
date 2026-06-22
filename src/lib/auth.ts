@@ -153,15 +153,6 @@ async function buildAuth() {
             } catch {
               // Non-fatal: a notification failure must never break sign-up.
             }
-            // Push the new total to the live-count Durable Object so every open
-            // landing page ticks up in real time. Best-effort + self-swallowing
-            // (see bumpLiveCount); a counter update must never break sign-up.
-            try {
-              const { bumpLiveCount } = await import('./live-count/bump')
-              await bumpLiveCount()
-            } catch {
-              // Non-fatal: the live counter is decorative social proof.
-            }
           },
         },
       },
