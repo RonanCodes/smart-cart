@@ -13,6 +13,19 @@ describe('BetaBadge', () => {
     const { container } = render(<BetaBadge className="ml-2" />)
     expect((container.firstChild as HTMLElement).className).toContain('ml-2')
   })
+
+  it('is a subtle muted pill, not a loud solid fill (#407)', () => {
+    const { container } = render(<BetaBadge />)
+    const cls = (container.firstChild as HTMLElement).className
+    // Soft mustard tint + hairline border + low-contrast text = quiet, not
+    // in-your-face. It must NOT be the old solid `bg-accent` fill.
+    expect(cls).toContain('bg-accent/10')
+    expect(cls).toContain('border-accent/40')
+    expect(cls).toContain('text-foreground/60')
+    // Not the old solid fill: `bg-accent` with no opacity modifier.
+    expect(cls).not.toMatch(/bg-accent(?![/-])/)
+    expect(cls).not.toContain('text-accent-foreground')
+  })
 })
 
 describe('beta copy', () => {

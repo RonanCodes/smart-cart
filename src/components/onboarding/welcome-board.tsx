@@ -78,7 +78,8 @@ export function WelcomeBoard({
 
       {/* Menu over the board. */}
       <div className="relative mt-auto flex flex-col items-center px-7 pb-16 text-center">
-        <div className="flex items-center gap-2">
+        {/* Wordmark centred; the Beta tag tucks quietly under it (#407). */}
+        <div className="flex flex-col items-center gap-1.5">
           <img src="/souso-mark.svg" alt="Souso" className="h-14 w-auto" />
           <BetaBadge />
         </div>
