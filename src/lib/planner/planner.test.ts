@@ -813,3 +813,270 @@ describe('generateWeek skip-day override (#week-nav)', () => {
     expect(cooked).toHaveLength(6)
   })
 })
+
+/**
+ * Porkless / excluded-protein is a HARD filter (#422). A household that says
+ * "no pork" must NEVER see a pork dish — and that includes every common form
+ * pork shows up as (bacon, ham, gammon, chorizo, lardons, pancetta, the Dutch
+ * "spek"), in English or Dutch. The exclusion rides BOTH the persisted
+ * `allergies` list (what onboarding derives) AND the raw `dislikes` words, so a
+ * profile written by any path is protected. The bug Renée hit: a "smoked bacon"
+ * risotto landed FIRST in a porkless week.
+ */
+describe('porkless / excluded protein is a HARD filter (#422)', () => {
+  /** A catalogue of safe dinners plus several pork-bearing ones, in EN + NL. */
+  function catalogueWithPork(): Array<PlannerRecipe> {
+    const out: Array<PlannerRecipe> = []
+    let id = 0
+    for (let i = 0; i < 12; i++) {
+      out.push({
+        id: `safe-${id++}`,
+        title: `Chicken dinner ${i}`,
+        cuisine: 'Italian',
+        category: 'Main',
+        mealType: 'dinner',
+        dietaryTags: [],
+        ingredients: [{ name: 'chicken breast' }, { name: 'onion' }],
+        calories: null,
+        protein: null,
+        prepMinutes: null,
+      })
+    }
+    const porkDishes: Array<{ id: string; title: string; ingredient: string }> =
+      [
+        {
+          id: 'bacon',
+          title: 'Cauliflower risotto',
+          ingredient: 'smoked bacon',
+        },
+        {
+          id: 'spek',
+          title: 'Boerenkool stamppot',
+          ingredient: 'gerookt spek',
+        },
+        { id: 'ham', title: 'Ham & egg bake', ingredient: 'ham' },
+        { id: 'chorizo', title: 'One-pot rice', ingredient: 'chorizo' },
+        { id: 'gammon', title: 'Glazed roast', ingredient: 'gammon steak' },
+        { id: 'lardons', title: 'Quiche lorraine', ingredient: 'lardons' },
+        { id: 'pancetta', title: 'Carbonara', ingredient: 'pancetta' },
+        { id: 'pork', title: 'Pork stir-fry', ingredient: 'pork shoulder' },
+      ]
+    for (const p of porkDishes) {
+      out.push({
+        id: p.id,
+        title: p.title,
+        cuisine: 'Italian',
+        category: 'Main',
+        mealType: 'dinner',
+        dietaryTags: [],
+        ingredients: [{ name: p.ingredient }, { name: 'onion' }],
+        calories: null,
+        protein: null,
+        prepMinutes: null,
+      })
+    }
+    return out
+  }
+
+  const porkIds = new Set([
+    'bacon',
+    'spek',
+    'ham',
+    'chorizo',
+    'gammon',
+    'lardons',
+    'pancetta',
+    'pork',
+  ])
+
+  // The shape onboarding-mapping persists for a "Porkless" diet pick: an
+  // exclusion list on `allergies`. The planner must expand it to every pork form.
+  const porklessProfile: PlannerProfile = {
+    allergies: ['pork', 'ham', 'bacon', 'prosciutto', 'chorizo'],
+  }
+
+  it('hardFilter drops every pork form when porkless (incl. bacon, spek, lardons)', () => {
+    const filtered = hardFilter(catalogueWithPork(), porklessProfile)
+    expect(filtered.length).toBeGreaterThan(0)
+    for (const r of filtered) {
+      expect(porkIds.has(r.id)).toBe(false)
+    }
+  })
+
+  it('a porkless household gets ZERO pork on first build', () => {
+    const week = generateWeek(catalogueWithPork(), porklessProfile, [])
+    for (const d of week.days) {
+      expect(porkIds.has(d.recipeRef)).toBe(false)
+    }
+  })
+
+  it('a porkless household gets ZERO pork on regenerate (variety exclusion of week 1)', () => {
+    const recipes = catalogueWithPork()
+    // Simulate the regenerate path: build, then regenerate excluding week 1's
+    // dinners (what generatePlanForHousehold / WeekSession do). Pork must STILL
+    // be excluded — the bug was it leaking back on the new-week build.
+    const first = generateWeek(recipes, porklessProfile, [])
+    const firstIds = first.days.map((d) => d.recipeRef).filter(Boolean)
+    const next = generateWeek(recipes, porklessProfile, [], {
+      excludeRecipeIds: firstIds,
+    })
+    for (const d of next.days) {
+      expect(porkIds.has(d.recipeRef)).toBe(false)
+    }
+  })
+
+  it('reads the raw `dislikes` words too, not only the derived allergies', () => {
+    // A profile where "pork" lives only on dislikes (e.g. a path that did not
+    // re-derive allergies). The planner must still hard-exclude every form.
+    const filtered = hardFilter(catalogueWithPork(), { dislikes: ['pork'] })
+    for (const r of filtered) {
+      expect(porkIds.has(r.id)).toBe(false)
+    }
+  })
+
+  it('"bacon" as a stand-alone dislike still drops bacon AND its pork siblings', () => {
+    const filtered = hardFilter(catalogueWithPork(), { dislikes: ['bacon'] })
+    for (const r of filtered) {
+      expect(porkIds.has(r.id)).toBe(false)
+    }
+  })
+
+  it('does not over-exclude: a non-pork dislike leaves pork-free dinners intact', () => {
+    // Disliking "mushroom" must not touch the chicken dinners.
+    const filtered = hardFilter(catalogueWithPork(), { dislikes: ['mushroom'] })
+    expect(filtered.some((r) => r.id.startsWith('safe-'))).toBe(true)
+  })
+})
+
+/**
+ * The disliked-cuisine hard filter (#423) must hold on the regenerate path too,
+ * not just the first build. Renée turned Indian OFF and still got Indian when
+ * generating the rest of the week.
+ */
+describe('disliked cuisine stays excluded on regenerate (#423)', () => {
+  function fourCuisines(): Array<PlannerRecipe> {
+    const out: Array<PlannerRecipe> = []
+    let id = 0
+    for (const cuisine of ['Italian', 'Indian', 'Mexican', 'Japanese']) {
+      for (let i = 0; i < 6; i++) {
+        out.push({
+          id: `${cuisine}-${id++}`,
+          title: `${cuisine} ${i}`,
+          cuisine,
+          category: 'Main',
+          mealType: 'dinner',
+          dietaryTags: [],
+          ingredients: [{ name: 'onion' }],
+          calories: null,
+          protein: null,
+          prepMinutes: null,
+        })
+      }
+    }
+    return out
+  }
+
+  it('a household disliking Indian gets zero Indian on build AND regenerate', () => {
+    const recipes = fourCuisines()
+    const byId = new Map(recipes.map((r) => [r.id, r]))
+    const profile: PlannerProfile = { cuisinesDisliked: ['Indian'] }
+    const indianCount = (w: ReturnType<typeof generateWeek>) =>
+      w.days.filter((d) => byId.get(d.recipeRef)?.cuisine === 'Indian').length
+
+    const first = generateWeek(recipes, profile, [])
+    expect(indianCount(first)).toBe(0)
+
+    const next = generateWeek(recipes, profile, [], {
+      excludeRecipeIds: first.days.map((d) => d.recipeRef).filter(Boolean),
+    })
+    expect(indianCount(next)).toBe(0)
+  })
+})
+
+/**
+ * Defensive non-dinner heuristic (#424): even when a recipe is mis-tagged
+ * mealType 'dinner' AND carries a generic/empty category, an obvious non-dinner
+ * TITLE (sauce / saus / crackers / bar / reep / crumble / dip / snack / dessert /
+ * toetje) keeps it off the dinner plan. Renée saw "gado-gado sauce" and
+ * "low-carb crackers" planned as main meals. The keyword list is word-boundary
+ * matched and tight so it never drops a legitimate dinner.
+ */
+describe('mis-tagged non-dinner titles never plan as dinner (#424)', () => {
+  function recipe(
+    id: string,
+    title: string,
+    category: string | null = 'Main',
+  ): PlannerRecipe {
+    return {
+      id,
+      title,
+      cuisine: 'Indonesian',
+      category,
+      mealType: 'dinner',
+      dietaryTags: [],
+      ingredients: [{ name: 'peanut' }, { name: 'onion' }],
+      calories: null,
+      protein: null,
+      prepMinutes: null,
+    }
+  }
+
+  const offenders = [
+    recipe('gado-sauce', 'Gado-gado sauce'),
+    recipe('crackers', 'Low-carb crackers', null),
+    recipe('coconut-bar', 'Low-carb coconut bars'),
+    recipe('crumble', 'Apple & pear crumble with speculoos sauce'),
+    recipe('saus', 'Satésaus', null),
+    recipe('reep', 'Mueslireep', null),
+    recipe('dip', 'Avocado dip'),
+    recipe('toetje', 'Kwarktoetje'),
+  ]
+
+  it('hardFilter drops obvious non-dinner titles even when tagged dinner', () => {
+    const filtered = hardFilter(offenders, {})
+    expect(filtered).toHaveLength(0)
+  })
+
+  it('a gado-gado sauce / low-carb crackers recipe never lands as a planned dinner', () => {
+    // A pool of real dinners plus the offenders; the week must pick only dinners.
+    const realDinners: Array<PlannerRecipe> = Array.from(
+      { length: 10 },
+      (_, i) => ({
+        id: `dinner-${i}`,
+        title: `Nasi goreng ${i}`,
+        cuisine: 'Indonesian',
+        category: 'Main',
+        mealType: 'dinner',
+        dietaryTags: [],
+        ingredients: [{ name: 'rice' }, { name: 'chicken' }],
+        calories: null,
+        protein: null,
+        prepMinutes: null,
+      }),
+    )
+    const offenderIds = new Set(offenders.map((r) => r.id))
+    const week = generateWeek([...realDinners, ...offenders], {}, [])
+    for (const d of week.days) {
+      expect(offenderIds.has(d.recipeRef)).toBe(false)
+    }
+  })
+
+  it('does NOT drop legitimate dinners whose title merely contains a substring', () => {
+    // Word-boundary matching: "barbecue", "scrambled" (-> bar/ramble) and a
+    // "saucy" main must survive — only whole-word non-dinner terms drop.
+    const legit = [
+      recipe('bbq', 'Barbecue chicken thighs'),
+      recipe('scramble', 'Spiced scrambled tofu bowl'),
+      recipe('chow', 'Beef chow mein'),
+      recipe('snackbar-name', 'Snackbar-style loaded fries'),
+    ]
+    const filtered = hardFilter(legit, {})
+    // "Snackbar" contains the word "snack" only as part of a compound; "barbecue"
+    // contains "bar"; "scrambled" contains "ramble". None are whole-word
+    // non-dinner terms, so all four legitimate dinners survive.
+    const survivingIds = new Set(filtered.map((r) => r.id))
+    expect(survivingIds.has('bbq')).toBe(true)
+    expect(survivingIds.has('scramble')).toBe(true)
+    expect(survivingIds.has('chow')).toBe(true)
+  })
+})

@@ -71,7 +71,20 @@ const TAG_DIETS: ReadonlyArray<string> = ['vegan', 'vegetarian']
 const EXCLUSION_DIETS: Record<string, ReadonlyArray<string>> = {
   'dairy free': ['milk', 'cheese', 'butter', 'cream', 'yoghurt', 'yogurt'],
   'gluten free': ['wheat', 'flour', 'bread', 'pasta', 'noodle', 'couscous'],
-  porkless: ['pork', 'ham', 'bacon', 'prosciutto', 'chorizo'],
+  // Every form pork shows up as in an AH/Jumbo catalogue, EN + NL. The planner
+  // also expands any one of these to the full set at filter time (#422), but
+  // persisting the whole list keeps the stored profile honest.
+  porkless: [
+    'pork',
+    'ham',
+    'bacon',
+    'gammon',
+    'chorizo',
+    'lardon',
+    'pancetta',
+    'prosciutto',
+    'spek',
+  ],
 }
 
 function normalise(s: string): string {

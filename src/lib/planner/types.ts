@@ -44,6 +44,15 @@ export const BUSY_PREP_CAP_MINUTES = 25
  */
 export interface PlannerProfile {
   allergies?: Array<string>
+  /**
+   * Ingredients/proteins the household will NOT eat (the user's own dislike
+   * words, e.g. "pork", "no anchovies"). A HARD filter, same as allergies: a
+   * recipe whose ingredient names contain any of these is never a candidate
+   * (#422). Onboarding already folds these into `allergies`, but the planner
+   * reads `dislikes` directly too so a profile written by any path (or where a
+   * derivation lagged) is still protected. Empty/absent = no extra exclusion.
+   */
+  dislikes?: Array<string>
   diet?: string
   caloriesPerDay?: number
   /**
@@ -53,9 +62,10 @@ export interface PlannerProfile {
    */
   cuisinesLiked?: Array<string>
   /**
-   * Cuisines the household explicitly HATES. A matching recipe is soft
-   * down-weighted (not hard-filtered, so the week never empties). Empty/absent =
-   * no cuisine bias.
+   * Cuisines the household explicitly HATES. A HARD filter (#423): a recipe whose
+   * cuisine is in this list is never a candidate ("off means off", matching the
+   * documented intent). The liked-cuisine boost stays a soft nudge. Empty/absent
+   * = no cuisine exclusion.
    */
   cuisinesDisliked?: Array<string>
   /**
