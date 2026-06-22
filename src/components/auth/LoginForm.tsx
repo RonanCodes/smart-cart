@@ -119,7 +119,17 @@ export function LoginForm() {
     // #414: confirm the session cookie is committed BEFORE the guarded hard
     // navigation, so iOS Safari can't race the Set-Cookie and bounce us back to
     // sign-in. confirmSession never throws and times out so we never hang.
-    await confirmSession()
+    // #846: log the outcome (resolved vs timed-out) so the next login-bounce
+    // report shows whether confirmSession gave up before navigating. A timeout
+    // means we navigated WITHOUT a confirmed session, which is one bounce path;
+    // the other is a server-side guard hiccup, captured in Workers Logs by
+    // `auth.guard.session_resolved`. Grep `auth.confirm_session` to correlate.
+    const confirmed = await confirmSession()
+    if (confirmed) {
+      log.info('auth.confirm_session', { outcome: 'resolved', email })
+    } else {
+      log.warn('auth.confirm_session', { outcome: 'timed_out', email })
+    }
     // Push opt-in moved OFF the verify tick (it raced the navigation and threw
     // SOUSO-Z). Fully fire-and-forget AFTER the session is confirmed; never blocks
     // or aborts the navigation (#149 prompt-on-auth).
