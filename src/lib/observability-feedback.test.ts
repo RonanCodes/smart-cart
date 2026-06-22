@@ -134,11 +134,25 @@ describe('captureSentryFeedback', () => {
     expect(flush).toHaveBeenCalled()
   })
 
-  it('never throws even if captureFeedback blows up', async () => {
+  it('returns the Sentry event id so the server can deep-link it', async () => {
+    captureFeedback.mockReturnValueOnce('evt-deep-link')
+    const capture = await loadCapture()
+    await expect(capture({ message: 'thread me' })).resolves.toBe(
+      'evt-deep-link',
+    )
+  })
+
+  it('returns null (not an id) when there is no Sentry client', async () => {
+    getClient.mockReturnValue(undefined)
+    const capture = await loadCapture()
+    await expect(capture({ message: 'no client' })).resolves.toBeNull()
+  })
+
+  it('never throws even if captureFeedback blows up (returns null)', async () => {
     captureFeedback.mockImplementationOnce(() => {
       throw new Error('sentry exploded')
     })
     const capture = await loadCapture()
-    await expect(capture({ message: 'boom' })).resolves.toBeUndefined()
+    await expect(capture({ message: 'boom' })).resolves.toBeNull()
   })
 })

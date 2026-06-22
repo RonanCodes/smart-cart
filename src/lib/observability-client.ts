@@ -361,17 +361,23 @@ export interface SentryFeedback {
  * The phone rides as extra feedback context; an optional screenshot rides as a
  * Sentry attachment. Returns a promise that resolves once the flush settles, so
  * the caller can await it before closing the panel.
+ *
+ * Returns the Sentry event id `captureFeedback` produced, so the server submit
+ * can thread it into the admin notification email as a deep-link. Returns null
+ * when Sentry is skipped (dev / pre-init) or anything fails — the caller treats
+ * a null id as "no Sentry line", never an error.
  */
 const FEEDBACK_SOURCE = 'souso-feedback-form'
 const FEEDBACK_FLUSH_TIMEOUT_MS = 2000
 
 export async function captureSentryFeedback(
   feedback: SentryFeedback,
-): Promise<void> {
+): Promise<string | null> {
   try {
-    if (typeof Sentry.captureFeedback !== 'function') return
+    if (typeof Sentry.captureFeedback !== 'function') return null
     // Send whenever a Sentry client is live, regardless of our local flag.
-    if (typeof Sentry.getClient === 'function' && !Sentry.getClient()) return
+    if (typeof Sentry.getClient === 'function' && !Sentry.getClient())
+      return null
 
     // The page URL the SDK's own `sendFeedback` attaches to a feedback event.
     // `captureFeedback` does not add it for us, so set it explicitly. Best-effort.
@@ -382,7 +388,7 @@ export async function captureSentryFeedback(
       url = undefined
     }
 
-    Sentry.captureFeedback(
+    const eventId = Sentry.captureFeedback(
       {
         message: feedback.message,
         source: FEEDBACK_SOURCE,
@@ -414,9 +420,11 @@ export async function captureSentryFeedback(
     if (typeof Sentry.flush === 'function') {
       await Sentry.flush(FEEDBACK_FLUSH_TIMEOUT_MS)
     }
+    return typeof eventId === 'string' && eventId ? eventId : null
   } catch {
     // Observability must never crash a request (diagnose canon). The
     // app_feedback DB write is the durable record; Sentry is best-effort.
+    return null
   }
 }
 

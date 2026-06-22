@@ -110,6 +110,17 @@ export async function notifyAdminsOfFeedback(feedback: {
   email?: string | null
   phone?: string | null
   source?: string | null
+  /** The Sentry event id from captureSentryFeedback, threaded through for the
+   * email's deep-link. Absent when Sentry was skipped (dev) or the capture
+   * failed; the email degrades to no Sentry line. */
+  sentryEventId?: string | null
+  /** When the feedback was submitted, for the email's timestamp line. */
+  submittedAt?: Date | null
+  /** An optional attached screenshot, forwarded as a Resend email attachment. */
+  attachment?: {
+    filename: string
+    base64: string
+  } | null
 }): Promise<void> {
   try {
     const { getDb } = await import('../db/client')
