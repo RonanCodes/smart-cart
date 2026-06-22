@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Send, Check, Camera, X, ImageIcon } from 'lucide-react'
+import { Send, Check, Camera, X } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
@@ -26,9 +26,10 @@ import { captureSentryFeedback } from '#/lib/observability-client'
  *   <email>"); editable + optional when signed out. Decision is the pure
  *   `feedbackEmailState`, so it is unit-testable without rendering.
  * - phone / WhatsApp (optional) — "Open to a chat? Leave your number".
- * - an optional screenshot of the current page, captured with `html-to-image`
- *   (best-effort, never blocks submit). The feedback sheet is hidden while the
- *   capture runs so it is not in the shot.
+ * - an optional screenshot: the user ATTACHES one (file picker → their native
+ *   phone/desktop screenshot). In-app DOM-to-canvas capture (html-to-image) was
+ *   dropped — it produced low-quality, broken-looking uploads in Sentry. A native
+ *   screenshot is pixel-perfect and uploads cleanly as the Sentry attachment.
  *
  * Validation runs through the pure `normaliseFeedback` (incl. phone).
  */
@@ -50,16 +51,17 @@ export function FeedbackForm({
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Screenshot state: a data-URL preview + the raw PNG bytes for the Sentry
-  // attachment. `capturing` hides the sheet so it isn't in the shot.
+  // Attached screenshot: a data-URL preview + the raw bytes (for the Sentry
+  // attachment) + the original filename. The user picks an image file (a native
+  // screenshot), so it is whatever they actually see on their screen.
   const [shot, setShot] = useState<string | null>(null)
   const [shotBytes, setShotBytes] = useState<Uint8Array | null>(null)
-  const [capturing, setCapturing] = useState(false)
+  const [shotName, setShotName] = useState('screenshot.png')
   const [shotError, setShotError] = useState<string | null>(null)
-  // The captured shot, opened full-screen so the user can inspect exactly what
+  // The attached shot, opened full-screen so the user can inspect exactly what
   // they are about to send before sending it.
   const [lightboxOpen, setLightboxOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   // Keep the email field in sync if the session resolves after first render
   // (the field is read-only in that case, so we are not stomping user input).
@@ -70,43 +72,24 @@ export function FeedbackForm({
   const path =
     typeof window !== 'undefined' ? window.location.pathname : undefined
 
-  async function captureScreenshot() {
+  async function onScreenshotFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    // Reset the input so picking the same file again still fires onChange.
+    e.target.value = ''
+    if (!file) return
     setShotError(null)
-    setCapturing(true)
-    // Hide the ENTIRE feedback overlay for the shot — not just the dialog panel
-    // but its parent (the `fixed inset-0` container that also holds the dimmed
-    // backdrop), so neither the panel NOR the dim wash ends up in the picture.
-    const dialog = rootRef.current?.closest<HTMLElement>('[role="dialog"]')
-    const overlay = dialog?.parentElement ?? dialog ?? null
-    const prevVisibility = overlay?.style.visibility ?? ''
-    if (overlay) overlay.style.visibility = 'hidden'
+    if (!file.type.startsWith('image/')) {
+      setShotError('Please choose an image file.')
+      return
+    }
     try {
-      // Two frames so the browser fully paints the hidden overlay before we snap.
-      await new Promise((r) => requestAnimationFrame(() => r(null)))
-      await new Promise((r) => requestAnimationFrame(() => r(null)))
-      const { toPng } = await import('html-to-image')
-      const dataUrl = await toPng(document.body, {
-        // Mobile perf: the default captures at devicePixelRatio (2-3x on phones,
-        // so 4-9x the pixels) AND cacheBust re-fetches every image with a unique
-        // query string. Both made the capture crawl on mobile. Pin pixelRatio to
-        // 1 (a feedback screenshot does not need retina) and drop cacheBust; a
-        // legibility-fine, much faster snapshot.
-        pixelRatio: 1,
-        cacheBust: false,
-        // Keep it light: skip fonts embedding failures, never block.
-        skipFonts: true,
-        // Drop any node we explicitly mark (the "taking a screenshot" banner the
-        // user sees while the panel is hidden) so it never lands in the shot.
-        filter: excludeFromScreenshot,
-      })
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const dataUrl = await fileToDataUrl(file)
       setShot(dataUrl)
-      setShotBytes(dataUrlToBytes(dataUrl))
+      setShotBytes(bytes)
+      setShotName(file.name || 'screenshot.png')
     } catch {
-      // Best-effort: a capture failure never blocks feedback.
-      setShotError('Could not grab a screenshot. You can still send your note.')
-    } finally {
-      if (overlay) overlay.style.visibility = prevVisibility
-      setCapturing(false)
+      setShotError('Could not read that image. Try another one.')
     }
   }
 
@@ -132,9 +115,7 @@ export function FeedbackForm({
         message: check.value.message,
         email: check.value.email,
         phone: check.value.phone,
-        attachment: shotBytes
-          ? { filename: 'screenshot.png', data: shotBytes }
-          : null,
+        attachment: shotBytes ? { filename: shotName, data: shotBytes } : null,
       })
       // (b) The durable app_feedback write (the source of truth).
       await submitFeedback({ data: { message, email, phone, source, path } })
@@ -163,7 +144,7 @@ export function FeedbackForm({
   }
 
   return (
-    <div ref={rootRef} className="space-y-4 pb-2">
+    <div className="space-y-4 pb-2">
       <p className="text-muted-foreground text-sm leading-relaxed">
         Tell us what is working, what is not, or what you wish Souso did. We
         read every message.
@@ -232,6 +213,14 @@ export function FeedbackForm({
           Screenshot{' '}
           <span className="text-muted-foreground font-normal">(optional)</span>
         </span>
+        {/* Hidden file input — the user attaches a native screenshot (crisp). */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => void onScreenshotFile(e)}
+        />
         {shot ? (
           <div className="flex items-center gap-3">
             <button
@@ -262,23 +251,18 @@ export function FeedbackForm({
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => void captureScreenshot()}
-            disabled={capturing}
+            onClick={() => fileInputRef.current?.click()}
             className="gap-2"
           >
-            {capturing ? (
-              <ImageIcon className="h-4 w-4 animate-pulse" />
-            ) : (
-              <Camera className="h-4 w-4" />
-            )}
-            {capturing ? 'Capturing…' : 'Add screenshot'}
+            <Camera className="h-4 w-4" />
+            Attach a screenshot
           </Button>
         )}
-        {shot && (
-          <p className="text-muted-foreground text-xs">
-            Tap the image to check what you are sending.
-          </p>
-        )}
+        <p className="text-muted-foreground text-xs">
+          {shot
+            ? 'Tap the image to check what you are sending.'
+            : 'Take a screenshot on your device, then attach it here.'}
+        </p>
         {shotError && (
           <p className="text-muted-foreground text-xs">{shotError}</p>
         )}
@@ -306,36 +290,10 @@ export function FeedbackForm({
         </a>
       </p>
 
-      {capturing && <ScreenshotCapturingBanner />}
       {lightboxOpen && shot && (
         <ScreenshotLightbox src={shot} onClose={() => setLightboxOpen(false)} />
       )}
     </div>
-  )
-}
-
-/**
- * The on-brand banner the user actually sees while the feedback panel is hidden
- * for the capture. Rendered into a portal on `document.body` so it sits OUTSIDE
- * the hidden overlay (which has `visibility: hidden`), pinned to the bottom edge.
- * Marked with `data-screenshot-exclude` and skipped by `excludeFromScreenshot`,
- * so it is visible to the user but never lands in the shot.
- */
-function ScreenshotCapturingBanner() {
-  if (typeof document === 'undefined') return null
-  return createPortal(
-    <div
-      {...SCREENSHOT_EXCLUDE_ATTR}
-      role="status"
-      aria-live="polite"
-      className="fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
-    >
-      <div className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-lg">
-        <ImageIcon className="h-4 w-4 animate-pulse" />
-        Taking a screenshot, one moment…
-      </div>
-    </div>,
-    document.body,
   )
 }
 
@@ -387,34 +345,12 @@ function ScreenshotLightbox({
   )
 }
 
-/**
- * The marker that tells `excludeFromScreenshot` to drop a node from the capture.
- * Spread onto the "taking a screenshot" banner so the user sees it during the
- * shot but it never lands in the PNG. A `data-` attribute (not a class) so it is
- * a stable, intent-revealing hook that styling churn can't break.
- */
-const SCREENSHOT_EXCLUDE = 'data-screenshot-exclude'
-const SCREENSHOT_EXCLUDE_ATTR = { [SCREENSHOT_EXCLUDE]: 'true' } as const
-
-/**
- * html-to-image `filter`: return false to drop a node (and its whole subtree)
- * from the capture. We skip any element carrying `data-screenshot-exclude` — the
- * capturing banner — so it is visible on screen but excluded from the shot.
- * Exported for the unit test. Non-element nodes (text) always pass through.
- */
-export function excludeFromScreenshot(node: HTMLElement): boolean {
-  if (typeof node.hasAttribute !== 'function') return true
-  return !node.hasAttribute(SCREENSHOT_EXCLUDE)
-}
-
-/**
- * Decode a `data:image/png;base64,...` URL into the raw PNG bytes a Sentry
- * attachment expects. Pure + tiny; runs only in the browser (atob present).
- */
-function dataUrlToBytes(dataUrl: string): Uint8Array {
-  const base64 = dataUrl.split(',')[1] ?? ''
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return bytes
+/** Read an image File into a `data:` URL for the preview/lightbox <img>. */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error ?? new Error('read failed'))
+    reader.readAsDataURL(file)
+  })
 }
