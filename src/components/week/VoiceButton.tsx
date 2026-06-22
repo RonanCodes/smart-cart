@@ -185,7 +185,13 @@ export const VoiceButton = forwardRef<VoiceButtonHandle, VoiceButtonProps>(
               onCallEndRef.current?.()
             })
             v.on('error', (e: unknown) => {
+              // The SDK surfaces a failed/cancelled call here too — notably the
+              // null Daily-call-handle "reading 'join'" crash (#415, SOUSO-W),
+              // which arrives as a `daily-call-join-error` rather than a rejected
+              // `start()` promise. Release the live lock so the week UI is usable
+              // again instead of staying frozen on "connecting".
               log.error('vapi.sdk_error', e)
+              onLiveChange?.(false)
               setReason('unknown')
               setState('error')
             })
