@@ -1,3 +1,4 @@
+import { BetaStep } from './steps/beta-step'
 import { HouseholdStep } from './steps/household-step'
 import { DislikesStep } from './steps/dislikes-step'
 import { DietStep } from './steps/diet-step'
@@ -31,6 +32,13 @@ export interface OnboardingStep {
 }
 
 export const STEPS: Array<OnboardingStep> = [
+  {
+    id: 'beta',
+    // The step owns its own callout layout; the shell renders just the back
+    // arrow + progress + the bottom 'Next' CTA (which advances, never gates).
+    title: '',
+    Component: BetaStep,
+  },
   {
     id: 'household',
     title: 'Who is eating?',

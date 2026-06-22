@@ -47,19 +47,23 @@ export function sousoFeedbackOptions() {
   return {
     // Brand, not Sentry: hide Sentry's own branding line.
     showBranding: false,
-    // We already know who the user is from `Sentry.setUser`; don't make a beta
-    // tester fill in name/email to send a quick note. Email is collected silently
-    // via the Sentry user when present (useSentryUser default).
+    // Email: prefilled from the signed-in user (Sentry.setUser → useSentryUser
+    // default), and shown so a SIGNED-OUT tester can still leave one. Optional
+    // either way (a quick note never needs it). Name stays hidden.
     showName: false,
-    showEmail: false,
+    showEmail: true,
     isNameRequired: false,
     isEmailRequired: false,
+    // Let testers attach a screenshot of what they're reporting (native Sentry
+    // capture; lazy-loaded). Asked for explicitly — a picture beats a paragraph.
+    enableScreenshot: true,
     // Plain Souso voice (no AI-tell, no dashes).
     triggerLabel: 'Feedback',
     triggerAriaLabel: 'Send feedback to Souso',
     formTitle: 'Tell us what you think',
     messageLabel: 'Your feedback',
-    messagePlaceholder: "What's working, what's not, what you'd love next?",
+    messagePlaceholder:
+      "What's working, what's not, what you'd love next? Up for a quick chat? Drop your number or WhatsApp and we'll reach out, you'd be shaping Souso directly.",
     submitButtonLabel: 'Send feedback',
     cancelButtonLabel: 'Not now',
     successMessageText: 'Thank you, we read every note.',

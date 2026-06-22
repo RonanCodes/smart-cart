@@ -42,6 +42,9 @@ export interface OnboardingDraft {
   store: string | null
   /** Recipe-content language: 'en' | 'nl'. Defaults to English (#310). */
   locale: 'en' | 'nl'
+  /** Optional phone/WhatsApp, for beta testers happy to be reached out to for a
+   * chat (#407). Never required; stored on the household profile. */
+  phone: string | null
 }
 
 export const EMPTY_DRAFT: OnboardingDraft = {
@@ -57,6 +60,7 @@ export const EMPTY_DRAFT: OnboardingDraft = {
   cuisinesDisliked: [],
   store: null,
   locale: 'en',
+  phone: null,
 }
 
 /**

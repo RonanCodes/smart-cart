@@ -25,6 +25,7 @@ function row(over: Partial<AdminUserRow>): AdminUserRow {
     configAdmin: false,
     revocable: false,
     createdAt: null,
+    phone: null,
     ...over,
   }
 }
