@@ -26,6 +26,7 @@ import {
 } from '#/lib/week-server'
 import { weekLabel, offsetForWeekStart } from '#/lib/week-offset'
 import { weekPlanUrl } from '#/lib/week-url'
+import { replaceUrlSilently } from '#/lib/silent-url'
 import type { WeekView, WeekDayView, DayAlternative } from '#/lib/week-server'
 import { applyStreamedWeek, streamReplan } from '#/lib/agent/replan-client'
 import type { ReplanHistoryTurn } from '#/lib/agent/replan-client'
@@ -589,15 +590,22 @@ function LoadedWeek({
    *
    * The week data updates in place via `setWeek` (optimistic, no refetch), so the
    * URL only needs the `plan` search param rewritten for shareability and the back
-   * button. We do this with a SHALLOW `history.replaceState` rather than a router
-   * `navigate` (#236): a router navigation to a new `plan` value re-runs the route
-   * loader, which fires the route's full-page WeekSkeleton pendingComponent (added
-   * in #226) and jumps scroll to the top, so every swap/similar/alternative pick
-   * flashed the whole page even though the new week was already in hand. A
-   * `replaceState` updates the address bar without touching the loader, the
-   * pendingComponent, or scroll, so only the affected day's card changes in place
-   * (preserving the #145 keep-scroll intent). A genuine cold /week load still runs
-   * the loader and shows the skeleton.
+   * button. We do this WITHOUT a router `navigate` (#236): a router navigation to a
+   * new `plan` value re-runs the route loader, which fires the route's full-page
+   * WeekSkeleton pendingComponent (added in #226) and jumps scroll to the top, so
+   * every swap/similar/alternative pick flashed the whole page even though the new
+   * week was already in hand.
+   *
+   * #week-swap-skeleton: a plain `window.history.replaceState` is NOT enough.
+   * TanStack Router's browser history monkey-patches `window.history.replaceState`
+   * on the instance to observe out-of-band URL changes, so a raw call notifies the
+   * router's subscribers → it re-reads the changed `?plan=` → `loaderDeps.plan`
+   * changed → the loader re-runs and the full-page skeleton flashed on every swap
+   * anyway. `replaceUrlSilently` calls the original (prototype) `replaceState`,
+   * which slips past that patch: the address bar updates with zero router
+   * involvement, so only the affected day's card changes in place (preserving the
+   * #145 keep-scroll intent). A genuine cold /week load still runs the loader and
+   * shows the skeleton.
    */
   // `adopt` and the per-day handlers below are STABLE (`useCallback([])`,
   // reading mutable state from refs) so DayCard's `React.memo` actually holds: a
@@ -610,9 +618,7 @@ function LoadedWeek({
     // `setWeek(next)` swapped the whole week object, handing all seven cards new
     // props and letting a single-day swap jitter its siblings.
     setWeek((prev) => mergeWeekPreservingIdentity(prev, next))
-    if (typeof window !== 'undefined') {
-      window.history.replaceState(window.history.state, '', weekPlanUrl(planId))
-    }
+    replaceUrlSilently(weekPlanUrl(planId))
   }, [])
 
   /**
