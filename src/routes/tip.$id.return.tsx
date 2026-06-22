@@ -1,36 +1,17 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { AppShell, ScreenHeader } from '#/components/ui/app-shell'
 import { Button } from '#/components/ui/button'
 import { buildCartLinks } from '#/lib/cart-links-server'
-import type { CartLinkResult } from '#/lib/cart-links-server'
 import { openStoreCart } from '#/lib/open-store-cart'
+import { isOpenableCartLink, takePendingCart } from '#/lib/pending-cart'
 import { log } from '#/lib/log'
 
 /**
- * Runtime guard for the rebuilt cart link. The server fn's static return type is
- * always a {@link CartLinkResult}, but a full-page redirect back from Mollie can
- * land us with a nullish / malformed value at runtime (the cause of the
- * tip.return_open_cart_failed 'undefined ... t.url' crash). This narrows to a
- * link we can safely hand to openStoreCart.
- */
-function isOpenableLink(value: unknown): value is CartLinkResult {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'urls' in value &&
-    Array.isArray(value.urls) &&
-    value.urls.length > 0
-  )
-}
-
-/**
  * Landing page after the Mollie hosted-checkout redirect for a tip
- * (redirectUrl = /tip/{id}/return?store=ah). The paid/failed status is settled by
- * the Mollie webhook (re-fetched from the API), so this page never reads status,
- * it just thanks the user and opens their store cart. Pay-first flow: the cart
- * opens HERE, after payment, on a tap (a user gesture, so no popup block).
+ * (redirectUrl = /tip/{id}/return?store=ah). Pay-first flow: the cart link was
+ * stashed before redirect; we open the store cart here after payment.
  */
 export const Route = createFileRoute('/tip/$id/return')({
   validateSearch: (s: Record<string, unknown>): { store?: 'ah' | 'jumbo' } => ({
@@ -40,26 +21,47 @@ export const Route = createFileRoute('/tip/$id/return')({
 })
 
 function TipReturn() {
+  const { id } = Route.useParams()
   const { store } = Route.useSearch()
   const [busy, setBusy] = useState(false)
+  const [opened, setOpened] = useState(false)
+  const autoOpenStarted = useRef(false)
   const label = store === 'jumbo' ? 'Jumbo' : 'Albert Heijn'
 
-  async function openCart() {
-    if (!store) return
-    setBusy(true)
+  async function openCartFromStashOrRebuild(): Promise<boolean> {
+    if (!store) return false
+    const pending = takePendingCart(id)
+    if (pending) {
+      openStoreCart(pending)
+      return true
+    }
     try {
-      // buildCartLinks goes down the DB-read fallback here (no live set on
-      // return), which re-runs resolution and can come back empty or, after a
-      // full-page redirect from Mollie, with an unexpected runtime shape. Its
-      // STATIC type is always a BuiltCartLink, but the Sentry crash
-      // ('undefined ... t.url' in tip.return_open_cart_failed) proves the value
-      // can be nullish at runtime, so we widen to unknown and guard before
-      // reading .urls. The cart was already opened on the tip-confirm click, so
-      // an empty rebuild here is a harmless no-op, not a lost basket.
       const link = (await buildCartLinks({ data: { store } })) as unknown
-      if (isOpenableLink(link)) openStoreCart(link)
+      if (isOpenableCartLink(link)) {
+        openStoreCart(link)
+        return true
+      }
     } catch (err) {
       log.error('tip.return_open_cart_failed', err, { store })
+    }
+    return false
+  }
+
+  useEffect(() => {
+    if (!store || autoOpenStarted.current) return
+    autoOpenStarted.current = true
+    void (async () => {
+      setBusy(true)
+      const ok = await openCartFromStashOrRebuild()
+      if (ok) setOpened(true)
+      setBusy(false)
+    })()
+  }, [id, store])
+
+  async function openCart() {
+    setBusy(true)
+    try {
+      if (await openCartFromStashOrRebuild()) setOpened(true)
     } finally {
       setBusy(false)
     }
@@ -78,10 +80,12 @@ function TipReturn() {
         <p className="text-sm font-medium">Thanks for supporting Souso!</p>
         <p className="text-muted-foreground text-xs">
           {store
-            ? `Tap to open your basket in ${label}.`
+            ? opened
+              ? `Your basket is opening in ${label}.`
+              : `Tap below if your ${label} basket did not open.`
             : 'Your basket is ready in your store. Happy cooking.'}
         </p>
-        {store && (
+        {store && !opened && (
           <Button size="pill" disabled={busy} onClick={() => void openCart()}>
             {busy ? 'Opening…' : `Open my ${label} cart`}
           </Button>

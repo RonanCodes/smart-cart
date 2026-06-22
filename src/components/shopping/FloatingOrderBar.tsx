@@ -10,7 +10,8 @@ import { storeLabel } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
 import { TipSheet } from '#/components/shopping/TipSheet'
 import { startTip } from '#/lib/tip-server'
-import { openStoreCart, cartChunkOpenDelayMs } from '#/lib/open-store-cart'
+import { openStoreCart } from '#/lib/open-store-cart'
+import { stashPendingCart } from '#/lib/pending-cart'
 import { log } from '#/lib/log'
 import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
@@ -142,12 +143,8 @@ export function FloatingOrderBar({
         setTipOpen(false)
         return
       }
-      // Tip path: open the AH cart NOW, on this user-gesture click (popup-safe),
-      // BEFORE we ever redirect to Mollie. That guarantees the grocery basket
-      // opens regardless of whether payment completes, is abandoned, or the
-      // return path fails. A tip must never silently drop the cart. The
-      // return route still re-opens the cart as a belt-and-braces fallback.
-      openCart(resolved)
+      // Pay-first tip path: stash the resolved link, redirect to Mollie, then
+      // open the store cart on /tip/{id}/return after payment (popup-safe there).
       const res = await startTip({
         data: {
           percent,
@@ -157,31 +154,15 @@ export function FloatingOrderBar({
       })
       log.info('tip.confirmed', { percent, store, tipped: !!res.checkoutUrl })
       if (res.checkoutUrl) {
-        // Checkout started: redirecting to the Mollie tip payment.
         track(FUNNEL_EVENTS.checkoutStarted, { store, percent })
-        const checkoutUrl = res.checkoutUrl
-        // Defer the redirect so every staggered chunk tab has been navigated
-        // first (an immediate location change would kill the pending opens, and
-        // regress the multi-chunk open-store-cart fix). Single-chunk carts wait
-        // 0ms and redirect straight away.
-        const delay = cartChunkOpenDelayMs(resolved.urls.length)
-        if (delay > 0) {
-          window.setTimeout(() => {
-            window.location.href = checkoutUrl
-          }, delay)
-        } else {
-          window.location.href = checkoutUrl
-        }
+        stashPendingCart(res.tipPaymentId, resolved)
+        window.location.href = res.checkoutUrl
       } else {
-        // No checkout URL (no-tip row recorded server-side): cart already opened.
         setTipOpen(false)
       }
     } catch (err) {
       log.error('tip.start_failed', err, { percent, store })
-      // On the tip path the cart opened above before startTip ran, so a payment
-      // failure still leaves the grocery basket safe. A build failure (the rare
-      // case where the background cart-link build itself errored) means no cart
-      // opened; the message stays honest either way and no charge was made.
+      // Pay-first: no cart opened yet; build failure means nothing to recover.
       setTipOpen(false)
       setTipError(
         err instanceof Error && err.message
