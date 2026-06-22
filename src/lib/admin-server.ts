@@ -169,6 +169,8 @@ export interface AdminUserRow {
   /** Optional phone/WhatsApp a beta tester left in onboarding (#407), so the
    * team can reach out for a chat. null when not given. Attached post-merge. */
   phone: string | null
+  /** Preferred contact method (#407): 'whatsapp' | 'call' | 'either' | null. */
+  contactPref: string | null
 }
 
 export const listUsers = createServerFn({ method: 'GET' }).handler(
@@ -199,13 +201,22 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
     // Optional phone left in the onboarding beta step lives on profile.phone
     // (#407); re-join it onto the merged rows the same way as createdAt.
     const phoneByUserId = new Map<string, string>()
+    const contactPrefByUserId = new Map<string, string>()
     for (const r of rows) {
       if (r.userId && r.createdAt instanceof Date) {
         createdAtByUserId.set(r.userId, r.createdAt.getTime())
       }
-      const phone = (r.profile as { phone?: unknown } | null)?.phone
+      const prof = r.profile as {
+        phone?: unknown
+        contactPref?: unknown
+      } | null
+      const phone = prof?.phone
       if (r.userId && typeof phone === 'string' && phone.trim()) {
         phoneByUserId.set(r.userId, phone)
+      }
+      const pref = prof?.contactPref
+      if (r.userId && typeof pref === 'string' && pref) {
+        contactPrefByUserId.set(r.userId, pref)
       }
     }
     const counts = await db
@@ -241,6 +252,9 @@ export const listUsers = createServerFn({ method: 'GET' }).handler(
       ...p,
       createdAt: p.userId ? (createdAtByUserId.get(p.userId) ?? null) : null,
       phone: p.userId ? (phoneByUserId.get(p.userId) ?? null) : null,
+      contactPref: p.userId
+        ? (contactPrefByUserId.get(p.userId) ?? null)
+        : null,
     }))
   },
 )
