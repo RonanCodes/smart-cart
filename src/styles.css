@@ -636,40 +636,17 @@ body {
   --right: 1rem;
 }
 
-/* ── Portrait lock (#week-swap-skeleton-portrait) ─────────────────────────────
+/* ── Portrait in landscape (no rotate nag) ───────────────────────────────────
    Souso is a one-handed, mobile-first cooking app: every screen is laid out for
-   a tall column. The installed PWA already requests portrait (orientation in
-   site.webmanifest), but in a browser tab a phone/tablet can still be turned
-   sideways, where the week list + sheets read badly. So on a TOUCH device held
-   in landscape we cover the app with an on-brand "please rotate" curtain.
+   a tall column. The installed PWA truly stays portrait (orientation in
+   site.webmanifest), which a browser tab cannot enforce. So when a phone is
+   turned sideways in the browser we DON'T nag the user to rotate, we just keep
+   showing the portrait UI: the same centred phone-width column, now flanked by
+   side gutters over the backdrop wash.
 
-   Scope is deliberate: `pointer: coarse` (a touch device, so phones + tablets)
-   AND `orientation: landscape` AND `max-height: 600px` (a phone/small-tablet
-   landscape, never a tall desktop window that merely happens to be wider than it
-   is tall). A desktop with a mouse (`pointer: fine`) never matches, so the
-   framed desktop app is untouched. CSS-only via a fixed `body::after` curtain so
-   no route/markup changes are needed. */
-@media (pointer: coarse) and (orientation: landscape) and (max-height: 600px) {
-  body::after {
-    content: 'Souso works best in portrait. Please rotate your device.';
-    position: fixed;
-    inset: 0;
-    z-index: 2147483647;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* Generous symmetric padding + safe-area insets so the copy clears notches
-       in landscape on both edges. */
-    padding: 2rem max(2rem, var(--safe-left)) 2rem max(2rem, var(--safe-right));
-    box-sizing: border-box;
-    text-align: center;
-    /* On-brand: cream ground, forest ink, the app's UI font. */
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
-    font-size: 1.125rem;
-    font-weight: 600;
-    line-height: 1.5;
-    letter-spacing: -0.01em;
-  }
-}
+   No rule is needed here: a phone in landscape is wider than the
+   `--app-frame-min` (481px) breakpoint, so the existing `.app-frame` framing
+   above (centred `--app-frame-width` column + backdrop + card shadow) already
+   produces the portrait-column-with-gutters look. Portrait phones (<= 480px)
+   stay full-width and unchanged; desktop is unchanged. The content is never
+   rotated, only constrained. */
