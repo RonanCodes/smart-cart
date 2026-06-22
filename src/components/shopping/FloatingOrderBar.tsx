@@ -10,7 +10,7 @@ import { storeLabel } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
 import { TipSheet } from '#/components/shopping/TipSheet'
 import { startTip } from '#/lib/tip-server'
-import { openStoreCart, CART_CHUNK_OPEN_MS } from '#/lib/open-store-cart'
+import { openStoreCart, cartChunkOpenDelayMs } from '#/lib/open-store-cart'
 import { log } from '#/lib/log'
 import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
@@ -121,20 +121,6 @@ export function FloatingOrderBar({
     })
   }
 
-  /**
-   * How long {@link openStoreCart} needs before the last chunk tab is navigated.
-   * Single-chunk carts navigate synchronously (0ms); multi-chunk carts stagger
-   * chunks 2..N at {@link CART_CHUNK_OPEN_MS} apart, so the last one fires at
-   * (chunks - 1) * gap. A redirect issued before that would kill the pending
-   * tab navigations, so we wait this long after opening the cart before sending
-   * the user to Mollie. Add a small buffer so the final navigate has settled.
-   */
-  function chunkOpenDelayMs(resolved: CartLinkResult): number {
-    const chunks = resolved.urls.length
-    if (chunks <= 1) return 0
-    return (chunks - 1) * CART_CHUNK_OPEN_MS + 250
-  }
-
   async function confirmTip(percent: number) {
     setTipBusy(true)
     setTipError(null)
@@ -178,7 +164,7 @@ export function FloatingOrderBar({
         // first (an immediate location change would kill the pending opens, and
         // regress the multi-chunk open-store-cart fix). Single-chunk carts wait
         // 0ms and redirect straight away.
-        const delay = chunkOpenDelayMs(resolved)
+        const delay = cartChunkOpenDelayMs(resolved.urls.length)
         if (delay > 0) {
           window.setTimeout(() => {
             window.location.href = checkoutUrl

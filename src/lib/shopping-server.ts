@@ -269,7 +269,6 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
     }
   })
 
-/** Everything the /shopping route's loader needs, in one round-trip (#251). */
 export interface ShoppingBootstrap {
   view: ShoppingListView
   staples: Array<StapleLine>
