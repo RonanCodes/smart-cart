@@ -4,8 +4,10 @@
  * entry point `isApproved` lives in access.ts and builds on these.
  */
 
-/** The admin email is always approved, even if APPROVED_EMAILS is unset. */
-export const ADMIN_EMAIL = 'tech@discopenguin.com'
+/** The admin email is always approved, even if APPROVED_EMAILS is unset. This is
+ * also the always-included config admin + the default signup/feedback notify
+ * recipient, so keep it to the ONE address that should get those emails. */
+export const ADMIN_EMAIL = 'ronan@bluebramble.net'
 
 /** Message surfaced to a non-approved person trying to sign in. */
 export const NOT_APPROVED_MESSAGE =
