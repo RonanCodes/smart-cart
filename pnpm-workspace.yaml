@@ -1,3 +1,10 @@
+overrides:
+  # Security: bump vulnerable transitive deps to patched versions.
+  # All come in via build tooling (wrangler, miniflare, vite-plugin, drizzle-kit, braintrust).
+  ws@>=8.0.0 <8.21.0: '^8.21.0' # GHSA-96hv-2xvq-fx4p (high: DoS)
+  undici@>=7.0.0 <7.28.0: '^7.28.0' # GHSA-vmh5-mc38-953g + 6 more (high/moderate/low)
+  esbuild@<0.25.0: '^0.25.0' # GHSA-67mh-4wv8-2f99 (moderate: dev-server SSRF)
+  esbuild@>=0.27.0 <0.28.1: '^0.28.1' # GHSA-g7r4-m6w7-qqqr (low: Windows file read)
 allowBuilds:
   esbuild: true
   sharp: true
