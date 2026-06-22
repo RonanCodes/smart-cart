@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
   expandSchema,
   expandIngredientSearchTerms,
   normaliseSearchTerms,
+  resetIngredientExpansionCache,
 } from './expand-ingredient'
 import type { ExpandGenerateObject } from './expand-ingredient'
 
@@ -25,6 +26,10 @@ describe('normaliseSearchTerms', () => {
 })
 
 describe('expandIngredientSearchTerms', () => {
+  beforeEach(() => {
+    resetIngredientExpansionCache()
+  })
+
   it('returns [ingredient] without a model', async () => {
     expect(await expandIngredientSearchTerms('rice', {})).toEqual({
       terms: ['rice'],
@@ -56,5 +61,30 @@ describe('expandIngredientSearchTerms', () => {
     )
     expect(terms).toEqual(['rice'])
     expect(expandFallback).toBe(true)
+  })
+
+  it('reuses an in-flight expansion for the same ingredient', async () => {
+    let calls = 0
+    const expand: ExpandGenerateObject = async () => {
+      calls++
+      return {
+        object: expandSchema.parse({ terms: ['00 flour', 'tarwebloem'] }),
+      }
+    }
+
+    const [a, b] = await Promise.all([
+      expandIngredientSearchTerms('00 flour', {
+        model: MODEL,
+        generateObject: expand,
+      }),
+      expandIngredientSearchTerms('00 Flour ', {
+        model: MODEL,
+        generateObject: expand,
+      }),
+    ])
+
+    expect(calls).toBe(1)
+    expect(a.terms).toEqual(['00 flour', 'tarwebloem'])
+    expect(b.terms).toEqual(['00 flour', 'tarwebloem'])
   })
 })
