@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Send, Check, Camera, X, ImageIcon } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -55,6 +56,9 @@ export function FeedbackForm({
   const [shotBytes, setShotBytes] = useState<Uint8Array | null>(null)
   const [capturing, setCapturing] = useState(false)
   const [shotError, setShotError] = useState<string | null>(null)
+  // The captured shot, opened full-screen so the user can inspect exactly what
+  // they are about to send before sending it.
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
 
   // Keep the email field in sync if the session resolves after first render
@@ -91,6 +95,9 @@ export function FeedbackForm({
         cacheBust: false,
         // Keep it light: skip fonts embedding failures, never block.
         skipFonts: true,
+        // Drop any node we explicitly mark (the "taking a screenshot" banner the
+        // user sees while the panel is hidden) so it never lands in the shot.
+        filter: excludeFromScreenshot,
       })
       setShot(dataUrl)
       setShotBytes(dataUrlToBytes(dataUrl))
@@ -118,8 +125,10 @@ export function FeedbackForm({
     }
     setSending(true)
     try {
-      // (a) Sentry User Feedback (best-effort, prod-only, never throws).
-      captureSentryFeedback({
+      // (a) Sentry User Feedback (best-effort, never throws). Awaited so its
+      // internal flush completes BEFORE the panel closes / the user navigates —
+      // the envelope is otherwise queued and can be abandoned on close (#443).
+      await captureSentryFeedback({
         message: check.value.message,
         email: check.value.email,
         phone: check.value.phone,
@@ -225,11 +234,18 @@ export function FeedbackForm({
         </span>
         {shot ? (
           <div className="flex items-center gap-3">
-            <img
-              src={shot}
-              alt="Screenshot to send with your feedback"
-              className="border-border h-16 w-16 rounded-lg border object-cover"
-            />
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(true)}
+              aria-label="View screenshot full screen"
+              className="focus-visible:ring-ring rounded-lg focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              <img
+                src={shot}
+                alt="Screenshot to send with your feedback. Tap to view full screen."
+                className="border-border h-16 w-16 rounded-lg border object-cover"
+              />
+            </button>
             <Button
               type="button"
               size="sm"
@@ -258,10 +274,9 @@ export function FeedbackForm({
             {capturing ? 'Capturing…' : 'Add screenshot'}
           </Button>
         )}
-        {capturing && (
-          <p className="text-muted-foreground text-xs" role="status">
-            Grabbing the screen, one moment. We hide this panel so it is not in
-            the shot.
+        {shot && (
+          <p className="text-muted-foreground text-xs">
+            Tap the image to check what you are sending.
           </p>
         )}
         {shotError && (
@@ -290,8 +305,106 @@ export function FeedbackForm({
           {FEEDBACK_CONTACT_EMAIL}
         </a>
       </p>
+
+      {capturing && <ScreenshotCapturingBanner />}
+      {lightboxOpen && shot && (
+        <ScreenshotLightbox src={shot} onClose={() => setLightboxOpen(false)} />
+      )}
     </div>
   )
+}
+
+/**
+ * The on-brand banner the user actually sees while the feedback panel is hidden
+ * for the capture. Rendered into a portal on `document.body` so it sits OUTSIDE
+ * the hidden overlay (which has `visibility: hidden`), pinned to the bottom edge.
+ * Marked with `data-screenshot-exclude` and skipped by `excludeFromScreenshot`,
+ * so it is visible to the user but never lands in the shot.
+ */
+function ScreenshotCapturingBanner() {
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div
+      {...SCREENSHOT_EXCLUDE_ATTR}
+      role="status"
+      aria-live="polite"
+      className="fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+    >
+      <div className="bg-primary text-primary-foreground flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-lg">
+        <ImageIcon className="h-4 w-4 animate-pulse" />
+        Taking a screenshot, one moment…
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+/**
+ * Full-screen lightbox so the user can inspect EXACTLY what the screenshot
+ * contains before they send it. Portalled to `document.body`, dismissed by the
+ * close button, a backdrop tap, or Escape.
+ */
+function ScreenshotLightbox({
+  src,
+  onClose,
+}: {
+  src: string
+  onClose: () => void
+}) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Screenshot preview"
+      onClick={onClose}
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close screenshot preview"
+        className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
+      >
+        <X className="h-5 w-5" />
+      </button>
+      <img
+        src={src}
+        alt="Full-screen preview of the screenshot you are about to send"
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+      />
+    </div>,
+    document.body,
+  )
+}
+
+/**
+ * The marker that tells `excludeFromScreenshot` to drop a node from the capture.
+ * Spread onto the "taking a screenshot" banner so the user sees it during the
+ * shot but it never lands in the PNG. A `data-` attribute (not a class) so it is
+ * a stable, intent-revealing hook that styling churn can't break.
+ */
+const SCREENSHOT_EXCLUDE = 'data-screenshot-exclude'
+const SCREENSHOT_EXCLUDE_ATTR = { [SCREENSHOT_EXCLUDE]: 'true' } as const
+
+/**
+ * html-to-image `filter`: return false to drop a node (and its whole subtree)
+ * from the capture. We skip any element carrying `data-screenshot-exclude` — the
+ * capturing banner — so it is visible on screen but excluded from the shot.
+ * Exported for the unit test. Non-element nodes (text) always pass through.
+ */
+export function excludeFromScreenshot(node: HTMLElement): boolean {
+  if (typeof node.hasAttribute !== 'function') return true
+  return !node.hasAttribute(SCREENSHOT_EXCLUDE)
 }
 
 /**

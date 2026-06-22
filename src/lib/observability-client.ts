@@ -337,19 +337,56 @@ export interface SentryFeedback {
 
 /**
  * Send a piece of user feedback into Sentry User Feedback (the redesigned
- * feedback flow). No-op until init (so local dev / signed-out-before-init never
- * tries), and fully guarded — observability must never crash a request, so a
- * failure here is swallowed and the app_feedback write (the source of truth) is
- * unaffected. The phone rides as extra feedback context; an optional screenshot
- * rides as a Sentry attachment when the SDK build supports it.
+ * feedback flow).
+ *
+ * Why this is shaped the way it is (the #443 follow-up where feedback never
+ * landed in Sentry):
+ *
+ * 1. **Guard on the live Sentry client, not our module-local `started`.** A bare
+ *    `if (!started) return` made this a silent no-op in any case where the flag
+ *    was false at submit time, even though a Sentry client was live. We ask the
+ *    SDK directly (`Sentry.getClient()`); if there is no client (local dev /
+ *    pre-init) we skip, otherwise we send.
+ * 2. **Mirror the SDK's own `sendFeedback`: set `source` + `url`.** Sentry's
+ *    User Feedback ingestion expects the API `source` and the page URL on the
+ *    feedback event; `captureFeedback` does NOT add them for you (the SDK's
+ *    `sendFeedback` wrapper does). Omitting them is why entries did not show up.
+ * 3. **Flush after capture.** `captureFeedback` only queues the envelope; the
+ *    panel closes and the user navigates immediately after submit, which can
+ *    abandon the in-flight request. `Sentry.flush()` forces the envelope out
+ *    before we return. Bounded so a dead network never hangs the UI.
+ *
+ * Fully guarded — observability must never crash a request, so a failure here is
+ * swallowed and the `app_feedback` write (the source of truth) is unaffected.
+ * The phone rides as extra feedback context; an optional screenshot rides as a
+ * Sentry attachment. Returns a promise that resolves once the flush settles, so
+ * the caller can await it before closing the panel.
  */
-export function captureSentryFeedback(feedback: SentryFeedback): void {
-  if (!started) return
+const FEEDBACK_SOURCE = 'souso-feedback-form'
+const FEEDBACK_FLUSH_TIMEOUT_MS = 2000
+
+export async function captureSentryFeedback(
+  feedback: SentryFeedback,
+): Promise<void> {
   try {
     if (typeof Sentry.captureFeedback !== 'function') return
+    // Send whenever a Sentry client is live, regardless of our local flag.
+    if (typeof Sentry.getClient === 'function' && !Sentry.getClient()) return
+
+    // The page URL the SDK's own `sendFeedback` attaches to a feedback event.
+    // `captureFeedback` does not add it for us, so set it explicitly. Best-effort.
+    let url: string | undefined
+    try {
+      url = typeof window !== 'undefined' ? window.location.href : undefined
+    } catch {
+      url = undefined
+    }
+
     Sentry.captureFeedback(
       {
         message: feedback.message,
+        source: FEEDBACK_SOURCE,
+        ...(url ? { url } : {}),
         ...(feedback.email ? { email: feedback.email } : {}),
         ...(feedback.name ? { name: feedback.name } : {}),
       },
@@ -371,6 +408,12 @@ export function captureSentryFeedback(feedback: SentryFeedback): void {
         },
       },
     )
+
+    // Force the feedback envelope out before the panel closes / the user
+    // navigates. Bounded so a dead network can never hang the submit.
+    if (typeof Sentry.flush === 'function') {
+      await Sentry.flush(FEEDBACK_FLUSH_TIMEOUT_MS)
+    }
   } catch {
     // Observability must never crash a request (diagnose canon). The
     // app_feedback DB write is the durable record; Sentry is best-effort.
