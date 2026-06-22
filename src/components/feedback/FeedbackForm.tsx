@@ -69,16 +69,26 @@ export function FeedbackForm({
   async function captureScreenshot() {
     setShotError(null)
     setCapturing(true)
-    // Hide the whole feedback sheet for the shot, so it is not in the picture.
-    const sheet = rootRef.current?.closest<HTMLElement>('[role="dialog"]')
-    const prevVisibility = sheet?.style.visibility ?? ''
-    if (sheet) sheet.style.visibility = 'hidden'
+    // Hide the ENTIRE feedback overlay for the shot — not just the dialog panel
+    // but its parent (the `fixed inset-0` container that also holds the dimmed
+    // backdrop), so neither the panel NOR the dim wash ends up in the picture.
+    const dialog = rootRef.current?.closest<HTMLElement>('[role="dialog"]')
+    const overlay = dialog?.parentElement ?? dialog ?? null
+    const prevVisibility = overlay?.style.visibility ?? ''
+    if (overlay) overlay.style.visibility = 'hidden'
     try {
-      // Let the browser paint the hidden sheet before we snapshot.
+      // Two frames so the browser fully paints the hidden overlay before we snap.
+      await new Promise((r) => requestAnimationFrame(() => r(null)))
       await new Promise((r) => requestAnimationFrame(() => r(null)))
       const { toPng } = await import('html-to-image')
       const dataUrl = await toPng(document.body, {
-        cacheBust: true,
+        // Mobile perf: the default captures at devicePixelRatio (2-3x on phones,
+        // so 4-9x the pixels) AND cacheBust re-fetches every image with a unique
+        // query string. Both made the capture crawl on mobile. Pin pixelRatio to
+        // 1 (a feedback screenshot does not need retina) and drop cacheBust; a
+        // legibility-fine, much faster snapshot.
+        pixelRatio: 1,
+        cacheBust: false,
         // Keep it light: skip fonts embedding failures, never block.
         skipFonts: true,
       })
@@ -88,7 +98,7 @@ export function FeedbackForm({
       // Best-effort: a capture failure never blocks feedback.
       setShotError('Could not grab a screenshot. You can still send your note.')
     } finally {
-      if (sheet) sheet.style.visibility = prevVisibility
+      if (overlay) overlay.style.visibility = prevVisibility
       setCapturing(false)
     }
   }
@@ -247,6 +257,12 @@ export function FeedbackForm({
             )}
             {capturing ? 'Capturing…' : 'Add screenshot'}
           </Button>
+        )}
+        {capturing && (
+          <p className="text-muted-foreground text-xs" role="status">
+            Grabbing the screen, one moment. We hide this panel so it is not in
+            the shot.
+          </p>
         )}
         {shotError && (
           <p className="text-muted-foreground text-xs">{shotError}</p>
