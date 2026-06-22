@@ -184,10 +184,9 @@ export const buildCartLinks = createServerFn({ method: 'POST' })
 
     const amountByName = new Map(lines.map((l) => [l.name, l.amount ?? null]))
 
-    // Semantic resolution (ADR-0004): per line we expand to Dutch search terms,
-    // union the cosine top-K, then LLM-rerank to pick the right SKU or decline.
-    // Cosine retrieval is candidate generation only; raw cosine is never accepted
-    // as final cart truth.
+    // Semantic resolution (ADR-0004): per line we try raw embedding retrieval,
+    // accept only a very confident winner, otherwise expand to Dutch search terms
+    // and LLM-rerank to pick the right SKU or decline.
     // Requires OPENAI_API_KEY; with no key it returns no matches (honest empty
     // cart) rather than the old token matcher.
     const { resolveLinesForStoreAccurate } =

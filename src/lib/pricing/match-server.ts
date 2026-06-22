@@ -3,9 +3,10 @@ import { createServerFn } from '@tanstack/react-start'
 /**
  * Server seam for the embedding ingredient -> SKU matcher (ADR-0004). Wires the
  * pure matcher (match-semantic.ts) to the live bindings: embeds the ingredient
- * (OpenAI), loads the store's product vectors from D1, and reranks the retrieved
- * cosine candidates. Server-only: every server import is lazy so none of it
- * reaches the client bundle (the admin-server / replan-server pattern).
+ * (OpenAI), loads the store's product vectors from D1, and reranks ambiguous
+ * cosine candidates. Very confident embedding winners can skip rerank. Server-only:
+ * every server import is lazy so none of it reaches the client bundle (the
+ * admin-server / replan-server pattern).
  *
  * This powers the scenario runner that proves match quality.
  */
@@ -17,12 +18,14 @@ export interface MatchHit {
   confidence: string
   score: number
   estimated: boolean
-  /** Set when the accurate tier LLM ran; absent on cosine fallback. */
+  /** Set when the rerank LLM ran; absent on embedding-only / fallback paths. */
   reason?: string | null
   /** True when the LLM declined all candidates (not a transport error). */
   declined?: boolean
-  /** True when the accurate tier fell back to cosine (model error / no key). */
+  /** True when rerank could not run (model error / no key). */
   llmFallback?: boolean
+  /** True when cosine was strong enough that rerank was skipped. */
+  embeddingOnly?: boolean
   /** Search terms embedded for retrieval (original + Dutch expansion). */
   searchTerms?: Array<string>
 }
@@ -40,7 +43,7 @@ export interface MatchScenarioResult {
     priceCents: number
     score: number
   }>
-  /** Accurate tier: the LLM-reranked pick. Null when there was nothing to rerank. */
+  /** Final pick: embedding-only fast path or LLM-reranked. */
   reranked: MatchHit | null
   /** Terms embedded for cosine retrieval (shown in admin for debugging). */
   searchTerms: Array<string>
@@ -120,6 +123,7 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
             reason: rerankReason,
             declined: rerankDeclined,
             llmFallback: rerankFallback,
+            embeddingOnly: rerankEmbeddingOnly,
           } = await rerankMatch({ name: ingredient }, candidates, store, {
             model: models.rerank,
             generateObject,
@@ -131,6 +135,7 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
               reason?: string | null
               declined?: boolean
               llmFallback?: boolean
+              embeddingOnly?: boolean
             },
           ): MatchHit => ({
             name: m.product?.name ?? null,
@@ -142,6 +147,7 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
             reason: opts?.reason ?? null,
             declined: opts?.declined,
             llmFallback: opts?.llmFallback,
+            embeddingOnly: opts?.embeddingOnly,
           })
 
           return {
@@ -162,6 +168,7 @@ export const runMatchScenario = createServerFn({ method: 'POST' })
                   reason: rerankReason,
                   declined: rerankDeclined,
                   llmFallback: rerankFallback,
+                  embeddingOnly: rerankEmbeddingOnly,
                 })
               : null,
           }

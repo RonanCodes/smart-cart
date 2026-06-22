@@ -15,7 +15,8 @@ ways:
   recommender ranks recipes for a household and vectors never touch it (ADR-0002 gates it).
 - **The three semantic matchers** (dish similarity, ingredient-to-product pricing, replan
   term-match) now use **OpenAI embeddings + cosine** over vectors committed to the repo and
-  loaded into D1, with an **LLM rerank only at the one decision point** (the cart path).
+  loaded into D1, with **LLM rerank only for ambiguous ingredient-to-product cart
+  matches**.
   This replaced the earlier set-maths versions (token overlap, Jaccard, substring) because
   those gave no cross-language recall: "mushroom" never matched Dutch "champignon" (ADR-0004).
 
@@ -54,13 +55,15 @@ that D1 (see "Where the data lives").
   so we can price the basket per store and fill the AH cart.
 - **Where:** `src/lib/pricing/` (`normalise.ts`, `match.ts`, `catalogue.ts`,
   `price-list.ts`).
-- **Mechanism: embeddings + cosine retrieval, LLM rerank for product truth.** The
+- **Mechanism: embeddings + cosine retrieval, rerank only when needed.** The
   ingredient text is embedded and scored by cosine against committed product vectors.
-  - **Cart and price paths:** cosine top-K, then a `generateObject` rerank picks the
-    right SKU or declines. Price comparison uses the same accurate path through
+  - **Cart and price paths:** a very strong, clearly separated cosine winner is accepted
+    directly. Ambiguous top-K candidates go through a `generateObject` rerank, which
+    picks the right SKU or declines. Price comparison uses the same path through
     `match_cache` so repeated store/name resolutions do not keep paying the model cost.
-  - **No cosine-only product truth:** raw embedding neighbours are candidates, not final
-    matches.
+  - **No weak cosine-only product truth:** ordinary/high-ish embedding neighbours are
+    candidates, not final matches; they must clear the stricter fast-path threshold or
+    go to rerank.
   - A **confidence flag on every match** so estimated lines never silently inflate the
     "save money" claim. Grounded and explainable, as the hard rules require.
 - **Mechanism replaced:** the earlier token / fuzzy-string matcher in `match.ts`, which

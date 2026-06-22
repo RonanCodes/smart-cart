@@ -10,7 +10,8 @@ import { Card } from '#/components/ui/card'
 /**
  * Admin "Matching" scenario runner (ADR-0004). Type an ingredient (or pick a
  * golden case) and see the embedding ingredient -> SKU matcher work: the cosine
- * top-K candidates and the LLM-reranked pick side by side. This
+ * top-K candidates and the final pick (embedding-only or LLM-reranked) side by
+ * side. This
  * is the demo proof that "mushroom" finds the Dutch "champignons" with no synonym
  * table, and the gap the other admin tabs do not cover (they measure the
  * recommender, not match quality).
@@ -226,9 +227,14 @@ function Pick({
             <p className="text-muted-foreground mt-1.5 text-xs leading-snug">
               {hit.reason}
             </p>
+          ) : hit.embeddingOnly ? (
+            <p className="text-muted-foreground mt-1.5 text-xs leading-snug">
+              Embedding-only fast path — cosine winner was high-confidence.
+            </p>
           ) : hit.llmFallback ? (
             <p className="mt-1.5 text-xs leading-snug text-amber-700">
-              Cosine fallback — rerank LLM did not run (model error or no key).
+              No validated match — rerank LLM did not run (model error or no
+              key).
             </p>
           ) : null}
         </>

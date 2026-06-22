@@ -16,9 +16,10 @@
  * Node (no Worker, no D1 binding). It loads the committed product vectors
  * (data/embeddings/products.json), decodes them, builds the candidate lookup
  * from the bundled catalogue, embeds each query (OpenAI), retrieves cosine
- * candidates, and LLM-reranks. Each case passes when the reranked product name
- * contains one of a small set of expected Dutch/English keywords (case-insensitive
- * substring), e.g. "mushroom" must resolve to a "champignon" product.
+ * candidates, accepts obvious embedding-only winners, and LLM-reranks ambiguous
+ * cases. Each case passes when the final product name contains one of a small set
+ * of expected Dutch/English keywords (case-insensitive substring), e.g. "mushroom"
+ * must resolve to a "champignon" product.
  *
  * Results report to Braintrust automatically: every embed / rerank call goes
  * through src/lib/braintrust-ai.ts (wrapAISDK + initLogger), so the spans show up
@@ -87,9 +88,10 @@ interface Case {
  * Golden cases. Deliberately small (cost + speed): the headline cross-lingual
  * case plus a handful of obvious staples spanning English and Dutch queries.
  *
- * This exercises the ACCURATE tier (expand -> multi-query retrieval -> LLM
- * rerank) — the SAME pipeline `resolveLinesForStoreAccurate` runs for the cart,
- * so a pass here means the cart resolves these correctly. Needs a live
+ * This exercises the cart tier (raw embedding fast path -> expand -> multi-query
+ * retrieval -> LLM rerank only when ambiguous) — the SAME pipeline
+ * `resolveLinesForStoreAccurate` runs for the cart, so a pass here means the cart
+ * resolves these correctly. Needs a live
  * OPENAI_API_KEY (present in pre-push); self-skips with no key (see top of file).
  *
  * The `rejectAny` cases below are the real-world cart failures: a basic
@@ -143,6 +145,7 @@ interface CaseResult {
   expectAny: Array<string>
   matched: string | null
   score: number
+  path: 'embedding' | 'rerank' | 'none' | 'error'
   pass: boolean
 }
 
@@ -150,7 +153,7 @@ async function main(): Promise<void> {
   const { decodeVector } = await import('#/lib/embeddings/codec')
   const { getCatalogue } = await import('#/lib/pricing/catalogue')
   const { storeProductId } = await import('#/lib/pricing/store-product-rows')
-  const { selectCandidatesFromQueries, rerankMatch } =
+  const { embeddingOnlyMatch, selectCandidatesFromQueries, rerankMatch } =
     await import('#/lib/pricing/match-semantic')
   const { expandIngredientSearchTerms } =
     await import('#/lib/pricing/expand-ingredient')
@@ -192,22 +195,51 @@ async function main(): Promise<void> {
 
   // The reusable task: run the real pipeline for one ingredient, score it.
   async function runCase(c: Case): Promise<CaseResult> {
-    const { terms } = await expandIngredientSearchTerms(c.ingredient, {
-      model: models.rerank,
-      generateObject,
-    })
-    const { embeddings: vectors } = await embedMany({
+    const { embeddings: rawQueryVectors } = await embedMany({
       model: models.embedding,
-      values: [...terms],
+      values: [c.ingredient],
       providerOptions: embeddingProviderOptions,
     })
-    const candidates = selectCandidatesFromQueries(
-      vectors,
+    const rawCandidates = selectCandidatesFromQueries(
+      rawQueryVectors,
       entries,
       lookup,
       TOP_K,
     )
-    const { match } = await rerankMatch(
+    const direct = embeddingOnlyMatch(rawCandidates, STORE)
+    if (direct) {
+      return scoreCase(
+        c,
+        direct.product?.name ?? null,
+        direct.score,
+        'embedding',
+      )
+    }
+
+    const { terms } = await expandIngredientSearchTerms(c.ingredient, {
+      model: models.rerank,
+      generateObject,
+    })
+    const rawTerm = c.ingredient.trim().toLowerCase()
+    const expandedTerms = terms.filter(
+      (term) => term.trim().toLowerCase() !== rawTerm,
+    )
+    const vectors = expandedTerms.length
+      ? [
+          ...rawQueryVectors,
+          ...(
+            await embedMany({
+              model: models.embedding,
+              values: expandedTerms,
+              providerOptions: embeddingProviderOptions,
+            })
+          ).embeddings,
+        ]
+      : rawQueryVectors
+    const candidates = expandedTerms.length
+      ? selectCandidatesFromQueries(vectors, entries, lookup, TOP_K)
+      : rawCandidates
+    const { match, embeddingOnly } = await rerankMatch(
       { name: c.ingredient },
       candidates,
       STORE,
@@ -216,7 +248,20 @@ async function main(): Promise<void> {
         generateObject,
       },
     )
-    const matched = match.product?.name ?? null
+    return scoreCase(
+      c,
+      match.product?.name ?? null,
+      match.score,
+      embeddingOnly ? 'embedding' : match.product ? 'rerank' : 'none',
+    )
+  }
+
+  function scoreCase(
+    c: Case,
+    matched: string | null,
+    score: number,
+    path: CaseResult['path'],
+  ): CaseResult {
     const hay = (matched ?? '').toLowerCase()
     const expected =
       matched !== null && c.expectAny.some((k) => hay.includes(k))
@@ -229,7 +274,8 @@ async function main(): Promise<void> {
       ingredient: c.ingredient,
       expectAny: c.expectAny,
       matched,
-      score: match.score,
+      score,
+      path,
       pass,
     }
   }
@@ -246,6 +292,7 @@ async function main(): Promise<void> {
         expectAny: c.expectAny,
         matched: `ERROR: ${(err as Error).message}`,
         score: 0,
+        path: 'error',
         pass: false,
       })
     }
@@ -278,7 +325,7 @@ function printTable(results: Array<CaseResult>): void {
     const flag = r.pass ? '✅' : '❌'
     const score = r.score ? ` (cos ${r.score.toFixed(3)})` : ''
     console.log(
-      `${flag} ${r.ingredient.padEnd(14)} -> ${r.matched ?? '(no match)'}${score}`,
+      `${flag} ${r.ingredient.padEnd(14)} [${r.path}] -> ${r.matched ?? '(no match)'}${score}`,
     )
   }
 }
