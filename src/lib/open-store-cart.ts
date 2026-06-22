@@ -13,6 +13,19 @@ const TAB_OPTS = 'noopener,noreferrer'
 /** Gap between chunk navigations — tuned from AH cart race observations. */
 export const CART_CHUNK_OPEN_MS = 1500
 
+/** Buffer after the last chunk navigate before a full-page redirect (Mollie). */
+export const CART_CHUNK_OPEN_BUFFER_MS = 250
+
+/**
+ * How long to wait after {@link openStoreCart} before navigating away (e.g. to
+ * Mollie). Multi-chunk carts stagger chunks 2..N at {@link CART_CHUNK_OPEN_MS}
+ * apart; redirecting sooner would cancel pending tab navigations.
+ */
+export function cartChunkOpenDelayMs(chunkCount: number): number {
+  if (chunkCount <= 1) return 0
+  return (chunkCount - 1) * CART_CHUNK_OPEN_MS + CART_CHUNK_OPEN_BUFFER_MS
+}
+
 function navigateTab(tab: Window | null, url: string): void {
   if (!tab || tab.closed) return
   ;(tab.location as { href: string }).href = url
