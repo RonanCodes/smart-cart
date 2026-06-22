@@ -20,14 +20,14 @@ import type { BasketComparison, StoreBasket } from './pricing'
  * its data) joins the comparison automatically with no code change here.
  *
  * Accurate-tier total (#plan-cart-mismatch): the displayed total + per-item
- * prices now resolve lines with the SAME accurate matcher the cart/deep-link uses
- * (expand + multi-query retrieval + LLM rerank, ADR-0004), so the shown € exactly
- * matches what cart-build adds to Albert Heijn. That tier costs an LLM call per
- * line and runs for every covered store on every list change, so it goes through
- * resolveLinesForStoreCached: a (store, normalised name) -> product resolution is
- * paid for ONCE (D1 persistent cache + per-instance in-memory tier), price stays
- * fresh from the catalogue. ADR-0004's cost warning is accepted; the cache softens
- * it. First-load latency for a large, cold-cache list is the known trade-off.
+ * prices now resolve lines with the SAME matcher the cart/deep-link uses (raw
+ * embedding fast path, then expand + multi-query retrieval + LLM rerank only
+ * when ambiguous, ADR-0004), so the shown € exactly matches what cart-build adds
+ * to Albert Heijn. Cold misses can still cost model calls and run for every
+ * covered store on every list change, so it goes through resolveLinesForStoreCached:
+ * a (store, normalised name) -> product resolution is paid for ONCE (D1 persistent
+ * cache + per-instance in-memory tier), price stays fresh from the catalogue.
+ * ADR-0004's cost warning is accepted; the cache softens it.
  */
 
 /** One line the client sends: the ingredient name + its exact amount string. */

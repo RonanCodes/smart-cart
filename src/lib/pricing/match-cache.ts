@@ -2,10 +2,11 @@
  * Resolved-match cache for the ACCURATE ingredient resolver (ADR-0004).
  *
  * The shopping-tab price comparison resolves lines with the accurate tier
- * (expand + multi-query retrieval + LLM rerank) so the displayed total exactly
- * matches the basket cart-build adds to Albert Heijn. That tier costs an LLM call
- * per line and runs for EVERY covered store on every list change / store switch.
- * The name -> product resolution is STABLE, so this module caches it.
+ * (raw embedding fast path, then expand + multi-query retrieval + LLM rerank
+ * only when ambiguous) so the displayed total exactly matches the basket
+ * cart-build adds to Albert Heijn. Cache misses can still cost model calls and
+ * run for every covered store on list changes / store switches. The name ->
+ * product resolution is STABLE, so this module caches it.
  *
  * What is cached: the RESOLVED MATCH (store + normalised name -> product slug +
  * confidence), NOT the price. A cache hit rebuilds the IngredientMatch by looking

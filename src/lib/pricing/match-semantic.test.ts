@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   confidenceFromCosine,
+  embeddingOnlyMatch,
   rerankMatch,
   selectCandidates,
   selectCandidatesFromQueries,
@@ -108,6 +109,62 @@ describe('selectCandidatesFromQueries', () => {
   })
 })
 
+describe('embeddingOnlyMatch', () => {
+  it('does not short-circuit when there are no candidates', () => {
+    expect(embeddingOnlyMatch([], 'ah')).toBeNull()
+  })
+
+  it('accepts a strong top candidate with clear separation', () => {
+    const match = embeddingOnlyMatch(
+      [
+        candidate('AH Tarwebloem', 99, 'tarwebloem', 0.78),
+        candidate('AH Bloemkool', 219, 'bloemkool', 0.68),
+      ],
+      'ah',
+    )
+
+    expect(match?.product?.slug).toBe('tarwebloem')
+    expect(match?.confidence).toBe('high')
+    expect(match?.estimated).toBe(false)
+  })
+
+  it('requires more than a high-ish absolute score', () => {
+    const match = embeddingOnlyMatch(
+      [
+        candidate('AH Amandelmeel', 399, 'amandelmeel', 0.69),
+        candidate('Almondy Daim taart', 699, 'almondy-daim', 0.6),
+      ],
+      'ah',
+    )
+
+    expect(match).toBeNull()
+  })
+
+  it('requires margin over the runner-up', () => {
+    const match = embeddingOnlyMatch(
+      [
+        candidate('AH Chilivlokken', 199, 'chilivlokken', 0.78),
+        candidate('Doritos Sweet Chilli', 259, 'doritos-chilli', 0.75),
+      ],
+      'ah',
+    )
+
+    expect(match).toBeNull()
+  })
+
+  it('accepts a very high score even when near variants are close', () => {
+    const match = embeddingOnlyMatch(
+      [
+        candidate('AH Halfvolle melk', 119, 'halfvolle-melk', 0.82),
+        candidate('AH Volle melk', 119, 'volle-melk', 0.81),
+      ],
+      'ah',
+    )
+
+    expect(match?.product?.slug).toBe('halfvolle-melk')
+  })
+})
+
 describe('rerankMatch (accurate tier)', () => {
   const cands = [
     candidate('AH Tomatenblokjes', 89, 'tomatenblokjes', 0.55),
@@ -118,6 +175,25 @@ describe('rerankMatch (accurate tier)', () => {
     const m = await rerankMatch({ name: 'mushroom' }, cands, 'ah', {})
     expect(m.match.product).toBeNull()
     expect(m.llmFallback).toBe(true)
+  })
+
+  it('skips the model when embedding retrieval is decisive', async () => {
+    const decisive = [
+      candidate('AH Tarwebloem', 99, 'tarwebloem', 0.81),
+      candidate('AH Bloemkool', 219, 'bloemkool', 0.67),
+    ]
+    const failing: GenerateObjectFn = async () => {
+      throw new Error('rerank should not run')
+    }
+
+    const m = await rerankMatch({ name: 'tarwebloem' }, decisive, 'ah', {
+      model: MODEL,
+      generateObject: failing,
+    })
+
+    expect(m.match.product?.slug).toBe('tarwebloem')
+    expect(m.embeddingOnly).toBe(true)
+    expect(m.llmFallback).toBeUndefined()
   })
 
   it('uses the model-chosen product + confidence (cross-lingual)', async () => {

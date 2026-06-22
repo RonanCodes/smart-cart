@@ -38,7 +38,7 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 // eslint-disable-next-line import/first -- must import after the vi.mock calls above
-import { SignIn } from './sign-in'
+import { SignIn } from '#/routes/sign-in'
 
 let assign: ReturnType<typeof vi.fn>
 

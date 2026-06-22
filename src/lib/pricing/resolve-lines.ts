@@ -5,9 +5,10 @@
  * into the client bundle. Imported lazily by cart-links-server.ts and
  * price-compare-server.ts.
  *
- * Resolve lines by expanding to Dutch search terms, retrieving cosine candidates,
- * then asking the reranker to pick the SKU or decline. Cosine retrieval is only
- * candidate generation; it is never accepted as final product truth.
+ * Resolve lines by trying raw embedding retrieval first. If the top product is
+ * strong and clearly separated, accept it immediately. Otherwise expand to Dutch
+ * search terms, retrieve cosine candidates, then ask the reranker to pick the SKU
+ * or decline.
  *
  * Both honour the ADR-0004 keyless contract: with no key they return honest
  * no-matches rather than falling back to the old token matcher.
@@ -70,7 +71,7 @@ export async function resolveLinesForStoreAccurate(
   const { getProductVectorsForStore } = await import('../embeddings/store')
   const { getCatalogue } = await import('./catalogue')
   const { storeProductId } = await import('./store-product-rows')
-  const { selectCandidatesFromQueries, rerankMatch } =
+  const { embeddingOnlyMatch, selectCandidatesFromQueries, rerankMatch } =
     await import('./match-semantic')
   const { expandIngredientSearchTerms } = await import('./expand-ingredient')
   const { embedQueries } = await import('../embeddings/embed')
@@ -86,20 +87,97 @@ export async function resolveLinesForStoreAccurate(
   const rerankDeps = { model: models.rerank, generateObject }
   const expandDeps = { model: models.rerank, generateObject }
 
-  return Promise.all(
-    lines.map(async (line) => {
+  const out = lines.map((line) => ({ name: line.name, match: noMatch(store) }))
+
+  let rawVectors: Array<ReadonlyArray<number>>
+  try {
+    rawVectors = await embedQueries(lines.map((line) => line.name))
+  } catch {
+    return out
+  }
+
+  const pending: Array<{
+    index: number
+    rawCandidates: ReturnType<typeof selectCandidatesFromQueries>
+  }> = []
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
+    const rawVector = rawVectors[i]
+    if (!rawVector) continue
+
+    const rawCandidates = selectCandidatesFromQueries(
+      [rawVector],
+      entries,
+      lookup,
+      10,
+    )
+    const direct = embeddingOnlyMatch(rawCandidates, store)
+    if (direct) out[i] = { name: line.name, match: direct }
+    else pending.push({ index: i, rawCandidates })
+  }
+
+  const expanded = await Promise.all(
+    pending.map(async (p) => {
+      const line = lines[p.index]!
       try {
         const { terms } = await expandIngredientSearchTerms(
           line.name,
           expandDeps,
         )
-        const vectors = await embedQueries(terms)
-        const candidates = selectCandidatesFromQueries(
-          vectors,
-          entries,
-          lookup,
-          10,
-        )
+        const rawTerm = line.name.trim().toLowerCase()
+        return {
+          ...p,
+          expandedTerms: terms.filter(
+            (term) => term.trim().toLowerCase() !== rawTerm,
+          ),
+        }
+      } catch {
+        return { ...p, expandedTerms: [] }
+      }
+    }),
+  )
+
+  const expandedTermSlots: Array<{ pendingIndex: number; term: string }> = []
+  expanded.forEach((p, pendingIndex) => {
+    for (const term of p.expandedTerms) {
+      expandedTermSlots.push({ pendingIndex, term })
+    }
+  })
+
+  let expandedVectors: Array<ReadonlyArray<number>> = []
+  if (expandedTermSlots.length > 0) {
+    try {
+      expandedVectors = await embedQueries(expandedTermSlots.map((s) => s.term))
+    } catch {
+      expandedVectors = []
+    }
+  }
+
+  const vectorsByPending = new Map<number, Array<ReadonlyArray<number>>>()
+  expandedTermSlots.forEach((slot, i) => {
+    const vector = expandedVectors[i]
+    if (!vector) return
+    const vectors = vectorsByPending.get(slot.pendingIndex) ?? []
+    vectors.push(vector)
+    vectorsByPending.set(slot.pendingIndex, vectors)
+  })
+
+  await Promise.all(
+    expanded.map(async (p, pendingIndex) => {
+      const line = lines[p.index]!
+      const rawVector = rawVectors[p.index]
+      if (!rawVector) return
+      try {
+        const extraVectors = vectorsByPending.get(pendingIndex) ?? []
+        const candidates = extraVectors.length
+          ? selectCandidatesFromQueries(
+              [rawVector, ...extraVectors],
+              entries,
+              lookup,
+              10,
+            )
+          : p.rawCandidates
         const { qty, unit } = splitAmount(line.amount)
         const { match } = await rerankMatch(
           { name: line.name, qty, unit },
@@ -107,11 +185,12 @@ export async function resolveLinesForStoreAccurate(
           store,
           rerankDeps,
         )
-        return { name: line.name, match }
+        out[p.index] = { name: line.name, match }
       } catch {
-        // Never empty the cart on a single bad line: report it as no-match.
-        return { name: line.name, match: noMatch(store) }
+        out[p.index] = { name: line.name, match: noMatch(store) }
       }
     }),
   )
+
+  return out
 }

@@ -1,14 +1,14 @@
 /**
- * LLM rerank for ingredient -> SKU, the accurate tier of match-semantic.ts
- * (ADR-0004). Cosine retrieval gives the top-K nearest products; the model picks
- * the one a real shopper would buy for THIS ingredient and quantity (a normal
- * pack, not a catering bag for "2 cloves"; the raw ingredient over a prepared
- * dish, champignons not champignonsoep). It can only choose a candidate's
- * productId or decline; it never invents a product.
+ * LLM rerank for ambiguous ingredient -> SKU matches (ADR-0004). Cosine retrieval
+ * gives the top-K nearest products; when the embedding fast path is not decisive,
+ * the model picks the one a real shopper would buy for THIS ingredient and
+ * quantity (a normal pack, not a catering bag for "2 cloves"; the raw ingredient
+ * over a prepared dish, champignons not champignonsoep). It can only choose a
+ * candidate's productId or decline; it never invents a product.
  *
- * Used on cart and pricing decision points through the cache-aware resolver.
- * Cosine retrieval is candidate generation only; the reranker must pick or
- * decline before a product is accepted.
+ * Used on cart and pricing decision points through the cache-aware resolver when
+ * embedding retrieval is ambiguous. Very confident, clearly separated embedding
+ * winners can skip this call.
  *
  * Pure schema + prompt; the live call is gated and injectable so tests stub it.
  */

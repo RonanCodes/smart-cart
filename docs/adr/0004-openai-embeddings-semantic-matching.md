@@ -47,17 +47,19 @@ the cached arrays. At ~5k + ~1.5k vectors this is a fast linear scan, so no ANN 
 no Vectorize, no Turso. This is the direct answer to ADR-0003: it was right that ANN was
 overkill, and brute-force cosine keeps it overkill while still giving semantic recall.
 
-**LLM rerank for product truth.** The ingredient-to-SKU path does cosine top-K, then a
-`generateObject` rerank to choose the right product or decline. Raw cosine neighbours
-are candidates only, never final SKU truth. Price totals use the same accurate path
-through `match_cache`, so repeated store/name resolutions do not keep paying the model
-cost.
+**LLM rerank for ambiguous product truth.** The ingredient-to-SKU path does cosine
+top-K. A very strong, clearly separated embedding winner can be accepted directly;
+ambiguous candidates go through a `generateObject` rerank to choose the right product
+or decline. Raw/high-ish cosine neighbours are candidates only, never final SKU truth.
+Price totals use the same accurate path through `match_cache`, so repeated store/name
+resolutions do not keep paying the model cost.
 
 **The three matchers being changed:**
 
 1. **Ingredient to product / SKU pricing** (was token-overlap in
    `src/lib/pricing/match.ts`): now cosine over committed product vectors, with the
-   `generateObject` rerank for cart and pricing paths, cached by store/name.
+   embedding-only fast path plus `generateObject` rerank for ambiguous cart and
+   pricing matches, cached by store/name.
 2. **Dish to dish similarity** (was Jaccard in `src/lib/vectors/similar-score.ts`): now
    cosine over committed recipe vectors. The pure `postProcessNeighbours` core in
    `similar.ts` (drop self, hard-filter on allergy/diet, re-rank, truncate) is unchanged;
