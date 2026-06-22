@@ -43,7 +43,7 @@ describe('FeedbackForm', () => {
     useSession.mockReturnValue({
       data: { user: { id: 'u1', email: 'nico@example.com' } },
     })
-    const { container } = render(<FeedbackForm source="bubble" />)
+    const { container } = render(<FeedbackForm source="tab-bar" />)
     const email = emailInput(container)
     expect(email.value).toBe('nico@example.com')
     expect(email.disabled).toBe(true)
@@ -53,7 +53,7 @@ describe('FeedbackForm', () => {
 
   it('leaves the email editable + empty when signed out', () => {
     useSession.mockReturnValue({ data: null })
-    const { container } = render(<FeedbackForm source="bubble" />)
+    const { container } = render(<FeedbackForm source="tab-bar" />)
     const email = emailInput(container)
     expect(email.value).toBe('')
     expect(email.disabled).toBe(false)
@@ -64,7 +64,7 @@ describe('FeedbackForm', () => {
 
   it('always offers the optional phone field + an attach-a-screenshot control', () => {
     useSession.mockReturnValue({ data: null })
-    const { container } = render(<FeedbackForm source="bubble" />)
+    const { container } = render(<FeedbackForm source="tab-bar" />)
     expect(container.querySelector('#feedback-phone')).toBeTruthy()
     expect(container.querySelector('input[type="file"]')).toBeTruthy()
     expect(container.textContent).toContain('Attach a screenshot')
@@ -75,7 +75,7 @@ describe('FeedbackForm', () => {
   // open a full-screen preview so they can inspect what they're sending (#404).
   it('shows a tappable thumbnail + lightbox after attaching an image', async () => {
     useSession.mockReturnValue({ data: null })
-    const { container } = render(<FeedbackForm source="bubble" />)
+    const { container } = render(<FeedbackForm source="tab-bar" />)
 
     const file = new File([new Uint8Array([1, 2, 3, 4])], 'shot.png', {
       type: 'image/png',

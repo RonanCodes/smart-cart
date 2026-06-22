@@ -16,7 +16,7 @@ describe('normaliseFeedback', () => {
     if (r.ok) {
       expect(r.value.message).toBe('the swap button is hard to find')
       expect(r.value.email).toBeNull()
-      expect(r.value.source).toBe('bubble')
+      expect(r.value.source).toBe('tab-bar')
       expect(r.value.path).toBeNull()
     }
   })
@@ -69,14 +69,29 @@ describe('normaliseFeedback', () => {
     }
   })
 
-  it('defaults an unknown source to bubble', () => {
+  it('defaults an unknown source to tab-bar', () => {
     const r = normaliseFeedback({
       message: 'hi',
       // @ts-expect-error testing a bad source value at the boundary
       source: 'spaceship',
     })
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.value.source).toBe('bubble')
+    if (r.ok) expect(r.value.source).toBe('tab-bar')
+  })
+
+  it('keeps the tab-bar source', () => {
+    const r = normaliseFeedback({ message: 'from the FAB', source: 'tab-bar' })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.source).toBe('tab-bar')
+  })
+
+  it('keeps the sign-in source (blocked-at-login feedback)', () => {
+    const r = normaliseFeedback({
+      message: 'I cannot get a code',
+      source: 'sign-in',
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.source).toBe('sign-in')
   })
 
   it('clamps an over-long message to the cap', () => {

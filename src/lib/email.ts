@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { readEnv } from './env'
+import { feedbackNoticeText, feedbackNoticeHtml } from './feedback-email'
 
 // Sends from the souso.app domain (Verified in Resend, with DKIM/SPF/DMARC in
 // Cloudflare). The branded From matching the brand + domain auth is what keeps
@@ -278,12 +279,26 @@ export async function forwardInboundEmail(
   return { sent: !error }
 }
 
+/** An optional screenshot the sender attached, threaded through to Resend as an
+ * email attachment. `data` is base64 (no data-URL prefix). */
+export interface FeedbackEmailAttachment {
+  filename: string
+  /** Base64-encoded image bytes (no `data:` prefix). */
+  base64: string
+}
+
 /**
  * Tell ONE admin a new piece of in-app feedback came through (#444 follow-up:
  * email admins on feedback just like on signups). Same best-effort contract:
- * callers swallow errors so a Resend outage never affects the submission. The
- * full message + any contact the sender left are included so the team can act
- * + reach out without opening the admin inbox.
+ * callers swallow errors so a Resend outage never affects the submission.
+ *
+ * The body (built by the pure `feedbackNoticeText` / `feedbackNoticeHtml`)
+ * carries the message, any contact the sender left, a submitted-at timestamp,
+ * and — when `sentryEventId` is present — a deep-link to the Sentry issue so the
+ * admin can jump straight to the session replay / breadcrumbs. An attached
+ * screenshot rides as a Resend attachment. Every richer piece degrades
+ * gracefully: a missing Sentry id, screenshot, or timestamp never throws and the
+ * email still sends.
  */
 export async function sendFeedbackNotice(
   feedback: {
@@ -291,20 +306,31 @@ export async function sendFeedbackNotice(
     email?: string | null
     phone?: string | null
     source?: string | null
+    sentryEventId?: string | null
+    submittedAt?: Date | null
+    attachment?: FeedbackEmailAttachment | null
   },
   to: string = ADMIN_NOTIFY_TO,
 ): Promise<{ sent: boolean }> {
   const apiKey = await readEnv('RESEND_API_KEY')
   if (!apiKey) return { sent: false }
   const resend = new Resend(apiKey)
-  const contact =
-    [feedback.email, feedback.phone].filter(Boolean).join(' · ') ||
-    'no contact left'
   const { error } = await resend.emails.send({
     from: FROM,
     to,
     subject: `New Souso feedback${feedback.source ? ` (${feedback.source})` : ''}`,
-    text: `${feedback.message}\n\nContact: ${contact}`,
+    text: feedbackNoticeText(feedback),
+    html: emailShell(feedbackNoticeHtml(feedback)),
+    ...(feedback.attachment
+      ? {
+          attachments: [
+            {
+              filename: feedback.attachment.filename,
+              content: feedback.attachment.base64,
+            },
+          ],
+        }
+      : {}),
   })
   return { sent: !error }
 }

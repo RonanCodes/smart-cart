@@ -111,14 +111,32 @@ export function FeedbackForm({
       // (a) Sentry User Feedback (best-effort, never throws). Awaited so its
       // internal flush completes BEFORE the panel closes / the user navigates —
       // the envelope is otherwise queued and can be abandoned on close (#443).
-      await captureSentryFeedback({
+      // Returns the Sentry event id (or null) so we can thread it into the admin
+      // email's deep-link.
+      const sentryEventId = await captureSentryFeedback({
         message: check.value.message,
         email: check.value.email,
         phone: check.value.phone,
         attachment: shotBytes ? { filename: shotName, data: shotBytes } : null,
       })
+      // The attached screenshot, base64-encoded so it crosses the server-fn
+      // boundary as JSON and rides the admin email as a Resend attachment.
+      const screenshot =
+        shotBytes && shotBytes.length > 0
+          ? { filename: shotName, base64: bytesToBase64(shotBytes) }
+          : null
       // (b) The durable app_feedback write (the source of truth).
-      await submitFeedback({ data: { message, email, phone, source, path } })
+      await submitFeedback({
+        data: {
+          message,
+          email,
+          phone,
+          source,
+          path,
+          sentryEventId,
+          screenshot,
+        },
+      })
       setSent(true)
       // Give the confirmation a beat to read, then let the parent close.
       setTimeout(() => onDone?.(), 1200)
@@ -343,6 +361,21 @@ function ScreenshotLightbox({
     </div>,
     document.body,
   )
+}
+
+/**
+ * Base64-encode raw image bytes (no `data:` prefix) so the screenshot crosses
+ * the server-fn boundary as plain JSON and rides the admin email as a Resend
+ * attachment. Chunked so a large image can't blow the argument limit of
+ * `String.fromCharCode(...spread)`.
+ */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return btoa(binary)
 }
 
 /** Read an image File into a `data:` URL for the preview/lightbox <img>. */

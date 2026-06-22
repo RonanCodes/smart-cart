@@ -146,7 +146,7 @@ export function TabBar() {
         onOpenChange={setFeedbackOpen}
         title="Send feedback"
       >
-        <FeedbackForm source="bubble" onDone={() => setFeedbackOpen(false)} />
+        <FeedbackForm source="tab-bar" onDone={() => setFeedbackOpen(false)} />
       </Sheet>
     </>
   )

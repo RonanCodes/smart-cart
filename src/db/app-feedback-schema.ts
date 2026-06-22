@@ -29,7 +29,13 @@ export const appFeedback = sqliteTable(
     phone: text('phone'),
     /** The free-text feedback message. Always present (empty is rejected). */
     message: text('message').notNull(),
-    /** Which screen / surface they sent it from, for triage ('bubble' | 'settings'). */
+    /**
+     * Which surface they sent it from, for triage: 'tab-bar' (the bottom FAB),
+     * 'sign-in' (the blocked-at-login trigger), or 'settings'. The app always
+     * writes an explicit source, so the column default is never hit on insert;
+     * it is kept only as the historical literal ('bubble') so no migration is
+     * needed to change a default that has no runtime effect.
+     */
     source: text('source').notNull().default('bubble'),
     /** The route path they were on when they sent it, for context. */
     path: text('path'),

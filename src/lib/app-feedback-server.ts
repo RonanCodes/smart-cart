@@ -62,6 +62,9 @@ export const submitFeedback = createServerFn({ method: 'POST' })
 
     // Email opted-in admins, just like a signup ping (#444). Best-effort: the
     // notifier swallows its own errors so feedback submission never fails on it.
+    // The richer email (#feedback-and-videos) carries a submitted-at timestamp,
+    // a Sentry deep-link when the client captured an event id, and the attached
+    // screenshot as an email attachment. Each piece degrades gracefully.
     try {
       const { notifyAdminsOfFeedback } = await import('./waitlist-notify')
       await notifyAdminsOfFeedback({
@@ -69,6 +72,14 @@ export const submitFeedback = createServerFn({ method: 'POST' })
         email: clean.email ?? sessionEmail,
         phone: clean.phone,
         source: clean.source,
+        sentryEventId: data.sentryEventId ?? null,
+        submittedAt: new Date(),
+        attachment: data.screenshot
+          ? {
+              filename: data.screenshot.filename,
+              base64: data.screenshot.base64,
+            }
+          : null,
       })
     } catch {
       // non-fatal: the feedback is already stored

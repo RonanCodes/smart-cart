@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { ShoppingCart } from 'lucide-react'
+import { ShoppingCart, MessageCircle } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
+import { Sheet } from '#/components/ui/sheet'
+import { FeedbackForm } from '#/components/feedback/FeedbackForm'
 import { log } from '#/lib/log'
 import {
   mapVerifyError,
@@ -31,6 +33,10 @@ export function LoginForm() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // A user blocked at login (no code, rejected origin, gated email) can still
+  // report it from here. Opens the shared FeedbackForm in a sheet; signed out,
+  // the email field is editable so they can leave a contact (#feedback-and-videos).
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
 
   async function sendCode(e: React.FormEvent) {
     e.preventDefault()
@@ -128,7 +134,7 @@ export function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
+    <main className="relative flex min-h-screen items-center justify-center px-6">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
           <ShoppingCart className="text-primary mb-2 h-8 w-8" />
@@ -193,6 +199,27 @@ export function LoginForm() {
           {error && <p className="text-destructive mt-3 text-sm">{error}</p>}
         </CardContent>
       </Card>
+
+      {/* Blocked at login? The one place a signed-out user can still reach us.
+          Sits at the bottom, quiet, so it never competes with the sign-in CTA. */}
+      <div className="absolute inset-x-0 bottom-0 flex justify-center pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <button
+          type="button"
+          onClick={() => setFeedbackOpen(true)}
+          className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm transition-colors"
+        >
+          <MessageCircle className="h-4 w-4" aria-hidden />
+          Having trouble? Send feedback
+        </button>
+      </div>
+
+      <Sheet
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        title="Send feedback"
+      >
+        <FeedbackForm source="sign-in" onDone={() => setFeedbackOpen(false)} />
+      </Sheet>
     </main>
   )
 }

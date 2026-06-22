@@ -5,7 +5,7 @@ import type { AppFeedbackItem } from '#/lib/app-feedback-server'
 
 /**
  * The general in-app feedback inbox (#404) — the free-text messages users send
- * from the floating bubble or from Settings, newest first. Sits at the top of
+ * from the tab-bar FAB, the sign-in page, or Settings, newest first. Sits at the top of
  * the admin feedback tab, above the recsys real-feedback fold-in panel, so the
  * admin reads both kinds of "feedback" in one place.
  *
@@ -19,8 +19,8 @@ export function AppFeedbackInbox({ items }: { items: Array<AppFeedbackItem> }) {
       <header>
         <h2 className="text-lg font-bold tracking-[-0.01em]">Feedback inbox</h2>
         <p className="text-muted-foreground mt-1 text-sm">
-          Free-text feedback sent from the app (the bubble + Settings). Newest
-          first.
+          Free-text feedback sent from the app (the tab-bar FAB, the sign-in
+          page, and Settings). Newest first.
         </p>
       </header>
 
@@ -30,7 +30,10 @@ export function AppFeedbackInbox({ items }: { items: Array<AppFeedbackItem> }) {
           className="text-muted-foreground flex flex-col items-center gap-2 px-4 py-10 text-center text-sm"
         >
           <Inbox className="text-muted-foreground/60 h-8 w-8" aria-hidden />
-          <p>No feedback yet. The bubble + Settings entry feed this inbox.</p>
+          <p>
+            No feedback yet. The tab-bar FAB, the sign-in page, and Settings
+            feed this inbox.
+          </p>
         </Card>
       ) : (
         <ul className="space-y-3">

@@ -1,10 +1,14 @@
 import { cn } from '#/lib/utils'
 
 interface PlayableRecipeImageProps {
-  /** The recipe hero photo. Shown when there is no video, and used as the
-   *  video's poster so the first frame matches the still (seamless start). */
+  /** The recipe hero photo (the still shown everywhere). */
   imageSrc: string
-  /** The cached cooking-video URL. When present it autoplays; else just the photo. */
+  /**
+   * The cached cooking-video URL. RETAINED in the signature so callers (the week
+   * recipe sheet) need not change, but IGNORED: the autoplaying clips were
+   * tanking desktop scroll, so the recipe hero is now always the still photo
+   * (#feedback-and-videos). Safe to remove once no caller passes it.
+   */
   videoUrl?: string | null
   /** Alt text for the photo (the dish name). */
   alt: string
@@ -13,22 +17,18 @@ interface PlayableRecipeImageProps {
 }
 
 /**
- * The recipe hero. When the recipe has a cached living-photo clip it autoplays,
- * silent and looping, so the dish is gently alive with no tap needed (the week
- * cards and the open recipe sheet). When there is no clip it is just the photo.
+ * The recipe hero: always the still photo. It previously autoplayed a silent,
+ * looping "living-photo" clip when one was cached, but those clips were tanking
+ * desktop scroll performance, so videos were removed (#feedback-and-videos) and
+ * the hero is now the plain image everywhere (the week recipe sheet, search /
+ * browse, the admin recipe view).
  *
- * The video is muted + playsInline + autoPlay (the only combination iOS Safari
- * will autoplay without a gesture) and loop. It is `pointer-events-none` so it
- * never steals a tap from a parent that is itself a button (the week DayCard taps
- * through to the recipe sheet). poster = the photo so frame 0 matches the still.
- *
- * The clips are pre-boomeranged at hosting (forward + reversed), so a plain loop
- * is seamless. Pure + presentational: it fetches nothing; the parent passes the
- * resolved image src + videoUrl.
+ * Pure + presentational: it fetches nothing; the parent passes the resolved
+ * image src. A `/stickers/recipes/` src is treated as a die-cut sticker
+ * (object-contain + the `souso-sticker` look); everything else is object-cover.
  */
 export function PlayableRecipeImage({
   imageSrc,
-  videoUrl,
   alt,
   className,
 }: PlayableRecipeImageProps) {
@@ -40,21 +40,7 @@ export function PlayableRecipeImage({
 
   return (
     <div className={cn('relative overflow-hidden', className)}>
-      {videoUrl ? (
-        <video
-          src={videoUrl}
-          poster={imageSrc}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-          aria-label={alt}
-          className={cn(box, 'pointer-events-none')}
-        />
-      ) : (
-        <img src={imageSrc} alt={alt} className={box} />
-      )}
+      <img src={imageSrc} alt={alt} className={box} />
     </div>
   )
 }

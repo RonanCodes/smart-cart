@@ -8,8 +8,18 @@
 /** The contact-email fallback shown in the form. A real inbox the team reads. */
 export const FEEDBACK_CONTACT_EMAIL = 'hello@souso.app'
 
-/** Where a submission came from, for admin triage. */
-export type FeedbackSource = 'bubble' | 'settings'
+/** Where a submission came from, for admin triage. `tab-bar` is the bottom
+ * tab-bar FAB (the always-on trigger), `settings` is the Settings entry, and
+ * `sign-in` is the trigger on the sign-in page for users blocked at login. */
+export type FeedbackSource = 'tab-bar' | 'settings' | 'sign-in'
+
+/** The valid sources, so a stray string at the boundary falls back to the
+ * default rather than being stored verbatim. */
+const FEEDBACK_SOURCES: ReadonlyArray<FeedbackSource> = [
+  'tab-bar',
+  'settings',
+  'sign-in',
+]
 
 /** The raw form input as it arrives from the client. */
 export interface FeedbackInput {
@@ -20,6 +30,17 @@ export interface FeedbackInput {
   phone?: string | null
   source?: FeedbackSource
   path?: string | null
+  /** The Sentry event id returned by captureSentryFeedback, so the admin email
+   * can deep-link to the Sentry issue. Optional: absent in dev / on capture
+   * failure, and the email degrades to no Sentry line. */
+  sentryEventId?: string | null
+  /** An optional attached screenshot, base64-encoded (no `data:` prefix) so it
+   * crosses the server-fn boundary as JSON, then rides the admin email as a
+   * Resend attachment. */
+  screenshot?: {
+    filename: string
+    base64: string
+  } | null
 }
 
 /** The cleaned, ready-to-insert row (no id / userId / createdAt — the server
@@ -84,7 +105,7 @@ export function feedbackEmailState(
  * (or whitespace-only) one, trims the optional email and rejects a clearly
  * malformed one (a blank email is allowed — it is optional), normalises the
  * optional phone (a too-short one is dropped, never rejected), clamps an overly
- * long message, and defaults the source to 'bubble'. Returns a discriminated
+ * long message, and defaults the source to 'tab-bar'. Returns a discriminated
  * result so the caller writes only on `ok`.
  */
 export function normaliseFeedback(input: FeedbackInput): NormaliseResult {
@@ -104,7 +125,10 @@ export function normaliseFeedback(input: FeedbackInput): NormaliseResult {
       message: message.slice(0, MAX_FEEDBACK_LENGTH),
       email: rawEmail.length > 0 ? rawEmail : null,
       phone: normaliseFeedbackPhone(input.phone),
-      source: input.source === 'settings' ? 'settings' : 'bubble',
+      source:
+        input.source && FEEDBACK_SOURCES.includes(input.source)
+          ? input.source
+          : 'tab-bar',
       path: input.path?.trim() ? input.path.trim() : null,
     },
   }
