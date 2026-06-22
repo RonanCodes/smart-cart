@@ -1,6 +1,7 @@
 import type { Swipe, SoftScoreWeights } from '../recsys/types'
 import { makeRecommender } from '../recsys/registry'
 import { DEFAULT_ADAPTIVE_WEIGHTS, DEFAULT_ALGORITHM } from '../recsys/config'
+import { expandExclusionSynonyms } from '../onboarding/dislike-synonyms'
 import type {
   DayType,
   PlanOptions,
@@ -149,6 +150,73 @@ function normalise(s: string): string {
   return s.toLowerCase().trim()
 }
 
+/**
+ * Goal labels (lowercased) that signal a VARIETY preference (#453). When the
+ * household asked to discover new recipes, the week avoids near-duplicate DISHES,
+ * not just exact-recipe repeats. Matched as a substring of a goal label so small
+ * copy tweaks ("Cook and discover new recipes") still register.
+ */
+const VARIETY_GOAL_TERMS: ReadonlyArray<string> = ['discover', 'new recipe']
+
+/** True when the household's goals signal they want a varied week (#453). */
+function prefersVariety(profile: PlannerProfile): boolean {
+  const goals = (profile.goals ?? []).map(normalise)
+  return goals.some((g) => VARIETY_GOAL_TERMS.some((t) => g.includes(t)))
+}
+
+/**
+ * Known dish names that name the SAME dish across EN + NL spellings (#453). Each
+ * entry maps every spelling seen in a Dutch-first catalogue to a single canonical
+ * base, so two distinct recipe rows for the same dish ("Lasagne Bolognese",
+ * "Vegetarische lasagne") collapse to one base ("lasagna") and a variety week
+ * keeps at most one. Matched as a substring of the (lowercased) title. Order does
+ * not matter; the first base whose any-spelling is found wins.
+ */
+const DISH_BASES: ReadonlyArray<{ base: string; spellings: Array<string> }> = [
+  { base: 'lasagna', spellings: ['lasagne', 'lasagna'] },
+  { base: 'risotto', spellings: ['risotto'] },
+  { base: 'curry', spellings: ['curry', 'kerrie'] },
+  { base: 'stamppot', spellings: ['stamppot'] },
+  { base: 'pizza', spellings: ['pizza'] },
+  { base: 'burger', spellings: ['burger', 'hamburger'] },
+  { base: 'taco', spellings: ['taco'] },
+  { base: 'burrito', spellings: ['burrito'] },
+  { base: 'soup', spellings: ['soup', 'soep'] },
+  { base: 'stew', spellings: ['stew', 'stoofpot', 'stoofschotel'] },
+  { base: 'stirfry', spellings: ['stir fry', 'stir-fry', 'roerbak', 'wok'] },
+  {
+    base: 'pasta',
+    spellings: ['spaghetti', 'penne', 'macaroni', 'tagliatelle'],
+  },
+  { base: 'pie', spellings: ['pie', 'taart', 'quiche'] },
+  { base: 'salad', spellings: ['salad', 'salade'] },
+  { base: 'omelette', spellings: ['omelet'] },
+  { base: 'pancake', spellings: ['pancake', 'pannenkoek'] },
+  { base: 'chili', spellings: ['chili con carne', 'chili'] },
+  { base: 'paella', spellings: ['paella'] },
+  { base: 'ramen', spellings: ['ramen'] },
+  { base: 'sushi', spellings: ['sushi'] },
+]
+
+/**
+ * The canonical DISH base for a recipe, used to spot near-duplicate dishes in a
+ * variety week (#453). Returns a known base (e.g. "lasagna") when the title
+ * contains any of its spellings; otherwise the dish has no recognised base and
+ * the caller treats it as always-distinct (returns null), so we never wrongly
+ * collapse two genuinely different dishes. Matched on the lowercased title.
+ *
+ * Deliberately title-based and conservative: only collapses dishes we KNOW are
+ * the same, never guesses. A recipe with no known base never blocks another.
+ */
+function dishBase(r: PlannerRecipe): string | null {
+  const title = r.title ? normalise(r.title) : ''
+  if (!title) return null
+  for (const { base, spellings } of DISH_BASES) {
+    if (spellings.some((s) => title.includes(s))) return base
+  }
+  return null
+}
+
 /** Every ingredient word of a recipe, lowercased, for allergy matching. */
 function ingredientText(r: PlannerRecipe): string {
   return r.ingredients.map((i) => normalise(i.name)).join(' ')
@@ -163,10 +231,13 @@ function ingredientText(r: PlannerRecipe): string {
  *    because the DB defaults mealType to 'dinner', so an imported snack still
  *    reads as a dinner unless its category gives it away (#375); the title check
  *    is the net for a mis-tagged item with a null/generic category (#424).
- *  - excluded ingredients (#422): no excluded ingredient/protein string appears
- *    in any ingredient name. Fed by the derived `allergies` list AND the raw
- *    `dislikes` words; a pork exclusion expands to every pork form (bacon, ham,
- *    gammon, chorizo, lardons, pancetta, spek …). A HARD filter, not a nudge.
+ *  - excluded ingredients (#422, #452): no excluded ingredient/protein string
+ *    appears in any ingredient name. Fed by the derived `allergies` list AND the
+ *    raw `dislikes` words; a pork exclusion expands to every pork form (bacon,
+ *    ham, gammon, chorizo, lardons, pancetta, spek …), and every other term
+ *    expands to its cross-language (EN<->NL) spellings so an English "mushroom"
+ *    still catches the Dutch "champignon"/"paddenstoel" (#452). A HARD filter,
+ *    not a nudge.
  *  - diet: if the household is vegetarian or vegan, the recipe must carry the
  *    matching dietary tag.
  *  - disliked cuisine (#374): a recipe whose cuisine the household explicitly
@@ -192,9 +263,15 @@ export function hardFilter(
     .filter(Boolean)
   const excludeIngredients = new Set<string>()
   for (const term of excludeRaw) {
-    if (PORK_TRIGGERS.has(term))
+    if (PORK_TRIGGERS.has(term)) {
       for (const f of PORK_FORMS) excludeIngredients.add(f)
-    else excludeIngredients.add(term)
+    } else {
+      // Expand each excluded term to its cross-language (EN<->NL) spellings so a
+      // Dutch-first catalogue is filtered correctly however the user phrased it,
+      // e.g. "mushroom" also excludes "champignon"/"paddenstoel" (#452). An
+      // unknown term expands to just itself, so this is a no-op for plain terms.
+      for (const f of expandExclusionSynonyms(term)) excludeIngredients.add(f)
+    }
   }
   const excludeTerms = [...excludeIngredients]
   const diet = profile.diet ? normalise(profile.diet) : null
@@ -354,6 +431,10 @@ function pickForDay(
   cuisineCount: Map<string, number>,
   likedCuisines: Set<string>,
   wantsQuick: boolean,
+  /** Dish bases already placed this week; when `blockDishes` is on, a recipe
+   * sharing one is skipped so a variety week never repeats a dish (#453). */
+  usedDishes: Set<string>,
+  blockDishes: boolean,
 ): PlannerRecipe | undefined {
   let best: PlannerRecipe | undefined
   let bestScore = Number.NEGATIVE_INFINITY
@@ -361,6 +442,10 @@ function pickForDay(
     const r = pool[i]!
     if (used.has(r.id)) continue
     if (wantsQuick && !fitsBusy(r)) continue
+    if (blockDishes) {
+      const base = dishBase(r)
+      if (base && usedDishes.has(base)) continue
+    }
     const cuisine = r.cuisine ? normalise(r.cuisine) : null
     const exempt = !cuisine || likedCuisines.has(cuisine)
     const repeats = cuisine ? (cuisineCount.get(cuisine) ?? 0) : 0
@@ -582,6 +667,13 @@ export function generateWeek(
   const likedCuisines = new Set(
     (profile.cuisinesLiked ?? []).map((c) => c.toLowerCase().trim()),
   )
+  // Variety preference (#453): when the household asked to discover new recipes,
+  // a week avoids near-duplicate DISHES (two lasagnas) and not just exact-recipe
+  // repeats. We track the dish bases already placed and block a repeat base while
+  // the pool still has a free one. Off by default -> exact-recipe de-dup only,
+  // so the benchmark fixture + every non-variety household are unchanged.
+  const wantsVariety = prefersVariety(profile)
+  const usedDishes = new Set<string>()
   const planned: Array<PlannedDay> = []
 
   for (let i = 0; i < days; i++) {
@@ -598,21 +690,43 @@ export function generateWeek(
     // time constraint preference dominates, a same-cuisine repeat is gently
     // penalised for variety, and we never repeat a recipe.
     const wantsQuick = type === 'busy'
-    let pick = pickForDay(pool, used, cuisineCount, likedCuisines, wantsQuick)
+    let pick = pickForDay(
+      pool,
+      used,
+      cuisineCount,
+      likedCuisines,
+      wantsQuick,
+      usedDishes,
+      wantsVariety,
+    )
 
     // Graceful fallback: a busy cook-day must never be left empty. If nothing
     // quick is left, take the shortest unused recipe (unknown prep counts as
-    // longest, so a timed recipe is always preferred over an untimed one).
+    // longest, so a timed recipe is always preferred over an untimed one). When
+    // variety is on, prefer a fresh dish base but still fall back to any unused
+    // recipe rather than leaving the day empty (the fill invariant wins).
     if (!pick && wantsQuick) {
-      pick = pool
-        .filter((r) => !used.has(r.id))
-        .sort((a, b) => {
-          const pa = a.prepMinutes ?? Number.POSITIVE_INFINITY
-          const pb = b.prepMinutes ?? Number.POSITIVE_INFINITY
-          if (pa !== pb) return pa - pb
-          // Stable tie-break by id so the fallback stays deterministic.
-          return a.id < b.id ? -1 : 1
-        })[0]
+      const byPrep = (a: PlannerRecipe, b: PlannerRecipe) => {
+        const pa = a.prepMinutes ?? Number.POSITIVE_INFINITY
+        const pb = b.prepMinutes ?? Number.POSITIVE_INFINITY
+        if (pa !== pb) return pa - pb
+        return a.id < b.id ? -1 : 1
+      }
+      const unused = pool.filter((r) => !used.has(r.id)).sort(byPrep)
+      pick = wantsVariety
+        ? (unused.find((r) => {
+            const base = dishBase(r)
+            return !base || !usedDishes.has(base)
+          }) ?? unused[0])
+        : unused[0]
+    }
+
+    // Variety degradation: on a HOME day, if dish-blocking emptied the pick (every
+    // remaining recipe shares an already-used dish base) but unused recipes still
+    // exist, fall back to the best unused one rather than leave the day empty. The
+    // fill invariant beats variety — we only avoid a repeat dish when we CAN.
+    if (!pick && wantsVariety) {
+      pick = pool.find((r) => !used.has(r.id))
     }
 
     if (!pick) {
@@ -626,6 +740,10 @@ export function generateWeek(
     if (pick.cuisine) {
       const c = normalise(pick.cuisine)
       cuisineCount.set(c, (cuisineCount.get(c) ?? 0) + 1)
+    }
+    if (wantsVariety) {
+      const base = dishBase(pick)
+      if (base) usedDishes.add(base)
     }
     planned.push({ day, meal: pick.title, recipeRef: pick.id, type })
   }

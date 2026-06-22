@@ -74,6 +74,16 @@ export interface PlannerProfile {
    * or absent means all days are 'home' (cook every day).
    */
   cookDays?: Array<number>
+  /**
+   * Soft goals the household picked in onboarding (verbatim labels, e.g. "Cook
+   * and discover new recipes", "Eat less meat"). Read by the planner to detect a
+   * VARIETY preference: when the household asked to discover new recipes, the
+   * week avoids near-duplicate DISHES (two lasagnas, two risottos), not just
+   * exact-recipe repeats (#453). Empty/absent = no variety constraint, the week
+   * de-dups exact recipes only (the prior behaviour). Mirrors
+   * household.profile.goals in the DB schema.
+   */
+  goals?: Array<string>
 }
 
 /** One day's dinner in a generated week. */
