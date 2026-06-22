@@ -160,7 +160,7 @@ describe('buildSuperAdminSet (constant ∪ SUPER_ADMIN_EMAILS secret)', () => {
   it('with an empty secret, the constant is the ONLY super-admin', () => {
     const set = buildSuperAdminSet(undefined)
     expect(set.size).toBe(1)
-    // bluebramble is a super-admin; nobody else is.
+    // ronanconnolly.dev is a super-admin; nobody else is.
     expect(isSuperAdminWith(SUPER_ADMIN_EMAIL, set)).toBe(true)
     expect(isSuperAdminWith('someone-else@x.com', set)).toBe(false)
   })
@@ -173,11 +173,11 @@ describe('buildSuperAdminSet (constant ∪ SUPER_ADMIN_EMAILS secret)', () => {
     expect(isSuperAdminWith('EXTRA@X.COM', set)).toBe(true)
   })
 
-  it('ADMIN_EMAIL is bluebramble and equals the super-admin constant', () => {
-    // The default owner / admin is bluebramble, and bluebramble is also the
+  it('ADMIN_EMAIL is ronanconnolly.dev and equals the super-admin constant', () => {
+    // The default owner / admin is ronanconnolly.dev, and ronanconnolly.dev is also the
     // always-on super-admin, so the two constants agree.
-    expect(ADMIN_EMAIL).toBe('ronan@bluebramble.net')
-    expect(SUPER_ADMIN_EMAIL).toBe('ronan@bluebramble.net')
+    expect(ADMIN_EMAIL).toBe('ronan@ronanconnolly.dev')
+    expect(SUPER_ADMIN_EMAIL).toBe('ronan@ronanconnolly.dev')
   })
 })
 

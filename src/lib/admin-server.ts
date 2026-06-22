@@ -79,8 +79,8 @@ async function loadEnvAdmins(): Promise<{
   const envAdmins = parseApprovedList(await readEnv('ADMIN_EMAILS'))
   envAdmins.add(ADMIN_EMAIL)
   // The super-admin set ALWAYS includes the SUPER_ADMIN_EMAIL constant, unioned
-  // with the SUPER_ADMIN_EMAILS secret, so with no secret bluebramble is the
-  // only super-admin and the mission-critical gate can never be locked out.
+  // with the SUPER_ADMIN_EMAILS secret, so with no secret ronanconnolly.dev is
+  // the only super-admin and the mission-critical gate can never be locked out.
   const superAdmins = buildSuperAdminSet(await readEnv('SUPER_ADMIN_EMAILS'))
   // Super-admins are always admins too.
   for (const e of superAdmins) envAdmins.add(e)
