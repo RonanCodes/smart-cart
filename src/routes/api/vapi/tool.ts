@@ -48,9 +48,8 @@ export const Route = createFileRoute('/api/vapi/tool')({
 
           const secret = (await readEnv('VAPI_SERVER_SECRET')) ?? ''
           const got = request.headers.get('X-Vapi-Secret') ?? ''
-          // Fail CLOSED whenever a server secret is configured: an absent or
-          // mismatched X-Vapi-Secret header is rejected. When no secret is set,
-          // the HMAC call-token verification below remains the identity guard.
+          // Fail closed: a missing configured secret, absent request header, or
+          // mismatched X-Vapi-Secret is rejected before any tool dispatch.
           const auth = checkVapiSecret(secret, got)
           if (!auth.authorized) {
             // LOG before the 401. This path was previously silent, which hid a

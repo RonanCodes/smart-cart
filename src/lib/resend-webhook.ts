@@ -91,7 +91,7 @@ export async function computeResendSignature(
 /**
  * Verify a Resend inbound webhook signature.
  *
- * Contract (mirrors checkVapiSecret's fail-open-when-unset):
+ * Contract:
  * - No secret configured -> `no_secret`, verified TRUE. This lets the webhook
  *   work BEFORE RESEND_WEBHOOK_SECRET is wired; the route logs a warn so the gap
  *   is visible. Once the secret is set, verification is enforced (fail closed).

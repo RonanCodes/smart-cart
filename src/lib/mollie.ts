@@ -13,6 +13,7 @@
  */
 
 const BASE = 'https://api.mollie.com/v2'
+const MOLLIE_PAYMENT_ID_RE = /^tr_[A-Za-z0-9]+$/
 
 /** Mollie payment status union. `paid` is the only "money in" state. */
 export type MolliePaymentStatus =
@@ -29,6 +30,11 @@ export interface MolliePayment {
   status: MolliePaymentStatus
   amount: { currency: string; value: string }
   _links: { checkout?: { href: string } }
+}
+
+/** Mollie payment ids are path params; accept only the documented `tr_...` shape. */
+export function isMolliePaymentId(id: string): boolean {
+  return id.length <= 64 && MOLLIE_PAYMENT_ID_RE.test(id)
 }
 
 /**
@@ -147,7 +153,15 @@ export async function getPayment(
   apiKey: string,
   id: string,
 ): Promise<MolliePayment> {
-  const res = await fetch(`${BASE}/payments/${id}`, {
+  if (!isMolliePaymentId(id)) {
+    throw new MollieError({
+      status: 400,
+      title: 'Invalid payment id',
+      operation: 'Mollie get',
+    })
+  }
+
+  const res = await fetch(`${BASE}/payments/${encodeURIComponent(id)}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
   })
   if (!res.ok) throw await mollieErrorFromResponse(res, 'Mollie get')
