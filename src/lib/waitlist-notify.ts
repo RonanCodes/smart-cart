@@ -98,3 +98,44 @@ export async function notifyAdminsOfNewUser(newEmail: string): Promise<void> {
     // swallow: admin notify is non-fatal; the account was already created
   }
 }
+
+/**
+ * SERVER-ONLY: email every opted-in admin that a new piece of in-app feedback
+ * came through, just like a signup ping (#444 follow-up). Same default-on admin
+ * pref + best-effort contract as the signup notifier: a count, prefs read, or
+ * send failure never affects the feedback submission (the row is already saved).
+ */
+export async function notifyAdminsOfFeedback(feedback: {
+  message: string
+  email?: string | null
+  phone?: string | null
+  source?: string | null
+}): Promise<void> {
+  try {
+    const { getDb } = await import('../db/client')
+    const db = await getDb()
+
+    const { adminNotificationPref } = await import('../db/admin-prefs-schema')
+    const prefs = await db
+      .select({
+        email: adminNotificationPref.email,
+        waitlistNotify: adminNotificationPref.waitlistNotify,
+      })
+      .from(adminNotificationPref)
+
+    const { resolveAdminEmails } = await import('./admin-emails')
+    const { recipientsForWaitlist } = await import('./admin-prefs')
+    const recipients = recipientsForWaitlist(await resolveAdminEmails(), prefs)
+
+    const { sendFeedbackNotice } = await import('./email')
+    for (const to of recipients) {
+      try {
+        await sendFeedbackNotice(feedback, to)
+      } catch {
+        // one admin's send failing must not block the others
+      }
+    }
+  } catch {
+    // swallow: admin notify is non-fatal; the feedback was already saved
+  }
+}

@@ -6,8 +6,9 @@ import { readEnv } from './env'
 // these out of spam. noreply@ (not hello@): receiving is OFF on the domain, so a
 // reply would bounce; noreply signals the mailbox is unmonitored. No Reply-To.
 const FROM = 'Souso <noreply@souso.app>'
-// Where waitlist-signup pings land.
-const ADMIN_NOTIFY_TO = 'tech@discopenguin.com'
+// Default recipient for admin pings (signups, feedback) when no per-admin list
+// resolves. Kept to the one address that should get these.
+const ADMIN_NOTIFY_TO = 'ronan@bluebramble.net'
 // The full Souso brand mark (chef's toque + "Souso" wordmark) rendered cream on
 // transparent so it reads on the green header band. Email clients render PNG,
 // not SVG, and need an absolute URL, so this points at the prod email-logo.
@@ -238,6 +239,37 @@ export async function sendNewUserNotice(
     to,
     subject: `New Souso signup: ${newEmail}`,
     text: `${newEmail} just created a Souso account. Total accounts: ${totalUsers}.`,
+  })
+  return { sent: !error }
+}
+
+/**
+ * Tell ONE admin a new piece of in-app feedback came through (#444 follow-up:
+ * email admins on feedback just like on signups). Same best-effort contract:
+ * callers swallow errors so a Resend outage never affects the submission. The
+ * full message + any contact the sender left are included so the team can act
+ * + reach out without opening the admin inbox.
+ */
+export async function sendFeedbackNotice(
+  feedback: {
+    message: string
+    email?: string | null
+    phone?: string | null
+    source?: string | null
+  },
+  to: string = ADMIN_NOTIFY_TO,
+): Promise<{ sent: boolean }> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) return { sent: false }
+  const resend = new Resend(apiKey)
+  const contact =
+    [feedback.email, feedback.phone].filter(Boolean).join(' · ') ||
+    'no contact left'
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `New Souso feedback${feedback.source ? ` (${feedback.source})` : ''}`,
+    text: `${feedback.message}\n\nContact: ${contact}`,
   })
   return { sent: !error }
 }

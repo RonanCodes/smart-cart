@@ -60,6 +60,20 @@ export const submitFeedback = createServerFn({ method: 'POST' })
       createdAt: new Date(),
     })
 
+    // Email opted-in admins, just like a signup ping (#444). Best-effort: the
+    // notifier swallows its own errors so feedback submission never fails on it.
+    try {
+      const { notifyAdminsOfFeedback } = await import('./waitlist-notify')
+      await notifyAdminsOfFeedback({
+        message: clean.message,
+        email: clean.email ?? sessionEmail,
+        phone: clean.phone,
+        source: clean.source,
+      })
+    } catch {
+      // non-fatal: the feedback is already stored
+    }
+
     return { ok: true }
   })
 
