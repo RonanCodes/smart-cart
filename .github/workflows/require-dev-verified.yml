@@ -1,0 +1,20 @@
+name: Require dev verification
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+jobs:
+  dev-verified:
+    name: Verified on dev.souso.app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || ''
+            const ok = /- \[x\][^\n]*dev\.souso\.app/i.test(body)
+            if (!ok) {
+              core.setFailed('Promotion to main requires the "Verified this works on dev.souso.app" checkbox to be ticked in the PR description.')
+            } else {
+              core.info('Dev verification checkbox is ticked ✓')
+            }
