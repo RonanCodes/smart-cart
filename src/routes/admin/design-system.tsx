@@ -137,19 +137,34 @@ function DesignSystem() {
 
       <Section title="Mascot">
         <div className="border-border bg-card flex flex-wrap items-center gap-6 rounded-2xl border p-5 shadow-sm">
-          <img
-            src="/brand/souso-app-icon.png"
-            alt="Souso app icon"
-            className="h-24 w-24 rounded-2xl object-contain"
-          />
-          <img
-            src="/brand/souso-hero.png"
-            alt="Souso hero"
-            className="h-24 w-auto rounded-xl object-contain"
-          />
+          <figure className="flex flex-col items-center gap-1.5">
+            <img
+              src="/brand/souso-v3-plain.png"
+              alt="Souso, calm resting pose"
+              className="h-24 w-24 object-contain"
+            />
+            <figcaption className="text-muted-foreground text-xs">
+              Plain (canonical)
+            </figcaption>
+          </figure>
+          <figure className="flex flex-col items-center gap-1.5">
+            <img
+              src="/brand/souso-v3-celebrate.png"
+              alt="Souso, arms up, celebrating"
+              className="h-24 w-24 object-contain"
+            />
+            <figcaption className="text-muted-foreground text-xs">
+              Celebrate (cart done)
+            </figcaption>
+          </figure>
           <p className="text-muted-foreground max-w-xs text-sm">
-            Souso, the chick. Empty states, the share card, a bit of warmth.
-            Reactions stay positive, never sad or scolding.
+            Souso, the little sous chef in the toque. The v3 set lives in{' '}
+            <code className="bg-secondary rounded px-1 text-xs">
+              public/brand/souso-v3-*
+            </code>{' '}
+            (plain, hello, love, celebrate, think). Empty states, the share
+            card, a bit of warmth. Reactions stay positive, never sad or
+            scolding.
           </p>
         </div>
       </Section>

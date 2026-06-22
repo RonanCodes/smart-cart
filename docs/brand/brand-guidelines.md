@@ -53,9 +53,12 @@ list rows.
 
 ## Mascot
 
-Souso, the little chick character (`public/brand/souso-v3-*`, `souso-hero.png`,
-`souso-app-icon.png`). Used for empty states, the share card, and warmth.
-Reactions stay positive: encouraging, never sad or scolding.
+Souso, the little sous chef in the toque (the v3 set:
+`public/brand/souso-v3-plain.png`, `-hello`, `-love`, `-celebrate`, `-think`).
+`souso-v3-plain` is the canonical resting pose; reach for `-celebrate` when the
+cart is done. Used for empty states, the share card, and warmth. Reactions stay
+positive: encouraging, never sad or scolding. The earlier 2D / hat / mascot
+drafts are archived under `public/archive/`; don't use them.
 
 ## Logo
 
