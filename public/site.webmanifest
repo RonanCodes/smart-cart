@@ -4,6 +4,7 @@
   "description": "Your sous chef for recipes and the weekly shop.",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#F5F1E7",
   "theme_color": "#F5F1E7",
   "icons": [
