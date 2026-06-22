@@ -44,14 +44,14 @@ export interface VapiAuthResult {
  * drift — the Worker had VAPI_SERVER_SECRET set but the VAPI dashboard assistant
  * had no `server.secret`, so VAPI sent no header and every tool call returned
  * `missing_header` (401) before it could log, which made voice meal-updates fail
- * silently while chat still worked. When no secret is configured we authorize
- * here (`no_secret`); the HMAC call token remains the real identity guard.
+ * silently while chat still worked. When no secret is configured we fail closed
+ * here (`no_secret`) so webhook auth cannot be weakened by config drift.
  */
 export function checkVapiSecret(
   secret: string,
   header: string,
 ): VapiAuthResult {
-  if (!secret) return { authorized: true, reason: 'no_secret' }
+  if (!secret) return { authorized: false, reason: 'no_secret' }
   if (!header) return { authorized: false, reason: 'missing_header' }
   if (!timingSafeEqual(header, secret)) {
     return { authorized: false, reason: 'mismatch' }

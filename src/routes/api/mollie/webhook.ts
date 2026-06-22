@@ -18,9 +18,13 @@ export const Route = createFileRoute('/api/mollie/webhook')({
       POST: async ({ request }) => {
         const form = await request.formData().catch(() => null)
         const id = form ? String(form.get('id') ?? '') : ''
+        const { getPayment, isMolliePaymentId } =
+          await import('../../../lib/mollie')
         if (!id) return new Response('missing id', { status: 400 })
+        if (!isMolliePaymentId(id)) {
+          return new Response('invalid id', { status: 400 })
+        }
 
-        const { getPayment } = await import('../../../lib/mollie')
         const { getDb } = await import('../../../db/client')
         const { tipPayment } = await import('../../../db/tip-schema')
         const { eq } = await import('drizzle-orm')

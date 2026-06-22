@@ -93,6 +93,14 @@ async function buildAuth() {
     // the *.workers.dev URL, and localhost in dev, so all are trusted; extra
     // hosts (previews) can be added via the TRUSTED_ORIGINS env with no redeploy.
     trustedOrigins,
+    advanced: {
+      useSecureCookies: baseURL.startsWith('https://'),
+      defaultCookieAttributes: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: baseURL.startsWith('https://'),
+      },
+    },
     // Better Auth does not log OTP verify failures itself; this is the only
     // server-side signal for "why did sign-in fail". onAPIError.onError fires on
     // every failed endpoint — we narrow to the email-OTP verify path and emit a

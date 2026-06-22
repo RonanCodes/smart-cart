@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { MollieError, createPayment, getPayment } from './mollie'
+import {
+  MollieError,
+  createPayment,
+  getPayment,
+  isMolliePaymentId,
+} from './mollie'
 
 /**
  * MollieError parsing (#307). The old client threw a bare string on a non-2xx;
@@ -85,5 +90,31 @@ describe('MollieError parsing', () => {
 
     const payment = await createPayment('test_key', PARAMS)
     expect(payment.id).toBe('tr_ok')
+  })
+})
+
+describe('Mollie payment id validation', () => {
+  it('accepts payment ids with Mollie tr_ shape', () => {
+    expect(isMolliePaymentId('tr_WDqYK6vllg')).toBe(true)
+    expect(isMolliePaymentId('tr_7UhSN1zuXS')).toBe(true)
+  })
+
+  it('rejects empty, wrong-prefix, path, query, and oversized ids', () => {
+    expect(isMolliePaymentId('')).toBe(false)
+    expect(isMolliePaymentId('ord_WDqYK6vllg')).toBe(false)
+    expect(isMolliePaymentId('tr_abc/../../customers')).toBe(false)
+    expect(isMolliePaymentId('tr_abc?expand=customer')).toBe(false)
+    expect(isMolliePaymentId(`tr_${'a'.repeat(80)}`)).toBe(false)
+  })
+
+  it('getPayment rejects malformed ids before fetch', async () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const err = await getPayment('test_key', 'tr_abc/../x').catch((e) => e)
+
+    expect(err).toBeInstanceOf(MollieError)
+    expect(err.status).toBe(400)
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })

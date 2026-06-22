@@ -13,13 +13,13 @@ describe('checkVapiSecret (the 401-on-tool-call regression)', () => {
   // dashboard assistant had no server.secret, so VAPI sent NO X-Vapi-Secret
   // header and every tool call 401'd before it could even log. These lock the
   // auth decision so that exact drift is caught + named.
-  it('authorizes when no secret is configured (token is the identity guard)', () => {
+  it('rejects when no secret is configured', () => {
     expect(checkVapiSecret('', '')).toEqual({
-      authorized: true,
+      authorized: false,
       reason: 'no_secret',
     })
     expect(checkVapiSecret('', 'anything')).toEqual({
-      authorized: true,
+      authorized: false,
       reason: 'no_secret',
     })
   })
