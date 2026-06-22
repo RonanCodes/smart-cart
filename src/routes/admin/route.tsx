@@ -113,11 +113,18 @@ function AdminLayout() {
               icon={<Network className="h-4 w-4" />}
               label="Why these recipes"
             />
-            <TabLink
-              to="/admin/benchmark"
-              icon={<FlaskConical className="h-4 w-4" />}
-              label="Benchmark"
-            />
+            {/* Benchmark is dev-only (#460): the algorithm-testing console only
+                runs on localhost and no longer makes sense after the matching
+                rework, so its nav link is hidden on the deployed build (the
+                route itself also redirects). import.meta.env.DEV is statically
+                replaced, so this whole link is dead-code-eliminated in prod. */}
+            {import.meta.env.DEV && (
+              <TabLink
+                to="/admin/benchmark"
+                icon={<FlaskConical className="h-4 w-4" />}
+                label="Benchmark"
+              />
+            )}
             <TabLink
               to="/admin/matching"
               icon={<Sparkles className="h-4 w-4" />}
