@@ -17,6 +17,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as DesignsRouteImport } from './routes/designs'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -28,6 +29,7 @@ import { Route as DesignRecipeRouteImport } from './routes/design.recipe'
 import { Route as DesignOnboardingRouteImport } from './routes/design.onboarding'
 import { Route as DesignLandingRouteImport } from './routes/design.landing'
 import { Route as DesignDiscoverRouteImport } from './routes/design.discover'
+import { Route as DemoJoinRouteImport } from './routes/demo_.join'
 import { Route as ApiSimilarRouteImport } from './routes/api/similar'
 import { Route as ApiReplanRouteImport } from './routes/api/replan'
 import { Route as ApiPlanRouteImport } from './routes/api/plan'
@@ -54,6 +56,10 @@ import { Route as ApiVapiToolRouteImport } from './routes/api/vapi/tool'
 import { Route as ApiVapiTokenRouteImport } from './routes/api/vapi/token'
 import { Route as ApiResendInboundRouteImport } from './routes/api/resend/inbound'
 import { Route as ApiMollieWebhookRouteImport } from './routes/api/mollie/webhook'
+import { Route as ApiDemoSpinRouteImport } from './routes/api/demo/spin'
+import { Route as ApiDemoJoinRouteImport } from './routes/api/demo/join'
+import { Route as ApiDemoCountRouteImport } from './routes/api/demo/count'
+import { Route as ApiDemoClearRouteImport } from './routes/api/demo/clear'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
 const StyleguideRoute = StyleguideRouteImport.update({
@@ -94,6 +100,11 @@ const DiscoverRoute = DiscoverRouteImport.update({
 const DesignsRoute = DesignsRouteImport.update({
   id: '/designs',
   path: '/designs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedRoute = AuthedRouteImport.update({
@@ -148,6 +159,11 @@ const DesignLandingRoute = DesignLandingRouteImport.update({
 const DesignDiscoverRoute = DesignDiscoverRouteImport.update({
   id: '/design/discover',
   path: '/design/discover',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoJoinRoute = DemoJoinRouteImport.update({
+  id: '/demo_/join',
+  path: '/demo/join',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSimilarRoute = ApiSimilarRouteImport.update({
@@ -280,6 +296,26 @@ const ApiMollieWebhookRoute = ApiMollieWebhookRouteImport.update({
   path: '/api/mollie/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDemoSpinRoute = ApiDemoSpinRouteImport.update({
+  id: '/api/demo/spin',
+  path: '/api/demo/spin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDemoJoinRoute = ApiDemoJoinRouteImport.update({
+  id: '/api/demo/join',
+  path: '/api/demo/join',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDemoCountRoute = ApiDemoCountRouteImport.update({
+  id: '/api/demo/count',
+  path: '/api/demo/count',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDemoClearRoute = ApiDemoClearRouteImport.update({
+  id: '/api/demo/clear',
+  path: '/api/demo/clear',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -289,6 +325,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/demo': typeof DemoRoute
   '/designs': typeof DesignsRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
@@ -317,6 +354,7 @@ export interface FileRoutesByFullPath {
   '/api/plan': typeof ApiPlanRoute
   '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
+  '/demo/join': typeof DemoJoinRoute
   '/design/discover': typeof DesignDiscoverRoute
   '/design/landing': typeof DesignLandingRoute
   '/design/onboarding': typeof DesignOnboardingRoute
@@ -326,6 +364,10 @@ export interface FileRoutesByFullPath {
   '/design/week': typeof DesignWeekRoute
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/demo/clear': typeof ApiDemoClearRoute
+  '/api/demo/count': typeof ApiDemoCountRoute
+  '/api/demo/join': typeof ApiDemoJoinRoute
+  '/api/demo/spin': typeof ApiDemoSpinRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
   '/api/resend/inbound': typeof ApiResendInboundRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
@@ -335,6 +377,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/demo': typeof DemoRoute
   '/designs': typeof DesignsRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
@@ -363,6 +406,7 @@ export interface FileRoutesByTo {
   '/api/plan': typeof ApiPlanRoute
   '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
+  '/demo/join': typeof DemoJoinRoute
   '/design/discover': typeof DesignDiscoverRoute
   '/design/landing': typeof DesignLandingRoute
   '/design/onboarding': typeof DesignOnboardingRoute
@@ -372,6 +416,10 @@ export interface FileRoutesByTo {
   '/design/week': typeof DesignWeekRoute
   '/admin': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/demo/clear': typeof ApiDemoClearRoute
+  '/api/demo/count': typeof ApiDemoCountRoute
+  '/api/demo/join': typeof ApiDemoJoinRoute
+  '/api/demo/spin': typeof ApiDemoSpinRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
   '/api/resend/inbound': typeof ApiResendInboundRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
@@ -384,6 +432,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/_authed': typeof AuthedRouteWithChildren
+  '/demo': typeof DemoRoute
   '/designs': typeof DesignsRoute
   '/discover': typeof DiscoverRoute
   '/login': typeof LoginRoute
@@ -412,6 +461,7 @@ export interface FileRoutesById {
   '/api/plan': typeof ApiPlanRoute
   '/api/replan': typeof ApiReplanRoute
   '/api/similar': typeof ApiSimilarRoute
+  '/demo_/join': typeof DemoJoinRoute
   '/design/discover': typeof DesignDiscoverRoute
   '/design/landing': typeof DesignLandingRoute
   '/design/onboarding': typeof DesignOnboardingRoute
@@ -421,6 +471,10 @@ export interface FileRoutesById {
   '/design/week': typeof DesignWeekRoute
   '/admin/': typeof AdminIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/demo/clear': typeof ApiDemoClearRoute
+  '/api/demo/count': typeof ApiDemoCountRoute
+  '/api/demo/join': typeof ApiDemoJoinRoute
+  '/api/demo/spin': typeof ApiDemoSpinRoute
   '/api/mollie/webhook': typeof ApiMollieWebhookRoute
   '/api/resend/inbound': typeof ApiResendInboundRoute
   '/api/vapi/token': typeof ApiVapiTokenRoute
@@ -433,6 +487,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/demo'
     | '/designs'
     | '/discover'
     | '/login'
@@ -461,6 +516,7 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/replan'
     | '/api/similar'
+    | '/demo/join'
     | '/design/discover'
     | '/design/landing'
     | '/design/onboarding'
@@ -470,6 +526,10 @@ export interface FileRouteTypes {
     | '/design/week'
     | '/admin/'
     | '/api/auth/$'
+    | '/api/demo/clear'
+    | '/api/demo/count'
+    | '/api/demo/join'
+    | '/api/demo/spin'
     | '/api/mollie/webhook'
     | '/api/resend/inbound'
     | '/api/vapi/token'
@@ -479,6 +539,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/demo'
     | '/designs'
     | '/discover'
     | '/login'
@@ -507,6 +568,7 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/replan'
     | '/api/similar'
+    | '/demo/join'
     | '/design/discover'
     | '/design/landing'
     | '/design/onboarding'
@@ -516,6 +578,10 @@ export interface FileRouteTypes {
     | '/design/week'
     | '/admin'
     | '/api/auth/$'
+    | '/api/demo/clear'
+    | '/api/demo/count'
+    | '/api/demo/join'
+    | '/api/demo/spin'
     | '/api/mollie/webhook'
     | '/api/resend/inbound'
     | '/api/vapi/token'
@@ -527,6 +593,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/_authed'
+    | '/demo'
     | '/designs'
     | '/discover'
     | '/login'
@@ -555,6 +622,7 @@ export interface FileRouteTypes {
     | '/api/plan'
     | '/api/replan'
     | '/api/similar'
+    | '/demo_/join'
     | '/design/discover'
     | '/design/landing'
     | '/design/onboarding'
@@ -564,6 +632,10 @@ export interface FileRouteTypes {
     | '/design/week'
     | '/admin/'
     | '/api/auth/$'
+    | '/api/demo/clear'
+    | '/api/demo/count'
+    | '/api/demo/join'
+    | '/api/demo/spin'
     | '/api/mollie/webhook'
     | '/api/resend/inbound'
     | '/api/vapi/token'
@@ -576,6 +648,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AuthedRoute: typeof AuthedRouteWithChildren
+  DemoRoute: typeof DemoRoute
   DesignsRoute: typeof DesignsRoute
   DiscoverRoute: typeof DiscoverRoute
   LoginRoute: typeof LoginRoute
@@ -589,6 +662,7 @@ export interface RootRouteChildren {
   ApiPlanRoute: typeof ApiPlanRoute
   ApiReplanRoute: typeof ApiReplanRoute
   ApiSimilarRoute: typeof ApiSimilarRoute
+  DemoJoinRoute: typeof DemoJoinRoute
   DesignDiscoverRoute: typeof DesignDiscoverRoute
   DesignLandingRoute: typeof DesignLandingRoute
   DesignOnboardingRoute: typeof DesignOnboardingRoute
@@ -597,6 +671,10 @@ export interface RootRouteChildren {
   DesignShoppingRoute: typeof DesignShoppingRoute
   DesignWeekRoute: typeof DesignWeekRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiDemoClearRoute: typeof ApiDemoClearRoute
+  ApiDemoCountRoute: typeof ApiDemoCountRoute
+  ApiDemoJoinRoute: typeof ApiDemoJoinRoute
+  ApiDemoSpinRoute: typeof ApiDemoSpinRoute
   ApiMollieWebhookRoute: typeof ApiMollieWebhookRoute
   ApiResendInboundRoute: typeof ApiResendInboundRoute
   ApiVapiTokenRoute: typeof ApiVapiTokenRoute
@@ -661,6 +739,13 @@ declare module '@tanstack/react-router' {
       path: '/designs'
       fullPath: '/designs'
       preLoaderRoute: typeof DesignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed': {
@@ -738,6 +823,13 @@ declare module '@tanstack/react-router' {
       path: '/design/discover'
       fullPath: '/design/discover'
       preLoaderRoute: typeof DesignDiscoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo_/join': {
+      id: '/demo_/join'
+      path: '/demo/join'
+      fullPath: '/demo/join'
+      preLoaderRoute: typeof DemoJoinRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/similar': {
@@ -922,6 +1014,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMollieWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/demo/spin': {
+      id: '/api/demo/spin'
+      path: '/api/demo/spin'
+      fullPath: '/api/demo/spin'
+      preLoaderRoute: typeof ApiDemoSpinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/demo/join': {
+      id: '/api/demo/join'
+      path: '/api/demo/join'
+      fullPath: '/api/demo/join'
+      preLoaderRoute: typeof ApiDemoJoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/demo/count': {
+      id: '/api/demo/count'
+      path: '/api/demo/count'
+      fullPath: '/api/demo/count'
+      preLoaderRoute: typeof ApiDemoCountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/demo/clear': {
+      id: '/api/demo/clear'
+      path: '/api/demo/clear'
+      fullPath: '/api/demo/clear'
+      preLoaderRoute: typeof ApiDemoClearRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -987,6 +1107,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
   AuthedRoute: AuthedRouteWithChildren,
+  DemoRoute: DemoRoute,
   DesignsRoute: DesignsRoute,
   DiscoverRoute: DiscoverRoute,
   LoginRoute: LoginRoute,
@@ -1000,6 +1121,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPlanRoute: ApiPlanRoute,
   ApiReplanRoute: ApiReplanRoute,
   ApiSimilarRoute: ApiSimilarRoute,
+  DemoJoinRoute: DemoJoinRoute,
   DesignDiscoverRoute: DesignDiscoverRoute,
   DesignLandingRoute: DesignLandingRoute,
   DesignOnboardingRoute: DesignOnboardingRoute,
@@ -1008,6 +1130,10 @@ const rootRouteChildren: RootRouteChildren = {
   DesignShoppingRoute: DesignShoppingRoute,
   DesignWeekRoute: DesignWeekRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiDemoClearRoute: ApiDemoClearRoute,
+  ApiDemoCountRoute: ApiDemoCountRoute,
+  ApiDemoJoinRoute: ApiDemoJoinRoute,
+  ApiDemoSpinRoute: ApiDemoSpinRoute,
   ApiMollieWebhookRoute: ApiMollieWebhookRoute,
   ApiResendInboundRoute: ApiResendInboundRoute,
   ApiVapiTokenRoute: ApiVapiTokenRoute,

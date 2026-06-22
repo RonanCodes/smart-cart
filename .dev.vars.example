@@ -55,3 +55,23 @@ VAPI_TOOL_TOKEN_SECRET="<openssl rand -base64 32>"
 VITE_VAPI_PUBLIC_KEY="<vapi public key>"
 # Browser-safe (VITE_ prefix). The provisioned assistant id.
 VITE_VAPI_ASSISTANT_ID="<vapi assistant id>"
+
+# --- Live-pitch roulette demo (feat/demo-roulette) -------------------------
+# The /demo presenter "Spin" button places a VAPI OUTBOUND call, which hits the
+# VAPI REST API and so needs a PRIVATE key + a phone number to dial FROM. These
+# are server-only secrets (no VITE_ prefix). Without them the demo runs but Spin
+# reports "call did not dispatch".
+#
+# The secret REST key (Bearer auth). NOT the public key. VAPI dashboard -> API Keys.
+VAPI_PRIVATE_API_KEY="<vapi private api key>"
+# The id of a VAPI-provisioned phone number to dial FROM. VAPI dashboard ->
+# Phone Numbers -> buy/import a number, copy its id.
+VAPI_PHONE_NUMBER_ID="<vapi phone number id>"
+# Optional: use a different assistant for outbound than the in-app one. Defaults
+# to VITE_VAPI_ASSISTANT_ID's value (the same Souso assistant).
+VAPI_OUTBOUND_ASSISTANT_ID="<optional outbound assistant id>"
+# Optional: let the called person mutate ONE demo household's meal plan by voice
+# (the existing /api/vapi/tool webhook). When set (together with
+# VAPI_TOOL_TOKEN_SECRET), the outbound call carries a signed token for this
+# household. Leave unset and the call still connects but plan-changes decline.
+DEMO_VAPI_HOUSEHOLD_ID="<optional demo household id>"
