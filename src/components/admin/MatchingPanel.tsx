@@ -3,6 +3,9 @@ import { Sparkles, Loader2 } from 'lucide-react'
 import { runMatchScenario } from '#/lib/pricing/match-server'
 import type { MatchScenarioResult } from '#/lib/pricing/match-server'
 import { StoreBadge } from '#/components/shopping/StoreBadge'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Card } from '#/components/ui/card'
 
 /**
  * Admin "Matching" scenario runner (ADR-0004). Type an ingredient (or pick a
@@ -69,34 +72,38 @@ export function MatchingPanel() {
         }}
         className="flex gap-2"
       >
-        <input
+        <Input
           value={ingredient}
           onChange={(e) => setIngredient(e.target.value)}
           placeholder="e.g. mushroom"
-          className="border-border focus:border-primary flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none"
+          className="flex-1"
         />
-        <button
+        <Button
           type="submit"
           disabled={loading}
-          className="bg-primary text-primary-foreground flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition active:scale-95 disabled:opacity-50"
+          size="sm"
+          className="h-10 px-5"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Match'}
-        </button>
+        </Button>
       </form>
 
       <div className="flex flex-wrap gap-2">
         {PRESETS.map((p) => (
-          <button
+          <Button
             key={p}
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={() => void run(p)}
-            className="border-border text-muted-foreground hover:text-foreground rounded-full border px-3 py-1 text-xs transition"
+            className="text-muted-foreground hover:text-foreground h-8 rounded-full px-3 text-xs font-normal"
           >
             {p}
-          </button>
+          </Button>
         ))}
       </div>
 
-      {error && <p className="text-sm text-red-600">Error: {error}</p>}
+      {error && <p className="text-destructive text-sm">Error: {error}</p>}
 
       {result && !result.keyPresent && (
         <p className="text-sm text-amber-600">
@@ -140,10 +147,10 @@ export function MatchingPanel() {
           </div>
 
           <div>
-            <h3 className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
+            <h3 className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">
               Retrieved candidates
             </h3>
-            <ul className="border-border divide-border divide-y rounded-lg border text-sm">
+            <ul className="bg-card border-border divide-border divide-y overflow-hidden rounded-xl border text-sm">
               {result.candidates.length === 0 && (
                 <li className="text-muted-foreground p-3">
                   No candidates above the floor.
@@ -190,8 +197,8 @@ function Pick({
   store: string
 }) {
   return (
-    <div className="border-border rounded-lg border p-3">
-      <h3 className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
+    <Card className="p-4">
+      <h3 className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">
         {title}
       </h3>
       {!hit || (!hit.name && !hit.declined) ? (
@@ -231,6 +238,6 @@ function Pick({
           ) : null}
         </>
       )}
-    </div>
+    </Card>
   )
 }
