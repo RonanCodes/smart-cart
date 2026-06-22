@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { BookOpen, ChevronLeft, ImageOff } from 'lucide-react'
 import type { AdminRecipeCard } from '#/lib/admin-recipes-server'
 import { RecipeDetail } from '#/components/admin/RecipeDetail'
+import { Button } from '#/components/ui/button'
+import { Card } from '#/components/ui/card'
 
 /**
  * Admin "Recipes" inspector. A scrollable grid of every recipe (image, title,
@@ -50,12 +52,14 @@ export function RecipesPanel({ recipes }: { recipes: Array<AdminRecipeCard> }) {
   if (selected) {
     return (
       <div className="pb-10">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => setSelected(null)}
-          className="text-muted-foreground hover:text-foreground mb-4 flex items-center gap-1 text-sm font-medium transition"
+          className="text-muted-foreground hover:text-foreground mb-4 -ml-2"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden /> All recipes
-        </button>
+        </Button>
         <RecipeDetail recipe={selected} />
       </div>
     )
@@ -73,13 +77,13 @@ export function RecipesPanel({ recipes }: { recipes: Array<AdminRecipeCard> }) {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <Card className="flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
         <label className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Source</span>
           <select
             value={source}
             onChange={(e) => setSource(e.target.value)}
-            className="border-border focus:border-primary rounded-lg border bg-transparent px-2 py-1.5 text-sm outline-none"
+            className="border-input bg-background focus-visible:ring-ring h-9 rounded-lg border px-2.5 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             <option value={ALL}>All</option>
             {sources.map((s) => (
@@ -94,7 +98,7 @@ export function RecipesPanel({ recipes }: { recipes: Array<AdminRecipeCard> }) {
           <select
             value={cuisine}
             onChange={(e) => setCuisine(e.target.value)}
-            className="border-border focus:border-primary rounded-lg border bg-transparent px-2 py-1.5 text-sm outline-none"
+            className="border-input bg-background focus-visible:ring-ring h-9 rounded-lg border px-2.5 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             <option value={ALL}>All</option>
             {cuisines.map((c) => (
@@ -104,20 +108,31 @@ export function RecipesPanel({ recipes }: { recipes: Array<AdminRecipeCard> }) {
             ))}
           </select>
         </label>
-        <span className="text-muted-foreground text-xs">
+        <span className="text-muted-foreground ml-auto text-xs">
           {filtered.length} of {recipes.length}
         </span>
-      </div>
+      </Card>
 
       {filtered.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No recipes match.</p>
+        <Card className="text-muted-foreground p-8 text-center text-sm">
+          No recipes match.
+        </Card>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {filtered.map((r) => (
             <li key={r.id}>
-              <button
+              <Card
+                pressable
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelected(r)}
-                className="border-border hover:border-primary group block w-full overflow-hidden rounded-xl border text-left transition"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setSelected(r)
+                  }
+                }}
+                className="hover:ring-primary/40 group block w-full cursor-pointer overflow-hidden p-0 text-left hover:ring-2"
               >
                 <div className="bg-secondary aspect-[4/3] w-full overflow-hidden">
                   {r.imageUrl ? (
@@ -152,7 +167,7 @@ export function RecipesPanel({ recipes }: { recipes: Array<AdminRecipeCard> }) {
                     {r.title}
                   </p>
                 </div>
-              </button>
+              </Card>
             </li>
           ))}
         </ul>
