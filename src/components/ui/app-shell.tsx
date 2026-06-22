@@ -3,6 +3,7 @@ import { cn } from '#/lib/utils'
 import { SafeArea } from '#/components/ui/safe-area'
 import { TabBar } from '#/components/ui/tab-bar'
 import { InstallPrompt } from '#/components/pwa/InstallPrompt'
+import { BetaBadge } from '#/components/ui/beta-badge'
 
 /**
  * AppShell — the iOS-native frame the main app screens live inside. It owns the
@@ -58,24 +59,35 @@ export function AppShell({
  * ScreenHeader — a large iOS-style title block. The big title sits left-aligned
  * (UINavigationBar large-title style); an optional trailing action sits on the
  * right (sign out, back, etc.).
+ *
+ * It carries a small "Beta" tag next to the title by default, so the signed-in
+ * chrome always tells the user they're on a beta build (#407). Pass
+ * `beta={false}` for headers where that signal would be redundant or noisy
+ * (e.g. nested detail screens).
  */
 export function ScreenHeader({
   title,
   subtitle,
   action,
+  beta = true,
   className,
 }: {
   title: React.ReactNode
   subtitle?: React.ReactNode
   action?: React.ReactNode
+  /** Show the small Beta tag next to the title. Defaults to true. */
+  beta?: boolean
   className?: string
 }) {
   return (
     <header className={cn('px-5 pt-4 pb-2', className)}>
       <div className="flex items-start justify-between gap-3">
-        <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight">
-          {title}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight">
+            {title}
+          </h1>
+          {beta && <BetaBadge className="mt-1.5 self-start" />}
+        </div>
         {action && <div className="shrink-0 pt-1">{action}</div>}
       </div>
       {subtitle && (
