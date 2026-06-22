@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { Leaf, ShoppingBag, Sparkles } from 'lucide-react'
 import { AppShell, ScreenHeader, EmptyState } from '#/components/ui/app-shell'
 import { Button } from '#/components/ui/button'
@@ -105,6 +105,14 @@ function Shopping() {
   // Coerce any parked "Coming soon" preference (e.g. a saved 'jumbo') to the
   // default so the switch, pricing and order bar never land on an untested store.
   const [store, setStore] = useState<StoreSlug>(effectiveStore(preferredStore))
+
+  // The route reuses its loader result on back-nav within 30s (staleTime, #251).
+  // A "Clear all" persists server-side, but without invalidating that cache the
+  // stale pre-clear bootstrap was served on the next visit, then snapped to empty
+  // on the first tap ("the old data is cached for the view"). Invalidate after a
+  // successful clear so a re-load reflects the cleared list immediately; the 30s
+  // reuse stays intact for the unchanged case.
+  const router = useRouter()
 
   // The extras as cart-set shape: a staple's saved slug already carries its
   // store, so selecting it includes it in that store's basket + cart.
@@ -232,6 +240,7 @@ function Shopping() {
           <EditableShoppingList
             initialItems={initialItems}
             onItemsChange={setLiveItems}
+            onCleared={() => void router.invalidate()}
             priceMap={priceMap}
           />
         </div>

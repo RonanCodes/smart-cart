@@ -43,9 +43,10 @@ export function EditableShoppingList({
 }: {
   initialItems: Array<ShoppingItem>
   /**
-   * Fired after the list is wiped via "Clear all". The route uses it to mark the
-   * empty list as a deliberate choice (so the loader does not re-seed it from
-   * the week on the next visit / reload).
+   * Fired after a SUCCESSFUL "Clear all". The route wires it to
+   * `router.invalidate()` so its 30s loader cache (#251) is dropped and a
+   * back-nav within that window re-reads the now-empty list instead of serving
+   * the stale pre-clear bootstrap.
    */
   onCleared?: () => void
   /**
@@ -212,9 +213,11 @@ export function EditableShoppingList({
     try {
       const { items: next } = await clearShoppingList()
       commit(next)
-      // The empty list stays cleared on the next visit via the household's
-      // durable lastSeededPlanId (#311), so no extra signal to the route is
-      // needed; onCleared is kept optional for callers that still want it.
+      // Signal the route so it can invalidate its 30s loader cache (#251). The
+      // empty list already persists server-side, but without this the route
+      // served the stale pre-clear bootstrap on back-nav within 30s, then
+      // snapped to empty on the first tap. Only fired on a SUCCESSFUL clear, so
+      // a failed clear leaves the still-valid cache (and the visible list) alone.
       onCleared?.()
     } catch {
       setActionError(
