@@ -30,4 +30,38 @@
     { "pattern": "souso.app", "custom_domain": true },
     { "pattern": "www.souso.app", "custom_domain": true },
   ],
+  // Named-environment "dev": merges to the `develop` branch auto-deploy here
+  // (.github/workflows/deploy-dev.yml) while main keeps deploying souso.app.
+  // CRITICAL: Cloudflare named environments do NOT inherit top-level config, so
+  // every binding/var/setting is REDECLARED below. Keep this block in sync with
+  // the top-level prod config above whenever a binding is added or changed.
+  "env": {
+    "dev": {
+      "name": "smart-cart-dev",
+      "compatibility_date": "2025-09-02",
+      "compatibility_flags": ["nodejs_compat"],
+      "main": "@tanstack/react-start/server-entry",
+      "workers_dev": true,
+      "observability": {
+        "enabled": true,
+      },
+      "vars": {
+        "BETTER_AUTH_URL": "https://dev.souso.app",
+        "APP_URL": "https://dev.souso.app",
+      },
+      "triggers": {
+        "crons": ["*/15 * * * *"],
+      },
+      // Same binding NAME the code uses (`DB`), pointing at the dedicated dev D1.
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "smart_cart_db_dev",
+          "database_id": "83a2bd23-832a-4096-8014-7ebc423ad80d",
+          "migrations_dir": "drizzle/migrations",
+        },
+      ],
+      "routes": [{ "pattern": "dev.souso.app", "custom_domain": true }],
+    },
+  },
 }
