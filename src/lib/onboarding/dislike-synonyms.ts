@@ -71,3 +71,74 @@ export function dedupeSynonyms(labels: ReadonlyArray<string>): Array<string> {
   }
   return out
 }
+
+/**
+ * Cross-language ingredient-exclusion groups (#452). The planner's dislike/allergy
+ * hard filter matches an excluded term as a substring of a recipe's ingredient
+ * names, but the catalogue is Dutch-first. So an English exclusion ("mushroom")
+ * misses the Dutch ingredient ("champignon" / "paddenstoel") and the disliked
+ * food leaks into the week. Each group below lists every spelling of one
+ * ingredient across EN + NL, all lowercased; excluding ANY member of a group
+ * excludes them ALL.
+ *
+ * Distinct from SYNONYM_GROUPS (the onboarding chip de-dup, US/UK display
+ * variants): these are EN<->NL matching aliases used for the hard filter, kept
+ * here so all ingredient-name knowledge lives in one module. Deliberately tight —
+ * add a group only when the two terms are genuinely the SAME food in another
+ * language, never "related" foods.
+ */
+const CROSSLANG_EXCLUSION_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
+  ['mushroom', 'champignon', 'paddenstoel', 'paddestoel'], // paddestoel = old spelling
+  ['onion', 'ui'],
+  ['garlic', 'knoflook'],
+  ['coriander', 'cilantro', 'koriander'],
+  ['aubergine', 'eggplant'], // 'aubergine' is the NL term too
+  ['courgette', 'zucchini'],
+  ['shrimp', 'prawn', 'prawns', 'garnaal', 'garnalen'],
+  ['peanut', 'pinda', 'pindakaas'], // pindakaas = peanut butter
+  ['walnut', 'walnoot'],
+  ['hazelnut', 'hazelnoot'],
+  ['celery', 'selderij', 'bleekselderij'],
+  ['fennel', 'venkel'],
+  ['anchovy', 'anchovies', 'ansjovis'],
+  ['olive', 'olives', 'olijf', 'olijven'],
+  ['cabbage', 'kool'],
+  ['leek', 'prei'],
+  ['spinach', 'spinazie'],
+  ['cheese', 'kaas'],
+  ['shellfish', 'schaaldieren'],
+  ['salmon', 'zalm'],
+  ['tuna', 'tonijn'],
+  ['egg', 'ei', 'eieren'],
+]
+
+/** lowercased alias -> every term (incl. itself) in its cross-language group. */
+const CROSSLANG_BY_ALIAS: ReadonlyMap<string, ReadonlyArray<string>> = (() => {
+  const map = new Map<string, ReadonlyArray<string>>()
+  for (const group of CROSSLANG_EXCLUSION_GROUPS) {
+    const terms = group.map((t) => t.trim().toLowerCase())
+    for (const alias of terms) {
+      // Merge so an alias that appears in two groups (none today, but safe)
+      // gets the union rather than the last group only.
+      const existing = map.get(alias) ?? []
+      map.set(alias, [...new Set([...existing, ...terms])])
+    }
+  }
+  return map
+})()
+
+/**
+ * Expand one excluded ingredient term to every cross-language spelling that means
+ * the same food (#452), so a Dutch-first catalogue is filtered correctly however
+ * the user phrased the exclusion. The term is lowercased; an unknown term expands
+ * to just itself (lowercased), so a no-synonym exclusion behaves exactly as the
+ * literal substring match did before. Returned terms are lowercased, deduped, and
+ * always include the input.
+ */
+export function expandExclusionSynonyms(term: string): Array<string> {
+  const key = term.trim().toLowerCase()
+  if (!key) return []
+  const group = CROSSLANG_BY_ALIAS.get(key)
+  if (!group) return [key]
+  return [...new Set([key, ...group])]
+}
