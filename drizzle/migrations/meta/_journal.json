@@ -169,6 +169,13 @@
       "when": 1785000000000,
       "tag": "0023_app_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1785100000000,
+      "tag": "0024_app_feedback_phone",
+      "breakpoints": true
     }
   ]
 }

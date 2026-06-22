@@ -31,13 +31,13 @@ import {
 let started = false
 
 /**
- * Souso branding + plain-voice copy for the Sentry user-feedback widget (#404).
+ * Souso branding + plain-voice copy for the Sentry user-feedback integration.
  *
- * This is the SINGLE always-available feedback affordance: Sentry's
- * `feedbackIntegration` auto-injects a small button that hovers bottom-right on
- * every page (landing + signed-in), and opens a short form. We keep it subtle
- * (no Sentry branding, brand colours, plain labels) so it reads as a Souso touch,
- * not a debug overlay.
+ * We keep the `feedbackIntegration` REGISTERED (so the SDK's feedback API stays
+ * available) but `autoInject: false` so it does NOT inject its own bottom-right
+ * button (#feedback-redesign). The visible feedback trigger is now our own FAB
+ * in the bottom tab bar, which opens our `FeedbackForm` and routes the message
+ * through `captureSentryFeedback` below. The theme here is kept only for reuse.
  *
  * Pure + exported so the config (brand colours + copy) is unit-testable without
  * booting Sentry. The theme maps the brand palette: forest green text on cream
@@ -45,6 +45,10 @@ let started = false
  */
 export function sousoFeedbackOptions() {
   return {
+    // We render our OWN feedback trigger (the tab-bar FAB) + form, so the
+    // integration must not auto-inject its bottom-right button. Keep it
+    // registered (the SDK feedback API stays available) but invisible.
+    autoInject: false,
     // Brand, not Sentry: hide Sentry's own branding line.
     showBranding: false,
     // Email: prefilled from the signed-in user (Sentry.setUser → useSentryUser
@@ -101,10 +105,11 @@ export function initObservability(): void {
     tracesSampleRate: 0.2,
     sendDefaultPii: false,
     environment: 'production',
-    // The persistent, always-available feedback button (#404). Auto-injected by
-    // the integration so it hovers bottom-right on every page with no per-route
-    // wiring. Guarded: if the feedback integration isn't available in this SDK
-    // build, we skip it rather than crash init.
+    // Register the feedback integration with `autoInject: false` so the SDK's
+    // feedback API (captureFeedback) is available, but it does NOT inject its own
+    // bottom-right button — our tab-bar FAB + FeedbackForm is the visible trigger
+    // now (#feedback-redesign). Guarded: if the integration isn't available in
+    // this SDK build, we skip it rather than crash init.
     integrations: (() => {
       try {
         return typeof Sentry.feedbackIntegration === 'function'
@@ -313,6 +318,63 @@ export function captureError(
     ...(context ? { extra: context } : {}),
     ...(typeof event === 'string' ? { tags: { log_event: event } } : {}),
   })
+}
+
+/** A screenshot to attach to a Sentry feedback envelope. */
+export interface FeedbackAttachment {
+  filename: string
+  data: Uint8Array
+}
+
+/** The fields our feedback form sends into Sentry User Feedback. */
+export interface SentryFeedback {
+  message: string
+  email?: string | null
+  name?: string | null
+  phone?: string | null
+  attachment?: FeedbackAttachment | null
+}
+
+/**
+ * Send a piece of user feedback into Sentry User Feedback (the redesigned
+ * feedback flow). No-op until init (so local dev / signed-out-before-init never
+ * tries), and fully guarded — observability must never crash a request, so a
+ * failure here is swallowed and the app_feedback write (the source of truth) is
+ * unaffected. The phone rides as extra feedback context; an optional screenshot
+ * rides as a Sentry attachment when the SDK build supports it.
+ */
+export function captureSentryFeedback(feedback: SentryFeedback): void {
+  if (!started) return
+  try {
+    if (typeof Sentry.captureFeedback !== 'function') return
+    Sentry.captureFeedback(
+      {
+        message: feedback.message,
+        ...(feedback.email ? { email: feedback.email } : {}),
+        ...(feedback.name ? { name: feedback.name } : {}),
+      },
+      {
+        ...(feedback.attachment
+          ? {
+              attachments: [
+                {
+                  filename: feedback.attachment.filename,
+                  data: feedback.attachment.data,
+                },
+              ],
+            }
+          : {}),
+        captureContext: {
+          contexts: {
+            feedback: { phone: feedback.phone ?? null },
+          },
+        },
+      },
+    )
+  } catch {
+    // Observability must never crash a request (diagnose canon). The
+    // app_feedback DB write is the durable record; Sentry is best-effort.
+  }
 }
 
 /** Forward a named event to PostHog (called by log.ts). No-op until init. */

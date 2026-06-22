@@ -41,13 +41,25 @@ export function AppFeedbackInbox({ items }: { items: Array<AppFeedbackItem> }) {
               <p className="text-sm leading-relaxed whitespace-pre-wrap">
                 {item.message}
               </p>
-              {item.email && (
-                <a
-                  href={`mailto:${item.email}`}
-                  className="text-primary mt-1.5 inline-block text-xs font-semibold underline-offset-2 hover:underline"
-                >
-                  {item.email}
-                </a>
+              {(item.email || item.phone) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  {item.email && (
+                    <a
+                      href={`mailto:${item.email}`}
+                      className="text-primary font-semibold underline-offset-2 hover:underline"
+                    >
+                      {item.email}
+                    </a>
+                  )}
+                  {item.phone && (
+                    <a
+                      href={`tel:${item.phone}`}
+                      className="text-primary font-semibold underline-offset-2 hover:underline"
+                    >
+                      {item.phone}
+                    </a>
+                  )}
+                </div>
               )}
             </li>
           ))}
