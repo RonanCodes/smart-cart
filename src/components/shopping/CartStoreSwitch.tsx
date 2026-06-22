@@ -3,6 +3,7 @@ import { formatCents } from '#/lib/pricing'
 import type { BasketComparison } from '#/lib/pricing'
 import { STORE_OPTIONS } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 import { cn } from '#/lib/utils'
 
 /**
@@ -61,7 +62,14 @@ export function CartStoreSwitch({
             aria-disabled={comingSoon}
             disabled={comingSoon}
             onClick={() => {
-              if (!comingSoon) onSelect(option.slug)
+              if (comingSoon) return
+              onSelect(option.slug)
+              // Which store the user repriced the cart against. Source separates
+              // this in-cart switch from the onboarding store step.
+              track(FUNNEL_EVENTS.storeSelected, {
+                store: option.slug,
+                source: 'cart',
+              })
             }}
             className={cn(
               'flex flex-col items-center rounded-xl px-2 py-2 transition active:scale-95',

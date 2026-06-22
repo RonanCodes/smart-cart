@@ -2,6 +2,7 @@ import { Check } from 'lucide-react'
 import { cn } from '#/lib/utils'
 import { STORE_OPTIONS } from '#/lib/store-pref-server'
 import type { StoreOption } from '#/lib/store-pref-server'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 import { useOnboardingForm } from '../form-state'
 
 /**
@@ -26,6 +27,12 @@ export function StoreStep() {
   function pick(option: StoreOption) {
     if (option.comingSoon) return
     patch({ store: option.slug })
+    // Which retailer the household chose during onboarding. Source separates this
+    // from the in-app cart switch, which fires the same event.
+    track(FUNNEL_EVENTS.storeSelected, {
+      store: option.slug,
+      source: 'onboarding',
+    })
   }
 
   return (

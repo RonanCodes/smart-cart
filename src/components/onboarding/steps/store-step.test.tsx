@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { StoreStep } from './store-step'
 import {
@@ -8,6 +8,16 @@ import {
   onboardingReducer,
 } from '../form-state'
 import type { OnboardingDraft } from '../form-state'
+
+const track = vi.fn()
+vi.mock('#/lib/analytics', () => ({
+  track: (...args: Array<unknown>) => track(...args),
+  FUNNEL_EVENTS: { storeSelected: 'store_selected' },
+}))
+
+beforeEach(() => {
+  track.mockReset()
+})
 
 /**
  * Real-context harness mirroring OnboardingFlow: patches flow through the actual
@@ -59,6 +69,21 @@ describe('StoreStep', () => {
     const latest = withForm(<StoreStep />)
     fireEvent.click(screen.getByRole('radio', { name: /Albert Heijn/ }))
     expect(latest.draft.store).toBe('ah')
+  })
+
+  it('fires store_selected (source onboarding) when a store is picked', () => {
+    withForm(<StoreStep />)
+    fireEvent.click(screen.getByRole('radio', { name: /Albert Heijn/ }))
+    expect(track).toHaveBeenCalledWith('store_selected', {
+      store: 'ah',
+      source: 'onboarding',
+    })
+  })
+
+  it('fires nothing when the disabled "Coming soon" store is tapped', () => {
+    withForm(<StoreStep />)
+    fireEvent.click(screen.getByRole('radio', { name: /Jumbo/ }))
+    expect(track).not.toHaveBeenCalled()
   })
 
   it('shows already-selected store as checked', () => {

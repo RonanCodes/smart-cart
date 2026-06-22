@@ -3,16 +3,23 @@ import { FUNNEL_EVENTS, buildEventProps, stripPii } from './analytics'
 import { TRACE_STORAGE_KEY, isTraceId } from './trace'
 
 describe('FUNNEL_EVENTS', () => {
-  it('covers the whole core flow with dotted, stable names', () => {
+  it('covers the whole product funnel with stable snake_case names', () => {
     expect(FUNNEL_EVENTS).toMatchObject({
+      userLoggedIn: 'user_logged_in',
       onboardingStarted: 'onboarding_started',
-      onboardingStepCompleted: 'onboarding_step_completed',
-      emailSubmitted: 'email_submitted',
+      onboardingCompleted: 'onboarding_completed',
+      onboardingRestarted: 'onboarding_restarted',
+      voiceOnboardingStarted: 'voice_onboarding_started',
       weekBuilt: 'week_built',
       recipeSwapped: 'recipe_swapped',
-      cartOpened: 'cart_opened',
-      checkoutStarted: 'checkout_started',
-      orderPlaced: 'order_placed',
+      recipeOpened: 'recipe_opened',
+      addedToCart: 'added_to_cart',
+      cartUpdated: 'cart_updated',
+      storeSelected: 'store_selected',
+      orderClicked: 'order_clicked',
+      tipDialogOpened: 'tip_dialog_opened',
+      tipSelected: 'tip_selected',
+      ahCartOpened: 'ah_cart_opened',
     })
   })
 

@@ -15,6 +15,7 @@ import {
 } from '#/lib/shopping-list-server'
 import { cleanRows, isPantryStaple } from '#/lib/shopping'
 import type { ShoppingItem } from '#/lib/shopping'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
 /**
  * The editable, PERSISTED shopping list on the Shopping tab (#146).
@@ -121,6 +122,11 @@ export function EditableShoppingList({
         data: { id: item.id, checked: !item.checked },
       })
       commit(next)
+      // Ticking a row in/out of the order. `!item.checked` is the NEW state, so a
+      // previously-unchecked row reads as a select, a checked one as a deselect.
+      track(FUNNEL_EVENTS.cartUpdated, {
+        action: !item.checked ? 'select' : 'deselect',
+      })
     } catch {
       // no-op; the row simply does not change.
     } finally {
@@ -139,6 +145,9 @@ export function EditableShoppingList({
         data: { id, [field]: value },
       })
       commit(next)
+      // A rename or re-amount of a row. Only the amount edit maps to a quantity
+      // change in the funnel; a rename is still an edit of the line.
+      track(FUNNEL_EVENTS.cartUpdated, { action: 'edit_qty', field })
     } catch {
       // no-op
     } finally {
@@ -151,6 +160,7 @@ export function EditableShoppingList({
     try {
       const { items: next } = await removeShoppingItem({ data: { id } })
       commit(next)
+      track(FUNNEL_EVENTS.cartUpdated, { action: 'remove' })
     } catch {
       // no-op
     } finally {
@@ -167,6 +177,9 @@ export function EditableShoppingList({
         data: { name, amount: newAmount.trim() || null },
       })
       commit(next)
+      // A manually-typed item joined the list. Source separates this single add
+      // from the week's bulk "add to list" so the two entries stay distinct.
+      track(FUNNEL_EVENTS.addedToCart, { source: 'manual' })
       setNewName('')
       setNewAmount('')
       setAddOpen(false)
@@ -185,6 +198,12 @@ export function EditableShoppingList({
         data: { checked: !allChecked },
       })
       commit(next)
+      // The bulk select/clear-selection toggle. `checked` (the new state) keeps the
+      // single select_all action splittable into "selected all" vs "cleared all".
+      track(FUNNEL_EVENTS.cartUpdated, {
+        action: 'select_all',
+        checked: !allChecked,
+      })
     } catch {
       setActionError(
         'Could not update the list. Check your connection and try again.',
@@ -213,6 +232,8 @@ export function EditableShoppingList({
     try {
       const { items: next } = await clearShoppingList()
       commit(next)
+      // The whole list was wiped (a real clear, not just a selection toggle).
+      track(FUNNEL_EVENTS.cartUpdated, { action: 'clear_all' })
       // Signal the route so it can invalidate its 30s loader cache (#251). The
       // empty list already persists server-side, but without this the route
       // served the stale pre-clear bootstrap on back-nav within 30s, then

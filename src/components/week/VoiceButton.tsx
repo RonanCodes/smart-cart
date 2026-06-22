@@ -13,6 +13,7 @@ import { Button } from '#/components/ui/button'
 import { VAPI_PUBLIC_KEY, VAPI_ASSISTANT_ID } from '#/config/vapi'
 import type { PersonaOverrides } from '#/lib/vapi-persona'
 import { log } from '#/lib/log'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
 /** VAPI's assistant-overrides type, recovered from `start`'s 2nd parameter (the
  * package does not re-export `AssistantOverrides` from its root). */
@@ -230,6 +231,10 @@ export const VoiceButton = forwardRef<VoiceButtonHandle, VoiceButtonProps>(
         setState('error')
         return
       }
+      // The user committed to a "Talk to Souso" voice session (both the Ask-Souso
+      // sheet trigger and the standalone button route through here). Captured once
+      // the call is actually about to connect, not on an inert/disabled tap.
+      track(FUNNEL_EVENTS.voiceOnboardingStarted, { planId })
       setState('connecting')
       onLiveChange?.(true)
       try {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { LoginForm } from './LoginForm'
 
@@ -35,12 +35,28 @@ vi.mock('#/lib/log', () => ({
 
 vi.mock('#/lib/push-client', () => ({ promptForNotifications: vi.fn() }))
 
+// confirmSession resolves immediately so verify() reaches the funnel track + nav.
+vi.mock('#/lib/confirm-session', () => ({
+  confirmSession: () => Promise.resolve(true),
+}))
+
+const track = vi.fn()
+vi.mock('#/lib/analytics', () => ({
+  track: (...args: Array<unknown>) => track(...args),
+  FUNNEL_EVENTS: { userLoggedIn: 'user_logged_in' },
+}))
+
 beforeEach(() => {
   sendVerificationOtp.mockReset().mockResolvedValue({ error: null })
   signInEmailOtp.mockReset().mockResolvedValue({ error: null })
   logInfo.mockReset()
   logWarn.mockReset()
   logError.mockReset()
+  track.mockReset()
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 /** Drive the form to the code substep and submit `otp`. */
@@ -110,5 +126,43 @@ describe('LoginForm verify-error classification (#387)', () => {
       ),
     )
     expect(logWarn).not.toHaveBeenCalled()
+  })
+})
+
+describe('LoginForm — user_logged_in funnel event', () => {
+  it('fires user_logged_in (source sign_in) on a successful verify', async () => {
+    // verify() navigates via window.location.href on success; stub it so jsdom
+    // does not throw on the assignment.
+    let href = ''
+    vi.stubGlobal('location', {
+      get href() {
+        return href
+      },
+      set href(v: string) {
+        href = v
+      },
+    })
+    signInEmailOtp.mockResolvedValue({ error: null })
+
+    render(<LoginForm />)
+    await submitOtp('123456')
+
+    await waitFor(() =>
+      expect(track).toHaveBeenCalledWith('user_logged_in', {
+        source: 'sign_in',
+      }),
+    )
+  })
+
+  it('does NOT fire user_logged_in when the verify FAILS', async () => {
+    signInEmailOtp.mockResolvedValue({
+      error: { code: 'INVALID_OTP', status: 400, message: 'Invalid OTP' },
+    })
+
+    render(<LoginForm />)
+    await submitOtp('000000')
+
+    await waitFor(() => expect(signInEmailOtp).toHaveBeenCalledTimes(1))
+    expect(track).not.toHaveBeenCalled()
   })
 })
