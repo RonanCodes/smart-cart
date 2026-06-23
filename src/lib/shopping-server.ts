@@ -156,13 +156,16 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
     if (!user) throw new Error('Not signed in')
 
     const { getDb } = await import('../db/client')
-    const { household, recipe, mealPlan } = await import('../db/schema')
+    const { household, recipe, mealPlan, recipeSwipe } =
+      await import('../db/schema')
     const { eq, and, inArray, desc } = await import('drizzle-orm')
     const db = await getDb()
 
     const householdRows = await db
       .select({
         id: household.id,
+        profile: household.profile,
+        preferredLocale: household.preferredLocale,
         adults: household.adults,
         children: household.children,
       })
@@ -217,7 +220,80 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
       }
     }
 
-    const ids = current.plan.days
+    const { hasImage } = await import('../db/recipe-filters')
+    const { healPlanDays, persistHealedPlanIfChanged } =
+      await import('./heal/heal-servable-plan')
+    const { normalizeLocale } = await import('./locale-pref-server')
+
+    const locale = normalizeLocale(hh.preferredLocale) ?? 'en'
+
+    const catalogueRows = await db
+      .select({
+        id: recipe.id,
+        title: recipe.title,
+        titleEn: recipe.titleEn,
+        cuisine: recipe.cuisine,
+        category: recipe.category,
+        dietaryTags: recipe.dietaryTags,
+        ingredients: recipe.ingredients,
+        calories: recipe.calories,
+        protein: recipe.protein,
+        prepMinutes: recipe.prepMinutes,
+        mealType: recipe.mealType,
+      })
+      .from(recipe)
+      .where(hasImage)
+
+    const swipeRows = await db
+      .select({
+        recipeId: recipeSwipe.recipeId,
+        direction: recipeSwipe.direction,
+      })
+      .from(recipeSwipe)
+      .where(eq(recipeSwipe.householdId, hh.id))
+
+    const catalogue = catalogueRows.map((r) => ({
+      id: r.id,
+      title: pickTitle(r.title, r.titleEn, locale),
+      cuisine: r.cuisine,
+      category: r.category,
+      dietaryTags: r.dietaryTags,
+      ingredients: r.ingredients.map((i) => ({ name: i.name })),
+      calories: r.calories,
+      protein: r.protein,
+      prepMinutes: r.prepMinutes,
+      mealType: r.mealType,
+    }))
+
+    const onboardingSwipes = swipeRows
+      .filter((s) => s.direction === 'like' || s.direction === 'dislike')
+      .map((s) => ({ recipeId: s.recipeId, like: s.direction === 'like' }))
+
+    const { loadPlannerSignals } = await import('./planner-signals')
+    const { swipes, penalties } = await loadPlannerSignals(
+      hh.id,
+      onboardingSwipes,
+    )
+
+    const servableIds = new Set(catalogueRows.map((r) => r.id))
+    const { days: healedDays, changed: planChanged } = healPlanDays({
+      days: current.plan.days,
+      servableIds,
+      catalogue,
+      profile: hh.profile,
+      swipes,
+      penalties,
+    })
+
+    const planId = await persistHealedPlanIfChanged(
+      db,
+      hh.id,
+      current,
+      healedDays,
+      planChanged,
+    )
+
+    const ids = healedDays
       .map((d) => d.recipeRef)
       .filter((r): r is string => !!r)
 
@@ -252,13 +328,13 @@ export const loadShoppingList = createServerFn({ method: 'GET' })
     )
 
     const { list, shared, waste, amountsEstimated } = deriveShoppingView(
-      current.plan.days,
+      healedDays,
       recipesById,
       portions,
     )
 
     return {
-      planId: current.id,
+      planId,
       missingPlanId: null,
       weekStart: current.weekStart,
       portions,

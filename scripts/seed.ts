@@ -40,6 +40,10 @@ import { join } from 'node:path'
 import { buildCatalogues } from '../src/lib/pricing/normalise'
 import { toStoreProductRows } from '../src/lib/pricing/store-product-rows'
 import type { RawStore } from '../src/lib/pricing/types'
+import {
+  isDinnerRecipe,
+  REMOVED_AH_JUMBO_RECIPE_IDS,
+} from '../src/lib/recipe-dinner'
 
 interface SeedRecipe {
   id: string
@@ -130,13 +134,38 @@ function recipeValues(r: SeedRecipe, now: number): string {
   ].join(', ')
 }
 
+function pruneRecipes(
+  local: boolean,
+  tmp: string,
+  keptIds: ReadonlySet<string>,
+): void {
+  const removedSql = REMOVED_AH_JUMBO_RECIPE_IDS.map((id) => q(id)).join(', ')
+  const lines = [
+    `DELETE FROM recipe_embedding WHERE recipe_id IN (${removedSql});`,
+    `DELETE FROM recipe WHERE source IN ('ah', 'jumbo') AND id IN (${removedSql});`,
+  ]
+  const orphanDeletes = [...keptIds].map((id) => q(id)).join(', ')
+  if (keptIds.size > 0) {
+    lines.push(
+      `DELETE FROM recipe_embedding WHERE recipe_id IN (SELECT id FROM recipe WHERE source IN ('ah', 'jumbo') AND id NOT IN (${orphanDeletes}));`,
+      `DELETE FROM recipe WHERE source IN ('ah', 'jumbo') AND id NOT IN (${orphanDeletes});`,
+    )
+  }
+  applyBatch(lines.join('\n') + '\n', local, tmp)
+  console.log(
+    `[seed] pruned non-dinner + orphan AH/Jumbo recipes (${REMOVED_AH_JUMBO_RECIPE_IDS.length} blocklisted, ${keptIds.size} kept)`,
+  )
+}
+
 function seedRecipes(local: boolean, tmp: string, now: number): void {
   const all = JSON.parse(
     readFileSync(join(process.cwd(), 'data', 'seed', 'recipes.json'), 'utf8'),
   ) as Array<SeedRecipe>
-  const recipes = all.filter((r) => RECIPE_SOURCES.has(r.source))
+  const recipes = all.filter(
+    (r) => RECIPE_SOURCES.has(r.source) && isDinnerRecipe(r),
+  )
   console.log(
-    `[seed] recipes: ${recipes.length}/${all.length} (AH+Jumbo) -> ${local ? 'local' : 'remote'} D1, ${BATCH}/batch`,
+    `[seed] recipes: ${recipes.length}/${all.length} (AH+Jumbo dinners) -> ${local ? 'local' : 'remote'} D1, ${BATCH}/batch`,
   )
   const batches = chunk(recipes, BATCH)
   let done = 0
@@ -149,6 +178,7 @@ function seedRecipes(local: boolean, tmp: string, now: number): void {
     done += batch.length
     console.log(`[seed] recipes applied ${done}/${recipes.length}`)
   }
+  pruneRecipes(local, tmp, new Set(recipes.map((r) => r.id)))
 }
 
 // ---- store products --------------------------------------------------------

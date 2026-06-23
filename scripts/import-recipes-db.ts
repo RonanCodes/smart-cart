@@ -27,6 +27,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { isDinnerRecipe } from '../src/lib/recipe-dinner'
 
 interface SourceRecipe {
   id: number
@@ -284,22 +285,32 @@ function main() {
     console.log(`[import] mapping ${recipes.length} recipes...`)
     const seed: Array<SeedRecipe> = []
     let dinnerCount = 0
+    let skippedAhJumbo = 0
     for (const r of recipes) {
       const stableId = (r.source_id ?? String(r.id)).trim()
+      const title = r.name_nl?.trim() || r.name.trim()
+      const category = r.category ?? r.dish_type
+      if (
+        (r.source === 'ah' || r.source === 'jumbo') &&
+        !isDinnerRecipe({ title, category })
+      ) {
+        skippedAhJumbo++
+        continue
+      }
       const dinner = isDinnerPlannable(r)
       if (dinner) dinnerCount++
       seed.push({
         id: `${r.source}-${stableId}`,
         source: r.source,
         sourceUrl: r.url,
-        title: r.name_nl?.trim() || r.name.trim(),
+        title,
         servings: r.servings,
         prepMinutes: r.total_time_min,
         calories: round(r.calories),
         protein: round(r.protein_g),
         cuisine: normCuisine(r.cuisine),
         mealType: 'dinner',
-        category: r.category ?? r.dish_type,
+        category,
         dietaryTags: dietaryTags(r),
         ingredients: (ingByRecipe.get(r.id) ?? []).map((i) => {
           const qty = qtyString(i)
@@ -329,6 +340,7 @@ function main() {
     console.log(
       `[import] dinner-plannable: ${dinnerCount}, with cuisine: ${withCuisine}`,
     )
+    console.log(`[import] skipped ${skippedAhJumbo} non-dinner AH/Jumbo rows`)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
