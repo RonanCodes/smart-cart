@@ -27,6 +27,7 @@ import {
   EMBEDDING_MODEL,
 } from '../src/lib/embeddings/manifest'
 import type { RawStore } from '../src/lib/pricing/types'
+import { isDinnerRecipe } from '../src/lib/recipe-dinner'
 
 const OUT_DIR = join(process.cwd(), 'data', 'embeddings')
 /** OpenAI accepts a large batch per request; chunk for progress + safety. */
@@ -52,7 +53,7 @@ function collectRecipes(): Array<Item> {
     readFileSync(join(process.cwd(), 'data', 'seed', 'recipes.json'), 'utf8'),
   ) as Array<SeedRecipe>
   return all
-    .filter((r) => RECIPE_SOURCES.has(r.source))
+    .filter((r) => RECIPE_SOURCES.has(r.source) && isDinnerRecipe(r))
     .map((r) => ({
       id: r.id,
       text: recipeText({

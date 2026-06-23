@@ -17,6 +17,28 @@ function makePicker(order: Array<HealReplacement>): PickServableAlternative {
 }
 
 describe('healWeekPlan', () => {
+  it('replaces a removed non-dinner AH recipe (crackers) with a servable dinner', () => {
+    const week: Array<HealPlanDay> = [
+      {
+        day: 'Monday',
+        meal: 'Koolhydraatarme crackers',
+        recipeRef: 'ah-R1197752',
+        type: 'home',
+      },
+    ]
+    const picker = makePicker([{ id: 'ah-1', title: 'Pasta' }])
+
+    const result = healWeekPlan(week, SERVABLE, picker)
+
+    expect(result.changed).toBe(true)
+    expect(result.days[0]).toEqual({
+      day: 'Monday',
+      meal: 'Pasta',
+      recipeRef: 'ah-1',
+      type: 'home',
+    })
+  })
+
   it('replaces a day whose recipe is not servable with a servable alternative', () => {
     const week: Array<HealPlanDay> = [
       { day: 'Monday', meal: 'Tacos', recipeRef: 'ah-1', type: 'home' },

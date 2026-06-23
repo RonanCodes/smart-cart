@@ -98,7 +98,8 @@ export const loadWeek = createServerFn({ method: 'GET' })
     const { recipeMedia } = await import('../db/recipe-media-schema')
     const { hasImage } = await import('../db/recipe-filters')
     const { topNForDay } = await import('./planner/planner')
-    const { healWeekPlan } = await import('./heal/heal-week-plan')
+    const { healPlanDays, persistHealedPlanIfChanged } =
+      await import('./heal/heal-servable-plan')
     const db = await getDb()
 
     const householdRows = await db
@@ -227,42 +228,22 @@ export const loadWeek = createServerFn({ method: 'GET' })
     // as a NEW revision so the repair sticks. An all-servable plan is untouched
     // (no write, no behaviour change). One healed write max per load.
     const servableIds = new Set(catalogueRows.map((r) => r.id))
-    const { days: healedDays, changed: planChanged } = healWeekPlan(
-      current.plan.days,
+    const { days: healedDays, changed: planChanged } = healPlanDays({
+      days: current.plan.days,
       servableIds,
-      (day, excludeIds) => {
-        // The single best servable alternative for this day, honouring the same
-        // hard filters + no-repeat exclusions as the per-day alternatives below.
-        const pick = topNForDay(catalogue, hh.profile, swipes, {
-          excludeRecipeId: day.recipeRef || null,
-          weekRecipeIds: Array.from(excludeIds),
-          dayType: day.type ?? 'home',
-          n: 1,
-          penalties,
-        })[0]
-        return pick ? { id: pick.id, title: pick.title } : null
-      },
-    )
+      catalogue,
+      profile: hh.profile,
+      swipes,
+      penalties,
+    })
 
-    // The plan the view renders from. When nothing was stale this is the stored
-    // plan unchanged; when something was healed it is the repaired week, persisted
-    // below as a fresh revision (mirroring swap-server / replan-server: never an
-    // overwrite, so the old week stays in history).
-    let planId = current.id
-    if (planChanged) {
-      const newId = crypto.randomUUID()
-      await db.insert(mealPlan).values({
-        id: newId,
-        householdId: hh.id,
-        weekStart: current.weekStart,
-        plan: {
-          days: healedDays,
-          shoppingList: current.plan.shoppingList,
-        },
-        status: 'draft',
-      })
-      planId = newId
-    }
+    const planId = await persistHealedPlanIfChanged(
+      db,
+      hh.id,
+      current,
+      healedDays,
+      planChanged,
+    )
 
     const ids = healedDays
       .map((d) => d.recipeRef)
