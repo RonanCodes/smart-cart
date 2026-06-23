@@ -10,6 +10,9 @@ const sendNewUserNotice = vi.fn().mockResolvedValue({ sent: true })
 const resolveAdminEmails = vi.fn()
 let storedPrefs: Array<{ email: string; waitlistNotify: boolean }> = []
 let userCount = 0
+// Whether the claim-once INSERT into signup_notice "wins" (returns a row). When
+// true the notice sends; when false an earlier path already claimed it.
+let claimWins = true
 
 function buildFakeDb() {
   // Two selects: count(*) from user, then the prefs rows. Distinguished by the
@@ -18,12 +21,23 @@ function buildFakeDb() {
     select: (cols: Record<string, unknown>) => ({
       from: async () => ('n' in cols ? [{ n: userCount }] : storedPrefs),
     }),
+    // The claim-once insert chain: insert().values().onConflictDoNothing().returning().
+    insert: () => ({
+      values: () => ({
+        onConflictDoNothing: () => ({
+          returning: async () => (claimWins ? [{ userId: 'u1' }] : []),
+        }),
+      }),
+    }),
   }
 }
 
 vi.mock('../db/client', () => ({ getDb: async () => buildFakeDb() }))
 vi.mock('../db/auth-schema', () => ({
   user: { id: 'id-col', email: 'email-col' },
+}))
+vi.mock('../db/signup-notice-schema', () => ({
+  signupNotice: { userId: 'user-id-col' },
 }))
 vi.mock('../db/admin-prefs-schema', () => ({
   adminNotificationPref: { email: 'email-col', waitlistNotify: 'notify-col' },
@@ -32,8 +46,12 @@ vi.mock('./admin-emails', () => ({
   resolveAdminEmails: () => resolveAdminEmails(),
 }))
 vi.mock('./email', () => ({
-  sendNewUserNotice: (email: string, total: number, to: string) =>
-    sendNewUserNotice(email, total, to),
+  sendNewUserNotice: (
+    email: string,
+    total: number,
+    to: string,
+    attribution?: unknown,
+  ) => sendNewUserNotice(email, total, to, attribution),
   // The notifier now also destructures sendMilestoneEmail; these tests use
   // non-milestone counts so it is never invoked, but it must exist on the mock
   // so the destructure does not pull undefined.
@@ -46,6 +64,7 @@ describe('notifyAdminsOfNewUser', () => {
     resolveAdminEmails.mockReset()
     storedPrefs = []
     userCount = 0
+    claimWins = true
   })
 
   it('emails every opted-in admin with the new email + total user count', async () => {
@@ -53,7 +72,7 @@ describe('notifyAdminsOfNewUser', () => {
     storedPrefs = [] // default-on
     userCount = 12
 
-    await notifyAdminsOfNewUser('new@user.com')
+    await notifyAdminsOfNewUser({ email: 'new@user.com', userId: 'u1' })
 
     expect(sendNewUserNotice).toHaveBeenCalledTimes(2)
     const recipients = sendNewUserNotice.mock.calls.map((c) => c[2])
@@ -64,14 +83,47 @@ describe('notifyAdminsOfNewUser', () => {
       'new@user.com',
       12,
       expect.any(String),
+      null,
     )
+  })
+
+  it('threads the attribution into every admin send', async () => {
+    resolveAdminEmails.mockResolvedValue(['a@admin.com'])
+    userCount = 3
+    const attribution = {
+      source: 'linkedin',
+      sourceOther: null,
+      referrer: 'Ronan',
+    }
+
+    await notifyAdminsOfNewUser({
+      email: 'new@user.com',
+      userId: 'u1',
+      attribution,
+    })
+
+    expect(sendNewUserNotice).toHaveBeenCalledWith(
+      'new@user.com',
+      3,
+      'a@admin.com',
+      attribution,
+    )
+  })
+
+  it('sends nothing when the signup notice was already claimed (dedup)', async () => {
+    resolveAdminEmails.mockResolvedValue(['a@admin.com'])
+    claimWins = false // an earlier path (onboarding) already claimed + sent
+
+    await notifyAdminsOfNewUser({ email: 'new@user.com', userId: 'u1' })
+
+    expect(sendNewUserNotice).not.toHaveBeenCalled()
   })
 
   it('skips an admin who opted out (waitlistNotify: false)', async () => {
     resolveAdminEmails.mockResolvedValue(['a@admin.com', 'b@admin.com'])
     storedPrefs = [{ email: 'b@admin.com', waitlistNotify: false }]
 
-    await notifyAdminsOfNewUser('new@user.com')
+    await notifyAdminsOfNewUser({ email: 'new@user.com', userId: 'u1' })
 
     expect(sendNewUserNotice).toHaveBeenCalledTimes(1)
     expect(sendNewUserNotice.mock.calls[0]![2]).toBe('a@admin.com')
@@ -80,7 +132,9 @@ describe('notifyAdminsOfNewUser', () => {
   it('is non-fatal: an upstream failure is swallowed, never thrown', async () => {
     resolveAdminEmails.mockRejectedValue(new Error('env unavailable'))
 
-    await expect(notifyAdminsOfNewUser('new@user.com')).resolves.toBeUndefined()
+    await expect(
+      notifyAdminsOfNewUser({ email: 'new@user.com', userId: 'u1' }),
+    ).resolves.toBeUndefined()
     expect(sendNewUserNotice).not.toHaveBeenCalled()
   })
 })

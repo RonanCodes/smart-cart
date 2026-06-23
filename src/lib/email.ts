@@ -1,6 +1,8 @@
 import { Resend } from 'resend'
 import { readEnv } from './env'
 import { feedbackNoticeText, feedbackNoticeHtml } from './feedback-email'
+import { newUserNoticeText } from './signup-attribution'
+import type { AttributionInput } from './signup-attribution'
 
 // Sends from the souso.app domain (Verified in Resend, with DKIM/SPF/DMARC in
 // Cloudflare). The branded From matching the brand + domain auth is what keeps
@@ -266,15 +268,21 @@ export async function sendMilestoneEmail(
 
 /**
  * Tell ONE admin a NEW account was just created (a real sign-up completing OTP
- * verify), with the running total of accounts. Same best-effort contract as
- * sendWaitlistSignupNotice: callers swallow errors so a Resend outage can never
- * break the sign-up. `to` defaults to the owner; the notifier passes each
- * opted-in admin individually so recipients never see each other's addresses.
+ * verify), with the running total of accounts AND the signup attribution
+ * ("How did you find us?"). Same best-effort contract as sendWaitlistSignupNotice:
+ * callers swallow errors so a Resend outage can never break the sign-up. `to`
+ * defaults to the owner; the notifier passes each opted-in admin individually so
+ * recipients never see each other's addresses.
+ *
+ * `attribution` is optional: absent / null reads as "Source: not provided" (a
+ * user who skipped the step, or onboarded before we asked). The body is built by
+ * the pure `newUserNoticeText`, so it is locked by signup-attribution.test.ts.
  */
 export async function sendNewUserNotice(
   newEmail: string,
   totalUsers: number,
   to: string = ADMIN_NOTIFY_TO,
+  attribution?: AttributionInput | null,
 ): Promise<{ sent: boolean }> {
   const apiKey = await readEnv('RESEND_API_KEY')
   if (!apiKey) return { sent: false }
@@ -283,7 +291,7 @@ export async function sendNewUserNotice(
     from: FROM,
     to,
     subject: `New Souso signup: ${newEmail}`,
-    text: `${newEmail} just created a Souso account. Total accounts: ${totalUsers}.`,
+    text: newUserNoticeText(newEmail, totalUsers, attribution ?? null),
   })
   return { sent: !error }
 }

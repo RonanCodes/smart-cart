@@ -51,23 +51,68 @@ export async function notifyAdminsOfSignup(newEmail: string): Promise<void> {
   }
 }
 
+/** Attribution threaded into the new-user admin email ("How did you find us?"). */
+export interface NewUserAttribution {
+  source?: string | null
+  sourceOther?: string | null
+  referrer?: string | null
+}
+
 /**
- * SERVER-ONLY: email every opted-in admin that a REAL account was just created.
+ * Atomically claim the single admin notice for a user. Returns true if THIS call
+ * won the claim (so it should send), false if the notice was already claimed by
+ * an earlier call. INSERT-or-ignore on the `signup_notice` PRIMARY KEY makes the
+ * claim race-free, so the admin email fires exactly once per signup even though
+ * two paths (the user.create hook + completeOnboarding) both try to send.
  *
- * Wired into Better Auth's `databaseHooks.user.create.after`, so it fires once
- * per genuinely new account, whichever UI flow created it (the anonymous
- * onboarding flow that ends in OTP verify, a plain sign-in of a first-time
- * approved email, etc.). This is the gap that left admins un-notified: the old
- * notifyAdminsOfSignup only fired on the waitlist-join and sign-in-gate paths,
- * which an approved real sign-up never hits.
- *
- * Same default-on admin pref and same best-effort contract as
- * notifyAdminsOfSignup: every error is swallowed so account creation can never
- * be broken by a count, prefs read, or send. The total is the real account
- * count from the `user` table, not the waitlist.
+ * No userId (e.g. the hook only had an email) means "cannot dedup" → we let the
+ * caller send (return true); the realistic double-send case always has a userId.
+ * Best-effort: any DB error returns true so a claim failure never SILENCES the
+ * notice (better a rare duplicate than a missed signup email).
  */
-export async function notifyAdminsOfNewUser(newEmail: string): Promise<void> {
+async function claimSignupNotice(userId: string | null): Promise<boolean> {
+  if (!userId) return true
   try {
+    const { getDb } = await import('../db/client')
+    const { signupNotice } = await import('../db/signup-notice-schema')
+    const db = await getDb()
+    const inserted = await db
+      .insert(signupNotice)
+      .values({ userId, notifiedAt: new Date() })
+      .onConflictDoNothing()
+      .returning({ userId: signupNotice.userId })
+    return inserted.length > 0
+  } catch {
+    return true
+  }
+}
+
+/**
+ * SERVER-ONLY: email every opted-in admin that a REAL account was just created,
+ * INCLUDING the signup attribution ("How did you find us?" + referrer).
+ *
+ * Called from two paths, deduped to EXACTLY ONE email per signup via a
+ * claim-once row keyed on `userId`:
+ *   - `completeOnboarding` (the common path): runs right after account creation
+ *     and HAS the attribution, so it claims first and sends the attributed email.
+ *   - Better Auth's `user.create.after` hook: the fallback for an account created
+ *     WITHOUT onboarding (an approved first-time email signing in directly).
+ *     It has no attribution; it only sends if onboarding did not already claim.
+ *
+ * Same default-on admin pref + best-effort contract as notifyAdminsOfSignup:
+ * every error is swallowed so account creation is never broken by a count, prefs
+ * read, claim, or send. Absent attribution reads as "Source: not provided".
+ */
+export async function notifyAdminsOfNewUser(opts: {
+  email: string
+  userId?: string | null
+  attribution?: NewUserAttribution | null
+}): Promise<void> {
+  try {
+    // Claim first: if another path already sent this user's notice, do nothing.
+    const won = await claimSignupNotice(opts.userId ?? null)
+    if (!won) return
+
     const { getDb } = await import('../db/client')
     const db = await getDb()
 
@@ -89,7 +134,7 @@ export async function notifyAdminsOfNewUser(newEmail: string): Promise<void> {
     const { sendNewUserNotice, sendMilestoneEmail } = await import('./email')
     for (const to of recipients) {
       try {
-        await sendNewUserNotice(newEmail, total, to)
+        await sendNewUserNotice(opts.email, total, to, opts.attribution ?? null)
       } catch {
         // one admin's send failing must not block the others
       }
