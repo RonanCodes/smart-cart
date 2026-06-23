@@ -22,6 +22,11 @@ Run the suite:
 pnpm test:e2e
 ```
 
+`playwright.config.ts` starts the dev server with `VITE_PLAYWRIGHT_E2E_CART_LINKS=1`
+so cart-link generation and the tip checkout redirect resolve to stable test URLs
+(no live Mollie call). The cart tip spec stubs `https://www.mollie.test/**` via
+Playwright routing; the no-tip path traps `window.open` in-page.
+
 The checkout assertion stops at the outbound AH/Jumbo cart tab. Souso must never
 purchase anything automatically; the user still reviews and checks out at the
 supermarket.

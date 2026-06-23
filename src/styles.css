@@ -218,6 +218,24 @@ body {
   overscroll-behavior-y: contain;
 }
 
+/* ── Cart price slot (progressive matcher) ─────────────────────────────────── */
+.cart-price-settled {
+  animation: cart-price-settled 0.2s ease-out both;
+}
+@keyframes cart-price-settled {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cart-price-settled {
+    animation: none;
+  }
+}
+
 /* ── Bottom-sheet motion ─────────────────────────────────────────────────────
    A spring-ish ease for the slide-up, and a quick fade for the backdrop. The
    Sheet primitive toggles data-state="open"|"closed" and these drive it without

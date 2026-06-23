@@ -80,6 +80,9 @@ reproduce-first TDD rule: the 1101 became a regression test before the fix.
 - The pre-mortem habit (validate the plan with a strong model before building)
   earned its place: it named this exact ceiling. The gap was acting on the
   warning at every fan-out, not just where the warning was first raised.
+- Cart pricing is incremental (only new/changed lines re-priced) and chunked per
+  store. `match_cache` keys include the normalised amount when present so a stale
+  name-only negative cannot block a different quantity.
 
 ## Evidence
 

@@ -1,5 +1,5 @@
-import { Loader2, Sparkles } from 'lucide-react'
-import { formatCents } from '#/lib/pricing'
+import { Sparkles } from 'lucide-react'
+import { CartPriceSlot } from '#/components/shopping/CartPriceSlot'
 import type { BasketComparison } from '#/lib/pricing'
 import { STORE_OPTIONS } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
@@ -47,11 +47,7 @@ export function CartStoreSwitch({
         const basket = data?.baskets.find((b) => b.store === option.slug)
         const total =
           basket && basket.lineItems.length > 0 ? basket.totalCents : null
-        // #439: prices fill in PER STORE as each fan-out call lands. A store that
-        // hasn't reported yet (no basket in the comparison) still shows a spinner
-        // while any fetch is in flight, so an already-arrived store shows its real
-        // total immediately instead of every cell spinning until the slowest one.
-        const pending = loading && basket === undefined
+        const awaitingTotal = !comingSoon && loading && total === null
         const isCheapest = cheapest === option.slug
         return (
           <button
@@ -64,15 +60,13 @@ export function CartStoreSwitch({
             onClick={() => {
               if (comingSoon) return
               onSelect(option.slug)
-              // Which store the user repriced the cart against. Source separates
-              // this in-cart switch from the onboarding store step.
               track(FUNNEL_EVENTS.storeSelected, {
                 store: option.slug,
                 source: 'cart',
               })
             }}
             className={cn(
-              'flex flex-col items-center rounded-xl px-2 py-2 transition active:scale-95',
+              'flex min-h-[3.5rem] flex-col items-center justify-center rounded-xl px-2 py-2 transition active:scale-95',
               on ? 'bg-primary text-primary-foreground' : 'text-foreground',
               comingSoon && 'cursor-not-allowed opacity-50 active:scale-100',
             )}
@@ -88,18 +82,25 @@ export function CartStoreSwitch({
             </span>
             <span
               className={cn(
-                'mt-0.5 text-[0.72rem] font-semibold tabular-nums',
+                'mt-0.5 flex h-[1.125rem] items-center justify-center',
                 on ? 'text-primary-foreground/85' : 'text-muted-foreground',
               )}
             >
               {comingSoon ? (
-                'Coming soon'
-              ) : pending ? (
-                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                <span className="text-[0.72rem] font-semibold">
+                  Coming soon
+                </span>
               ) : total !== null ? (
-                formatCents(total)
+                <CartPriceSlot
+                  priceCents={total}
+                  size="total"
+                  inheritColor
+                  reserve
+                />
+              ) : awaitingTotal ? (
+                <CartPriceSlot pending size="total" inheritColor reserve />
               ) : (
-                'no match'
+                <span className="text-[0.72rem] font-semibold">no match</span>
               )}
             </span>
           </button>

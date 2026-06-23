@@ -25,6 +25,14 @@ async function startOnboarding(page: Page) {
   }
 }
 
+/** Pin AH before ordering — the floating bar follows the selected store. */
+async function ensureAhStoreSelected(page: Page) {
+  const ah = page.getByRole('radio', { name: /Albert Heijn/ })
+  await expect(ah).toBeVisible()
+  if (!(await ah.isChecked())) await ah.click()
+  await expect(ah).toBeChecked()
+}
+
 test.describe('onboarding to checkout', () => {
   test('builds a first week, creates a cart, and hands checkout to the user', async ({
     page,
@@ -90,6 +98,7 @@ test.describe('onboarding to checkout', () => {
     await expect(
       page.getByText(/Merged automatically from \d+ recipes?/),
     ).toBeVisible()
+    await ensureAhStoreSelected(page)
     await expect(
       page.getByRole('button', { name: 'Order at Albert Heijn' }),
     ).toBeVisible()

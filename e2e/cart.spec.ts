@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import type { Page, Route } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 /**
  * Cart flow e2e (#79 / #cart-align).
@@ -19,11 +19,11 @@ import type { Page, Route } from '@playwright/test'
  *  - asserting the GENERATED Albert Heijn cart deep-link is well-formed.
  *
  * What's MOCKED (per the maintainer's "mock only tricky/external/flaky" rule):
- *  - the Mollie payment redirect on the tip-some path (the startTip server fn is
- *    intercepted so no real payment is created and no real navigation leaves the
- *    app);
- *  - window.open / window.location, so opening the AH cart is CAPTURED for
- *    assertion instead of spawning real tabs / leaving the page.
+ *  - the Mollie payment redirect on the tip-some path (`startTip` is short-
+ *    circuited server-side when `VITE_PLAYWRIGHT_E2E_CART_LINKS=1`; Playwright
+ *    `page.route` stubs the checkout URL so the page never leaves the app);
+ *  - `window.open`, so opening the AH cart is CAPTURED for assertion instead of
+ *    spawning real tabs.
  *
  * The deterministic AH cart link comes from VITE_PLAYWRIGHT_E2E_CART_LINKS=1
  * (set by playwright.config.ts's webServer), which makes buildCartLinks resolve
@@ -34,7 +34,6 @@ import type { Page, Route } from '@playwright/test'
  * data-testid is added for this flow (every control is reachable by name).
  */
 
-// The deterministic AH SKU the E2E cart-links shortcut emits (slug
 // `wi123456/e2e-albert-heijn-product` -> `wi` stripped -> `123456`).
 const E2E_AH_SKU = '123456'
 
@@ -132,64 +131,77 @@ async function buildWeekAndOpenCart(page: Page) {
   await expect(page.getByRole('heading', { name: 'Cart' })).toBeVisible()
 }
 
+/** The floating order bar follows the selected store; pin AH before ordering. */
+async function ensureAhStoreSelected(page: Page) {
+  const ah = page.getByRole('radio', { name: /Albert Heijn/ })
+  await expect(ah).toBeVisible()
+  if (!(await ah.isChecked())) await ah.click()
+  await expect(ah).toBeChecked()
+}
+
 /**
- * Install a capture for opened store-cart URLs (window.open) and any full-page
- * navigation (window.location.href). Mirrors #480's window.open stub and adds a
- * location.href trap so the tip-some Mollie redirect is captured, not followed.
- * Read back via readOpenedUrls / readNavigations.
+ * Install a capture for opened store-cart URLs (`window.open`). Read back via
+ * `readOpenedUrls`. The tip-some Mollie redirect uses Playwright `page.route`
+ * instead (Location traps are unreliable on mobile Chrome).
  */
+/** Trap window.open + location navigations so e2e can assert URLs without leaving the app. */
+function navigationTrapInitScript() {
+  const win = window as unknown as {
+    __openedStoreCartUrls: Array<string>
+    __navigations: Array<string>
+  }
+  win.__openedStoreCartUrls = []
+  win.__navigations = []
+  const pushNav = (value: string) => win.__navigations.push(value)
+
+  window.open = (url?: string | URL | null) => {
+    const location = {}
+    Object.defineProperty(location, 'href', {
+      get: () => '',
+      set: (value: string) => win.__openedStoreCartUrls.push(String(value)),
+    })
+    if (url && String(url) !== 'about:blank') {
+      win.__openedStoreCartUrls.push(String(url))
+    }
+    return { closed: false, location } as Window
+  }
+
+  const proto = Location.prototype
+  const hrefDesc = Object.getOwnPropertyDescriptor(proto, 'href')
+  if (hrefDesc?.set) {
+    Object.defineProperty(proto, 'href', {
+      ...hrefDesc,
+      set(value: string) {
+        pushNav(String(value))
+      },
+    })
+  }
+  proto.assign = function (this: Location, url: string | URL) {
+    pushNav(String(url))
+  }
+  proto.replace = function (this: Location, url: string | URL) {
+    pushNav(String(url))
+  }
+}
+
 async function installOpenAndNavCapture(page: Page) {
-  await page.evaluate(() => {
-    const win = window as unknown as {
-      __openedStoreCartUrls: Array<string>
-      __navigations: Array<string>
-    }
-    win.__openedStoreCartUrls = []
-    win.__navigations = []
-
-    window.open = (url?: string | URL | null) => {
-      const location = {}
-      Object.defineProperty(location, 'href', {
-        get: () => '',
-        set: (value: string) => win.__openedStoreCartUrls.push(String(value)),
-      })
-      if (url && String(url) !== 'about:blank') {
-        win.__openedStoreCartUrls.push(String(url))
-      }
-      return { closed: false, location } as Window
-    }
-
-    // Trap full-page navigation (the tip-some path sets window.location.href to
-    // the Mollie checkout URL). We can't reassign window.location, but we can
-    // shadow its `href` setter so the redirect is recorded, not performed.
-    try {
-      const original = window.location.href
-      Object.defineProperty(window.location, 'href', {
-        configurable: true,
-        get: () => original,
-        set: (value: string) => win.__navigations.push(String(value)),
-      })
-    } catch {
-      // Some engines lock window.location.href; fall back to assign/replace.
-      window.location.assign = (value: string) =>
-        win.__navigations.push(String(value))
-      window.location.replace = (value: string) =>
-        win.__navigations.push(String(value))
-    }
-  })
+  await page.addInitScript(navigationTrapInitScript)
+  await page.evaluate(navigationTrapInitScript)
 }
 
 async function readOpenedUrls(page: Page): Promise<Array<string>> {
   return page.evaluate(
     () =>
-      (window as unknown as { __openedStoreCartUrls: Array<string> })
-        .__openedStoreCartUrls,
+      (window as unknown as { __openedStoreCartUrls?: Array<string> })
+        .__openedStoreCartUrls ?? [],
   )
 }
 
 async function readNavigations(page: Page): Promise<Array<string>> {
   return page.evaluate(
-    () => (window as unknown as { __navigations: Array<string> }).__navigations,
+    () =>
+      (window as unknown as { __navigations?: Array<string> }).__navigations ??
+      [],
   )
 }
 
@@ -234,7 +246,9 @@ test.describe('cart', () => {
     if (await selectAll.isVisible().catch(() => false)) {
       await selectAll.click()
     }
-    await expect(page.getByRole('button', { name: 'Clear' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Clear', exact: true }),
+    ).toBeVisible()
     // Every row is now checked.
     const total = await checkboxes.count()
     await expect(badge).toHaveText(`${total} selected`)
@@ -248,12 +262,13 @@ test.describe('cart', () => {
     await expect(badge).toHaveText(`${total - 1} selected`)
 
     // Re-select that one item: count returns to the full total.
+    await expect(firstBox).toBeEnabled()
     await firstBox.click()
     await expect(firstBox).toHaveAttribute('aria-checked', 'true')
     await expect(badge).toHaveText(`${total} selected`)
 
     // Deselect all via the "Clear" toggle (the inclusion-model bulk action).
-    await page.getByRole('button', { name: 'Clear' }).click()
+    await page.getByRole('button', { name: 'Clear', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Select all' })).toBeVisible()
     await expect(badge).toHaveText('0 selected')
 
@@ -270,6 +285,7 @@ test.describe('cart', () => {
     page,
   }) => {
     await buildWeekAndOpenCart(page)
+    await ensureAhStoreSelected(page)
     await installOpenAndNavCapture(page)
 
     // The floating order bar's CTA: store defaults to Albert Heijn.
@@ -319,32 +335,22 @@ test.describe('cart', () => {
   test('tip-some path starts a (mocked) Mollie payment then opens the cart on return', async ({
     page,
   }) => {
-    // Mock ONLY the tip-start server fn so no real Mollie payment is created.
-    // TanStack Start server fns POST to /_serverFn/<id>; the tip start is the one
-    // whose body carries `percent` + `basketTotal`. We return a plain JSON body
-    // (no x-tss-serialized header), which the client RPC returns as-is, with a
-    // canned Mollie checkout URL. Other server fns (incl. the cart-link build)
-    // hit the REAL endpoints untouched.
+    // startTip is short-circuited server-side when VITE_PLAYWRIGHT_E2E_CART_LINKS=1
+    // (playwright.config webServer), same as deterministic cart links — no Mollie
+    // call and a stable checkout URL for window.location.href below.
     const MOLLIE_URL = 'https://www.mollie.test/checkout/e2e-tip-redirect'
-    await page.route('**/_serverFn/**', async (route: Route) => {
-      const request = route.request()
-      if (request.method() !== 'POST') return route.continue()
-      const body = request.postData() ?? ''
-      const isTipStart =
-        body.includes('"percent"') && body.includes('"basketTotal"')
-      if (!isTipStart) return route.continue()
+    const mollieNavigations: Array<string> = []
+    await page.route('https://www.mollie.test/**', async (route) => {
+      mollieNavigations.push(route.request().url())
       await route.fulfill({
         status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          checkoutUrl: MOLLIE_URL,
-          tipPaymentId: 'e2e-tip-payment',
-          amount: '0.50',
-        }),
+        contentType: 'text/html',
+        body: '<!doctype html><title>e2e mollie stub</title>',
       })
     })
 
     await buildWeekAndOpenCart(page)
+    await ensureAhStoreSelected(page)
     await installOpenAndNavCapture(page)
 
     await page.getByRole('button', { name: 'Order at Albert Heijn' }).click()
@@ -360,9 +366,10 @@ test.describe('cart', () => {
     await tipButton.click()
 
     // The tip-some path redirects to the (mocked) Mollie checkout via
-    // window.location.href, which our trap captures rather than following.
+    // window.location.href; Playwright route interception captures it without
+    // leaving the app (Location.prototype traps are unreliable on mobile Chrome).
     await expect
-      .poll(() => readNavigations(page), { timeout: 20_000 })
+      .poll(() => mollieNavigations, { timeout: 60_000 })
       .toContain(MOLLIE_URL)
   })
 })

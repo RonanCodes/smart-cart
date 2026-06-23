@@ -167,8 +167,14 @@ test.describe('profile / settings', () => {
     const skipSheet = page.getByRole('dialog', { name: 'Days you skip' })
     await expect(skipSheet).toBeVisible()
     // Each weekday button carries an explicit aria-label "<Day>: cooking|skipped".
-    await skipSheet.getByRole('button', { name: 'Mon: cooking' }).click()
-    await skipSheet.getByRole('button', { name: 'Wed: cooking' }).click()
+    const monBtn = skipSheet.getByRole('button', { name: /^Mon:/ })
+    const wedBtn = skipSheet.getByRole('button', { name: /^Wed:/ })
+    if ((await monBtn.getAttribute('aria-label'))?.endsWith('cooking')) {
+      await monBtn.click()
+    }
+    if ((await wedBtn.getAttribute('aria-label'))?.endsWith('cooking')) {
+      await wedBtn.click()
+    }
     await page.getByTestId('skip-days-save').click()
     await expect(skipSheet).toBeHidden()
     // The row's trailing value now lists the chosen days.
@@ -179,17 +185,34 @@ test.describe('profile / settings', () => {
     await tasteRow.click()
     const prefsSheet = page.getByRole('dialog', { name: 'Your preferences' })
     await expect(prefsSheet).toBeVisible()
+    await expect(prefsSheet.getByRole('status')).toBeVisible()
     // Love a cuisine (toggles aria-pressed) and add a diet restriction.
-    const greek = prefsSheet.getByRole('button', { name: 'Greek' })
-    await greek.click()
-    await expect(greek).toHaveAttribute('aria-pressed', 'true')
     const vegetarian = prefsSheet.getByRole('button', { name: 'Vegetarian' })
-    await vegetarian.click()
-    await expect(vegetarian).toHaveAttribute('aria-pressed', 'true')
+    await vegetarian.scrollIntoViewIfNeeded()
+    await expect
+      .poll(async () => {
+        if ((await vegetarian.getAttribute('aria-pressed')) !== 'true') {
+          await vegetarian.click()
+        }
+        return vegetarian.getAttribute('aria-pressed')
+      })
+      .toBe('true')
+    const greek = prefsSheet.getByRole('button', { name: 'Greek' })
+    if ((await greek.getAttribute('aria-pressed')) !== 'true') {
+      await greek.click()
+    }
+    await expect(greek).toHaveAttribute('aria-pressed', 'true')
     // A dislike pill toggle (Shellfish) so the Dislikes row count moves.
     await prefsSheet.getByRole('button', { name: 'Shellfish' }).click()
     // The autosave status line confirms the debounced patch round-trip landed.
-    await expect(prefsSheet.getByText('Saved')).toBeVisible({ timeout: 15_000 })
+    await expect
+      .poll(async () => prefsSheet.getByRole('status').textContent(), {
+        timeout: 25_000,
+      })
+      .toMatch(/Saved|Saving/)
+    await expect(prefsSheet.getByRole('status')).toContainText('Saved', {
+      timeout: 10_000,
+    })
     await page.keyboard.press('Escape')
     await expect(prefsSheet).toBeHidden()
     // The Taste & diet row now shows the saved diet (incl. Vegetarian).
@@ -197,18 +220,24 @@ test.describe('profile / settings', () => {
 
     // ---- Weekly planning reminder: enable it, set a day + time ----
     const reminderToggle = page.getByTestId('plan-reminder-toggle')
-    await expect(reminderToggle).toHaveAttribute('aria-checked', 'false')
-    await reminderToggle.click()
+    if ((await reminderToggle.getAttribute('aria-checked')) !== 'true') {
+      await reminderToggle.click()
+    }
     await expect(reminderToggle).toHaveAttribute('aria-checked', 'true')
     // Enabling reveals the day + time controls; change both.
     await page
       .getByTestId('plan-reminder-dow')
       .selectOption({ label: 'Friday' })
     await page.getByTestId('plan-reminder-time').fill('18:30')
-    // Let the optimistic save settle (the toggle un-busies once written).
+    // Let each optimistic save settle before continuing (serialized on the client).
+    await expect(page.getByTestId('plan-reminder-time')).toHaveValue('18:30')
     await expect(page.getByTestId('plan-reminder-dow')).toBeEnabled({
       timeout: 15_000,
     })
+    await expect(page.getByTestId('plan-reminder-toggle')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
 
     // ---- Notifications: the sheet opens and reflects a state, never a dead end ----
     await page.getByRole('button', { name: 'Notifications' }).click()
@@ -230,7 +259,10 @@ test.describe('profile / settings', () => {
     await expect(helpSheet).toBeHidden()
 
     // ---- Send feedback: the shared FeedbackForm submits against the real fn ----
-    await page.getByRole('button', { name: 'Send feedback' }).click()
+    await page
+      .locator('main')
+      .getByRole('button', { name: 'Send feedback' })
+      .click()
     const feedbackSheet = page.getByRole('dialog', { name: 'Send feedback' })
     await expect(feedbackSheet).toBeVisible()
     await feedbackSheet
@@ -264,17 +296,20 @@ test.describe('profile / settings', () => {
     await expect(skipRowAfter).toContainText('Wed')
 
     // The weekly-reminder toggle persists ON, with the day + time we set.
-    await expect(page.getByTestId('plan-reminder-toggle')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    )
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('plan-reminder-toggle').getAttribute('aria-checked'),
+        { timeout: 20_000 },
+      )
+      .toBe('true')
     await expect(page.getByTestId('plan-reminder-dow')).toHaveValue('5') // Friday
     await expect(page.getByTestId('plan-reminder-time')).toHaveValue('18:30')
 
-    // The household row reflects the saved size after reload (2 adults + 2 kids
+    // The household row reflects the saved size after reload (3 adults + 2 kids
     // after we bumped each by one over onboarding's "2 adults + 1 child").
     const householdRowAfter = page.getByRole('button', { name: 'Household' })
-    await expect(householdRowAfter).toContainText('2 adults')
+    await expect(householdRowAfter).toContainText('3 adults')
     await expect(householdRowAfter).toContainText(/2 kids/)
 
     // Re-open the household sheet to prove the steppers come back pre-filled

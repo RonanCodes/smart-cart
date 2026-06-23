@@ -5,7 +5,7 @@ import { Button } from '#/components/ui/button'
 import { Badge } from '#/components/ui/badge'
 import { ingredientSticker } from '#/lib/ingredient-sticker'
 import { groupByCategory } from '#/lib/ingredient-category'
-import { formatCents } from '#/lib/pricing'
+import { CartPriceSlot } from '#/components/shopping/CartPriceSlot'
 import {
   addShoppingItem,
   updateShoppingItem,
@@ -15,6 +15,7 @@ import {
 } from '#/lib/shopping-list-server'
 import { cleanRows, isPantryStaple } from '#/lib/shopping'
 import type { ShoppingItem } from '#/lib/shopping'
+import { lineKey } from '#/lib/use-price-comparison'
 import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
 /**
@@ -41,6 +42,7 @@ export function EditableShoppingList({
   onCleared,
   onItemsChange,
   priceMap,
+  pendingLineKeys,
 }: {
   initialItems: Array<ShoppingItem>
   /**
@@ -65,6 +67,11 @@ export function EditableShoppingList({
    * (still loading, or no comparison available), so rows show name + amount only.
    */
   priceMap?: Map<string, number>
+  /**
+   * Line keys still being priced (#cart-incremental-price). Checked rows in this
+   * set show a quiet "pricing…" affordance until their price lands.
+   */
+  pendingLineKeys?: ReadonlySet<string>
 }) {
   // Clean the persisted rows before anything renders or flows up to the route
   // (#cart-clean): drop cooking water ("tap water 1200 ml"), blank zero amounts
@@ -313,6 +320,12 @@ export function EditableShoppingList({
                 key={item.id}
                 item={item}
                 price={priceMap?.get(item.name)}
+                pricePending={
+                  item.checked &&
+                  pendingLineKeys?.has(
+                    lineKey({ name: item.name, amount: item.amount }),
+                  ) === true
+                }
                 busy={busyId === item.id}
                 onToggle={() => toggle(item)}
                 onSaveName={(v) => saveField(item.id, 'name', v)}
@@ -392,6 +405,7 @@ export function EditableShoppingList({
 function ItemRow({
   item,
   price,
+  pricePending,
   busy,
   onToggle,
   onSaveName,
@@ -401,6 +415,8 @@ function ItemRow({
   item: ShoppingItem
   /** Line price in cents for the selected store, or undefined when no match. */
   price?: number
+  /** True while the matcher is still resolving this row's price. */
+  pricePending?: boolean
   busy: boolean
   onToggle: () => void
   onSaveName: (value: string) => void
@@ -470,17 +486,13 @@ function ItemRow({
         )}
       </div>
 
-      {/* The selected store's per-item price (#cart-align). No price = no match
-          at this store, so the slot stays empty rather than inventing one. */}
-      {price !== undefined && (
-        <span
-          className={`shrink-0 text-sm font-bold tabular-nums ${
-            item.checked ? 'text-foreground' : 'text-muted-foreground'
-          }`}
-        >
-          {formatCents(price)}
-        </span>
-      )}
+      {/* The selected store's per-item price (#cart-align). */}
+      <CartPriceSlot
+        priceCents={price}
+        pending={pricePending}
+        reserve={item.checked}
+        checked={item.checked}
+      />
 
       <button
         type="button"

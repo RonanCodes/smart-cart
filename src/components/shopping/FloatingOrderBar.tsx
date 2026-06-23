@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { ShoppingCart } from 'lucide-react'
 import { Button } from '#/components/ui/button'
-import { formatCents } from '#/lib/pricing'
+import { CartPriceSlot } from '#/components/shopping/CartPriceSlot'
 import type { BasketComparison } from '#/lib/pricing'
 import { buildCartLinks } from '#/lib/cart-links-server'
 import type { CartLinkResult } from '#/lib/cart-links-server'
@@ -40,6 +40,7 @@ export function FloatingOrderBar({
   data,
   compareLines,
   extras,
+  priceLoading = false,
 }: {
   /** The store the top switch currently has selected. */
   store: StoreSlug
@@ -49,6 +50,8 @@ export function FloatingOrderBar({
   compareLines: Array<CompareLine>
   /** Live SELECTED (in-order) extras (staples) with their store + saved slug. */
   extras: Array<CartExtra>
+  /** True while the matcher is still resolving prices for the live cart. */
+  priceLoading?: boolean
 }) {
   const [link, setLink] = useState<CartLinkResult | null>(null)
   const [error, setError] = useState(false)
@@ -201,7 +204,12 @@ export function FloatingOrderBar({
               {storeLabel(store)}
             </span>
             <span className="text-lg font-extrabold tabular-nums">
-              {total !== null ? formatCents(total) : '--'}
+              <CartPriceSlot
+                priceCents={total ?? undefined}
+                pending={priceLoading && total === null}
+                size="bar"
+                reserve
+              />
             </span>
           </div>
 
