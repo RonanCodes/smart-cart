@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { StoreStep } from './store-step'
 import {
@@ -8,6 +8,12 @@ import {
   onboardingReducer,
 } from '../form-state'
 import type { OnboardingDraft } from '../form-state'
+
+const track = vi.fn()
+vi.mock('#/lib/analytics', () => ({
+  track: (...args: Array<unknown>) => track(...args),
+  FUNNEL_EVENTS: { storeSelected: 'store_selected' },
+}))
 
 /**
  * Real-context harness mirroring OnboardingFlow: patches flow through the actual
@@ -36,6 +42,8 @@ function withForm(
 }
 
 describe('StoreStep', () => {
+  beforeEach(() => track.mockReset())
+
   it('renders exactly the three Dutch stores', () => {
     withForm(<StoreStep />)
     expect(screen.getByRole('radio', { name: /Albert Heijn/ })).toBeTruthy()
@@ -59,6 +67,19 @@ describe('StoreStep', () => {
     const latest = withForm(<StoreStep />)
     fireEvent.click(screen.getByRole('radio', { name: /Albert Heijn/ }))
     expect(latest.draft.store).toBe('ah')
+  })
+
+  it('fires store_selected when a store is picked, never for the disabled one', () => {
+    withForm(<StoreStep />)
+    fireEvent.click(screen.getByRole('radio', { name: /Picnic/ }))
+    expect(track).toHaveBeenCalledWith(
+      'store_selected',
+      expect.objectContaining({ store: 'picnic', source: 'onboarding' }),
+    )
+    track.mockReset()
+    // The parked Jumbo option must not emit an event.
+    fireEvent.click(screen.getByRole('radio', { name: /Jumbo/ }))
+    expect(track).not.toHaveBeenCalled()
   })
 
   it('shows already-selected store as checked', () => {

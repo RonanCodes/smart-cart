@@ -786,6 +786,12 @@ function LoadedWeek({
     setAddingToList(true)
     setMessage(null)
     setChanges([])
+    // The week's recipes added to the shopping list (the cart fill). Captured at
+    // this UI button call-site, not inside the server fn. Non-PII.
+    track(FUNNEL_EVENTS.addedToCart, {
+      source: 'week',
+      recipeCount: days.filter((d) => d.recipeRef).length,
+    })
     try {
       await addWeekToShoppingList({ data: { planId: week.planId } })
       // Await the navigation so the Shopping loader re-runs (and re-reads the
@@ -906,7 +912,17 @@ function LoadedWeek({
     for (const day of dayKeys.split('|')) {
       if (!day) continue
       map.set(day, {
-        onEdit: () => setRecipeDay(day),
+        onEdit: () => {
+          // The recipe sheet opened for a day (useful drop-off signal). The
+          // recipe id is resolved at tap time so a post-swap day still reports
+          // the right recipe. Non-PII.
+          track(FUNNEL_EVENTS.recipeOpened, {
+            day,
+            recipeId: weekRef.current.days.find((x) => x.day === day)
+              ?.recipeRef,
+          })
+          setRecipeDay(day)
+        },
         onAdd: () => void startAdd(day),
         onSwap: () => startSwap(day),
         // The swipe-deck landed on a pre-ranked alternative: persist it through
@@ -1225,6 +1241,11 @@ function LoadedWeek({
             className="w-full gap-2"
             disabled={replanning}
             onClick={() => {
+              // The user tapped "Talk to Souso" (voice onboarding / voice
+              // replan entry). Captured at the button, not inside VoiceButton.
+              track(FUNNEL_EVENTS.voiceOnboardingStarted, {
+                source: 'week_ask_souso',
+              })
               setAiOpen(false)
               voiceRef.current?.start()
             }}

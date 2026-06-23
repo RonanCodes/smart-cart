@@ -20,6 +20,7 @@ import {
 } from '#/lib/use-price-comparison'
 import { effectiveStore } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
 interface ShoppingSearch {
   /** Optional plan id, set when arriving from the week view's "Shopping list". */
@@ -105,6 +106,14 @@ function Shopping() {
   // Coerce any parked "Coming soon" preference (e.g. a saved 'jumbo') to the
   // default so the switch, pricing and order bar never land on an untested store.
   const [store, setStore] = useState<StoreSlug>(effectiveStore(preferredStore))
+
+  // Switching the cart's store on the Cart screen. This is the "tried to click
+  // AH / Picnic / Jumbo" signal (Jumbo is parked, so it never reaches here, but
+  // the prop space covers it for when it re-enables). UI call-site, guarded.
+  function selectStore(next: StoreSlug) {
+    setStore(next)
+    track(FUNNEL_EVENTS.storeSelected, { store: next, source: 'cart' })
+  }
 
   // The extras as cart-set shape: a staple's saved slug already carries its
   // store, so selecting it includes it in that store's basket + cart.
@@ -193,7 +202,7 @@ function Shopping() {
               data={priceData}
               loading={priceLoading}
               selected={store}
-              onSelect={setStore}
+              onSelect={selectStore}
             />
           </div>
         )}

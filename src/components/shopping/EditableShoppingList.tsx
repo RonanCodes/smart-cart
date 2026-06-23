@@ -15,6 +15,14 @@ import {
 } from '#/lib/shopping-list-server'
 import { cleanRows, isPantryStaple } from '#/lib/shopping'
 import type { ShoppingItem } from '#/lib/shopping'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
+import type { CartUpdateAction } from '#/lib/analytics'
+
+/** One guarded `cart_updated` capture, sliced by the `action` that changed the
+ * list. Never throws (analytics.track is already guarded; this just types it). */
+function trackCart(action: CartUpdateAction, props?: Record<string, unknown>) {
+  track(FUNNEL_EVENTS.cartUpdated, { action, ...props })
+}
 
 /**
  * The editable, PERSISTED shopping list on the Shopping tab (#146).
@@ -115,6 +123,8 @@ export function EditableShoppingList({
 
   async function toggle(item: ShoppingItem) {
     setBusyId(item.id)
+    // A row ticked into / out of the order. `select` = now in the order.
+    trackCart(item.checked ? 'deselect' : 'select')
     try {
       const { items: next } = await updateShoppingItem({
         data: { id: item.id, checked: !item.checked },
@@ -133,6 +143,8 @@ export function EditableShoppingList({
     value: string,
   ) {
     setBusyId(id)
+    // Inline edit of a row (rename or re-amount). One action, `field` slices it.
+    trackCart('edit_qty', { field })
     try {
       const { items: next } = await updateShoppingItem({
         data: { id, [field]: value },
@@ -147,6 +159,8 @@ export function EditableShoppingList({
 
   async function remove(id: string) {
     setBusyId(id)
+    // A single row removed via the trash button.
+    trackCart('remove')
     try {
       const { items: next } = await removeShoppingItem({ data: { id } })
       commit(next)
@@ -166,6 +180,8 @@ export function EditableShoppingList({
         data: { name, amount: newAmount.trim() || null },
       })
       commit(next)
+      // A manual item was added to the shopping list.
+      track(FUNNEL_EVENTS.addedToCart, { source: 'manual_item' })
       setNewName('')
       setNewAmount('')
       setAddOpen(false)
@@ -179,6 +195,8 @@ export function EditableShoppingList({
   async function toggleAll() {
     setBusyId('__all__')
     setActionError(null)
+    // The "Select all" / "Clear" header control. `checked` says which direction.
+    trackCart('select_all', { checked: !allChecked })
     try {
       const { items: next } = await setAllChecked({
         data: { checked: !allChecked },
@@ -209,6 +227,8 @@ export function EditableShoppingList({
     setConfirmingClear(false)
     setBusyId('__clear__')
     setActionError(null)
+    // The confirmed "Clear all" wipe (only on the second, confirming tap).
+    trackCart('clear_all', { count: items.length })
     try {
       const { items: next } = await clearShoppingList()
       commit(next)

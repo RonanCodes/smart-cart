@@ -22,15 +22,44 @@ import { getClientTraceId } from './trace'
  * referenced by the camelCase key everywhere else.
  */
 export const FUNNEL_EVENTS = {
+  // Auth.
+  userLoggedIn: 'user_logged_in',
+  // Onboarding lifecycle.
   onboardingStarted: 'onboarding_started',
   onboardingStepCompleted: 'onboarding_step_completed',
+  onboardingCompleted: 'onboarding_completed',
+  onboardingRestarted: 'onboarding_restarted',
+  voiceOnboardingStarted: 'voice_onboarding_started',
   emailSubmitted: 'email_submitted',
+  // Week / planning.
   weekBuilt: 'week_built',
   recipeSwapped: 'recipe_swapped',
+  recipeOpened: 'recipe_opened',
+  // Cart / list.
+  addedToCart: 'added_to_cart',
+  cartUpdated: 'cart_updated',
+  storeSelected: 'store_selected',
+  // Order / checkout / tip.
+  orderClicked: 'order_clicked',
+  ahCartOpened: 'ah_cart_opened',
+  tipDialogOpened: 'tip_dialog_opened',
+  tipSelected: 'tip_selected',
+  // Pre-existing rungs kept for funnel continuity (do not rename).
   cartOpened: 'cart_opened',
   checkoutStarted: 'checkout_started',
   orderPlaced: 'order_placed',
 } as const
+
+/** The discrete `action` values for a single `cart_updated` event, so the list
+ * edit funnel is ONE event sliced by `action` rather than a dozen names. */
+export type CartUpdateAction =
+  | 'select'
+  | 'deselect'
+  | 'select_all'
+  | 'clear_one'
+  | 'clear_all'
+  | 'edit_qty'
+  | 'remove'
 
 export type FunnelEvent = (typeof FUNNEL_EVENTS)[keyof typeof FUNNEL_EVENTS]
 

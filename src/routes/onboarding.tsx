@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createServerFn } from '@tanstack/react-start'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -62,6 +62,17 @@ function Onboarding() {
     initialData: loaderData,
   })
 
+  // A signed-in visitor who ALREADY has a household and lands on /onboarding is
+  // re-doing onboarding (the redo entry). Fire once on mount so the funnel can
+  // tell a fresh signup apart from a re-onboard. Guarded + idempotent.
+  const restartFired = useRef(false)
+  useEffect(() => {
+    if (entry.signedIn && entry.onboarded && !restartFired.current) {
+      restartFired.current = true
+      track(FUNNEL_EVENTS.onboardingRestarted, { source: 'onboarding_route' })
+    }
+  }, [entry.signedIn, entry.onboarded])
+
   async function handleComplete(draft: OnboardingDraft) {
     setError(null)
     try {
@@ -69,6 +80,14 @@ function Onboarding() {
       // had a session; a signed-out visitor just verified their OTP, which set
       // the session cookie. So completeOnboarding's getSessionUser resolves.
       const { planId } = await completeOnboarding({ data: { draft } })
+      // Onboarding finished (household persisted). Distinct from week_built so
+      // the funnel sees "completed the form" vs "got a week". Non-PII.
+      track(FUNNEL_EVENTS.onboardingCompleted, {
+        source: 'onboarding',
+        reonboard: entry.signedIn && entry.onboarded,
+        householdSize: (draft.adults || 0) + (draft.children || 0),
+        store: draft.store,
+      })
       // First week built from onboarding: the activation moment. Non-PII props.
       track(FUNNEL_EVENTS.weekBuilt, {
         source: 'onboarding',

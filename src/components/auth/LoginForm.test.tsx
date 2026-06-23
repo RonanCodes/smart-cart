@@ -35,12 +35,19 @@ vi.mock('#/lib/log', () => ({
 
 vi.mock('#/lib/push-client', () => ({ promptForNotifications: vi.fn() }))
 
+const track = vi.fn()
+vi.mock('#/lib/analytics', () => ({
+  track: (...args: Array<unknown>) => track(...args),
+  FUNNEL_EVENTS: { userLoggedIn: 'user_logged_in' },
+}))
+
 beforeEach(() => {
   sendVerificationOtp.mockReset().mockResolvedValue({ error: null })
   signInEmailOtp.mockReset().mockResolvedValue({ error: null })
   logInfo.mockReset()
   logWarn.mockReset()
   logError.mockReset()
+  track.mockReset()
 })
 
 /** Drive the form to the code substep and submit `otp`. */
@@ -110,5 +117,40 @@ describe('LoginForm verify-error classification (#387)', () => {
       ),
     )
     expect(logWarn).not.toHaveBeenCalled()
+  })
+})
+
+describe('LoginForm — user_logged_in funnel event', () => {
+  it('fires user_logged_in on a successful verify, before navigating', async () => {
+    let href = ''
+    vi.stubGlobal('location', {
+      get href() {
+        return href
+      },
+      set href(v: string) {
+        href = v
+      },
+    })
+    signInEmailOtp.mockResolvedValue({ error: null })
+    render(<LoginForm />)
+    await submitOtp('123456')
+
+    await waitFor(() =>
+      expect(track).toHaveBeenCalledWith(
+        'user_logged_in',
+        expect.objectContaining({ source: 'sign_in' }),
+      ),
+    )
+    vi.unstubAllGlobals()
+  })
+
+  it('does NOT fire user_logged_in when verify fails', async () => {
+    signInEmailOtp.mockResolvedValue({
+      error: { status: 400, code: 'INVALID_OTP', message: 'Invalid OTP' },
+    })
+    render(<LoginForm />)
+    await submitOtp('000000')
+    await screen.findByText(/code isn't right/i)
+    expect(track).not.toHaveBeenCalledWith('user_logged_in', expect.anything())
   })
 })

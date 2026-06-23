@@ -16,6 +16,25 @@ describe('FUNNEL_EVENTS', () => {
     })
   })
 
+  it('covers the product-funnel events wired at the UI call-sites', () => {
+    // Stable snake_case PostHog names. Renaming one orphans its funnel, so they
+    // are asserted here to lock them.
+    expect(FUNNEL_EVENTS).toMatchObject({
+      userLoggedIn: 'user_logged_in',
+      onboardingCompleted: 'onboarding_completed',
+      onboardingRestarted: 'onboarding_restarted',
+      voiceOnboardingStarted: 'voice_onboarding_started',
+      recipeOpened: 'recipe_opened',
+      addedToCart: 'added_to_cart',
+      cartUpdated: 'cart_updated',
+      storeSelected: 'store_selected',
+      orderClicked: 'order_clicked',
+      ahCartOpened: 'ah_cart_opened',
+      tipDialogOpened: 'tip_dialog_opened',
+      tipSelected: 'tip_selected',
+    })
+  })
+
   it('has no duplicate event strings', () => {
     const values = Object.values(FUNNEL_EVENTS)
     expect(new Set(values).size).toBe(values.length)

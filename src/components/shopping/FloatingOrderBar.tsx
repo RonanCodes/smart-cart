@@ -80,8 +80,12 @@ export function FloatingOrderBar({
     setLink(null)
     // Cart opened: the user tapped "Order at <store>" to build the basket link.
     track(FUNNEL_EVENTS.cartOpened, { store, productCount })
+    // The headline conversion intent: the user tapped "Order at <store>".
+    track(FUNNEL_EVENTS.orderClicked, { store, productCount })
     // Show the tip sheet first, on this gesture, so it appears with no wait.
     setTipOpen(true)
+    // The tip / "Send to your store" dialog just opened (they tried to tip).
+    track(FUNNEL_EVENTS.tipDialogOpened, { store, productCount })
     const live = {
       items: compareLines.map((l) => ({ name: l.name, amount: l.amount })),
       staples: extras.map((e) => ({ slug: e.slug, store: e.store })),
@@ -113,6 +117,13 @@ export function FloatingOrderBar({
 
   function openCart(resolved: CartLinkResult) {
     openStoreCart(resolved)
+    // The ACTUAL outbound navigation to the store cart (distinct from
+    // order_clicked, which is the button tap). For AH this is the AH cart open.
+    track(FUNNEL_EVENTS.ahCartOpened, {
+      store,
+      matched: resolved.matched,
+      total: resolved.total,
+    })
     // Order placed (Souso's no-auto-buy model): the store's ready-to-order
     // basket opened. The user checks out themselves — this is the conversion.
     track(FUNNEL_EVENTS.orderPlaced, {
@@ -125,6 +136,12 @@ export function FloatingOrderBar({
   async function confirmTip(percent: number) {
     setTipBusy(true)
     setTipError(null)
+    // The tip choice the user confirmed: amount in euro + whether they tipped at
+    // all, so the funnel separates tip-some from tip-none. Mirrors TipSheet's
+    // percent->amount math (0% = no tip; otherwise a €0.50 floor).
+    const tipped = percent > 0
+    const amount = tipped ? Math.max((percent / 100) * basketTotal, 0.5) : 0
+    track(FUNNEL_EVENTS.tipSelected, { store, percent, amount, tipped })
     try {
       // The background build (#440) is usually done by the time the user picks a
       // tip. If it already resolved, open synchronously inside this click so the
