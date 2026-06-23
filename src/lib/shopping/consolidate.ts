@@ -21,7 +21,13 @@ import type {
   ShoppingList,
   ShoppingRecipe,
 } from './types'
-import { canonicalUnit, renderFromBase, round } from './units'
+import {
+  canonicalUnit,
+  isQualitativeUnit,
+  qualitativeLabel,
+  renderFromBase,
+  round,
+} from './units'
 import { dedupeKey, isNonGroceryWater } from './clean-list'
 
 /**
@@ -105,6 +111,11 @@ export function consolidate(
         acc.set(key, entry)
       }
       entry.meals.add(recipe.title)
+
+      if (isQualitativeUnit(ing.unit)) {
+        entry.unparsed.push(qualitativeLabel(ing.unit))
+        continue
+      }
 
       const parsed = parseQty(ing.qty)
       if (parsed.value === null) {

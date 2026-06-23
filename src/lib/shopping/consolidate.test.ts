@@ -125,8 +125,8 @@ describe('consolidate — cross-recipe merge / interlink', () => {
     // largest base value is the 15 g bucket -> primary; cloves -> extra
     expect(garlic.totalQty).toBe(15)
     expect(garlic.unit).toBe('g')
-    expect(garlic.extraAmounts).toEqual(['2 cloves'])
-    expect(garlic.displayAmount).toBe('15 g + 2 cloves')
+    expect(garlic.extraAmounts).toEqual(['2 tenen'])
+    expect(garlic.displayAmount).toBe('15 g + 2 tenen')
   })
 })
 
@@ -384,5 +384,50 @@ describe('consolidate — ingredients trace back to real recipe ingredients (no 
     expect(
       list.lines.filter((l) => /chill?i flakes/i.test(l.name)),
     ).toHaveLength(1)
+  })
+})
+
+describe('consolidate — shopper-friendly amounts (#367)', () => {
+  it('merges teen and tenen on the same ingredient', () => {
+    const r1 = recipe('r1', 'A', 4, [
+      { name: 'knoflook', qty: '2', unit: 'tenen' },
+    ])
+    const r2 = recipe('r2', 'B', 4, [
+      { name: 'knoflook', qty: '1', unit: 'teen' },
+    ])
+    const list = consolidate([r1, r2], { adults: 4 })
+    expect(list.lines[0]!.displayAmount).toBe('3 tenen')
+  })
+
+  it('does not merge stuks with tenen (bulb vs clove)', () => {
+    const r1 = recipe('r1', 'A', 4, [
+      { name: 'knoflook', qty: '2', unit: 'stuks' },
+    ])
+    const r2 = recipe('r2', 'B', 4, [
+      { name: 'knoflook', qty: '2', unit: 'tenen' },
+    ])
+    const list = consolidate([r1, r2], { adults: 2 })
+    expect(list.lines[0]!.displayAmount).toBe('1 stuk + 1 teen')
+  })
+
+  it('treats snuf as qualitative, not "1 snuf"', () => {
+    const r = recipe('r1', 'A', 4, [{ name: 'peper', qty: '1', unit: 'snuf' }])
+    const list = consolidate([r], { adults: 2 })
+    expect(list.lines[0]!.displayAmount).toBe('(snufje)')
+    expect(list.lines[0]!.totalQty).toBeUndefined()
+  })
+
+  it('rounds portion-scaled counts and grams for display', () => {
+    const r = recipe('r1', 'Pasta', 4, [
+      { name: 'citroen', qty: '1', unit: 'stuks' },
+      { name: 'broccoli', qty: '300', unit: 'g' },
+    ])
+    const list = consolidate([r], { adults: 2, children: 1 })
+    expect(list.lines.find((l) => l.name === 'citroen')!.displayAmount).toBe(
+      '1 stuk',
+    )
+    expect(list.lines.find((l) => l.name === 'broccoli')!.displayAmount).toBe(
+      '188 g',
+    )
   })
 })
