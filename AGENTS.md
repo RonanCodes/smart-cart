@@ -104,3 +104,35 @@ Full record: `docs/ai-architecture.md` (how the AI actually works),
 ## AI SDK
 
 This project uses the Vercel AI SDK. For patterns (streamText, generateObject, tool loops, prompt caching), load /ro:vercel-ai-sdk before adding or modifying any AI feature.
+
+## Before you open a PR
+
+Review your own diff against this checklist and fix every issue BEFORE opening
+the PR (Claude has the same list in `.claude/skills/self-review-before-pr/`).
+Run `git diff origin/main...HEAD` and walk all seven:
+
+- **(a) Ownership.** Did I touch a Nic-owned internal? Owned flows:
+  `src/lib/recsys/`, `src/lib/agent/` (onboarding to recipes, week generation);
+  recipe-to-ingredient mapping; the AH matcher `src/lib/pricing/*`;
+  `src/lib/cart-build.ts` / `cart-links*.ts` / `open-store-cart.ts` /
+  `shopping/` (add-to-cart); `src/lib/mollie.ts` + `src/routes/api/mollie/`
+  (Mollie tipping). Work at the call-site; do not edit these internals. Found a
+  real bug? Write the failing test that reproduces it and raise it.
+- **(b) Reproduce-first.** Is there a test that fails before the fix and passes
+  after (or an eval case for an AI change)? No fix ships without it.
+- **(c) No synonym/heuristic maps where embeddings belong.** No synonym tables,
+  substring/token-overlap, or exclusion groups; the matcher's embeddings already
+  give cross-language semantics.
+- **(d) AI / heavy work on request paths is bounded.** Anything that fans out
+  per-item on a request path must be chunked/batched and degrade, not crash
+  (Workers memory/CPU cap).
+- **(e) No slop / dead code / debug leftovers.** No `console.log`, commented-out
+  blocks, unused imports, stray TODOs, or speculative abstractions.
+- **(f) Copy rules.** No em-dashes or en-dashes; no AI-tell filler (delve,
+  leverage, robust, seamless, streamline). Plainer sentence wins.
+- **(g) Branch flow.** Feature PRs target **`develop`**, not `main` (only
+  `develop` PRs into `main`). Branched off latest `origin/main`,
+  emoji-conventional commits, `pnpm quality` green.
+
+Full flow, the promotion gate, ownership map, and where things live:
+**`CONTRIBUTING.md`**.
