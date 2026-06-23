@@ -201,6 +201,13 @@ export function FloatingOrderBar({
             <span>Order at {storeLabel(store)}</span>
           </Button>
 
+          {/* Honest pricing note: the comparison is our best match against the
+              store's catalogue, but the real total is whatever the store charges
+              at checkout (sizes, offers, substitutions can differ). */}
+          <p className="text-muted-foreground/80 mt-1.5 text-center text-[11px]">
+            Prices are approximate and may differ at checkout.
+          </p>
+
           {!canOrder && (
             <div className="mt-2 flex flex-col items-center gap-1 text-center">
               <img

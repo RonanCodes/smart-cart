@@ -63,6 +63,22 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('FloatingOrderBar approximate-price disclaimer', () => {
+  it('shows the "prices are approximate" note near the total', () => {
+    render(
+      <FloatingOrderBar
+        store="ah"
+        data={null}
+        compareLines={LINES}
+        extras={[]}
+      />,
+    )
+    expect(
+      screen.getByText(/prices are approximate and may differ at checkout/i),
+    ).toBeTruthy()
+  })
+})
+
 describe('FloatingOrderBar — instant tip screen (#440)', () => {
   it('shows the tip sheet before the cart-link build resolves', async () => {
     let resolveBuild: (v: CartLinkResult) => void = () => {}

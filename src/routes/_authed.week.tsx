@@ -31,7 +31,12 @@ import type { WeekView, WeekDayView, DayAlternative } from '#/lib/week-server'
 import { applyStreamedWeek, streamReplan } from '#/lib/agent/replan-client'
 import type { ReplanHistoryTurn } from '#/lib/agent/replan-client'
 import { mergeWeekPreservingIdentity } from '#/lib/week-merge'
-import { isWeekView, missingCount, weekDays } from '#/lib/week-loader-guards'
+import {
+  isWeekView,
+  missingCount,
+  weekDays,
+  resolveWeekRender,
+} from '#/lib/week-loader-guards'
 import { detectTargetDays } from '#/lib/replan/target-days'
 import { getSimilarRecipes } from '#/lib/similar-server'
 import { applySimilarSwapToPlan } from '#/lib/swap-server'
@@ -193,33 +198,34 @@ function WeekPage() {
     )
   }, [loaderData])
 
-  // Defensive: if the loader payload is ever missing or unusable (a partial /
-  // failed result that slipped past the loader guards), render the empty state
-  // for this week rather than crashing on `loaderData.kind` / `t.week` (#380).
-  // The type says `loaderData` is always a valid union member; the runtime
-  // proved otherwise on prod, so the rule is disabled across this guard.
+  // The component-level read guard (#400/#380 extended). The loader already
+  // coerces a transient 500 to `{ kind: 'empty' }`, but the COMPONENT still read
+  // `loaderData.kind` / `loaderData.week` directly — so an undefined/partial/
+  // errored payload (the freshly-created plan racing the read after "Build my
+  // week") threw "something went wrong" into the global error boundary, then a
+  // refetch fixed it. `resolveWeekRender` classifies the payload purely (and is
+  // unit-tested), so a transient/degraded payload renders the calm empty/loading
+  // shell instead of crashing.
+  const render = resolveWeekRender(loaderData)
+  if (render.kind === 'empty') {
+    return <EmptyWeek offset={render.offset} />
+  }
+
+  // Safe by `resolveWeekRender` (kind 'week' only when `isWeekView(week)`), but
+  // the union type can't narrow through the helper, so re-assert the shape for
+  // the typed read below. The runtime branch is already guaranteed.
   /* eslint-disable @typescript-eslint/no-unnecessary-condition */
-  if (
-    !loaderData ||
-    (loaderData.kind === 'week' && !isWeekView(loaderData.week))
-  ) {
-    return <EmptyWeek offset={loaderData?.offset ?? 0} />
+  if (!loaderData || loaderData.kind !== 'week') {
+    return <EmptyWeek offset={render.offset} />
   }
   /* eslint-enable @typescript-eslint/no-unnecessary-condition */
-
-  // An empty week (a past week never planned, or a future week not yet
-  // generated): show an empty state, plus the same prev/next nav so the user can
-  // keep browsing.
-  if (loaderData.kind === 'empty') {
-    return <EmptyWeek offset={loaderData.offset} />
-  }
 
   return (
     <LoadedWeek
       initial={loaderData.week}
       initialFeedback={loaderData.feedback}
       missingFromList={loaderData.missingFromList}
-      offset={loaderData.offset}
+      offset={render.offset}
     />
   )
 }

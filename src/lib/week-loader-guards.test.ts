@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { isWeekView, missingCount, weekDays } from './week-loader-guards'
+import {
+  isWeekView,
+  missingCount,
+  weekDays,
+  resolveWeekRender,
+} from './week-loader-guards'
 import type { WeekView } from './week-server'
 
 /**
@@ -93,5 +98,55 @@ describe('weekDays (#380 render-path days guard)', () => {
 
   it('returns [] when days is not an array', () => {
     expect(weekDays({ planId: 'p1' } as unknown as WeekView)).toEqual([])
+  })
+})
+
+/**
+ * resolveWeekRender: the component-level read guard. After "Build my week", the
+ * freshly-created plan/household can race the read, so the week server fns
+ * transiently 500. The COMPONENT used to read `loaderData.kind` / `.week`
+ * directly and threw into the global error boundary ("something went wrong") on
+ * an undefined/partial payload, then recovered on a refetch. These lock that a
+ * transient/degraded payload classifies as a calm empty/loading shell instead.
+ */
+describe('resolveWeekRender (component-level read guard)', () => {
+  it('renders a usable week as a week', () => {
+    expect(resolveWeekRender({ kind: 'week', offset: 1, week: WEEK })).toEqual({
+      kind: 'week',
+      offset: 1,
+    })
+  })
+
+  it('renders a genuine empty payload as empty, keeping its offset', () => {
+    expect(
+      resolveWeekRender({ kind: 'empty', offset: -2, weekStart: '' }),
+    ).toEqual({ kind: 'empty', offset: -2 })
+  })
+
+  it('does NOT throw on undefined (the transient-500 crash), falls to empty', () => {
+    expect(resolveWeekRender(undefined)).toEqual({ kind: 'empty', offset: 0 })
+  })
+
+  it('does NOT throw on null, falls to empty', () => {
+    expect(resolveWeekRender(null)).toEqual({ kind: 'empty', offset: 0 })
+  })
+
+  it('falls to empty for a kind:week payload whose week is partial/errored', () => {
+    // The race symptom: kind says "week" but the week object is half-built (a
+    // 500 envelope, no days). Reading `.days` would crash the grid; instead we
+    // render the empty shell at the payload's offset.
+    expect(
+      resolveWeekRender({ kind: 'week', offset: 3, week: { planId: 'p1' } }),
+    ).toEqual({ kind: 'empty', offset: 3 })
+    expect(
+      resolveWeekRender({ kind: 'week', offset: 0, week: undefined }),
+    ).toEqual({ kind: 'empty', offset: 0 })
+  })
+
+  it('defaults offset to 0 when the payload carries no usable offset', () => {
+    expect(resolveWeekRender({ kind: 'empty' })).toEqual({
+      kind: 'empty',
+      offset: 0,
+    })
   })
 })

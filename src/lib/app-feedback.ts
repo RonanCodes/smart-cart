@@ -9,9 +9,15 @@
 export const FEEDBACK_CONTACT_EMAIL = 'hello@souso.app'
 
 /** Where a submission came from, for admin triage. `tab-bar` is the bottom
- * tab-bar FAB (the always-on trigger), `settings` is the Settings entry, and
- * `sign-in` is the trigger on the sign-in page for users blocked at login. */
-export type FeedbackSource = 'tab-bar' | 'settings' | 'sign-in'
+ * tab-bar FAB (the always-on trigger), `settings` is the Settings entry,
+ * `sign-in` is the trigger on the sign-in page for users blocked at login, and
+ * `error-boundary` is the "something is not right" path on the crash screen
+ * (a user who hit the global error boundary and chose to tell us about it). */
+export type FeedbackSource =
+  | 'tab-bar'
+  | 'settings'
+  | 'sign-in'
+  | 'error-boundary'
 
 /** The valid sources, so a stray string at the boundary falls back to the
  * default rather than being stored verbatim. */
@@ -19,6 +25,7 @@ const FEEDBACK_SOURCES: ReadonlyArray<FeedbackSource> = [
   'tab-bar',
   'settings',
   'sign-in',
+  'error-boundary',
 ]
 
 /** The raw form input as it arrives from the client. */

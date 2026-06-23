@@ -1,8 +1,10 @@
-import { Component } from 'react'
+import { Component, useState } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
 import * as Sentry from '@sentry/react'
-import { UtensilsCrossed } from 'lucide-react'
+import { MessageCircle, UtensilsCrossed } from 'lucide-react'
 import { log } from '#/lib/log'
+import { Sheet } from '#/components/ui/sheet'
+import { FeedbackForm } from '#/components/feedback/FeedbackForm'
 
 interface Props {
   children: ReactNode
@@ -130,26 +132,60 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render(): ReactNode {
     if (!this.state.hasError) return this.props.children
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
-        <div
-          className="bg-secondary text-primary flex h-16 w-16 items-center justify-center rounded-full"
-          aria-hidden
-        >
-          <UtensilsCrossed className="h-7 w-7" />
-        </div>
-        <p className="text-sm font-medium">Something went wrong.</p>
-        <p className="text-muted-foreground text-xs">
-          We&apos;ve logged it. Try reloading.
-        </p>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="bg-primary text-primary-foreground rounded-full px-4 py-2 text-sm font-medium active:scale-95"
-        >
-          Reload
-        </button>
-      </div>
-    )
+    return <ErrorFallback />
   }
+}
+
+/**
+ * The crash-screen fallback. Beyond "reload", it offers the feedback pull-up so a
+ * user who hits the boundary can tell us what they were doing, the most useful
+ * signal on a screen that, by definition, has no other context. Reuses the shared
+ * `FeedbackForm` (the same form behind the tab-bar FAB) in a bottom Sheet, tagged
+ * `source: 'error-boundary'` so these reports are triageable as crash reports.
+ *
+ * A function component (so it can own the sheet's open state with a hook) rendered
+ * by the class boundary's `render`.
+ */
+function ErrorFallback() {
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  return (
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+      <div
+        className="bg-secondary text-primary flex h-16 w-16 items-center justify-center rounded-full"
+        aria-hidden
+      >
+        <UtensilsCrossed className="h-7 w-7" />
+      </div>
+      <p className="text-sm font-medium">Something went wrong.</p>
+      <p className="text-muted-foreground text-xs">
+        We&apos;ve logged it. Try reloading.
+      </p>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="bg-primary text-primary-foreground rounded-full px-4 py-2 text-sm font-medium active:scale-95"
+      >
+        Reload
+      </button>
+      <button
+        type="button"
+        onClick={() => setFeedbackOpen(true)}
+        className="text-muted-foreground inline-flex items-center gap-1.5 text-xs font-medium underline-offset-2 hover:underline"
+      >
+        <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+        Something is not right? Tell us
+      </button>
+
+      <Sheet
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        title="Tell us what happened"
+      >
+        <FeedbackForm
+          source="error-boundary"
+          onDone={() => setFeedbackOpen(false)}
+        />
+      </Sheet>
+    </div>
+  )
 }

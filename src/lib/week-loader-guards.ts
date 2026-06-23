@@ -50,3 +50,46 @@ export function weekDays(week: WeekView | null | undefined): WeekView['days'] {
   if (!week || !Array.isArray(week.days)) return []
   return week.days
 }
+
+/**
+ * What the /week COMPONENT should render for a given loader payload: the
+ * component-level read guard (#400/#380 extended: the loader already coerces a
+ * transient 500 to `{ kind: 'empty' }`, but the COMPONENT still read
+ * `loaderData.kind` / `loaderData.week` and could throw if the payload was
+ * `undefined`/`null`/partial/errored).
+ *
+ * After "Build my week" the freshly-created plan/household can race the read, so
+ * the planner/week server fns transiently 500. Rather than crash into the global
+ * error boundary ("something went wrong") and recover on a refetch, we classify
+ * the payload here and let the component render a calm "setting up your week"
+ * state instead:
+ *  - `'empty'`: a genuine empty week (a past week never planned, or a future week
+ *    not yet generated), OR a degraded/partial/undefined payload we can't render
+ *    as a week, both land on the empty/loading shell with a real `offset`;
+ *  - `'week'`: a usable WeekView we can render in full.
+ *
+ * Pure + client-safe (no server import) so it's unit-testable and shared by the
+ * loader + the component without re-deriving the branch logic.
+ */
+export type WeekRenderState =
+  | { kind: 'empty'; offset: number }
+  | { kind: 'week'; offset: number }
+
+export function resolveWeekRender(loaderData: unknown): WeekRenderState {
+  // A missing / non-object payload (a transient 500 that slipped past the loader
+  // guards, an aborted fetch): render the empty shell for this week, never throw
+  // on `loaderData.kind`.
+  if (typeof loaderData !== 'object' || loaderData === null) {
+    return { kind: 'empty', offset: 0 }
+  }
+  const data = loaderData as Record<string, unknown>
+  const offset = typeof data.offset === 'number' ? data.offset : 0
+  // A `kind: 'week'` payload is only renderable as a week if its `week` is a
+  // usable WeekView; a partial/errored week falls back to the empty shell.
+  if (data.kind === 'week' && isWeekView(data.week)) {
+    return { kind: 'week', offset }
+  }
+  // Everything else (an explicit empty, a partial week, an unknown kind) renders
+  // the empty shell.
+  return { kind: 'empty', offset }
+}
