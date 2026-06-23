@@ -8,6 +8,7 @@ import {
 } from '#/lib/otp-error'
 import { promptForNotifications } from '#/lib/push-client'
 import { confirmSession } from '#/lib/confirm-session'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 
@@ -128,6 +129,10 @@ export function EmailStep({
       }
       return setError(verifyErrorMessage(reason, signErr))
     }
+    // OTP verified at the end of onboarding: the account is created + signed in.
+    // Same funnel event as the advertised /sign-in, tagged by source so the two
+    // login entries stay distinguishable.
+    track(FUNNEL_EVENTS.userLoggedIn, { source: 'onboarding' })
     // #414: onVerified() hands off to the parent, which immediately calls the
     // completeOnboarding server fn that READS the session cookie. The verify fetch
     // resolves before the browser commits that Set-Cookie, so on iOS Safari the

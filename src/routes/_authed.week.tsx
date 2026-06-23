@@ -794,6 +794,10 @@ function LoadedWeek({
     setChanges([])
     try {
       await addWeekToShoppingList({ data: { planId: week.planId } })
+      // The week's ingredients landed on the shopping list: the bridge from
+      // planning into the cart funnel. Source separates this bulk add from the
+      // manual single-item add on the Shopping tab.
+      track(FUNNEL_EVENTS.addedToCart, { source: 'week' })
       // Await the navigation so the Shopping loader re-runs (and re-reads the
       // rows we just persisted) before we drop the busy state. Without the
       // await the button could re-enable on a half-finished transition; with
@@ -912,7 +916,12 @@ function LoadedWeek({
     for (const day of dayKeys.split('|')) {
       if (!day) continue
       map.set(day, {
-        onEdit: () => setRecipeDay(day),
+        onEdit: () => {
+          // The recipe detail sheet opened for a day: an engagement rung between
+          // building the week and editing/ordering it.
+          track(FUNNEL_EVENTS.recipeOpened, { day })
+          setRecipeDay(day)
+        },
         onAdd: () => void startAdd(day),
         onSwap: () => startSwap(day),
         // The swipe-deck landed on a pre-ranked alternative: persist it through

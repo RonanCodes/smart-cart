@@ -78,9 +78,12 @@ export function FloatingOrderBar({
     setError(false)
     setTipError(null)
     setLink(null)
-    // Cart opened: the user tapped "Order at <store>" to build the basket link.
-    track(FUNNEL_EVENTS.cartOpened, { store, productCount })
+    // The user tapped "Order at <store>": the order intent, top of the checkout
+    // rung. The basket link build kicks off in the background below.
+    track(FUNNEL_EVENTS.orderClicked, { store, productCount })
     // Show the tip sheet first, on this gesture, so it appears with no wait.
+    // Opening it is its own funnel step (how many who tap Order see the tip ask).
+    track(FUNNEL_EVENTS.tipDialogOpened, { store, productCount })
     setTipOpen(true)
     const live = {
       items: compareLines.map((l) => ({ name: l.name, amount: l.amount })),
@@ -112,19 +115,32 @@ export function FloatingOrderBar({
   }
 
   function openCart(resolved: CartLinkResult) {
-    openStoreCart(resolved)
-    // Order placed (Souso's no-auto-buy model): the store's ready-to-order
-    // basket opened. The user checks out themselves — this is the conversion.
-    track(FUNNEL_EVENTS.orderPlaced, {
+    // Capture BEFORE the outbound nav so the event is recorded even though
+    // open-store-cart.ts redirects the tab away (it stays untouched, owned).
+    // The store's ready-to-order basket opened (Souso's no-auto-buy model): the
+    // user checks out themselves, so this is the conversion.
+    track(FUNNEL_EVENTS.ahCartOpened, {
       store,
       matched: resolved.matched,
       total: resolved.total,
     })
+    openStoreCart(resolved)
   }
 
   async function confirmTip(percent: number) {
     setTipBusy(true)
     setTipError(null)
+    // The user committed a tip choice from the dialog. `amount` is the euro value
+    // (0 for no-tip), `tipped` the boolean so we can split the conversion by
+    // whether money was added. Floor mirrors TipSheet's FEE_FLOOR.
+    const tipAmount =
+      percent > 0 ? Math.max((percent / 100) * basketTotal, 0.5) : 0
+    track(FUNNEL_EVENTS.tipSelected, {
+      store,
+      percent,
+      amount: Number(tipAmount.toFixed(2)),
+      tipped: percent > 0,
+    })
     try {
       // The background build (#440) is usually done by the time the user picks a
       // tip. If it already resolved, open synchronously inside this click so the
@@ -154,7 +170,6 @@ export function FloatingOrderBar({
       })
       log.info('tip.confirmed', { percent, store, tipped: !!res.checkoutUrl })
       if (res.checkoutUrl) {
-        track(FUNNEL_EVENTS.checkoutStarted, { store, percent })
         stashPendingCart(res.tipPaymentId, resolved)
         window.location.href = res.checkoutUrl
       } else {

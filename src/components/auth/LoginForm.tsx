@@ -11,6 +11,7 @@ import {
 } from '#/lib/otp-error'
 import { promptForNotifications } from '#/lib/push-client'
 import { confirmSession } from '#/lib/confirm-session'
+import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import {
@@ -122,6 +123,9 @@ export function LoginForm() {
       }
       return setError(verifyErrorMessage(reason, signErr))
     }
+    // OTP verified: the conversion moment for the sign-in funnel. Source tells the
+    // two login entries apart (this advertised /sign-in vs onboarding's email-last).
+    track(FUNNEL_EVENTS.userLoggedIn, { source: 'sign_in' })
     // #414: confirm the session cookie is committed BEFORE the guarded hard
     // navigation, so iOS Safari can't race the Set-Cookie and bounce us back to
     // sign-in. confirmSession never throws and times out so we never hang.

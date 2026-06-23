@@ -22,17 +22,45 @@ import { getClientTraceId } from './trace'
  * referenced by the camelCase key everywhere else.
  */
 export const FUNNEL_EVENTS = {
+  // Auth
+  userLoggedIn: 'user_logged_in',
+  // Onboarding lifecycle
   onboardingStarted: 'onboarding_started',
+  onboardingCompleted: 'onboarding_completed',
+  onboardingRestarted: 'onboarding_restarted',
   onboardingStepCompleted: 'onboarding_step_completed',
   emailSubmitted: 'email_submitted',
+  voiceOnboardingStarted: 'voice_onboarding_started',
+  // Planning
   weekBuilt: 'week_built',
   recipeSwapped: 'recipe_swapped',
-  cartOpened: 'cart_opened',
-  checkoutStarted: 'checkout_started',
-  orderPlaced: 'order_placed',
+  recipeOpened: 'recipe_opened',
+  // Cart + list
+  addedToCart: 'added_to_cart',
+  cartUpdated: 'cart_updated',
+  storeSelected: 'store_selected',
+  // Order + tip
+  orderClicked: 'order_clicked',
+  tipDialogOpened: 'tip_dialog_opened',
+  tipSelected: 'tip_selected',
+  ahCartOpened: 'ah_cart_opened',
 } as const
 
 export type FunnelEvent = (typeof FUNNEL_EVENTS)[keyof typeof FUNNEL_EVENTS]
+
+/**
+ * The shapes of a `cart_updated` event. Each manual edit on the shopping list
+ * carries one of these as its `action` prop so the single funnel event can be
+ * split by what the user actually did (tick a row in/out, edit its amount,
+ * remove it, or the two bulk actions).
+ */
+export type CartUpdateAction =
+  | 'select'
+  | 'deselect'
+  | 'select_all'
+  | 'edit_qty'
+  | 'remove'
+  | 'clear_all'
 
 /**
  * Keys we NEVER send to PostHog: direct PII. Sentry still carries the user

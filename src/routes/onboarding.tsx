@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createServerFn } from '@tanstack/react-start'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -62,6 +62,15 @@ function Onboarding() {
     initialData: loaderData,
   })
 
+  // An already-onboarded visitor re-entering /onboarding is a deliberate redo
+  // (the "Redo onboarding" path), not a first run. Mark it once so the funnel can
+  // separate re-onboards from genuine new sign-ups. onboarding_started still fires
+  // from the flow mount; this is the extra signal that it was a re-entry.
+  const reonboard = entry.signedIn && entry.onboarded
+  useEffect(() => {
+    if (reonboard) track(FUNNEL_EVENTS.onboardingRestarted, {})
+  }, [reonboard])
+
   async function handleComplete(draft: OnboardingDraft) {
     setError(null)
     try {
@@ -69,6 +78,13 @@ function Onboarding() {
       // had a session; a signed-out visitor just verified their OTP, which set
       // the session cookie. So completeOnboarding's getSessionUser resolves.
       const { planId } = await completeOnboarding({ data: { draft } })
+      // Onboarding crossed the finish line: the form is persisted + the first week
+      // built. `reonboard` separates a genuine first completion from a redo.
+      track(FUNNEL_EVENTS.onboardingCompleted, {
+        reonboard,
+        householdSize: (draft.adults || 0) + (draft.children || 0),
+        store: draft.store,
+      })
       // First week built from onboarding: the activation moment. Non-PII props.
       track(FUNNEL_EVENTS.weekBuilt, {
         source: 'onboarding',
