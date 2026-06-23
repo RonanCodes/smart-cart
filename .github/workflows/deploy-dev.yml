@@ -1,0 +1,45 @@
+name: Deploy dev
+# CD only, dev environment. Merges to `develop` auto-deploy to dev.souso.app
+# (the `dev` named environment in wrangler.jsonc) while deploy.yml keeps
+# deploying main to souso.app. No remote CI: the pre-push hook runs the full
+# quality gate locally, so running it again here would just burn Actions minutes.
+on:
+  push:
+    branches: [develop]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.ralph/**'
+      - '.nightshift/**'
+      - '.completion-reports/**'
+  workflow_dispatch:
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Workers (dev)
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Apply only new D1 migrations to the dev database. wrangler tracks applied
+      # ones in the d1_migrations table. Never a per-file execute loop (rate limits).
+      - name: Apply D1 migrations (dev)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations apply smart_cart_db_dev --remote --env dev
+      - name: Deploy worker (dev)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env dev
