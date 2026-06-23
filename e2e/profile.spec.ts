@@ -169,12 +169,17 @@ test.describe('profile / settings', () => {
     // Each weekday button carries an explicit aria-label "<Day>: cooking|skipped".
     const monBtn = skipSheet.getByRole('button', { name: /^Mon:/ })
     const wedBtn = skipSheet.getByRole('button', { name: /^Wed:/ })
-    if ((await monBtn.getAttribute('aria-label'))?.endsWith('cooking')) {
-      await monBtn.click()
+    // "Save my days" stays disabled until selection is non-null. When Souso has
+    // already inferred Mon/Wed as skip days the row shows them skipped but
+    // selection is still null — toggle each day to an explicit manual override.
+    for (const btn of [monBtn, wedBtn]) {
+      if ((await btn.getAttribute('aria-label'))?.endsWith('skipped')) {
+        await btn.click()
+      }
+      await btn.click()
+      await expect(btn).toHaveAttribute('aria-label', /: skipped$/)
     }
-    if ((await wedBtn.getAttribute('aria-label'))?.endsWith('cooking')) {
-      await wedBtn.click()
-    }
+    await expect(page.getByTestId('skip-days-save')).toBeEnabled()
     await page.getByTestId('skip-days-save').click()
     await expect(skipSheet).toBeHidden()
     // The row's trailing value now lists the chosen days.

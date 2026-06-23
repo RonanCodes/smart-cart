@@ -76,6 +76,11 @@ jobs:
       - name: Apply local D1 migrations
         run: pnpm db:migrate:local
 
+      # Recipes + store products (and committed embeddings) are not in migrations;
+      # without seed, week generation and cart merge assertions have nothing to plan.
+      - name: Seed local D1 catalogue
+        run: pnpm seed --local
+
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
