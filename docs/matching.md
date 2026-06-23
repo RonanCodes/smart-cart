@@ -113,6 +113,18 @@ The only thing that genuinely goes stale is the checkjebon price snapshot. For n
 committed snapshot; the longer-term shape is a periodic sync job (cron Worker re-seeds it),
 not a different database engine.
 
+## Cart correctness gates (#363)
+
+Three invariants lock cart → Albert Heijn correctness in `pnpm quality`:
+
+1. **Ingredients ↔ recipes** — `src/lib/shopping/consolidate.test.ts`
+2. **Grams + pack counts** — `consolidate.test.ts` + `src/lib/pricing/basket.test.ts`
+3. **AH URL faithfulness** — `src/lib/cart-build.test.ts`
+
+`src/lib/cart-invariants.test.ts` wires (1)+(2)+(3) through the week → consolidate →
+`packsForAmount` → URL path. Wrong-type matches (chilli flakes ≠ Doritos, etc.) are
+gated by `pnpm eval` golden cases with `rejectAny` filters in `scripts/eval.ts`.
+
 ## Note on offline analysis
 
 The runtime ingredient-to-product matcher lives in `src/lib/pricing/`. Any Python notebook
