@@ -44,7 +44,11 @@ import { clearDayInPlan } from '#/lib/week-clear-server'
 import { addMealAlternatives } from '#/lib/add-meal-server'
 import type { SimilarSort } from '#/lib/vectors/similar'
 import type { SimilarNeighbour } from '#/components/week/SimilarSwap'
-import { addWeekToShoppingList } from '#/lib/shopping-list-server'
+import {
+  addWeekToShoppingList,
+  countMissingFromWeek,
+} from '#/lib/shopping-list-server'
+import { missingFromListForPlan } from '#/lib/week-missing-cta'
 import { addToListCta } from '#/lib/shopping'
 import { submitMealFeedback } from '#/lib/meal-feedback-server'
 import type { MealFeedbackState } from '#/lib/meal-feedback-server'
@@ -224,7 +228,7 @@ function WeekPage() {
     <LoadedWeek
       initial={loaderData.week}
       initialFeedback={loaderData.feedback}
-      missingFromList={loaderData.missingFromList}
+      initialMissingFromList={loaderData.missingFromList}
       offset={render.offset}
     />
   )
@@ -395,17 +399,28 @@ function swapDeckFor(day: WeekDayView): Array<WeekDayView> {
 function LoadedWeek({
   initial,
   initialFeedback,
-  missingFromList,
+  initialMissingFromList,
   offset,
 }: {
   initial: WeekView
   initialFeedback: Array<MealFeedbackState>
-  missingFromList: number
+  initialMissingFromList: number
   offset: number
 }) {
   const navigate = useNavigate()
   const router = useRouter()
   const [week, setWeek] = useState<WeekView>(initial)
+  /** Loader seed; refreshed after in-place swaps/replans without invalidating the route. */
+  const [missingFromList, setMissingFromList] = useState(initialMissingFromList)
+  useEffect(() => {
+    setMissingFromList(initialMissingFromList)
+  }, [initialMissingFromList])
+  const refreshMissingFromList = useCallback(async (planId: string) => {
+    const next = await missingFromListForPlan(planId, (id) =>
+      countMissingFromWeek({ data: { planId: id } }),
+    )
+    setMissingFromList(next)
+  }, [])
   const [busyDay, setBusyDay] = useState<string | null>(null)
   const [voiceLive, setVoiceLive] = useState(false)
   const [replanning, setReplanning] = useState(false)
@@ -617,15 +632,21 @@ function LoadedWeek({
   // reading mutable state from refs) so DayCard's `React.memo` actually holds: a
   // card that doesn't re-render keeps the same callback references and never goes
   // stale (#replan-ux).
-  const adopt = useCallback((planId: string, next: WeekView) => {
-    // Identity-preserving merge (#replan-ux): keep the SAME object reference for
-    // every day whose rendered fields didn't change, so memoised DayCards for
-    // unchanged days skip rendering and the grid stays rock-steady. A naive
-    // `setWeek(next)` swapped the whole week object, handing all seven cards new
-    // props and letting a single-day swap jitter its siblings.
-    setWeek((prev) => mergeWeekPreservingIdentity(prev, next))
-    replaceUrlSilently(weekPlanUrl(planId))
-  }, [])
+  const adopt = useCallback(
+    (planId: string, next: WeekView) => {
+      // Identity-preserving merge (#replan-ux): keep the SAME object reference for
+      // every day whose rendered fields didn't change, so memoised DayCards for
+      // unchanged days skip rendering and the grid stays rock-steady. A naive
+      // `setWeek(next)` swapped the whole week object, handing all seven cards new
+      // props and letting a single-day swap jitter its siblings.
+      setWeek((prev) => mergeWeekPreservingIdentity(prev, next))
+      replaceUrlSilently(weekPlanUrl(planId))
+      // Recompute the shopping-list CTA without router.invalidate() — a full
+      // loader re-run flashes the page skeleton on every swap (#week-swap-skeleton).
+      void refreshMissingFromList(planId)
+    },
+    [refreshMissingFromList],
+  )
 
   /**
    * Load the nearest-neighbour swaps for a day's current dinner (#31), re-ranked
@@ -794,6 +815,7 @@ function LoadedWeek({
     setChanges([])
     try {
       await addWeekToShoppingList({ data: { planId: week.planId } })
+      await refreshMissingFromList(week.planId)
       // The week's ingredients landed on the shopping list: the bridge from
       // planning into the cart funnel. Source separates this bulk add from the
       // manual single-item add on the Shopping tab.
