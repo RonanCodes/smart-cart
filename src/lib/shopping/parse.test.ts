@@ -27,6 +27,8 @@ describe('parseQty', () => {
     expect(parseQty('1 - 3').value).toBe(3)
     expect(parseQty('1 to 2').value).toBe(2)
     expect(parseQty('2-1').value).toBe(2)
+    expect(parseQty('1/2 - 2').value).toBe(2)
+    expect(parseQty('1 1/2 - 2').value).toBe(2)
   })
 
   it('returns null with no note for an empty quantity', () => {
@@ -66,10 +68,18 @@ describe('splitQtyAndUnit', () => {
   })
 
   it('keeps a range head whole and splits the unit', () => {
-    expect(splitQtyAndUnit('1-2 el')).toEqual({ qty: '1-2', unit: 'el' })
+    expect(splitQtyAndUnit('1-2 el')).toEqual({ qty: '1 - 2', unit: 'el' })
     expect(splitQtyAndUnit('1 to 2 cloves')).toEqual({
-      qty: '1 to 2',
+      qty: '1 - 2',
       unit: 'cloves',
+    })
+    expect(splitQtyAndUnit('1/2 - 2')).toEqual({
+      qty: '1/2 - 2',
+      unit: undefined,
+    })
+    expect(splitQtyAndUnit('1/2 - 2 tsp')).toEqual({
+      qty: '1/2 - 2',
+      unit: 'tsp',
     })
   })
 

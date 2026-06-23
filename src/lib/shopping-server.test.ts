@@ -104,7 +104,8 @@ describe('deriveShoppingView', () => {
     })
     expect(list.targetServings).toBe(2.5)
     const carrot = list.lines.find((l) => l.name === 'Carrot')
-    expect(carrot?.totalQty).toBe(2.5)
+    expect(carrot?.totalQty).toBe(3)
+    expect(carrot?.displayAmount).toBe('3')
   })
 
   it('surfaces only multi-meal ingredients as shared', () => {
