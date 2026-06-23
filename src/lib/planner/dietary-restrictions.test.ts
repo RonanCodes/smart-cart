@@ -145,19 +145,16 @@ describe('no-fish exclusion excludes fish recipes (dislike / exclusion field)', 
   })
 
   /**
-   * GAP (Nic follow-up): in the Dutch-first catalogue, fish appears as 'zalm'
-   * (salmon), 'tonijn' (tuna), 'kabeljauw' (cod), 'vis' (the generic NL word) —
-   * none of which contains the substring "fish". `expandExclusionSynonyms('fish')`
-   * returns only ['fish'] because dislike-synonyms.ts has NO generic fish/vis
-   * group (it has salmon/zalm, tuna/tonijn, anchovy/ansjovis, shellfish, but the
-   * "Fish" chip itself maps to nothing in NL). So a household that picked the
-   * "Fish" avoid-chip still gets salmon/tuna/cod dinners.
+   * In the Dutch-first catalogue, fish appears as 'zalm' (salmon), 'tonijn' (tuna),
+   * 'kabeljauw' (cod), 'vis' (the generic NL word), none of which contains the
+   * substring "fish". The fix (#496) adds a generic-fish fan-out in
+   * dislike-synonyms.ts so `expandExclusionSynonyms('fish')` (and 'vis') expands to
+   * every common finfish spelling: a household that picked the "Fish" avoid-chip
+   * no longer gets salmon/tuna/cod dinners.
    *
-   * This is the REQUIRED behaviour, expressed as an EXPECTED-FAIL so it documents
-   * the safety gap without breaking the gate for everyone. When the fish/vis group
-   * (mapping 'fish' -> ['fish','vis','zalm','tonijn','kabeljauw',...]) is added,
-   * this test will start PASSING and `it.fails` will then flag it so the marker is
-   * removed. Hand to Nic (owns the diet/exclusion filter + dislike-synonyms groups).
+   * These were `it.fails(...)` documenting the safety gap; with the generic-fish
+   * group in place they now assert the required behaviour and pass. The long-term
+   * fix is embedding-based exclusion (ADR-0004) instead of a hand-curated list.
    */
   function catalogueWithDutchFish(): Array<PlannerRecipe> {
     return [
@@ -176,26 +173,20 @@ describe('no-fish exclusion excludes fish recipes (dislike / exclusion field)', 
 
   const DUTCH_FISH_IDS = new Set(['zalm', 'tonijn', 'kabeljauw', 'vis-generic'])
 
-  it.fails(
-    'GAP: a "no fish" household must not get Dutch-named fish (zalm/tonijn/kabeljauw/vis) — currently leaks',
-    () => {
-      const filtered = hardFilter(catalogueWithDutchFish(), profile)
-      const survivingFish = filtered.filter((r) => DUTCH_FISH_IDS.has(r.id))
-      // REQUIRED: zero Dutch-named fish dinners survive a "no fish" exclusion.
-      expect(survivingFish).toEqual([])
-    },
-  )
+  it('a "no fish" household must not get Dutch-named fish (zalm/tonijn/kabeljauw/vis)', () => {
+    const filtered = hardFilter(catalogueWithDutchFish(), profile)
+    const survivingFish = filtered.filter((r) => DUTCH_FISH_IDS.has(r.id))
+    // REQUIRED: zero Dutch-named fish dinners survive a "no fish" exclusion.
+    expect(survivingFish).toEqual([])
+  })
 
-  it.fails(
-    'GAP: the generated week for a "no fish" household must contain ZERO fish dinners — currently leaks',
-    () => {
-      const recipes = catalogueWithDutchFish()
-      const week = generateWeek(recipes, profile, [])
-      for (const d of week.days) {
-        if (!d.recipeRef) continue
-        // REQUIRED: no Dutch-named fish dinner is ever placed in the week.
-        expect(DUTCH_FISH_IDS.has(d.recipeRef)).toBe(false)
-      }
-    },
-  )
+  it('the generated week for a "no fish" household must contain ZERO fish dinners', () => {
+    const recipes = catalogueWithDutchFish()
+    const week = generateWeek(recipes, profile, [])
+    for (const d of week.days) {
+      if (!d.recipeRef) continue
+      // REQUIRED: no Dutch-named fish dinner is ever placed in the week.
+      expect(DUTCH_FISH_IDS.has(d.recipeRef)).toBe(false)
+    }
+  })
 })
