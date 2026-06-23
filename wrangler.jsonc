@@ -35,6 +35,15 @@
   // CRITICAL: Cloudflare named environments do NOT inherit top-level config, so
   // every binding/var/setting is REDECLARED below. Keep this block in sync with
   // the top-level prod config above whenever a binding is added or changed.
+  //
+  // DEPLOY GOTCHA (do NOT `wrangler deploy --env dev`): the @cloudflare/vite-plugin
+  // build emits a FLATTENED dist/server/wrangler.json (a single environment, the
+  // `env` block is dropped) plus a .wrangler/deploy/config.json redirect, and
+  // `wrangler deploy` reads that redirected file. `--env dev` against the
+  // redirected file finds no `dev` env and silently falls back to the flattened
+  // TOP-LEVEL (prod) config — it deploys PROD. To deploy dev, FIRST build with
+  // `CLOUDFLARE_ENV=dev pnpm build` (the plugin then flattens THIS block), then
+  // `wrangler deploy` with NO `--env` flag.
   "env": {
     "dev": {
       "name": "smart-cart-dev",

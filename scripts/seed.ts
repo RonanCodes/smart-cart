@@ -5,6 +5,10 @@
  *   pnpm seed --local      # same, explicit
  *   pnpm seed --remote     # seed the REMOTE D1 (deploy-time only; CF rate limits)
  *
+ * Target a non-default D1 with D1_DB_NAME (e.g. the dev environment's database):
+ *
+ *   D1_DB_NAME=smart_cart_db_dev pnpm seed --remote
+ *
  * Seeds BOTH halves of the catalogue so a fresh clone, CI, and prod all hold the
  * same data:
  *
@@ -75,6 +79,13 @@ function chunk<T>(items: Array<T>, size: number): Array<Array<T>> {
   return out
 }
 
+/**
+ * D1 database to seed. Defaults to the prod database name; override with
+ * `D1_DB_NAME=smart_cart_db_dev pnpm seed --remote` to seed the dev D1 (so a
+ * freshly stood-up dev environment can be populated from the same data).
+ */
+const DB_NAME = process.env.D1_DB_NAME ?? 'smart_cart_db'
+
 function applyBatch(sql: string, local: boolean, tmp: string): void {
   const file = join(tmp, 'batch.sql')
   writeFileSync(file, sql)
@@ -85,7 +96,7 @@ function applyBatch(sql: string, local: boolean, tmp: string): void {
       'wrangler',
       'd1',
       'execute',
-      'smart_cart_db',
+      DB_NAME,
       local ? '--local' : '--remote',
       `--file=${file}`,
     ],
