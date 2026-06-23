@@ -1,13 +1,6 @@
-import {
-  Check,
-  Salad,
-  PiggyBank,
-  ChefHat,
-  ShoppingCart,
-  Sprout,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { cn } from '#/lib/utils'
+import { GOAL_OPTIONS } from '#/lib/onboarding/goals'
 import { useOnboardingForm } from '../form-state'
 
 /**
@@ -24,20 +17,6 @@ import { useOnboardingForm } from '../form-state'
  *
  * Mobile first at 390px: full-width rows, generous height, thumb-friendly.
  */
-
-interface GoalOption {
-  /** The label stored in draft.goals verbatim. */
-  label: string
-  icon: LucideIcon
-}
-
-const OPTIONS: ReadonlyArray<GoalOption> = [
-  { label: 'Eat a more balanced diet', icon: Salad },
-  { label: 'Pay less for my groceries', icon: PiggyBank },
-  { label: 'Cook and discover new recipes', icon: ChefHat },
-  { label: 'Avoid unnecessary purchases', icon: ShoppingCart },
-  { label: 'Eat less meat', icon: Sprout },
-]
 
 export function GoalsStep() {
   const { draft, patch } = useOnboardingForm()
@@ -63,7 +42,7 @@ export function GoalsStep() {
         role="group"
         aria-label="Your goals"
       >
-        {OPTIONS.map(({ label, icon: Icon }) => {
+        {GOAL_OPTIONS.map(({ label, icon: Icon }) => {
           const isOn = selected.includes(label)
           return (
             <button
