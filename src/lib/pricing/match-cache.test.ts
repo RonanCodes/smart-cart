@@ -1,5 +1,30 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { __clearMemoryCache, resolveLinesForStoreCached } from './match-cache'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  __clearMemoryCache,
+  __setMemoryCacheForTest,
+  matchCacheKey,
+  resolveLinesForStoreCached,
+} from './match-cache'
+import { resolveLinesForStoreAccurate } from './resolve-lines'
+import type { CartLineToResolve } from './resolve-lines'
+import type { IngredientMatch } from './types'
+
+vi.mock('./resolve-lines', () => ({
+  resolveLinesForStoreAccurate: vi.fn(
+    async (lines: ReadonlyArray<CartLineToResolve>, store) =>
+      lines.map((l) => ({
+        name: l.name,
+        match: {
+          store,
+          product: null,
+          priceCents: null,
+          confidence: 'none' as const,
+          estimated: true,
+          score: 0,
+        },
+      })),
+  ),
+}))
 
 /**
  * The cache is a read-through optimisation in front of resolveLinesForStoreAccurate.
@@ -11,7 +36,10 @@ import { __clearMemoryCache, resolveLinesForStoreCached } from './match-cache'
  * absent. (The accurate resolve itself is covered by resolve-lines / match-semantic.)
  */
 describe('resolveLinesForStoreCached', () => {
-  afterEach(() => __clearMemoryCache())
+  afterEach(() => {
+    __clearMemoryCache()
+    vi.mocked(resolveLinesForStoreAccurate).mockReset()
+  })
 
   it('returns one result per input line, in order', async () => {
     const lines = [
@@ -34,5 +62,50 @@ describe('resolveLinesForStoreCached', () => {
     expect(out).toHaveLength(1)
     expect(out[0]!.match.product).toBeNull()
     expect(out[0]!.match.confidence).toBe('none')
+  })
+
+  it('keys cache entries by amount so a name-only negative does not block', async () => {
+    expect(matchCacheKey('ah', 'spaghetti', '1100 g')).toBe(
+      'ah:spaghetti:1100 g',
+    )
+    expect(matchCacheKey('ah', 'spaghetti', null)).toBe('ah:spaghetti')
+
+    __setMemoryCacheForTest('ah:spaghetti', {
+      slug: null,
+      confidence: 'none',
+    })
+
+    const freshMatch: IngredientMatch = {
+      store: 'ah',
+      product: {
+        store: 'ah',
+        name: 'AH Spaghetti vlugkokend',
+        normalisedName: 'ah spaghetti vlugkokend',
+        priceCents: 99,
+        slug: 'wi543649/ah-spaghetti-vlugkokend',
+        size: {
+          raw: '500 g',
+          quantity: 500,
+          unit: 'g',
+          dimension: 'mass',
+          approx: false,
+        },
+      },
+      priceCents: 99,
+      confidence: 'high',
+      estimated: false,
+      score: 1,
+    }
+    vi.mocked(resolveLinesForStoreAccurate).mockResolvedValue([
+      { name: 'spaghetti', match: freshMatch },
+    ])
+
+    const out = await resolveLinesForStoreCached(
+      [{ name: 'spaghetti', amount: '1100 g' }],
+      'ah',
+    )
+
+    expect(resolveLinesForStoreAccurate).toHaveBeenCalledOnce()
+    expect(out[0]!.match.product?.slug).toBe('wi543649/ah-spaghetti-vlugkokend')
   })
 })

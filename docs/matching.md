@@ -60,7 +60,9 @@ that D1 (see "Where the data lives").
   - **Cart and price paths:** a very strong, clearly separated cosine winner is accepted
     directly. Ambiguous top-K candidates go through a `generateObject` rerank, which
     picks the right SKU or declines. Price comparison uses the same path through
-    `match_cache` so repeated store/name resolutions do not keep paying the model cost.
+    `match_cache` so repeated store/name (+ amount when present) resolutions do
+    not keep paying the model cost. A cached negative for one amount must not
+    block another — keys include the normalised amount when the line carries one.
   - **No weak cosine-only product truth:** ordinary/high-ish embedding neighbours are
     candidates, not final matches; they must clear the stricter fast-path threshold or
     go to rerank.

@@ -67,13 +67,15 @@ test.describe('onboarding (deep coverage)', () => {
     await page.goto('/onboarding')
     await startOnboarding(page)
 
-    // Adults floor at 1: the first stepped screen starts with one adult and the
-    // "Remove one adult" control is disabled, so a household always has a cook.
-    const removeAdult = page.getByRole('button', { name: 'Remove one adult' })
+    // Adults floor at 1: the draft defaults to 2 adults, so remove is live until
+    // one tap reaches the floor; then "Remove one adults" disables.
+    const removeAdult = page.getByRole('button', { name: 'Remove one adults' })
+    await expect(removeAdult).toBeEnabled()
+    await removeAdult.click()
     await expect(removeAdult).toBeDisabled()
 
     // Adding adults enables the remove control again.
-    await page.getByRole('button', { name: 'Add one adult' }).click()
+    await page.getByRole('button', { name: 'Add one adults' }).click()
     await expect(removeAdult).toBeEnabled()
 
     // No children yet: the age inputs block is hidden until a child is added.

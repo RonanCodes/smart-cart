@@ -58,8 +58,15 @@ vi.mock('#/components/shopping/FloatingOrderBar', () => ({
   FloatingOrderBar: () => <div />,
 }))
 vi.mock('#/lib/use-price-comparison', () => ({
-  usePriceComparison: () => ({ data: null, loading: false }),
+  usePriceComparison: () => ({
+    data: null,
+    loading: false,
+    failed: false,
+    storePendingLineKeys: {},
+  }),
   priceMapForStore: () => new Map(),
+  lineKey: (l: { name: string; amount?: string | null }) =>
+    `${l.name}|${l.amount ?? ''}`,
 }))
 
 // eslint-disable-next-line import/first -- must import after the vi.mock calls above

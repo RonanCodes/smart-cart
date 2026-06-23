@@ -171,10 +171,11 @@ test.describe('week', () => {
       timeout: 30_000,
     })
     const generate = page.getByRole('button', { name: 'Generate next week' })
-    await expect(generate).toBeVisible({ timeout: 30_000 })
-    await generate.click()
+    if (await generate.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await generate.click()
+    }
 
-    // Next week is now built: heading + a Monday row on the next-week label.
+    // Next week is built (freshly or from a prior run): heading + a Monday row.
     await expect(page.getByRole('heading', { name: 'Your week' })).toBeVisible()
     await expect(page.getByTestId('week-label')).toHaveText('Next week')
     await expect(page.locator('#day-Monday')).toBeVisible({ timeout: 30_000 })
@@ -207,7 +208,7 @@ test.describe('week', () => {
     await expect(sheet).toBeVisible()
     // The sheet offers the swap + remove actions for this day.
     await expect(
-      page.getByRole('button', { name: 'Swap this dinner' }),
+      sheet.getByRole('button', { name: 'Swap this dinner' }),
     ).toBeVisible()
 
     // Close via Escape (the Sheet's keyboard dismiss); the dialog goes away.
@@ -227,8 +228,9 @@ test.describe('week', () => {
     const meal = openLabel.replace(/^Open \w+:\s*/, '').trim()
 
     await dish.click()
-    await expect(page.getByRole('dialog', { name: meal })).toBeVisible()
-    await page.getByRole('button', { name: 'Swap this dinner' }).click()
+    const sheet = page.getByRole('dialog', { name: meal })
+    await expect(sheet).toBeVisible()
+    await sheet.getByRole('button', { name: 'Swap this dinner' }).click()
 
     const swapSheet = page.getByRole('dialog', { name: `Swap ${day}` })
     await expect(swapSheet).toBeVisible()
@@ -236,7 +238,7 @@ test.describe('week', () => {
     // Pick the first alternative card. Each card's accessible name is the
     // alternative's meal title; tapping it persists the swap (a new plan
     // revision) and the sheet closes.
-    const alternatives = swapSheet.getByRole('button')
+    const alternatives = swapSheet.locator('ul button')
     const altCount = await alternatives.count()
     if (altCount === 0) {
       // A fully-constrained seed can leave a day with no alternatives. The
@@ -248,8 +250,7 @@ test.describe('week', () => {
       return
     }
 
-    const newMeal =
-      (await alternatives.first().getAttribute('aria-label')) ?? ''
+    const newMeal = ((await alternatives.first().textContent()) ?? '').trim()
     await alternatives.first().click()
 
     // The swap committed: the sheet closes and the day's dish updated. We don't

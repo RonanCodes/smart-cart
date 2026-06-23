@@ -101,9 +101,11 @@ export function PreferencesSheet({
   const [query, setQuery] = React.useState('')
   const [status, setStatus] = React.useState<SaveStatus>('idle')
 
-  // Re-seed the draft whenever the sheet (re)opens with fresh server values.
+  // Re-seed the draft when the sheet OPENS, not on every parent `current`
+  // refresh — mid-edit profile loads would wipe in-flight toggles (#376).
+  const wasOpen = React.useRef(false)
   React.useEffect(() => {
-    if (open) {
+    if (open && !wasOpen.current) {
       setLiked(current.cuisinesLiked)
       setDisliked(current.cuisinesDisliked)
       setDislikes(current.dislikes)
@@ -111,7 +113,9 @@ export function PreferencesSheet({
       setGoals(current.goals)
       setQuery('')
       setStatus('idle')
+      baselineRef.current = serialise(current)
     }
+    wasOpen.current = open
   }, [open, current])
 
   function cuisineState(cuisine: string): CuisineState {

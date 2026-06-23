@@ -123,6 +123,182 @@ export function mergeStoreBasket(
   return { baskets, cheapest: cheapestOf(baskets) }
 }
 
+/** Re-sum totals and waste after line items were added or removed. */
+export function resummariseStoreBasket(b: StoreBasket): StoreBasket {
+  let totalCents = 0
+  let estimatedCount = 0
+  const totalWaste: StoreBasket['totalWaste'] = {
+    cents: 0,
+    massGrams: 0,
+    volumeMl: 0,
+    count: 0,
+    unknownLines: 0,
+    hasUnknown: false,
+  }
+  for (const li of b.lineItems) {
+    totalCents += li.lineCents
+    if (li.estimated) estimatedCount += 1
+    if (!li.waste) {
+      if (li.lineCents > 0) {
+        totalWaste.unknownLines += 1
+        totalWaste.hasUnknown = true
+      }
+      continue
+    }
+    totalWaste.cents += li.waste.cents
+    if (li.waste.dimension === 'mass')
+      totalWaste.massGrams += li.waste.baseQuantity
+    else if (li.waste.dimension === 'volume')
+      totalWaste.volumeMl += li.waste.baseQuantity
+    else totalWaste.count += li.waste.baseQuantity
+  }
+  totalWaste.massGrams = Math.round(totalWaste.massGrams * 100) / 100
+  totalWaste.volumeMl = Math.round(totalWaste.volumeMl * 100) / 100
+  totalWaste.count = Math.round(totalWaste.count * 100) / 100
+  return { ...b, totalCents, estimatedCount, totalWaste }
+}
+
+/** Stable key for a compare line (name + amount). Used for incremental pricing. */
+export function lineKey(line: PriceCompareLine): string {
+  return `${line.name}|${line.amount ?? ''}`
+}
+
+/**
+ * Drop priced lines that left the live cart (unchecked / removed / renamed) and
+ * recompute the cheapest. Keeps already-priced lines when the set grows (#cart-
+ * incremental-price).
+ */
+export function pruneComparison(
+  data: BasketComparison | null,
+  lines: ReadonlyArray<PriceCompareLine>,
+): BasketComparison | null {
+  if (!data) return null
+  const currentNames = new Set(lines.map((l) => l.name))
+  const baskets = data.baskets.map((b) => {
+    const lineItems = b.lineItems.filter((li) =>
+      currentNames.has(li.ingredient),
+    )
+    const unavailable = b.unavailable.filter((u) =>
+      currentNames.has(u.ingredient),
+    )
+    if (
+      lineItems.length === b.lineItems.length &&
+      unavailable.length === b.unavailable.length
+    ) {
+      return b
+    }
+    return resummariseStoreBasket({ ...b, lineItems, unavailable })
+  })
+  return { baskets, cheapest: cheapestOf(baskets) }
+}
+
+/**
+ * Lines that still need an accurate-tier price for at least one store. The
+ * priced-keys map is the source of truth so a partial in-flight run that was
+ * aborted does not skip re-pricing.
+ */
+export function linesNeedingPrice(
+  lines: ReadonlyArray<PriceCompareLine>,
+  stores: ReadonlyArray<string>,
+  pricedKeysPerStore: ReadonlyMap<string, ReadonlySet<string>>,
+): Array<PriceCompareLine> {
+  return lines.filter((line) => {
+    const key = lineKey(line)
+    return stores.some((store) => !pricedKeysPerStore.get(store)?.has(key))
+  })
+}
+
+/**
+ * Merge a freshly-priced delta basket into an existing store basket, replacing
+ * any prior line for the same ingredient (#cart-incremental-price).
+ */
+export function mergeIncrementalBasket(
+  existing: StoreBasket | undefined,
+  delta: StoreBasket,
+): StoreBasket {
+  const touched = new Set([
+    ...delta.lineItems.map((li) => li.ingredient),
+    ...delta.unavailable.map((u) => u.ingredient),
+  ])
+  const kept: StoreBasket | null = existing
+    ? {
+        ...existing,
+        lineItems: existing.lineItems.filter(
+          (li) => !touched.has(li.ingredient),
+        ),
+        unavailable: existing.unavailable.filter(
+          (u) => !touched.has(u.ingredient),
+        ),
+      }
+    : null
+  return mergeChunkBaskets(delta.store, delta.displayName, [kept, delta])!
+}
+
+/** Drop priced-key entries that no longer appear in the live line set. */
+export function prunePricedKeys(
+  pricedKeysPerStore: Map<string, Set<string>>,
+  lines: ReadonlyArray<PriceCompareLine>,
+): void {
+  const current = new Set(lines.map(lineKey))
+  for (const keys of pricedKeysPerStore.values()) {
+    for (const key of [...keys]) {
+      if (!current.has(key)) keys.delete(key)
+    }
+  }
+}
+
+/** How many lines are fully priced across every covered store. */
+export function pricedLineCount(
+  lines: ReadonlyArray<PriceCompareLine>,
+  stores: ReadonlyArray<string>,
+  pricedKeysPerStore: ReadonlyMap<string, ReadonlySet<string>>,
+): number {
+  return lines.filter((line) => {
+    const key = lineKey(line)
+    return stores.every((store) => pricedKeysPerStore.get(store)?.has(key))
+  }).length
+}
+
+/** How many lines one store has priced (matches that store's visible prices). */
+export function pricedLineCountForStore(
+  lines: ReadonlyArray<PriceCompareLine>,
+  store: string,
+  pricedKeysPerStore: ReadonlyMap<string, ReadonlySet<string>>,
+): number {
+  const keys = pricedKeysPerStore.get(store)
+  if (!keys || keys.size === 0) return 0
+  return lines.filter((line) => keys.has(lineKey(line))).length
+}
+
+/** Line keys still pending for one store. */
+export function pendingLineKeysForStore(
+  lines: ReadonlyArray<PriceCompareLine>,
+  store: string,
+  pricedKeysPerStore: ReadonlyMap<string, ReadonlySet<string>>,
+): ReadonlySet<string> {
+  const keys = pricedKeysPerStore.get(store)
+  return new Set(lines.filter((line) => !keys?.has(lineKey(line))).map(lineKey))
+}
+
+export type StorePricingProgress = { priced: number; total: number }
+
+/** Per-store priced/total counts from the priced-keys map. */
+export function buildStoreProgress(
+  lines: ReadonlyArray<PriceCompareLine>,
+  stores: ReadonlyArray<string>,
+  pricedKeysPerStore: ReadonlyMap<string, ReadonlySet<string>>,
+): Record<string, StorePricingProgress> {
+  const total = lines.length
+  const out: Record<string, StorePricingProgress> = {}
+  for (const store of stores) {
+    out[store] = {
+      priced: pricedLineCountForStore(lines, store, pricedKeysPerStore),
+      total,
+    }
+  }
+  return out
+}
+
 /**
  * Shared price-comparison fetch for the Cart screen (#cart-align), loaded
  * PROGRESSIVELY (#439).
@@ -142,41 +318,62 @@ export function mergeStoreBasket(
  * while arrived stores already show their total. `failed` is set only when every
  * store errors (a partial set is a success).
  *
- * The 4 MB catalogue stays server-side. We re-fetch only when the set of lines
- * actually changes (serialised key), reading the latest lines through a ref so a
- * fresh array each render doesn't churn.
+ * The 4 MB catalogue stays server-side. We re-fetch only the lines that are NEW
+ * or changed (serialised key), keeping already-priced rows visible (#cart-
+ * incremental-price). Each chunk merges into the running basket as it lands so
+ * per-item prices and store totals fill in progressively.
  */
 export function usePriceComparison(lines: Array<PriceCompareLine>): {
   data: BasketComparison | null
   loading: boolean
   failed: boolean
+  /** Per-store line keys still being priced. Empty sets when idle. */
+  storePendingLineKeys: Record<string, ReadonlySet<string>>
 } {
   const [data, setData] = useState<BasketComparison | null>(null)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
+  const [storePendingLineKeys, setStorePendingLineKeys] = useState<
+    Record<string, ReadonlySet<string>>
+  >({})
 
-  const key = lines.map((l) => `${l.name}|${l.amount ?? ''}`).join('\n')
+  const key = lines.map((l) => lineKey(l)).join('\n')
   const linesRef = useRef(lines)
   linesRef.current = lines
+  /** Per-store set of line keys already priced this session (#cart-incremental). */
+  const pricedKeysRef = useRef<Map<string, Set<string>>>(new Map())
+
+  const syncStorePendingLineKeys = (
+    snapshot: ReadonlyArray<PriceCompareLine>,
+    stores: ReadonlyArray<string>,
+  ) => {
+    const pending: Record<string, ReadonlySet<string>> = {}
+    for (const store of stores) {
+      pending[store] = pendingLineKeysForStore(
+        snapshot,
+        store,
+        pricedKeysRef.current,
+      )
+    }
+    setStorePendingLineKeys(pending)
+  }
 
   useEffect(() => {
-    // An AbortController is the cancel token: the cleanup aborts it so a settle
-    // that lands after the lines changed / the component unmounted is dropped.
-    // (signal.aborted is opaque to the linter, unlike a bare boolean it would
-    // wrongly narrow to "never flips" across the async IIFE.)
     const ac = new AbortController()
     const cancelled = () => ac.signal.aborted
     const snapshot = linesRef.current
+
     if (snapshot.length === 0) {
+      pricedKeysRef.current.clear()
       setData({ baskets: [], cheapest: null })
       setLoading(false)
       setFailed(false)
+      setStorePendingLineKeys({})
       return
     }
-    // Reset to a clean empty comparison so the switch shows the per-store
-    // spinners (not stale totals) while the new lines re-price.
-    setData(null)
-    setLoading(true)
+
+    prunePricedKeys(pricedKeysRef.current, snapshot)
+    setData((prev) => pruneComparison(prev, snapshot))
     setFailed(false)
 
     void (async () => {
@@ -188,6 +385,7 @@ export function usePriceComparison(lines: Array<PriceCompareLine>): {
         if (!cancelled()) {
           setFailed(true)
           setLoading(false)
+          setStorePendingLineKeys({})
         }
         return
       }
@@ -195,38 +393,32 @@ export function usePriceComparison(lines: Array<PriceCompareLine>): {
       if (stores.length === 0) {
         setData({ baskets: [], cheapest: null })
         setLoading(false)
+        setStorePendingLineKeys({})
         return
       }
 
-      // Fan out per store; merge each basket as it arrives (progressive fill).
-      // Each store's total appears the moment its own call resolves; the global
-      // `loading` stays true until every store has settled so a not-yet-arrived
-      // store keeps its spinner (CartStoreSwitch shows price-or-spinner per store).
-      // Each task returns whether it landed (true) or errored (false) so the
-      // all-failed check reads off the settled results, not a closure counter.
-      //
-      // #shopping-1101: a big cart used to send EVERY line in ONE invocation per
-      // store. The accurate matcher's per-line embedding + rerank against the
-      // in-memory ~4 MB catalogue blew the Worker isolate's 128 MB / CPU cap, so
-      // Cloudflare killed it (1101) for the whole request. We now split the lines
-      // into PRICE_COMPARE_CHUNK_SIZE chunks and fan one call PER CHUNK, so no
-      // single isolate invocation ever resolves more than the cap. A chunk that
-      // throws (or the isolate that runs it) degrades to a null partial basket
-      // instead of bubbling; the store still shows whatever its other chunks
-      // priced. The store counts as landed if ANY chunk resolved.
-      const chunks = chunkLines(snapshot, PRICE_COMPARE_CHUNK_SIZE)
+      const toPrice = linesNeedingPrice(snapshot, stores, pricedKeysRef.current)
+      if (toPrice.length === 0) {
+        setLoading(false)
+        setStorePendingLineKeys({})
+        return
+      }
+
+      syncStorePendingLineKeys(snapshot, stores)
+      setLoading(true)
+
+      const chunks = chunkLines(toPrice, PRICE_COMPARE_CHUNK_SIZE)
       const outcomes = await Promise.all(
         stores.map(async (store): Promise<boolean> => {
-          const chunkBaskets = await Promise.all(
-            chunks.map(async (chunk): Promise<StoreBasket | null> => {
+          const chunkOutcomes = await Promise.all(
+            chunks.map(async (chunk): Promise<boolean> => {
+              if (cancelled()) return false
+              let partial: StoreBasket | null
               try {
-                return await comparePriceForStore({
+                partial = await comparePriceForStore({
                   data: { store, lines: chunk },
                 })
               } catch (err) {
-                // A single chunk overran / errored: degrade THIS chunk to null so
-                // the store still totals from the chunks that did resolve. Never
-                // rethrow — a failed comparePrices must never reach a page error.
                 log.warn('price-compare chunk failed', {
                   event: 'price_compare.chunk_degraded',
                   store,
@@ -234,21 +426,35 @@ export function usePriceComparison(lines: Array<PriceCompareLine>): {
                   totalLines: snapshot.length,
                   err: String(err),
                 })
-                return null
+                return false
               }
+              if (cancelled() || partial === null) return false
+
+              let keys = pricedKeysRef.current.get(store)
+              if (!keys) {
+                keys = new Set()
+                pricedKeysRef.current.set(store, keys)
+              }
+              for (const line of chunk) keys.add(lineKey(line))
+
+              if (!cancelled()) {
+                setData((prev) => {
+                  const existing = prev?.baskets.find((b) => b.store === store)
+                  const merged = mergeIncrementalBasket(existing, partial)
+                  return mergeStoreBasket(prev, merged)
+                })
+                syncStorePendingLineKeys(snapshot, stores)
+              }
+              return true
             }),
           )
-          const basket = mergeChunkBaskets(store, store, chunkBaskets)
-          // Every chunk failed for this store: count it as not-landed so the
-          // all-failed check can surface `failed` when no store priced at all.
-          if (basket === null) return false
-          if (!cancelled()) setData((prev) => mergeStoreBasket(prev, basket))
-          return true
+          return chunkOutcomes.some(Boolean)
         }),
       )
+
       if (cancelled()) return
       setLoading(false)
-      // Every store errored: surface the failure (a partial set is a success).
+      setStorePendingLineKeys({})
       if (outcomes.every((ok) => !ok)) setFailed(true)
     })()
 
@@ -257,7 +463,7 @@ export function usePriceComparison(lines: Array<PriceCompareLine>): {
     }
   }, [key])
 
-  return { data, loading, failed }
+  return { data, loading, failed, storePendingLineKeys }
 }
 
 /**

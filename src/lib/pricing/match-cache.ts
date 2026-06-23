@@ -14,7 +14,9 @@
  * catalogue. A genuine no-match is cached too (slug null) so we do not re-pay the
  * LLM cost to rediscover that an ingredient has no plausible product.
  *
- * Two tiers, both keyed on `<store>:<normalisedName>`:
+ * Two tiers, keyed on `<store>:<normalisedName>` or, when the line carries an
+ * amount, `<store>:<normalisedName>:<normalisedAmount>` so a cached negative for
+ * one quantity does not block a different pack-rounding amount:
  *
  *  1. PERSISTENT (D1 `match_cache` table): survives Worker cold starts and is
  *     shared across users. Read-through + write-on-miss. This is the durable win.
@@ -28,7 +30,7 @@
  */
 
 import type { IngredientMatch, MatchConfidence } from './types'
-import { normaliseName } from './normalise'
+import { normaliseAmount, normaliseName } from './normalise'
 import { getCatalogue } from './catalogue'
 import type { CartLineToResolve } from './resolve-lines'
 
@@ -48,8 +50,24 @@ interface CachedResolution {
  * cheap oldest-first eviction once it grows past the cap. */
 const memory = new Map<string, CachedResolution>()
 
-function cacheKey(store: string, normalisedName: string): string {
-  return `${store}:${normalisedName}`
+function cacheKey(
+  store: string,
+  normalisedName: string,
+  amount?: string | null,
+): string {
+  const amt = normaliseAmount(amount)
+  return amt
+    ? `${store}:${normalisedName}:${amt}`
+    : `${store}:${normalisedName}`
+}
+
+/** Visible for tests: stable cache id for a line. */
+export function matchCacheKey(
+  store: string,
+  normalisedName: string,
+  amount?: string | null,
+): string {
+  return cacheKey(store, normalisedName, amount)
 }
 
 function memoryGet(key: string): CachedResolution | undefined {
@@ -70,6 +88,14 @@ function memorySet(key: string, value: CachedResolution): void {
 /** Visible for tests: empty the in-memory tier between cases. */
 export function __clearMemoryCache(): void {
   memory.clear()
+}
+
+/** Visible for tests: prime the in-memory tier. */
+export function __setMemoryCacheForTest(
+  key: string,
+  value: CachedResolution,
+): void {
+  memorySet(key, value)
 }
 
 /**
@@ -151,6 +177,7 @@ async function persistentSetMany(
   store: string,
   entries: ReadonlyArray<{
     normalisedName: string
+    amount?: string | null
     resolution: CachedResolution
   }>,
 ): Promise<void> {
@@ -162,7 +189,7 @@ async function persistentSetMany(
     const db = await getDb()
     const now = new Date()
     const rows = entries.map((e) => ({
-      id: cacheKey(store, e.normalisedName),
+      id: cacheKey(store, e.normalisedName, e.amount),
       store,
       normalisedName: e.normalisedName,
       slug: e.resolution.slug,
@@ -211,7 +238,11 @@ export async function resolveLinesForStoreCached(
   // Pre-compute the normalised name + cache key per line (in input order).
   const keyed = lines.map((line) => {
     const normalised = normaliseName(line.name)
-    return { line, normalised, key: cacheKey(store, normalised) }
+    return {
+      line,
+      normalised,
+      key: cacheKey(store, normalised, line.amount),
+    }
   })
 
   // Tier 1: in-memory. Collect what is still unknown.
@@ -247,6 +278,7 @@ export async function resolveLinesForStoreCached(
       // resolveLinesForStoreAccurate returns in input order; pair by index.
       const writes: Array<{
         normalisedName: string
+        amount?: string | null
         resolution: CachedResolution
       }> = []
       stillPending.forEach((i, j) => {
@@ -256,7 +288,11 @@ export async function resolveLinesForStoreCached(
         const cached = toCached(match)
         const k = keyed[i]!
         memorySet(k.key, cached)
-        writes.push({ normalisedName: k.normalised, resolution: cached })
+        writes.push({
+          normalisedName: k.normalised,
+          amount: k.line.amount,
+          resolution: cached,
+        })
       })
       // Write-on-miss to D1 (best-effort, fire-and-forget-safe via await).
       await persistentSetMany(store, writes)

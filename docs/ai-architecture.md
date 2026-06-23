@@ -53,10 +53,11 @@ rerank at exactly one decision point. This is the part that replaced the slop.
    ingredient text is embedded and scored by cosine against committed product
    vectors. Cosine top-K is candidate retrieval only; a `generateObject` rerank
    picks the right SKU or declines before any product is accepted. Price totals
-   use the same accurate path through `match_cache`, so repeated store/name
-   resolutions do not keep paying the model cost. Every match carries a
-   confidence flag, so estimated lines never silently inflate the "save money"
-   claim.
+   use the same accurate path through `match_cache`, keyed by store, normalised
+   name, and amount (when present), so repeated resolutions do not keep paying
+   the model cost and a stale name-only negative cannot block a different
+   quantity. Every match carries a confidence flag, so estimated lines never
+   silently inflate the "save money" claim.
 
 3. **Replan term-match (exclude and more-of).** A plain-language replan term
    ("no mushrooms", "more pasta") has to find the recipes it refers to so the
