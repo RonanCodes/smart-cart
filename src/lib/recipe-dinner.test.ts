@@ -67,6 +67,45 @@ describe('isDinnerRecipe', () => {
         category: null,
       }),
     ).toBe(false)
+    expect(
+      isDinnerRecipe({
+        title: 'Low carb kokosrepen',
+        category: null,
+      }),
+    ).toBe(false)
+    expect(
+      isDinnerRecipe({
+        title: 'Stroopwafelappeltaart met misokaramel',
+        category: null,
+      }),
+    ).toBe(false)
+    expect(
+      isDinnerRecipe({
+        title: 'Bloemkoolsalade met geroosterde oesterzwam Hugo Kennis',
+        category: 'hoofdgerecht',
+      }),
+    ).toBe(false)
+    expect(
+      isDinnerRecipe({
+        title: 'Romige zalmtartaar met coquille en limoengras',
+        category: 'hoofdgerecht',
+      }),
+    ).toBe(false)
+  })
+
+  it('drops borrel and amuse categories', () => {
+    expect(
+      isDinnerRecipe({
+        title: 'Smeuiige camembert uit de magnetron',
+        category: 'borrel',
+      }),
+    ).toBe(false)
+    expect(
+      isDinnerRecipe({
+        title: 'Gevulde guacamole-eieren',
+        category: 'amuse',
+      }),
+    ).toBe(false)
   })
 })
 

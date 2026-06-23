@@ -9,7 +9,7 @@
  *   pnpm tsx scripts/translate-recipes.ts --all        # translate ALL recipes
  *   pnpm tsx scripts/translate-recipes.ts --force      # re-translate (ignore cache)
  *
- * Scope (default): the demo set = AH/Jumbo dinner recipes WITH an imageUrl (~99), the
+ * Scope (default): the demo set = AH/Jumbo dinner recipes WITH an imageUrl (~69), the
  * ones that can surface as a card in a generated week. The other ~1500 recipes
  * (foodcom/themealdb, already English; and imageless NL recipes that never show)
  * are left untranslated; pass --all to do everything.
