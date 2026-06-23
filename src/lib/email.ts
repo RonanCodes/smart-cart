@@ -244,6 +244,53 @@ export async function sendNewUserNotice(
   return { sent: !error }
 }
 
+/** The milestone celebration email subject. The number is the running total of
+ * home cooks Souso just crossed (150, 175, 200, ...). */
+export function milestoneSubject(total: number): string {
+  return `We just hit ${total} home cooks`
+}
+
+/** The milestone celebration plain-text body, from Souso to the admins. Warm and
+ * low-key, in the brand voice: a little proud, no exclamation pile-up, no AI-tell
+ * filler, no em-dashes. The number is always in the copy. */
+export function milestoneText(total: number): string {
+  return `${total} home cooks now let Souso sort their week of dinners. That's another 25 since the last note. Thanks for getting us here. Back to the kitchen.`
+}
+
+/** The milestone celebration email body (HTML), reusing the shared shell. */
+function milestoneHtml(total: number): string {
+  return emailShell(`
+        <p style="font-size:40px;margin:0 0 8px;">🎉</p>
+        <p style="color:#1f2a1f;font-size:22px;font-weight:800;margin:0 0 8px;">${total} home cooks</p>
+        <p style="color:#5b6b5b;margin:0 0 8px;font-size:15px;line-height:1.5;">${total} home cooks now let Souso sort their week of dinners. That's another 25 since the last note.</p>
+        <p style="color:#8a988a;font-size:13px;line-height:1.5;margin:0;">Thanks for getting us here. Back to the kitchen.</p>`)
+}
+
+/**
+ * Email ONE admin a fun, on-brand celebration that Souso just crossed a
+ * user-count milestone (150, then every 25). Best-effort, same contract as the
+ * signup notices: a missing RESEND_API_KEY is a no-op `{ sent: false }` and the
+ * function never throws, so a Resend outage can never break the sign-up that
+ * triggered the milestone. `to` defaults to the owner; the notifier passes each
+ * opted-in admin individually so recipients never see each other's addresses.
+ */
+export async function sendMilestoneNotice(
+  total: number,
+  to: string = ADMIN_NOTIFY_TO,
+): Promise<{ sent: boolean }> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) return { sent: false }
+  const resend = new Resend(apiKey)
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: milestoneSubject(total),
+    text: milestoneText(total),
+    html: milestoneHtml(total),
+  })
+  return { sent: !error }
+}
+
 /**
  * Forward ONE inbound email (received at hello@souso.app) to ONE admin (#457).
  *

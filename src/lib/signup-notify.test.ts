@@ -7,6 +7,7 @@ import { notifyAdminsOfNewUser } from './waitlist-notify'
 // D1 and Resend so we assert exactly which admins get notified.
 
 const sendNewUserNotice = vi.fn().mockResolvedValue({ sent: true })
+const sendMilestoneNotice = vi.fn().mockResolvedValue({ sent: true })
 const resolveAdminEmails = vi.fn()
 let storedPrefs: Array<{ email: string; waitlistNotify: boolean }> = []
 let userCount = 0
@@ -34,11 +35,14 @@ vi.mock('./admin-emails', () => ({
 vi.mock('./email', () => ({
   sendNewUserNotice: (email: string, total: number, to: string) =>
     sendNewUserNotice(email, total, to),
+  sendMilestoneNotice: (total: number, to: string) =>
+    sendMilestoneNotice(total, to),
 }))
 
 describe('notifyAdminsOfNewUser', () => {
   beforeEach(() => {
     sendNewUserNotice.mockClear().mockResolvedValue({ sent: true })
+    sendMilestoneNotice.mockClear().mockResolvedValue({ sent: true })
     resolveAdminEmails.mockReset()
     storedPrefs = []
     userCount = 0
@@ -78,5 +82,29 @@ describe('notifyAdminsOfNewUser', () => {
 
     await expect(notifyAdminsOfNewUser('new@user.com')).resolves.toBeUndefined()
     expect(sendNewUserNotice).not.toHaveBeenCalled()
+  })
+
+  it('ALSO sends the milestone email to every admin when the count crosses a milestone', async () => {
+    resolveAdminEmails.mockResolvedValue(['a@admin.com', 'b@admin.com'])
+    userCount = 150 // exactly the first milestone
+
+    await notifyAdminsOfNewUser('new@user.com')
+
+    expect(sendMilestoneNotice).toHaveBeenCalledTimes(2)
+    const recipients = sendMilestoneNotice.mock.calls.map((c) => c[1])
+    expect(recipients).toEqual(
+      expect.arrayContaining(['a@admin.com', 'b@admin.com']),
+    )
+    expect(sendMilestoneNotice).toHaveBeenCalledWith(150, expect.any(String))
+  })
+
+  it('does NOT send the milestone email on a non-milestone count', async () => {
+    resolveAdminEmails.mockResolvedValue(['a@admin.com'])
+    userCount = 151 // one past the milestone
+
+    await notifyAdminsOfNewUser('new@user.com')
+
+    expect(sendNewUserNotice).toHaveBeenCalledTimes(1)
+    expect(sendMilestoneNotice).not.toHaveBeenCalled()
   })
 })

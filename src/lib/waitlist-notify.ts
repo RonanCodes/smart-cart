@@ -94,6 +94,22 @@ export async function notifyAdminsOfNewUser(newEmail: string): Promise<void> {
         // one admin's send failing must not block the others
       }
     }
+
+    // When this new account lands exactly on a milestone (150, then every 25),
+    // ALSO send admins a fun celebration. Because the count climbs one at a
+    // time, this fires once per milestone. Best-effort, same as the notice
+    // above: a milestone-send failure must never affect the sign-up.
+    const { isUserCountMilestone } = await import('./milestone')
+    if (isUserCountMilestone(total)) {
+      const { sendMilestoneNotice } = await import('./email')
+      for (const to of recipients) {
+        try {
+          await sendMilestoneNotice(total, to)
+        } catch {
+          // one admin's send failing must not block the others
+        }
+      }
+    }
   } catch {
     // swallow: admin notify is non-fatal; the account was already created
   }
