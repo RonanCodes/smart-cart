@@ -21,6 +21,7 @@ export function CartPriceSlot({
   reserve = false,
   checked = true,
   inheritColor = false,
+  emphasize = false,
   size = 'row',
 }: {
   priceCents?: number
@@ -32,6 +33,8 @@ export function CartPriceSlot({
   checked?: boolean
   /** When true, skip foreground classes so the parent sets colour (store switch). */
   inheritColor?: boolean
+  /** Stronger weight for the store-switch total (progress stays secondary). */
+  emphasize?: boolean
   size?: 'row' | 'total' | 'bar'
 }) {
   if (!reserve && priceCents === undefined && !pending) return null
@@ -46,7 +49,8 @@ export function CartPriceSlot({
       className={cn(
         'relative inline-flex shrink-0 justify-end tabular-nums',
         size === 'bar' && 'font-extrabold',
-        size !== 'bar' && 'font-bold',
+        size === 'total' && (emphasize ? 'font-extrabold' : 'font-bold'),
+        size === 'row' && 'font-bold',
       )}
       aria-label={
         showPending ? 'Pricing' : showUpdating ? 'Updating price' : undefined
@@ -57,8 +61,9 @@ export function CartPriceSlot({
         className={cn(
           'invisible select-none',
           size === 'bar' && 'text-lg',
-          size === 'total' && 'text-[0.72rem]',
+          size === 'total' && (emphasize ? 'text-[0.78rem]' : 'text-[0.72rem]'),
           size === 'row' && 'text-sm',
+          emphasize && size === 'total' && 'font-extrabold',
         )}
       >
         {ghost}
@@ -67,8 +72,9 @@ export function CartPriceSlot({
         className={cn(
           'absolute inset-y-0 right-0 flex items-center justify-end gap-1',
           size === 'bar' && 'text-lg',
-          size === 'total' && 'text-[0.72rem]',
+          size === 'total' && (emphasize ? 'text-[0.78rem]' : 'text-[0.72rem]'),
           size === 'row' && 'text-sm',
+          emphasize && size === 'total' && 'font-extrabold',
           showPrice && 'cart-price-settled',
           showUpdating && 'cart-price-updating',
           !inheritColor &&
@@ -76,19 +82,16 @@ export function CartPriceSlot({
         )}
       >
         {showPrice ? (
-          <>
-            {formatCents(priceCents)}
-            {showUpdating ? (
-              <span
-                aria-hidden
-                className="cart-price-pending text-muted-foreground text-[0.65em] font-semibold tracking-widest"
-              >
-                ···
-              </span>
-            ) : null}
-          </>
+          formatCents(priceCents)
         ) : showPending ? (
-          <span className="cart-price-pending text-muted-foreground text-xs font-semibold tracking-widest">
+          <span
+            className={cn(
+              'cart-price-pending text-xs font-semibold tracking-widest',
+              inheritColor
+                ? 'text-current opacity-80'
+                : 'text-muted-foreground',
+            )}
+          >
             ···
           </span>
         ) : null}

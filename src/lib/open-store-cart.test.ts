@@ -88,7 +88,7 @@ describe('openStoreCart', () => {
     expect(opened).toHaveLength(0)
   })
 
-  it('reserves about:blank tabs without noopener so handles stay navigable', () => {
+  it('reserves one about:blank tab without noopener so the handle stays navigable', () => {
     const urls = [
       'https://www.ah.nl/mijnlijst/add-multiple?p=1:1',
       'https://www.ah.nl/mijnlijst/add-multiple?p=2:1',
@@ -101,15 +101,11 @@ describe('openStoreCart', () => {
       total: 2,
     })
 
-    expect(openMock).toHaveBeenCalledTimes(2)
-    for (const call of openMock.mock.calls) {
-      expect(call[0]).toBe('about:blank')
-      expect(call[1]).toBe('_blank')
-      expect(call).toHaveLength(2)
-    }
+    expect(openMock).toHaveBeenCalledTimes(1)
+    expect(openMock).toHaveBeenCalledWith('about:blank', '_blank')
   })
 
-  it('staggers multi-chunk navigations at CART_CHUNK_OPEN_MS intervals', () => {
+  it('chains multi-chunk navigations in one tab at CART_CHUNK_OPEN_MS intervals', () => {
     const urls = [
       'https://www.ah.nl/mijnlijst/add-multiple?p=1:1',
       'https://www.ah.nl/mijnlijst/add-multiple?p=2:1',
@@ -138,35 +134,8 @@ describe('openStoreCart', () => {
     expect(opened[2]!.url).toBe(urls[2])
   })
 
-  it('does not navigate closed or null tab handles', () => {
+  it('does not navigate when the reserved tab handle is null', () => {
     openMock.mockImplementationOnce(() => null)
-    openMock.mockImplementationOnce(() => {
-      const state = { href: '', closed: true }
-      return {
-        get closed() {
-          return state.closed
-        },
-        location: { href: state.href },
-      }
-    })
-    openMock.mockImplementationOnce(() => {
-      const state = { href: '', closed: false }
-      tabs.push(state)
-      return {
-        get closed() {
-          return state.closed
-        },
-        location: {
-          get href() {
-            return state.href
-          },
-          set href(v: string) {
-            state.href = v
-            opened.push({ url: v, at: Date.now() })
-          },
-        },
-      }
-    })
 
     const urls = ['https://a', 'https://b', 'https://c']
     openStoreCart({
@@ -179,8 +148,41 @@ describe('openStoreCart', () => {
 
     expect(opened).toHaveLength(0)
     vi.advanceTimersByTime(2 * CART_CHUNK_OPEN_MS)
+    expect(opened).toHaveLength(0)
+  })
+
+  it('stops chaining when the tab is closed mid-sequence', () => {
+    const state = { href: '', closed: false }
+    openMock.mockImplementationOnce(() => ({
+      get closed() {
+        return state.closed
+      },
+      location: {
+        get href() {
+          return state.href
+        },
+        set href(v: string) {
+          state.href = v
+          opened.push({ url: v, at: Date.now() })
+        },
+      },
+    }))
+
+    const urls = ['https://a', 'https://b', 'https://c']
+    openStoreCart({
+      store: 'ah',
+      url: urls[2]!,
+      urls,
+      matched: 3,
+      total: 3,
+    })
+
     expect(opened).toHaveLength(1)
-    expect(opened[0]!.url).toBe('https://c')
+    expect(opened[0]!.url).toBe('https://a')
+
+    state.closed = true
+    vi.advanceTimersByTime(2 * CART_CHUNK_OPEN_MS)
+    expect(opened).toHaveLength(1)
   })
 })
 
@@ -216,7 +218,7 @@ describe('chunked cart build → openStoreCart', () => {
     vi.unstubAllGlobals()
   })
 
-  it('opens every chunk URL for a 44-item AH cart with correct stagger timing', () => {
+  it('opens every chunk URL in one tab for a 44-item AH cart with correct stagger timing', () => {
     const items = Array.from({ length: 44 }, (_, i) => ({
       slug: `wi${1000 + i}/p`,
       qty: 1,
@@ -225,7 +227,7 @@ describe('chunked cart build → openStoreCart', () => {
     expect(built.urls).toHaveLength(Math.ceil(44 / AH_BULK_CHUNK_SIZE))
 
     openStoreCart(built)
-    expect(openMock).toHaveBeenCalledTimes(built.urls.length)
+    expect(openMock).toHaveBeenCalledTimes(1)
     expect(opened).toHaveLength(1)
     expect(opened[0]).toBe(built.urls[0])
 
