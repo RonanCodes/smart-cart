@@ -146,14 +146,16 @@ async function buildAuth() {
     databaseHooks: {
       user: {
         create: {
-          // Fires when a brand-new account row is created. This is the FALLBACK
-          // admin notice: it covers an account created WITHOUT onboarding (an
-          // approved first-time email signing in directly). The common path
-          // (onboarding) sends the attributed notice from completeOnboarding,
-          // which claims the signup_notice row FIRST — so passing the userId here
-          // makes this call a no-op for onboarding signups (no duplicate email),
-          // while a non-onboarding signup still gets exactly one notice (with
-          // "Source: not provided", since there is no attribution to thread).
+          // Fires when a brand-new account row is created — SYNCHRONOUSLY, and
+          // crucially BEFORE the client round-trips to completeOnboarding. It has
+          // no attribution ("How did you find us?"), so it must NOT send the
+          // admin new-signup notice: if it did, it would win the claim-once row
+          // and suppress the attributed send from completeOnboarding, leaving
+          // admins with "Source: not provided" for every onboarding signup
+          // (#521). We pass `fromHook: true` so this call is a non-pre-empting
+          // no-op; completeOnboarding is the authoritative sender of the single
+          // attributed admin email. (A brand-new account is always created via
+          // the onboarding email step, so completeOnboarding always runs.)
           after: async (newUser) => {
             try {
               if (newUser.email) {
@@ -162,6 +164,7 @@ async function buildAuth() {
                 await notifyAdminsOfNewUser({
                   email: newUser.email,
                   userId: newUser.id,
+                  fromHook: true,
                 })
               }
             } catch {
