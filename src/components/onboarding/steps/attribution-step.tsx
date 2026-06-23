@@ -117,13 +117,13 @@ export function AttributionStep() {
           <span className="text-muted-foreground font-normal">(optional)</span>
         </label>
         <p className="text-muted-foreground text-xs">
-          The person who shared it, e.g. Ronan or TJ.
+          The person or account that shared it with you.
         </p>
         <Input
           id="attribution-referrer"
           data-testid="attribution-referrer"
           type="text"
-          placeholder="the person who shared it, e.g. Ronan or TJ"
+          placeholder="the person or account that shared it"
           value={draft.referrer}
           onChange={(e) => patch({ referrer: e.target.value })}
           className="h-12 rounded-full text-base"
