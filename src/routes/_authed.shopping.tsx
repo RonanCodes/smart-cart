@@ -130,6 +130,9 @@ function Shopping() {
     [priceData, store],
   )
   const pendingLineKeys = storePendingLineKeys[store] ?? new Set<string>()
+  const pricingTotal = liveSet.compareLines.length
+  const pricingPendingCount = pendingLineKeys.size
+  const pricingResolved = pricingTotal - pricingPendingCount
 
   const recipeCount = useMemo(() => {
     const meals = new Set<string>()
@@ -189,10 +192,20 @@ function Shopping() {
             <CartStoreSwitch
               data={priceData}
               loading={priceLoading}
+              storePendingLineKeys={storePendingLineKeys}
               selected={store}
               onSelect={setStore}
             />
           </div>
+        )}
+
+        {hasSavedItems && pricingPendingCount > 0 && pricingTotal > 0 && (
+          <p
+            className="text-muted-foreground mt-2 text-xs font-medium"
+            aria-live="polite"
+          >
+            Pricing {pricingResolved} of {pricingTotal} items…
+          </p>
         )}
 
         {/* The merged / reused notes, from the real consolidated view. */}
@@ -231,6 +244,7 @@ function Shopping() {
             onItemsChange={setLiveItems}
             onCleared={() => void router.invalidate()}
             priceMap={priceMap}
+            priceLoading={priceLoading}
             pendingLineKeys={pendingLineKeys}
           />
         </div>
@@ -257,6 +271,7 @@ function Shopping() {
           store={store}
           data={priceData}
           priceLoading={priceLoading}
+          pricingPendingCount={pricingPendingCount}
           compareLines={liveSet.compareLines}
           extras={extras.filter((e) => selectedExtraIds.has(e.id))}
         />

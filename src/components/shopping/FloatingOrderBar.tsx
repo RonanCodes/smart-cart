@@ -41,6 +41,7 @@ export function FloatingOrderBar({
   compareLines,
   extras,
   priceLoading = false,
+  pricingPendingCount = 0,
 }: {
   /** The store the top switch currently has selected. */
   store: StoreSlug
@@ -52,6 +53,8 @@ export function FloatingOrderBar({
   extras: Array<CartExtra>
   /** True while the matcher is still resolving prices for the live cart. */
   priceLoading?: boolean
+  /** How many selected lines are still being priced at the selected store. */
+  pricingPendingCount?: number
 }) {
   const [link, setLink] = useState<CartLinkResult | null>(null)
   const [error, setError] = useState(false)
@@ -68,6 +71,8 @@ export function FloatingOrderBar({
   const total = basket && basket.lineItems.length > 0 ? basket.totalCents : null
   const productCount = basket?.lineItems.length ?? compareLines.length
   const canOrder = CART_STORES.has(store)
+  const stillPricing =
+    pricingPendingCount > 0 || (priceLoading && total === null)
 
   /**
    * Open the tip sheet INSTANTLY and start building the selected store's cart
@@ -206,7 +211,8 @@ export function FloatingOrderBar({
             <span className="text-lg font-extrabold tabular-nums">
               <CartPriceSlot
                 priceCents={total ?? undefined}
-                pending={priceLoading && total === null}
+                pending={stillPricing && total === null}
+                updating={stillPricing && total !== null}
                 size="bar"
                 reserve
               />

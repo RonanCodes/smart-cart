@@ -42,6 +42,7 @@ export function EditableShoppingList({
   onCleared,
   onItemsChange,
   priceMap,
+  priceLoading = false,
   pendingLineKeys,
 }: {
   initialItems: Array<ShoppingItem>
@@ -67,6 +68,8 @@ export function EditableShoppingList({
    * (still loading, or no comparison available), so rows show name + amount only.
    */
   priceMap?: Map<string, number>
+  /** True while the matcher is still running for the live cart. */
+  priceLoading?: boolean
   /**
    * Line keys still being priced (#cart-incremental-price). Checked rows in this
    * set show a quiet "pricing…" affordance until their price lands.
@@ -322,9 +325,12 @@ export function EditableShoppingList({
                 price={priceMap?.get(item.name)}
                 pricePending={
                   item.checked &&
-                  pendingLineKeys?.has(
+                  (pendingLineKeys?.has(
                     lineKey({ name: item.name, amount: item.amount }),
-                  ) === true
+                  ) === true ||
+                    (priceLoading &&
+                      priceMap?.get(item.name) === undefined &&
+                      (pendingLineKeys?.size ?? 0) > 0))
                 }
                 busy={busyId === item.id}
                 onToggle={() => toggle(item)}

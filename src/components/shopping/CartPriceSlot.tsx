@@ -10,12 +10,14 @@ const GHOST: Record<'row' | 'total' | 'bar', string> = {
 
 /**
  * Per-row / per-total price slot on the Cart screen. Always reserves the same
- * width so prices can land without shifting the layout. Pending is a quiet
- * em-dash; no pulse or scale animations.
+ * width so prices can land without shifting the layout. Pending shows animated
+ * dots; partial totals can keep the settled amount visible while more lines
+ * price in (#cart-incremental-price).
  */
 export function CartPriceSlot({
   priceCents,
   pending,
+  updating = false,
   reserve = false,
   checked = true,
   inheritColor = false,
@@ -23,6 +25,8 @@ export function CartPriceSlot({
 }: {
   priceCents?: number
   pending?: boolean
+  /** True when a partial total/price is visible but more lines are still pricing. */
+  updating?: boolean
   /** Keep the slot width even when empty (checked rows, store totals). */
   reserve?: boolean
   checked?: boolean
@@ -35,6 +39,7 @@ export function CartPriceSlot({
   const ghost = GHOST[size]
   const showPrice = priceCents !== undefined
   const showPending = pending && !showPrice
+  const showUpdating = updating && showPrice
 
   return (
     <span
@@ -43,7 +48,9 @@ export function CartPriceSlot({
         size === 'bar' && 'font-extrabold',
         size !== 'bar' && 'font-bold',
       )}
-      aria-label={showPending ? 'Pricing' : undefined}
+      aria-label={
+        showPending ? 'Pricing' : showUpdating ? 'Updating price' : undefined
+      }
     >
       <span
         aria-hidden
@@ -58,19 +65,32 @@ export function CartPriceSlot({
       </span>
       <span
         className={cn(
-          'absolute inset-y-0 right-0 flex items-center justify-end',
+          'absolute inset-y-0 right-0 flex items-center justify-end gap-1',
           size === 'bar' && 'text-lg',
           size === 'total' && 'text-[0.72rem]',
           size === 'row' && 'text-sm',
           showPrice && 'cart-price-settled',
+          showUpdating && 'cart-price-updating',
           !inheritColor &&
             (checked ? 'text-foreground' : 'text-muted-foreground'),
         )}
       >
         {showPrice ? (
-          formatCents(priceCents)
+          <>
+            {formatCents(priceCents)}
+            {showUpdating ? (
+              <span
+                aria-hidden
+                className="cart-price-pending text-muted-foreground text-[0.65em] font-semibold tracking-widest"
+              >
+                ···
+              </span>
+            ) : null}
+          </>
         ) : showPending ? (
-          <span className="text-muted-foreground/35 font-semibold">—</span>
+          <span className="cart-price-pending text-muted-foreground text-xs font-semibold tracking-widest">
+            ···
+          </span>
         ) : null}
       </span>
     </span>

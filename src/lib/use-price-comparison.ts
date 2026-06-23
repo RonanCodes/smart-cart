@@ -376,6 +376,15 @@ export function usePriceComparison(lines: Array<PriceCompareLine>): {
     setData((prev) => pruneComparison(prev, snapshot))
     setFailed(false)
 
+    // Show pending on every line immediately so the cart never looks frozen while
+    // we list stores or the first matcher chunk is in flight.
+    const bootstrapStores =
+      pricedKeysRef.current.size > 0
+        ? [...pricedKeysRef.current.keys()]
+        : ['ah', 'jumbo', 'picnic']
+    syncStorePendingLineKeys(snapshot, bootstrapStores)
+    setLoading(true)
+
     void (async () => {
       let stores: Array<string>
       try {
