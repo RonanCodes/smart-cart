@@ -183,6 +183,13 @@
       "when": 1785200000000,
       "tag": "0025_remove_non_dinner_recipes",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1785300000000,
+      "tag": "0026_remove_more_non_dinner_recipes",
+      "breakpoints": true
     }
   ]
 }
