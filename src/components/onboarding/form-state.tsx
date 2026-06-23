@@ -21,6 +21,19 @@ export interface OnboardingPets {
 /** How a tester prefers to be reached for a feedback chat (#407). */
 export type ContactPref = 'whatsapp' | 'call' | 'either'
 
+/**
+ * Single-select "How did you find us?" buckets. Stable snake_case strings so the
+ * persisted value + the PostHog funnel prop stay one vocabulary. `''` = not
+ * picked (the step is optional). 'other' reveals the free-text `sourceOther`.
+ */
+export type SignupSource =
+  | ''
+  | 'linkedin'
+  | 'tiktok'
+  | 'instagram'
+  | 'word_of_mouth'
+  | 'other'
+
 export interface OnboardingDraft {
   /** Household size. Adults default to 2, the common case. */
   adults: number
@@ -50,6 +63,14 @@ export interface OnboardingDraft {
   phone: string | null
   /** Preferred way to be reached, when a phone is given (#407). */
   contactPref: ContactPref | null
+  /** "How did you find us?" single-select bucket. '' = not picked (the step is
+   * optional). Persisted to signup_attribution + sent as the PostHog funnel
+   * prop. Absence of a stored row reads as "source unknown". */
+  source: SignupSource
+  /** Free text shown only when `source === 'other'` ("Where did you find us?"). */
+  sourceOther: string
+  /** Optional "anyone we should thank?" free text — the person who shared it. */
+  referrer: string
 }
 
 export const EMPTY_DRAFT: OnboardingDraft = {
@@ -67,6 +88,9 @@ export const EMPTY_DRAFT: OnboardingDraft = {
   locale: 'en',
   phone: null,
   contactPref: null,
+  source: '',
+  sourceOther: '',
+  referrer: '',
 }
 
 /**

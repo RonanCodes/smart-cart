@@ -146,17 +146,23 @@ async function buildAuth() {
     databaseHooks: {
       user: {
         create: {
-          // Fires exactly once when a brand-new account row is created, in ANY
-          // sign-up flow (anonymous onboarding ending in OTP verify, or a
-          // first-time approved email signing in). This is the central, correct
-          // place to notify admins of a real sign-up: the old waitlist-only
-          // notifier never fired here, so admins got no emails for real users.
+          // Fires when a brand-new account row is created. This is the FALLBACK
+          // admin notice: it covers an account created WITHOUT onboarding (an
+          // approved first-time email signing in directly). The common path
+          // (onboarding) sends the attributed notice from completeOnboarding,
+          // which claims the signup_notice row FIRST — so passing the userId here
+          // makes this call a no-op for onboarding signups (no duplicate email),
+          // while a non-onboarding signup still gets exactly one notice (with
+          // "Source: not provided", since there is no attribution to thread).
           after: async (newUser) => {
             try {
               if (newUser.email) {
                 const { notifyAdminsOfNewUser } =
                   await import('./waitlist-notify')
-                await notifyAdminsOfNewUser(newUser.email)
+                await notifyAdminsOfNewUser({
+                  email: newUser.email,
+                  userId: newUser.id,
+                })
               }
             } catch {
               // Non-fatal: a notification failure must never break sign-up.
