@@ -3,12 +3,27 @@ import { readEnv } from './env'
 import { feedbackNoticeText, feedbackNoticeHtml } from './feedback-email'
 import { newUserNoticeText } from './signup-attribution'
 import type { AttributionInput } from './signup-attribution'
+import {
+  isDevEnv,
+  emailFromAddress,
+  emailDevBanner,
+  emailDevTextBanner,
+} from './app-env'
 
 // Sends from the souso.app domain (Verified in Resend, with DKIM/SPF/DMARC in
 // Cloudflare). The branded From matching the brand + domain auth is what keeps
 // these out of spam. noreply@ (not hello@): receiving is OFF on the domain, so a
 // reply would bounce; noreply signals the mailbox is unmonitored. No Reply-To.
-const FROM = 'Souso <noreply@souso.app>'
+//
+// In the dev worker (isDevEnv) the From display name becomes "Souso (DEV)" so an
+// admin never mistakes a dev test for a real prod signup; the verified domain +
+// noreply@ address are unchanged (deliverability / DKIM stays the same). Read
+// once at module load: the env is baked at build time, so this is a constant per
+// deployment. The same flag drives the in-body DEV banner via emailShell.
+const FROM = emailFromAddress(isDevEnv())
+// Prefix for the text-only admin pings (waitlist signup + new-user notice) that
+// render no HTML shell, so their body reads as dev too. Empty in prod.
+const DEV_TEXT = emailDevTextBanner(isDevEnv())
 // Default recipient for admin pings (signups, feedback) when no per-admin list
 // resolves. Kept to the one address that should get these.
 const ADMIN_NOTIFY_TO = 'ronan@ronanconnolly.dev'
@@ -25,6 +40,10 @@ const CANVAS = '#FBFDF9'
  * approval emails render identically in Gmail / Apple Mail.
  */
 function emailShell(inner: string): string {
+  // In the dev worker, prepend an amber DEV strip above the body so even a
+  // glance at the message itself (not just the sender) says "this is dev, not
+  // production". Empty string in prod, so prod bodies are unchanged.
+  const devBanner = emailDevBanner(isDevEnv())
   return `
   <div style="background:${CANVAS};padding:32px 0;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;">
     <div style="max-width:440px;margin:0 auto;background:#ffffff;border:1px solid #e7eee7;border-radius:16px;overflow:hidden;">
@@ -32,7 +51,7 @@ function emailShell(inner: string): string {
         <img src="${MASCOT}" alt="Souso" width="180" height="111" style="display:inline-block;vertical-align:middle;" />
       </div>
       <div style="padding:32px 28px;text-align:center;">
-        ${inner}
+        ${devBanner}${inner}
       </div>
       <div style="padding:16px 28px;border-top:1px solid #f0f4f0;text-align:center;">
         <p style="color:#9aa89a;font-size:12px;margin:0;">Souso, your sous chef</p>
@@ -217,7 +236,7 @@ export async function sendWaitlistSignupNotice(
     from: FROM,
     to,
     subject: `New Souso waitlist signup: ${newEmail}`,
-    text: `${newEmail} just joined the Souso waitlist. Total signups: ${totalCount}.`,
+    text: `${DEV_TEXT}${newEmail} just joined the Souso waitlist. Total signups: ${totalCount}.`,
   })
   return { sent: !error }
 }
@@ -291,7 +310,7 @@ export async function sendNewUserNotice(
     from: FROM,
     to,
     subject: `New Souso signup: ${newEmail}`,
-    text: newUserNoticeText(newEmail, totalUsers, attribution ?? null),
+    text: `${DEV_TEXT}${newUserNoticeText(newEmail, totalUsers, attribution ?? null)}`,
   })
   return { sent: !error }
 }

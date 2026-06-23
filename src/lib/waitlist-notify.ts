@@ -91,13 +91,24 @@ async function claimSignupNotice(userId: string | null): Promise<boolean> {
  * SERVER-ONLY: email every opted-in admin that a REAL account was just created,
  * INCLUDING the signup attribution ("How did you find us?" + referrer).
  *
- * Called from two paths, deduped to EXACTLY ONE email per signup via a
- * claim-once row keyed on `userId`:
- *   - `completeOnboarding` (the common path): runs right after account creation
- *     and HAS the attribution, so it claims first and sends the attributed email.
- *   - Better Auth's `user.create.after` hook: the fallback for an account created
- *     WITHOUT onboarding (an approved first-time email signing in directly).
- *     It has no attribution; it only sends if onboarding did not already claim.
+ * `completeOnboarding` is the AUTHORITATIVE sender. A brand-new account is always
+ * created via the onboarding email step, so completeOnboarding always runs right
+ * after account creation, HAS the userId + the attribution, and sends the single
+ * attributed admin email (claiming the `signup_notice` row as it does).
+ *
+ * Better Auth's `user.create.after` hook also fires (synchronously, FIRST, before
+ * the client round-trips to completeOnboarding), but it has NO attribution. If it
+ * sent eagerly it would win the claim-once row and suppress the attributed send,
+ * leaving admins with "Source: not provided" for every onboarding signup (#521).
+ * So the hook passes `fromHook: true`: a non-pre-empting fallback that does NOT
+ * claim and does NOT send the new-user notice. The attributed onboarding send is
+ * therefore always the one that goes out. (The hook still fires for the genuine
+ * non-onboarding edge — an approved first-time email signing in directly — but we
+ * deliberately do not send an un-attributed notice there; it would otherwise race
+ * and pre-empt onboarding. See #521.)
+ *
+ * The claim-once row keyed on `userId` remains the belt-and-braces dedup: if two
+ * authoritative-style sends ever raced, only the first claim would send.
  *
  * Same default-on admin pref + best-effort contract as notifyAdminsOfSignup:
  * every error is swallowed so account creation is never broken by a count, prefs
@@ -107,8 +118,15 @@ export async function notifyAdminsOfNewUser(opts: {
   email: string
   userId?: string | null
   attribution?: NewUserAttribution | null
+  /** When true (the user.create.after hook), this call is a non-pre-empting
+   * no-op for the new-signup notice: it neither claims nor sends, so it can never
+   * win the claim ahead of completeOnboarding's attributed send (#521). */
+  fromHook?: boolean
 }): Promise<void> {
   try {
+    // The hook must never pre-empt the attributed onboarding send: do nothing.
+    if (opts.fromHook) return
+
     // Claim first: if another path already sent this user's notice, do nothing.
     const won = await claimSignupNotice(opts.userId ?? null)
     if (!won) return
