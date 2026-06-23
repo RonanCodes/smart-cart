@@ -86,12 +86,28 @@ export async function notifyAdminsOfNewUser(newEmail: string): Promise<void> {
     const { recipientsForWaitlist } = await import('./admin-prefs')
     const recipients = recipientsForWaitlist(await resolveAdminEmails(), prefs)
 
-    const { sendNewUserNotice } = await import('./email')
+    const { sendNewUserNotice, sendMilestoneEmail } = await import('./email')
     for (const to of recipients) {
       try {
         await sendNewUserNotice(newEmail, total, to)
       } catch {
         // one admin's send failing must not block the others
+      }
+    }
+
+    // Milestone celebration: when this new account lands the total exactly on a
+    // milestone (150, then every 25: 175, 200, ...), also send a fun on-brand
+    // email to the same opted-in admins. Count rises one per signup, so each
+    // milestone count happens once and the celebration fires once, no state to
+    // track. Best-effort: a send failing must never break the signup.
+    const { isUserCountMilestone } = await import('./user-milestone')
+    if (isUserCountMilestone(total)) {
+      for (const to of recipients) {
+        try {
+          await sendMilestoneEmail(total, to)
+        } catch {
+          // one admin's send failing must not block the others
+        }
       }
     }
   } catch {

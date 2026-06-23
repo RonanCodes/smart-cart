@@ -221,6 +221,50 @@ export async function sendWaitlistSignupNotice(
 }
 
 /**
+ * The milestone celebration email body: Souso just crossed a round number of
+ * home cooks. Warm and plain, in the brand voice (no em-dashes, no AI-tell
+ * filler, no exclamation pile-on). `milestone` is the count we just hit.
+ */
+function milestoneHtml(milestone: number): string {
+  return emailShell(`
+        <p style="font-size:40px;margin:0 0 8px;">🎉</p>
+        <p style="color:#1f2a1f;font-size:22px;font-weight:800;margin:0 0 8px;">${milestone} home cooks on Souso</p>
+        <p style="color:#5b6b5b;margin:0 0 8px;font-size:15px;line-height:1.5;">We just passed ${milestone} people letting Souso plan their week of dinners and fill the basket. That is ${milestone} kitchens with one less "what's for dinner?" to answer.</p>
+        <p style="color:#5b6b5b;margin:0;font-size:15px;line-height:1.5;">Nice work, team. On to the next one.</p>`)
+}
+
+/** The milestone email subject, e.g. "We just hit 150 home cooks". Exported so
+ * the admin UI can preview the exact subject without re-deriving it. */
+export function milestoneEmailSubject(milestone: number): string {
+  return `We just hit ${milestone} home cooks`
+}
+
+/**
+ * Tell ONE admin Souso just crossed a user-count milestone (150, then every 25:
+ * 175, 200, ...). A fun, on-brand celebration from Souso. Best-effort, same
+ * contract as the notice senders: a missing RESEND_API_KEY is a no-op
+ * `{ sent: false }` and it never throws, so a Resend outage can never break the
+ * signup that triggered it. The notifier passes each opted-in admin individually
+ * so recipients never see each other's addresses.
+ */
+export async function sendMilestoneEmail(
+  milestone: number,
+  to: string = ADMIN_NOTIFY_TO,
+): Promise<{ sent: boolean }> {
+  const apiKey = await readEnv('RESEND_API_KEY')
+  if (!apiKey) return { sent: false }
+  const resend = new Resend(apiKey)
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: milestoneEmailSubject(milestone),
+    text: `Souso just passed ${milestone} home cooks. That is ${milestone} kitchens with one less "what's for dinner?" to answer. Nice work, team. On to the next one.`,
+    html: milestoneHtml(milestone),
+  })
+  return { sent: !error }
+}
+
+/**
  * Tell ONE admin a NEW account was just created (a real sign-up completing OTP
  * verify), with the running total of accounts. Same best-effort contract as
  * sendWaitlistSignupNotice: callers swallow errors so a Resend outage can never

@@ -34,6 +34,10 @@ vi.mock('./admin-emails', () => ({
 vi.mock('./email', () => ({
   sendNewUserNotice: (email: string, total: number, to: string) =>
     sendNewUserNotice(email, total, to),
+  // The notifier now also destructures sendMilestoneEmail; these tests use
+  // non-milestone counts so it is never invoked, but it must exist on the mock
+  // so the destructure does not pull undefined.
+  sendMilestoneEmail: vi.fn().mockResolvedValue({ sent: true }),
 }))
 
 describe('notifyAdminsOfNewUser', () => {
