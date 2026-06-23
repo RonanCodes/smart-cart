@@ -532,10 +532,9 @@ body {
 /* ── Landing hero sticker board (#465) ────────────────────────────────────────
    Three die-cut dish stickers placed by hand on the hero stage. Each slot sits
    in its own column so the wordmark above is never overlapped and the dishes
-   never collide. On a gentle infinite loop the left drifts up, the right drifts
-   down, and the middle shifts side-to-side; when React swaps a slot to a fresh
-   dish the new <img> remounts and plays the pop-in. The base `--rot` tilt is
-   preserved through every transform so the hand-placed feel stays. */
+   never collide. The board is static: nothing auto-cycles and nothing drifts.
+   Each sticker is a button; tapping it swaps the slot to the next dish. The
+   base `--rot` tilt keeps the hand-placed feel. */
 .hero-slot {
   /* Each slot owns a third of the stage; the sticker inside is centred. */
   display: flex;
@@ -556,76 +555,10 @@ body {
 }
 
 .hero-sticker {
-  /* Pop-in: a fresh dish scales + fades up into place. The base tilt (--rot)
-     is the resting transform; the keyframe animates around it. */
+  /* The hand-placed tilt is the resting transform. A short transition softens
+     the dish swap on tap; there is no looping motion. */
   transform: rotate(var(--rot, 0deg));
-  animation: hero-pop-in 0.5s ease-out both;
-}
-/* Gentle, slow drift on the resting stickers. The left lifts, the right sinks,
-   the middle sways. Different durations so they never sync up. The drift lives
-   on the slot wrapper so it composes with the sticker's own tilt + pop-in. */
-.hero-slot-left {
-  animation: hero-drift-up 6.5s ease-in-out infinite;
-}
-.hero-slot-right {
-  animation: hero-drift-down 7.5s ease-in-out infinite;
-}
-.hero-slot-middle {
-  animation: hero-drift-sway 8s ease-in-out infinite;
-}
-
-@keyframes hero-pop-in {
-  0% {
-    opacity: 0;
-    transform: rotate(var(--rot, 0deg)) scale(0.8) translateY(10px);
-  }
-  60% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 1;
-    transform: rotate(var(--rot, 0deg)) scale(1) translateY(0);
-  }
-}
-@keyframes hero-drift-up {
-  0%,
-  100% {
-    transform: translateY(4px);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-}
-@keyframes hero-drift-down {
-  0%,
-  100% {
-    transform: translateY(-6px);
-  }
-  50% {
-    transform: translateY(8px);
-  }
-}
-@keyframes hero-drift-sway {
-  0%,
-  100% {
-    transform: translateX(-50%) translateX(-4px);
-  }
-  50% {
-    transform: translateX(-50%) translateX(4px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-slot-left,
-  .hero-slot-right,
-  .hero-slot-middle,
-  .hero-sticker {
-    animation: none;
-  }
-  /* Keep the middle slot centred without the sway transform. */
-  .hero-slot-middle {
-    transform: translateX(-50%);
-  }
+  transition: transform 0.2s ease-out;
 }
 
 /* Lift the Sentry user-feedback button above the bottom TabBar so it never
