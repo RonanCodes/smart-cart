@@ -1,22 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, act, cleanup } from '@testing-library/react'
+import { describe, it, expect, afterEach, vi } from 'vitest'
+import { render, screen, act, cleanup, fireEvent } from '@testing-library/react'
 import { HeroStickers } from './hero-stickers'
 
-/**
- * jsdom has no matchMedia; install a controllable stub so we can flip
- * prefers-reduced-motion per test. `reduced` toggles what `.matches` returns.
- */
-function installMatchMedia(reduced: boolean) {
-  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches: query.includes('reduce') ? reduced : false,
-    media: query,
-    onchange: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  }))
+function srcsOf(board: HTMLElement): Array<string | null> {
+  return Array.from(board.querySelectorAll('img.hero-sticker')).map((img) =>
+    (img as HTMLImageElement).getAttribute('src'),
+  )
 }
 
 describe('HeroStickers', () => {
@@ -26,7 +15,6 @@ describe('HeroStickers', () => {
   })
 
   it('renders exactly three dish stickers across three slots', () => {
-    installMatchMedia(false)
     render(<HeroStickers />)
     const board = screen.getByTestId('hero-stickers')
     const slots = board.querySelectorAll('[data-slot]')
@@ -36,8 +24,7 @@ describe('HeroStickers', () => {
     expect(screen.getByText(/what.+for dinner/i)).toBeTruthy()
   })
 
-  it('left/middle/right slots are present so drift can go up/down/sway', () => {
-    installMatchMedia(false)
+  it('keeps the left/middle/right 3-slot layout', () => {
     render(<HeroStickers />)
     const board = screen.getByTestId('hero-stickers')
     expect(board.querySelector('[data-slot="left"]')).toBeTruthy()
@@ -46,7 +33,6 @@ describe('HeroStickers', () => {
   })
 
   it('keeps the souso-sticker die-cut treatment on every dish', () => {
-    installMatchMedia(false)
     render(<HeroStickers />)
     const imgs = screen
       .getByTestId('hero-stickers')
@@ -54,59 +40,67 @@ describe('HeroStickers', () => {
     imgs.forEach((img) => expect(img.className).toContain('souso-sticker'))
   })
 
-  describe('with motion allowed', () => {
-    beforeEach(() => {
-      installMatchMedia(false)
-      vi.useFakeTimers()
-    })
+  it('renders the SAME curated set on every mount (deterministic, not random)', () => {
+    const { unmount } = render(<HeroStickers />)
+    const first = srcsOf(screen.getByTestId('hero-stickers'))
+    unmount()
+    cleanup()
 
-    it('cycles a slot to a fresh dish over time (pop in / fade out loop)', () => {
-      render(<HeroStickers />)
-      const board = screen.getByTestId('hero-stickers')
-      expect(board.getAttribute('data-reduced')).toBe('false')
-      const before = Array.from(board.querySelectorAll('img.hero-sticker')).map(
-        (img) => (img as HTMLImageElement).getAttribute('src'),
-      )
+    render(<HeroStickers />)
+    const second = srcsOf(screen.getByTestId('hero-stickers'))
 
-      // Advance well past all three staggered cycle intervals.
-      act(() => {
-        vi.advanceTimersByTime(12000)
-      })
-
-      const after = Array.from(board.querySelectorAll('img.hero-sticker')).map(
-        (img) => (img as HTMLImageElement).getAttribute('src'),
-      )
-
-      // At least one slot now shows a different dish.
-      expect(after).not.toEqual(before)
-    })
+    // Deterministic: a fresh mount shows the exact same three dishes.
+    expect(second).toEqual(first)
+    // And it is a real, fully-populated set (no empty src).
+    expect(first.every((s) => typeof s === 'string' && s.length > 0)).toBe(true)
   })
 
-  describe('prefers-reduced-motion', () => {
-    beforeEach(() => {
-      installMatchMedia(true)
-      vi.useFakeTimers()
+  it('never auto-cycles a slot over time (no timers, fully static by default)', () => {
+    vi.useFakeTimers()
+    render(<HeroStickers />)
+    const board = screen.getByTestId('hero-stickers')
+    const before = srcsOf(board)
+
+    // Let any would-be cycle interval fire many times over.
+    act(() => {
+      vi.advanceTimersByTime(60000)
     })
 
-    it('marks itself reduced and never cycles dishes', () => {
-      render(<HeroStickers />)
-      const board = screen.getByTestId('hero-stickers')
-      expect(board.getAttribute('data-reduced')).toBe('true')
+    const after = srcsOf(board)
+    expect(after).toEqual(before)
+  })
 
-      const before = Array.from(board.querySelectorAll('img.hero-sticker')).map(
-        (img) => (img as HTMLImageElement).getAttribute('src'),
-      )
+  it('advances a slot to the next dish when tapped, leaving the others put', () => {
+    render(<HeroStickers />)
+    const board = screen.getByTestId('hero-stickers')
+    const before = srcsOf(board)
 
-      act(() => {
-        vi.advanceTimersByTime(20000)
-      })
+    const leftButton = board.querySelector(
+      'button[data-slot="left"]',
+    ) as HTMLButtonElement
+    expect(leftButton).toBeTruthy()
 
-      const after = Array.from(board.querySelectorAll('img.hero-sticker')).map(
-        (img) => (img as HTMLImageElement).getAttribute('src'),
-      )
+    act(() => {
+      fireEvent.click(leftButton)
+    })
 
-      // Static: the dishes are unchanged after the would-be cycle window.
-      expect(after).toEqual(before)
+    const after = srcsOf(board)
+    // The tapped slot shows a different dish...
+    expect(after[0]).not.toBe(before[0])
+    // ...and the untouched slots are unchanged.
+    expect(after[1]).toBe(before[1])
+    expect(after[2]).toBe(before[2])
+  })
+
+  it('exposes each sticker slot as an accessible button', () => {
+    render(<HeroStickers />)
+    const board = screen.getByTestId('hero-stickers')
+    const buttons = board.querySelectorAll('button')
+    // One tappable button per slot (the StickyNote is not a button).
+    expect(buttons.length).toBeGreaterThanOrEqual(3)
+    buttons.forEach((b) => {
+      expect(b.getAttribute('type')).toBe('button')
+      expect((b.getAttribute('aria-label') ?? '').length).toBeGreaterThan(0)
     })
   })
 })
