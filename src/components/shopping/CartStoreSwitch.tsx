@@ -25,11 +25,14 @@ import { cn } from '#/lib/utils'
 export function CartStoreSwitch({
   data,
   loading,
+  storePendingLineKeys,
   selected,
   onSelect,
 }: {
   data: BasketComparison | null
   loading: boolean
+  /** Per-store line keys still being priced (#cart-incremental-price). */
+  storePendingLineKeys?: Record<string, ReadonlySet<string>>
   selected: StoreSlug
   onSelect: (store: StoreSlug) => void
 }) {
@@ -47,7 +50,10 @@ export function CartStoreSwitch({
         const basket = data?.baskets.find((b) => b.store === option.slug)
         const total =
           basket && basket.lineItems.length > 0 ? basket.totalCents : null
-        const awaitingTotal = !comingSoon && loading && total === null
+        const pendingCount = storePendingLineKeys?.[option.slug]?.size ?? 0
+        const stillPricing = pendingCount > 0 || (loading && total === null)
+        const awaitingTotal = !comingSoon && stillPricing && total === null
+        const updatingTotal = !comingSoon && pendingCount > 0 && total !== null
         const isCheapest = cheapest === option.slug
         return (
           <button
@@ -93,6 +99,7 @@ export function CartStoreSwitch({
               ) : total !== null ? (
                 <CartPriceSlot
                   priceCents={total}
+                  updating={updatingTotal}
                   size="total"
                   inheritColor
                   reserve
