@@ -17,6 +17,9 @@ import { cn } from '#/lib/utils'
  * floating total, and the order button all at once, so the whole screen reprices
  * in a tap.
  *
+ * While a store is still pricing, its cell shows a live `priced/total` count so
+ * the matcher never looks stuck (#cart-incremental-price).
+ *
  * Albert Heijn + Picnic are selectable; Jumbo is parked as a disabled
  * "Coming soon" option until its pricing + cart are tested (it stays visible so
  * we can re-enable it later). Picnic shows its price but its cart isn't wired
@@ -25,12 +28,15 @@ import { cn } from '#/lib/utils'
 export function CartStoreSwitch({
   data,
   loading,
+  lineTotal = 0,
   storePendingLineKeys,
   selected,
   onSelect,
 }: {
   data: BasketComparison | null
   loading: boolean
+  /** Selected (in-order) lines being priced — same total for every store. */
+  lineTotal?: number
   /** Per-store line keys still being priced (#cart-incremental-price). */
   storePendingLineKeys?: Record<string, ReadonlySet<string>>
   selected: StoreSlug
@@ -51,9 +57,10 @@ export function CartStoreSwitch({
         const total =
           basket && basket.lineItems.length > 0 ? basket.totalCents : null
         const pendingCount = storePendingLineKeys?.[option.slug]?.size ?? 0
-        const stillPricing = pendingCount > 0 || (loading && total === null)
-        const awaitingTotal = !comingSoon && stillPricing && total === null
-        const updatingTotal = !comingSoon && pendingCount > 0 && total !== null
+        const pricedCount =
+          lineTotal > 0 ? Math.max(0, lineTotal - pendingCount) : 0
+        const stillPricing =
+          pendingCount > 0 || (loading && total === null && lineTotal > 0)
         const isCheapest = cheapest === option.slug
         return (
           <button
@@ -86,33 +93,126 @@ export function CartStoreSwitch({
                 />
               )}
             </span>
-            <span
-              className={cn(
-                'mt-0.5 flex h-[1.125rem] items-center justify-center',
-                on ? 'text-primary-foreground/85' : 'text-muted-foreground',
-              )}
-            >
-              {comingSoon ? (
-                <span className="text-[0.72rem] font-semibold">
-                  Coming soon
-                </span>
-              ) : total !== null ? (
-                <CartPriceSlot
-                  priceCents={total}
-                  updating={updatingTotal}
-                  size="total"
-                  inheritColor
-                  reserve
-                />
-              ) : awaitingTotal ? (
-                <CartPriceSlot pending size="total" inheritColor reserve />
-              ) : (
-                <span className="text-[0.72rem] font-semibold">no match</span>
-              )}
-            </span>
+            <StoreSubtitle
+              comingSoon={comingSoon}
+              lineTotal={lineTotal}
+              pricedCount={pricedCount}
+              selected={on}
+              stillPricing={stillPricing}
+              total={total}
+            />
           </button>
         )
       })}
     </div>
+  )
+}
+
+/** Fixed-height subtitle row: price and/or progress on one line, no height jump. */
+function StoreSubtitle({
+  comingSoon,
+  lineTotal,
+  pricedCount,
+  selected,
+  stillPricing,
+  total,
+}: {
+  comingSoon: boolean
+  lineTotal: number
+  pricedCount: number
+  selected: boolean
+  stillPricing: boolean
+  total: number | null
+}) {
+  const tone = selected ? 'text-primary-foreground/85' : 'text-muted-foreground'
+
+  if (comingSoon) {
+    return (
+      <span
+        className={cn(
+          'mt-0.5 flex h-[1.125rem] items-center justify-center text-[0.72rem] font-semibold',
+          tone,
+        )}
+      >
+        Coming soon
+      </span>
+    )
+  }
+
+  const showProgress = stillPricing && lineTotal > 0
+  const showPrice = total !== null
+
+  if (!showProgress && !showPrice) {
+    return (
+      <span
+        className={cn(
+          'mt-0.5 flex h-[1.125rem] items-center justify-center text-[0.72rem] font-semibold',
+          tone,
+        )}
+      >
+        no match
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className={cn(
+        'mt-0.5 flex h-[1.125rem] items-center justify-center gap-1',
+        tone,
+      )}
+    >
+      {showPrice ? (
+        <CartPriceSlot
+          priceCents={total}
+          size="total"
+          inheritColor
+          reserve
+          emphasize
+        />
+      ) : null}
+      {showProgress ? (
+        <StorePricingProgress
+          priced={pricedCount}
+          total={lineTotal}
+          selected={selected}
+          besidePrice={showPrice}
+        />
+      ) : null}
+    </span>
+  )
+}
+
+function StorePricingProgress({
+  priced,
+  total,
+  selected,
+  besidePrice = false,
+}: {
+  priced: number
+  total: number
+  selected: boolean
+  /** True when a settled total is already shown — keep this quiet. */
+  besidePrice?: boolean
+}) {
+  return (
+    <span
+      className={cn(
+        'tabular-nums',
+        besidePrice
+          ? 'text-[0.62rem] font-medium'
+          : 'text-[0.68rem] font-medium',
+        selected
+          ? besidePrice
+            ? 'text-primary-foreground/55'
+            : 'text-primary-foreground/75'
+          : besidePrice
+            ? 'text-muted-foreground/65'
+            : 'text-muted-foreground',
+      )}
+      aria-label={`Pricing ${priced} of ${total} items`}
+    >
+      {priced}/{total}
+    </span>
   )
 }

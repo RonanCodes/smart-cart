@@ -69,7 +69,7 @@ export function FloatingOrderBar({
 
   const basket = data?.baskets.find((b) => b.store === store)
   const total = basket && basket.lineItems.length > 0 ? basket.totalCents : null
-  const productCount = basket?.lineItems.length ?? compareLines.length
+  const productCount = compareLines.length
   const canOrder = CART_STORES.has(store)
   const stillPricing =
     pricingPendingCount > 0 || (priceLoading && total === null)
