@@ -40,6 +40,7 @@ import { Route as AdminRecipesRouteImport } from './routes/admin/recipes'
 import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminMatchingRouteImport } from './routes/admin/matching'
 import { Route as AdminLaunchRouteImport } from './routes/admin/launch'
+import { Route as AdminFlagsRouteImport } from './routes/admin/flags'
 import { Route as AdminFeedbackRouteImport } from './routes/admin/feedback'
 import { Route as AdminEmailRouteImport } from './routes/admin/email'
 import { Route as AdminDesignSystemRouteImport } from './routes/admin/design-system'
@@ -210,6 +211,11 @@ const AdminLaunchRoute = AdminLaunchRouteImport.update({
   path: '/launch',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminFlagsRoute = AdminFlagsRouteImport.update({
+  id: '/flags',
+  path: '/flags',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
   id: '/feedback',
   path: '/feedback',
@@ -305,6 +311,7 @@ export interface FileRoutesByFullPath {
   '/admin/design-system': typeof AdminDesignSystemRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/flags': typeof AdminFlagsRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -351,6 +358,7 @@ export interface FileRoutesByTo {
   '/admin/design-system': typeof AdminDesignSystemRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/flags': typeof AdminFlagsRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -400,6 +408,7 @@ export interface FileRoutesById {
   '/admin/design-system': typeof AdminDesignSystemRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/flags': typeof AdminFlagsRoute
   '/admin/launch': typeof AdminLaunchRoute
   '/admin/matching': typeof AdminMatchingRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -449,6 +458,7 @@ export interface FileRouteTypes {
     | '/admin/design-system'
     | '/admin/email'
     | '/admin/feedback'
+    | '/admin/flags'
     | '/admin/launch'
     | '/admin/matching'
     | '/admin/payments'
@@ -495,6 +505,7 @@ export interface FileRouteTypes {
     | '/admin/design-system'
     | '/admin/email'
     | '/admin/feedback'
+    | '/admin/flags'
     | '/admin/launch'
     | '/admin/matching'
     | '/admin/payments'
@@ -543,6 +554,7 @@ export interface FileRouteTypes {
     | '/admin/design-system'
     | '/admin/email'
     | '/admin/feedback'
+    | '/admin/flags'
     | '/admin/launch'
     | '/admin/matching'
     | '/admin/payments'
@@ -824,6 +836,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLaunchRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/flags': {
+      id: '/admin/flags'
+      path: '/flags'
+      fullPath: '/admin/flags'
+      preLoaderRoute: typeof AdminFlagsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/feedback': {
       id: '/admin/feedback'
       path: '/feedback'
@@ -938,6 +957,7 @@ interface AdminRouteRouteChildren {
   AdminDesignSystemRoute: typeof AdminDesignSystemRoute
   AdminEmailRoute: typeof AdminEmailRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
+  AdminFlagsRoute: typeof AdminFlagsRoute
   AdminLaunchRoute: typeof AdminLaunchRoute
   AdminMatchingRoute: typeof AdminMatchingRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
@@ -954,6 +974,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminDesignSystemRoute: AdminDesignSystemRoute,
   AdminEmailRoute: AdminEmailRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
+  AdminFlagsRoute: AdminFlagsRoute,
   AdminLaunchRoute: AdminLaunchRoute,
   AdminMatchingRoute: AdminMatchingRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,

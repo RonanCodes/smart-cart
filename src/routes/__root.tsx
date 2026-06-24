@@ -18,6 +18,8 @@ import { log } from '../lib/log'
 import { useSession } from '../lib/auth-client'
 import { IS_DEV_ENV } from '../lib/app-env'
 import { DevEnvRibbon } from '../components/DevEnvRibbon'
+import { getFlags } from '../lib/flags-server'
+import { FlagsProvider } from '../lib/flags-context'
 
 const SITE_URL = 'https://smartcart.ronanconnolly.dev'
 const SITE_TITLE = 'Souso: your sous chef for recipes and the weekly shop'
@@ -82,6 +84,11 @@ function devOrProdIconLinks() {
 }
 
 export const Route = createRootRoute({
+  // Resolve the feature flags ONCE per load (server side, degrades to defaults
+  // on any error) and bootstrap them to the client via FlagsProvider, so the
+  // store pickers / order bar / tip prompt render with the right state on first
+  // paint, no flicker and no async work on the render path.
+  loader: async () => ({ flags: await getFlags() }),
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -182,6 +189,10 @@ function RootDocument({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  // Feature flags resolved by the root loader (above), shared to every route via
+  // context so components read them synchronously with no flicker.
+  const { flags } = Route.useLoaderData()
+
   // Attach the signed-in user (id + email) to Sentry so every client event shows
   // WHO hit it; clear to anonymous when signed out. The setter is a no-op until
   // initObservability() has run and a no-op in dev where Sentry is off (#284).
@@ -270,9 +281,11 @@ function RootComponent() {
           appEnv(), baked at build time), so souso.app is never badged. */}
       <DevEnvRibbon />
       <ErrorBoundary>
-        <QueryClientProvider>
-          <Outlet />
-        </QueryClientProvider>
+        <FlagsProvider flags={flags}>
+          <QueryClientProvider>
+            <Outlet />
+          </QueryClientProvider>
+        </FlagsProvider>
       </ErrorBoundary>
     </RootDocument>
   )

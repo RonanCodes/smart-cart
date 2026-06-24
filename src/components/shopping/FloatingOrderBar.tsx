@@ -13,6 +13,8 @@ import {
   orderBarHeadline,
   storeWithArticle,
 } from '#/components/shopping/order-bar-counts'
+import { storeOrderable } from '#/lib/flags'
+import { useFlags } from '#/lib/flags-context'
 import { TipSheet } from '#/components/shopping/TipSheet'
 import { startTip } from '#/lib/tip-server'
 import { openStoreCart } from '#/lib/open-store-cart'
@@ -22,10 +24,6 @@ import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
 /** Rough basket € total for the tip math fallback when we have no priced basket. */
 const EUR_PER_ITEM = 2.5
-
-/** The stores whose bulk-cart deep-link is wired today (#293). Picnic is
- *  selectable + priced, but its cart isn't built yet. */
-const CART_STORES = new Set<StoreSlug>(['ah', 'jumbo'])
 
 /**
  * The floating total + "Order at <store>" action pinned above the tab bar
@@ -72,14 +70,20 @@ export function FloatingOrderBar({
   // user never stares at a spinner waiting for the (slow, accurate-tier) match.
   const linkPromiseRef = useRef<Promise<CartLinkResult> | null>(null)
 
+  const flags = useFlags()
   const basket = data?.baskets.find((b) => b.store === store)
   const total = basket && basket.lineItems.length > 0 ? basket.totalCents : null
   const itemCounts = orderBarCounts(compareLines.length, basket, link)
   const headline = orderBarHeadline(itemCounts, storeLabel(store))
   const storeArticle = storeWithArticle(storeLabel(store))
-  const canOrder = CART_STORES.has(store)
   const stillPricing =
     pricingPendingCount > 0 || (priceLoading && total === null)
+  // Whether the selected store can receive a cart (feature flag). Picnic is
+  // priced but not orderable by default (#293); any store can be turned off.
+  const canOrder = storeOrderable(flags, store)
+  // Whether to ask for a tip on send (feature flag). When off, "Order" opens the
+  // store cart directly with no tip prompt.
+  const tippingEnabled = flags.tipping
 
   /**
    * Open the tip sheet INSTANTLY and start building the selected store's cart
@@ -96,6 +100,28 @@ export function FloatingOrderBar({
     // The user tapped "Order at <store>": the order intent, top of the checkout
     // rung. The basket link build kicks off in the background below.
     track(FUNNEL_EVENTS.orderClicked, { store, productCount: itemCounts.total })
+    const live = {
+      items: compareLines.map((l) => ({ name: l.name, amount: l.amount })),
+      staples: extras.map((e) => ({ slug: e.slug, store: e.store })),
+    }
+    const promise = buildCartLinks({ data: { store, live } })
+    linkPromiseRef.current = promise
+
+    // Tipping disabled by feature flag: skip the tip ask entirely and open the
+    // store cart as soon as the link resolves (the no-tip path). Mirrors the
+    // confirmTip percent<=0 branch, just without the dialog.
+    if (!tippingEnabled) {
+      promise
+        .then((res) => {
+          if (linkPromiseRef.current !== promise) return
+          setLink(res)
+          if (res.urls.length) openCart(res)
+          else setError(true)
+        })
+        .catch(() => setError(true))
+      return
+    }
+
     // Show the tip sheet first, on this gesture, so it appears with no wait.
     // Opening it is its own funnel step (how many who tap Order see the tip ask).
     track(FUNNEL_EVENTS.tipDialogOpened, {
@@ -103,12 +129,6 @@ export function FloatingOrderBar({
       productCount: itemCounts.total,
     })
     setTipOpen(true)
-    const live = {
-      items: compareLines.map((l) => ({ name: l.name, amount: l.amount })),
-      staples: extras.map((e) => ({ slug: e.slug, store: e.store })),
-    }
-    const promise = buildCartLinks({ data: { store, live } })
-    linkPromiseRef.current = promise
     promise
       .then((res) => {
         // Only adopt this result if it's still the latest build (the user could
@@ -247,19 +267,10 @@ export function FloatingOrderBar({
           </p>
 
           {!canOrder && (
-            <div className="mt-2 flex flex-col items-center gap-1 text-center">
-              <img
-                src="/stickers/person-ok.png"
-                alt=""
-                aria-hidden
-                className="souso-sticker h-20 w-auto object-contain"
-                style={{ transform: 'rotate(-3deg)' }}
-              />
-              <p className="text-muted-foreground text-[11px] font-medium">
-                Picnic goes live the second they say yes. This guy&rsquo;s ready
-                when they are. Pick Albert Heijn to send your cart now.
-              </p>
-            </div>
+            <p className="text-muted-foreground mt-2 text-center text-[11px] font-medium">
+              Picnic ordering isn&rsquo;t available yet. Pick Albert Heijn to
+              send your cart now.
+            </p>
           )}
 
           {error && (

@@ -2,6 +2,8 @@ import { Check } from 'lucide-react'
 import { cn } from '#/lib/utils'
 import { STORE_OPTIONS } from '#/lib/store-pref-server'
 import type { StoreOption } from '#/lib/store-pref-server'
+import { storeVisible } from '#/lib/flags'
+import { useFlags } from '#/lib/flags-context'
 import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 import { useOnboardingForm } from '../form-state'
 
@@ -12,20 +14,22 @@ import { useOnboardingForm } from '../form-state'
  * `draft.store` (slug 'ah' | 'jumbo' | 'picnic'); the planner uses it to build a
  * ready-to-order basket against that retailer.
  *
- * Albert Heijn + Picnic are selectable; Jumbo is parked as a disabled "Coming
- * soon" row until its pricing + cart are tested (still shown so we can re-enable
- * it later). The list comes from the shared STORE_OPTIONS catalogue so
- * onboarding and the Profile store sheet can't drift. Stores with a brand logo
- * (Picnic) render it; the rest keep their brand-colour initials chip.
+ * Which stores are selectable is feature-flagged (lib/flags.ts
+ * `store.<slug>.visible`): a store whose visible flag is off shows as a disabled
+ * "Coming soon" row (still listed so it can be turned on later). The list comes
+ * from the shared STORE_OPTIONS catalogue so onboarding and the Profile store
+ * sheet can't drift. Stores with a brand logo (Picnic) render it; the rest keep
+ * their brand-colour initials chip.
  *
  * Persistence is wired separately (#110); this step only patches the in-flight
  * draft. Mobile first at 390px: full-width tappable rows.
  */
 export function StoreStep() {
   const { draft, patch } = useOnboardingForm()
+  const flags = useFlags()
 
   function pick(option: StoreOption) {
-    if (option.comingSoon) return
+    if (!storeVisible(flags, option.slug)) return
     patch({ store: option.slug })
     // Which retailer the household chose during onboarding. Source separates this
     // from the in-app cart switch, which fires the same event.
@@ -43,7 +47,8 @@ export function StoreStep() {
         className="flex flex-col gap-3"
       >
         {STORE_OPTIONS.map((option) => {
-          const comingSoon = option.comingSoon === true
+          // A store whose `visible` flag is off shows as a disabled "Coming soon" row.
+          const comingSoon = !storeVisible(flags, option.slug)
           const isSelected = draft.store === option.slug && !comingSoon
           return (
             <button

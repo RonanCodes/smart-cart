@@ -20,6 +20,7 @@ import {
 } from '#/lib/use-price-comparison'
 import { effectiveStore } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
+import { useFlags } from '#/lib/flags-context'
 
 interface ShoppingSearch {
   /** Optional plan id, set when arriving from the week view's "Shopping list". */
@@ -99,8 +100,12 @@ function Shopping() {
   const [selectedExtraIds, setSelectedExtraIds] = useState<Set<string>>(
     new Set(),
   )
+  // Coerce a saved-but-now-hidden preference (e.g. a saved 'jumbo' while Jumbo's
+  // visible flag is off) to a visible store so the switch, pricing and order bar
+  // never land on a hidden store. Flags come from the root loader via context.
+  const flags = useFlags()
   const [store, setStore] = useState<StoreSlug>(
-    effectiveStore(preferredStore ?? 'ah'),
+    effectiveStore(preferredStore ?? 'ah', flags),
   )
   const router = useRouter()
 

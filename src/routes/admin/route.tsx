@@ -16,6 +16,7 @@ import {
   Beaker,
   SwatchBook,
   Shield,
+  ToggleLeft,
 } from 'lucide-react'
 import { requireAdminBeforeLoad } from '#/lib/admin-server'
 import { SafeArea } from '#/components/ui/safe-area'
@@ -154,6 +155,11 @@ function AdminLayout() {
               to="/admin/launch"
               icon={<Rocket className="h-4 w-4" />}
               label="Launch"
+            />
+            <TabLink
+              to="/admin/flags"
+              icon={<ToggleLeft className="h-4 w-4" />}
+              label="Feature flags"
             />
             <TabLink
               to="/admin/email"
