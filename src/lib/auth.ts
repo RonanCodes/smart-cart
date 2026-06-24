@@ -93,6 +93,17 @@ async function buildAuth() {
     // the *.workers.dev URL, and localhost in dev, so all are trusted; extra
     // hosts (previews) can be added via the TRUSTED_ORIGINS env with no redeploy.
     trustedOrigins,
+    // Keep people signed in for a month, refreshed on activity, instead of being
+    // bounced to sign-in (reported daily re-logins). Better Auth's defaults are a
+    // 7-day session refreshed at most once a day; we set an explicit long, ROLLING
+    // window — expiresIn is the max lifetime AND the session-cookie max-age (so the
+    // cookie persists across browser/PWA restarts rather than dying with the
+    // session), and updateAge re-extends it on activity so an active user never
+    // hits the wall.
+    session: {
+      expiresIn: 60 * 60 * 24 * 30, // 30 days
+      updateAge: 60 * 60 * 24, // extend daily on activity (rolling window)
+    },
     advanced: {
       useSecureCookies: baseURL.startsWith('https://'),
       defaultCookieAttributes: {
