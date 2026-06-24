@@ -205,7 +205,14 @@ export const startTip = createServerFn({ method: 'POST' })
     const { tipPayment } = await import('../db/tip-schema')
     const db = await getDb()
 
-    const amount = computeTipAmount(data.percent, data.basketTotal)
+    // Defence in depth: if tipping is disabled by feature flag, force the no-tip
+    // path regardless of the percent the client sent (a stale client or a direct
+    // call must never start a charge while the feature is off).
+    const { readFlags } = await import('./flags-read')
+    const flags = await readFlags()
+    const amount = flags.tipping
+      ? computeTipAmount(data.percent, data.basketTotal)
+      : null
     const tipPaymentId = crypto.randomUUID()
 
     // The effective Mollie mode (test|live) for this household: its override ??

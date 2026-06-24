@@ -3,6 +3,8 @@ import { CartPriceSlot } from '#/components/shopping/CartPriceSlot'
 import type { BasketComparison } from '#/lib/pricing'
 import { STORE_OPTIONS } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
+import { storeVisible } from '#/lib/flags'
+import { useFlags } from '#/lib/flags-context'
 import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 import { cn } from '#/lib/utils'
 
@@ -20,10 +22,11 @@ import { cn } from '#/lib/utils'
  * While a store is still pricing, its cell shows a live `priced/total` count so
  * the matcher never looks stuck (#cart-incremental-price).
  *
- * Albert Heijn + Picnic are selectable; Jumbo is parked as a disabled
- * "Coming soon" option until its pricing + cart are tested (it stays visible so
- * we can re-enable it later). Picnic shows its price but its cart isn't wired
- * yet (#293), which the floating order bar communicates.
+ * Which stores are selectable is feature-flagged (lib/flags.ts
+ * `store.<slug>.visible`): a store whose visible flag is off stays in the switch
+ * but reads as a greyed "Coming soon" cell. Ordering is a separate flag
+ * (`store.<slug>.ordering`) the floating order bar honours, so a store can be
+ * priced here without being orderable (Picnic today, #293).
  */
 export function CartStoreSwitch({
   data,
@@ -43,6 +46,7 @@ export function CartStoreSwitch({
   onSelect: (store: StoreSlug) => void
 }) {
   const cheapest = data?.cheapest?.store ?? null
+  const flags = useFlags()
 
   return (
     <div
@@ -51,7 +55,8 @@ export function CartStoreSwitch({
       className="border-border bg-card grid grid-cols-3 gap-1 rounded-2xl border p-1 shadow-sm"
     >
       {STORE_OPTIONS.map((option) => {
-        const comingSoon = option.comingSoon === true
+        // A store whose `visible` flag is off shows greyed as "Coming soon".
+        const comingSoon = !storeVisible(flags, option.slug)
         const on = option.slug === selected && !comingSoon
         const basket = data?.baskets.find((b) => b.store === option.slug)
         const total =

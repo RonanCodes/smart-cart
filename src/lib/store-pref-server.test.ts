@@ -4,8 +4,8 @@ import {
   storeLabel,
   STORE_OPTIONS,
   effectiveStore,
-  isStoreSelectable,
 } from './store-pref-server'
+import { mergeFlags } from './flags'
 
 /**
  * The setStore server fn is thin D1 glue around `normalizeStore` (the slug
@@ -54,35 +54,36 @@ describe('STORE_OPTIONS', () => {
     expect(STORE_OPTIONS.map((o) => o.slug)).toEqual(['ah', 'jumbo', 'picnic'])
   })
 
-  it('marks Jumbo as a parked "Coming soon" option, the others not', () => {
-    const byName = (name: string) => STORE_OPTIONS.find((o) => o.name === name)
-    expect(byName('Jumbo')?.comingSoon).toBe(true)
-    expect(byName('Albert Heijn')?.comingSoon).toBeFalsy()
-    expect(byName('Picnic')?.comingSoon).toBeFalsy()
-  })
-
   it('gives Picnic a self-hosted brand logo', () => {
     const picnic = STORE_OPTIONS.find((o) => o.name === 'Picnic')
     expect(picnic?.iconSrc).toBe('/brand/stores/picnic.png')
   })
 })
 
-describe('isStoreSelectable', () => {
-  it('treats Albert Heijn + Picnic as selectable, Jumbo as not', () => {
-    expect(isStoreSelectable('ah')).toBe(true)
-    expect(isStoreSelectable('picnic')).toBe(true)
-    expect(isStoreSelectable('jumbo')).toBe(false)
-  })
-})
-
 describe('effectiveStore (the cart/pricing gate)', () => {
-  it('coerces a parked "Coming soon" store down to the default', () => {
-    // A saved 'jumbo' must still produce a working cart, on AH.
-    expect(effectiveStore('jumbo')).toBe('ah')
+  it('passes a visible store through untouched', () => {
+    const flags = mergeFlags(null) // defaults: ah + picnic visible, jumbo hidden
+    expect(effectiveStore('ah', flags)).toBe('ah')
+    expect(effectiveStore('picnic', flags)).toBe('picnic')
   })
 
-  it('passes selectable stores through untouched', () => {
-    expect(effectiveStore('ah')).toBe('ah')
-    expect(effectiveStore('picnic')).toBe('picnic')
+  it('coerces a hidden store to the first visible one', () => {
+    // Jumbo hidden by default -> falls back to the first visible store (ah).
+    const flags = mergeFlags(null)
+    expect(effectiveStore('jumbo', flags)).toBe('ah')
+  })
+
+  it('passes a store through once its visible flag is turned on', () => {
+    const flags = mergeFlags({ 'store.jumbo.visible': true })
+    expect(effectiveStore('jumbo', flags)).toBe('jumbo')
+  })
+
+  it('falls back past a hidden ah to the next visible store', () => {
+    const flags = mergeFlags({
+      'store.ah.visible': false,
+      'store.jumbo.visible': false,
+      'store.picnic.visible': true,
+    })
+    expect(effectiveStore('jumbo', flags)).toBe('picnic')
   })
 })

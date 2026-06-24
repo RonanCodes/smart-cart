@@ -2,12 +2,10 @@ import * as React from 'react'
 import { Check } from 'lucide-react'
 import { Sheet } from '#/components/ui/sheet'
 import { cn } from '#/lib/utils'
-import {
-  STORE_OPTIONS,
-  setStore,
-  isStoreSelectable,
-} from '#/lib/store-pref-server'
+import { STORE_OPTIONS, setStore } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
+import { storeVisible } from '#/lib/flags'
+import { useFlags } from '#/lib/flags-context'
 
 /**
  * StoreSheet — the Profile-tab store picker (#212), the in-app entry to the
@@ -19,8 +17,9 @@ import type { StoreSlug } from '#/lib/store-pref-server'
  * Selectable stores write the choice on tap and reflect immediately (the
  * parent's trailing value updates) (#294). A failed write rolls the optimistic
  * value back and shows a quiet note; the sheet stays open so the user can retry.
- * Jumbo is parked as a disabled "Coming soon" row until it's tested (still
- * shown so we can re-enable it later); tapping it does nothing.
+ * Which stores are selectable is feature-flagged (lib/flags.ts
+ * `store.<slug>.visible`): a store whose visible flag is off shows as a disabled
+ * "Coming soon" row; tapping it does nothing.
  *
  * Mobile-first at 390px: full-width tappable rows, iOS sheet styling, calm copy.
  */
@@ -37,9 +36,10 @@ export function StoreSheet({
 }) {
   const [pending, setPending] = React.useState<StoreSlug | null>(null)
   const [error, setError] = React.useState(false)
+  const flags = useFlags()
 
   async function pick(slug: StoreSlug) {
-    if (slug === current || !isStoreSelectable(slug)) return
+    if (slug === current || !storeVisible(flags, slug)) return
     setError(false)
     setPending(slug)
     const previous = current
@@ -62,7 +62,8 @@ export function StoreSheet({
         className="flex flex-col gap-3 pt-2 pb-2"
       >
         {STORE_OPTIONS.map((option) => {
-          const comingSoon = option.comingSoon === true
+          // A store whose `visible` flag is off shows as a disabled "Coming soon" row.
+          const comingSoon = !storeVisible(flags, option.slug)
           const selected = option.slug === current && !comingSoon
           const saving = option.slug === pending
           return (
