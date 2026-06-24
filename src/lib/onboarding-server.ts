@@ -206,11 +206,86 @@ export const completeOnboarding = createServerFn({ method: 'POST' })
       })
     }
 
+    // Persist signup attribution ("How did you find us?") to its own table and
+    // send the attributed admin notice — both best-effort, neither blocks
+    // onboarding. The account already exists here (the user is signed in), so we
+    // have the userId. ABSENCE = UNKNOWN by design: a user who skipped the step
+    // writes a row with null source (still distinguishable from a pre-feature
+    // user, who has NO row at all). We do NOT backfill pre-existing users; a
+    // pop-up for them is a separate, later piece (not built here).
+    await persistSignupAttribution(user.id, data.draft)
+    await notifySignupAttribution(user.id, user.email, data.draft)
+
     // Generate the first week from the just-persisted profile (hard filters +
     // soft weights are read off the household row inside the planner core).
     const { planId } = await generatePlanForHousehold(householdId)
     return { householdId, planId }
   })
+
+/**
+ * Persist the "How did you find us?" answers to `signup_attribution` (userId
+ * UNIQUE, so a redo upserts). Best-effort: any failure is swallowed so it can
+ * never break onboarding. We always write a row when onboarding completes (even
+ * if the user skipped the step — null source), which is what makes a
+ * pre-feature user (NO row) distinguishable from a user who answered "unknown".
+ */
+async function persistSignupAttribution(
+  userId: string,
+  draft: OnboardingDraft,
+): Promise<void> {
+  try {
+    const { getDb } = await import('../db/client')
+    const { signupAttribution } =
+      await import('../db/signup-attribution-schema')
+    const { attributionRowFromDraft } = await import('./signup-attribution')
+    const db = await getDb()
+    const { source, sourceOther, referrer } = attributionRowFromDraft(draft)
+    await db
+      .insert(signupAttribution)
+      .values({
+        id: crypto.randomUUID(),
+        userId,
+        source,
+        sourceOther,
+        referrer,
+        createdAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: signupAttribution.userId,
+        set: { source, sourceOther, referrer },
+      })
+  } catch {
+    // Attribution is non-essential telemetry: never block onboarding on it.
+  }
+}
+
+/**
+ * Send the single attributed admin "new signup" email from the onboarding path.
+ * Claims the signup_notice row FIRST (inside notifyAdminsOfNewUser), so this
+ * attributed send wins over the user.create hook's fallback — exactly one email,
+ * and it carries the source + referrer. Best-effort: the notifier swallows its
+ * own errors, so a Resend / DB hiccup never breaks onboarding.
+ */
+async function notifySignupAttribution(
+  userId: string,
+  email: string,
+  draft: OnboardingDraft,
+): Promise<void> {
+  try {
+    const { notifyAdminsOfNewUser } = await import('./waitlist-notify')
+    await notifyAdminsOfNewUser({
+      email,
+      userId,
+      attribution: {
+        source: draft.source || null,
+        sourceOther: draft.sourceOther || null,
+        referrer: draft.referrer || null,
+      },
+    })
+  } catch {
+    // Non-fatal: admin notify must never break onboarding completion.
+  }
+}
 
 /**
  * Reset onboarding: clear the household's swipes + learned taste so the user can

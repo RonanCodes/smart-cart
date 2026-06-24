@@ -73,3 +73,43 @@ export function isDevEnv(): boolean {
 export function showDevBadge(env: AppEnv = APP_ENV): boolean {
   return env !== 'production'
 }
+
+// ── DEV email markers ──────────────────────────────────────────────────────
+// Outbound email from the dev worker must be OBVIOUSLY dev so an admin never
+// mistakes a dev test for a real prod signup. The two markers below are pure
+// (they take the `isDev` flag in, never touch import.meta), so they are unit
+// tested directly; email.ts passes isDevEnv() in. We KEEP the verified
+// souso.app domain + noreply@ address (DKIM/SPF unchanged) and only change the
+// display name; actually sending FROM @dev.souso.app would need that subdomain
+// verified as its own Resend sending domain (a separate follow-up).
+
+/**
+ * The From display name + address for outbound email. In dev the display name
+ * becomes "Souso (DEV)" so the sender reads as dev at a glance; the address
+ * stays noreply@souso.app so deliverability / DKIM is unchanged. Prod is the
+ * plain "Souso <noreply@souso.app>".
+ */
+export function emailFromAddress(isDev: boolean): string {
+  return isDev ? 'Souso (DEV) <noreply@souso.app>' : 'Souso <noreply@souso.app>'
+}
+
+/**
+ * An amber DEV strip prepended to the body of every dev email, so even a glance
+ * at the message (not just the sender) says "this is dev, not production". Empty
+ * string in prod, so prod email bodies are byte-for-byte unchanged.
+ */
+export function emailDevBanner(isDev: boolean): string {
+  if (!isDev) return ''
+  return `<div style="background:#FFF3CD;color:#7A5A00;border:1px solid #F0D88A;border-radius:8px;padding:10px 14px;margin:0 0 16px;font-size:13px;font-weight:700;text-align:center;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;">DEV: this is a test from dev.souso.app, not production</div>`
+}
+
+/**
+ * The plain-text DEV marker, prepended to the text body of emails that have NO
+ * HTML shell (the admin text-only pings: waitlist signup + new-user notice), so
+ * their body reads as dev too. Empty string in prod. Includes a trailing blank
+ * line so it sits as its own paragraph above the real body.
+ */
+export function emailDevTextBanner(isDev: boolean): string {
+  if (!isDev) return ''
+  return 'DEV: this is a test from dev.souso.app, not production.\n\n'
+}
