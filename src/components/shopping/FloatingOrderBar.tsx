@@ -8,6 +8,11 @@ import type { CartLinkResult } from '#/lib/cart-links-server'
 import type { CartExtra, CompareLine } from '#/lib/shopping/cart-set'
 import { storeLabel } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
+import {
+  orderBarCounts,
+  orderBarHeadline,
+  storeWithArticle,
+} from '#/components/shopping/order-bar-counts'
 import { TipSheet } from '#/components/shopping/TipSheet'
 import { startTip } from '#/lib/tip-server'
 import { openStoreCart } from '#/lib/open-store-cart'
@@ -69,7 +74,9 @@ export function FloatingOrderBar({
 
   const basket = data?.baskets.find((b) => b.store === store)
   const total = basket && basket.lineItems.length > 0 ? basket.totalCents : null
-  const productCount = compareLines.length
+  const itemCounts = orderBarCounts(compareLines.length, basket, link)
+  const headline = orderBarHeadline(itemCounts, storeLabel(store))
+  const storeArticle = storeWithArticle(storeLabel(store))
   const canOrder = CART_STORES.has(store)
   const stillPricing =
     pricingPendingCount > 0 || (priceLoading && total === null)
@@ -88,10 +95,13 @@ export function FloatingOrderBar({
     setLink(null)
     // The user tapped "Order at <store>": the order intent, top of the checkout
     // rung. The basket link build kicks off in the background below.
-    track(FUNNEL_EVENTS.orderClicked, { store, productCount })
+    track(FUNNEL_EVENTS.orderClicked, { store, productCount: itemCounts.total })
     // Show the tip sheet first, on this gesture, so it appears with no wait.
     // Opening it is its own funnel step (how many who tap Order see the tip ask).
-    track(FUNNEL_EVENTS.tipDialogOpened, { store, productCount })
+    track(FUNNEL_EVENTS.tipDialogOpened, {
+      store,
+      productCount: itemCounts.total,
+    })
     setTipOpen(true)
     const live = {
       items: compareLines.map((l) => ({ name: l.name, amount: l.amount })),
@@ -205,8 +215,7 @@ export function FloatingOrderBar({
         <div className="bg-card/95 border-border rounded-2xl border p-3 shadow-lg backdrop-blur">
           <div className="mb-2 flex items-baseline justify-between px-1">
             <span className="text-muted-foreground text-xs font-semibold">
-              {productCount} {productCount === 1 ? 'product' : 'products'} at{' '}
-              {storeLabel(store)}
+              {headline}
             </span>
             <span className="text-lg font-extrabold tabular-nums">
               <CartPriceSlot
@@ -253,23 +262,13 @@ export function FloatingOrderBar({
             </div>
           )}
 
-          {canOrder &&
-            link &&
-            link.urls.length > 0 &&
-            link.matched < link.total && (
-              <p className="text-muted-foreground/80 mt-1.5 text-center text-[11px]">
-                {link.matched} of {link.total} items matched a{' '}
-                {storeLabel(store)} product.
-              </p>
-            )}
-
           {error && (
             <p
               className="text-destructive mt-1.5 text-center text-[11px]"
               role="alert"
             >
               {link && !link.urls.length
-                ? `None of your items matched a ${storeLabel(store)} product yet.`
+                ? `None of your items matched ${storeArticle} product yet.`
                 : 'Could not build the cart link. Try again.'}
             </p>
           )}
