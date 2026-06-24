@@ -81,6 +81,57 @@ describe('FloatingOrderBar approximate-price disclaimer', () => {
       screen.getByText(/prices are approximate and may differ at checkout/i),
     ).toBeTruthy()
   })
+
+  it('shows partial match in the headline when pricing knows not every line matched', () => {
+    render(
+      <FloatingOrderBar
+        store="ah"
+        data={{
+          baskets: [
+            {
+              store: 'ah',
+              displayName: 'Albert Heijn',
+              lineItems: [
+                {
+                  ingredient: 'tomaten',
+                  productName: 'Tomaat',
+                  packSize: '500 g',
+                  packPriceCents: 199,
+                  packs: 1,
+                  lineCents: 199,
+                  slug: 'wi1',
+                  confidence: 'high',
+                  estimated: false,
+                  waste: null,
+                },
+              ],
+              totalCents: 199,
+              totalWaste: {
+                cents: 0,
+                massGrams: 0,
+                volumeMl: 0,
+                count: 0,
+                unknownLines: 0,
+                hasUnknown: false,
+              },
+              unavailable: [{ ingredient: 'missing' }],
+              estimatedCount: 0,
+            },
+          ],
+          cheapest: null,
+        }}
+        compareLines={[
+          { name: 'tomaten', amount: '500 g' },
+          { name: 'missing', amount: '1' },
+        ]}
+        extras={[]}
+      />,
+    )
+    expect(
+      screen.getByText('1 of 2 items matched at Albert Heijn'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/items matched a Albert/i)).toBeNull()
+  })
 })
 
 describe('FloatingOrderBar — instant tip screen (#440)', () => {
