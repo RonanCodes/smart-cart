@@ -16,13 +16,79 @@ import {
 } from '../components/ErrorBoundary'
 import { log } from '../lib/log'
 import { useSession } from '../lib/auth-client'
+import { IS_DEV_ENV } from '../lib/app-env'
+import { DevEnvRibbon } from '../components/DevEnvRibbon'
+import { getFlags } from '../lib/flags-server'
+import { FlagsProvider } from '../lib/flags-context'
 
 const SITE_URL = 'https://smartcart.ronanconnolly.dev'
 const SITE_TITLE = 'Souso: your sous chef for recipes and the weekly shop'
 const SITE_DESCRIPTION =
   'Souso finds you recipes you will love, learns how your household eats, and fills a ready-to-order basket at Albert Heijn or Jumbo in under a minute. You just check out.'
 
+/**
+ * Favicon + apple-touch + manifest <link>s. On the dev deployment we serve the
+ * DEV-badged icon variants (`*-dev.png`) and a dev manifest (`site.dev.webmanifest`)
+ * so the browser favicon and an installed dev PWA are obviously not prod. Prod
+ * keeps the exact links it has always shipped. The branch is on IS_DEV_ENV, a
+ * build-time-constant boolean, so the prod bundle dead-code-eliminates the dev
+ * arm entirely (no dev icon URLs ship to prod).
+ */
+function devOrProdIconLinks() {
+  if (IS_DEV_ENV) {
+    return [
+      { rel: 'icon', href: '/favicon-dev.svg?v=6', sizes: 'any' },
+      { rel: 'icon', type: 'image/svg+xml', href: '/favicon-dev.svg?v=6' },
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '32x32',
+        href: '/favicon-32x32-dev.png?v=6',
+      },
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '16x16',
+        href: '/favicon-16x16-dev.png?v=6',
+      },
+      {
+        rel: 'apple-touch-icon',
+        sizes: '180x180',
+        href: '/apple-touch-icon-dev.png?v=6',
+      },
+      { rel: 'manifest', href: '/site.dev.webmanifest' },
+    ]
+  }
+  return [
+    { rel: 'icon', href: '/favicon.ico?v=6', sizes: 'any' },
+    { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=6' },
+    {
+      rel: 'icon',
+      type: 'image/png',
+      sizes: '32x32',
+      href: '/favicon-32x32.png?v=6',
+    },
+    {
+      rel: 'icon',
+      type: 'image/png',
+      sizes: '16x16',
+      href: '/favicon-16x16.png?v=6',
+    },
+    {
+      rel: 'apple-touch-icon',
+      sizes: '180x180',
+      href: '/apple-touch-icon.png?v=6',
+    },
+    { rel: 'manifest', href: '/site.webmanifest' },
+  ]
+}
+
 export const Route = createRootRoute({
+  // Resolve the feature flags ONCE per load (server side, degrades to defaults
+  // on any error) and bootstrap them to the client via FlagsProvider, so the
+  // store pickers / order bar / tip prompt render with the right state on first
+  // paint, no flicker and no async work on the render path.
+  loader: async () => ({ flags: await getFlags() }),
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -55,10 +121,12 @@ export const Route = createRootRoute({
         content: 'default',
       },
       // The installed-PWA home-screen name on iOS (falls back to <title>, which
-      // is the long marketing string). Keep it the short brand name.
+      // is the long marketing string). Keep it the short brand name; on the dev
+      // deployment append DEV so the home-screen label is distinct too. Baked at
+      // build time via IS_DEV_ENV, so prod always reads plain "Souso".
       {
         name: 'apple-mobile-web-app-title',
-        content: 'Souso',
+        content: IS_DEV_ENV ? 'Souso DEV' : 'Souso',
       },
       { title: SITE_TITLE },
       { name: 'description', content: SITE_DESCRIPTION },
@@ -96,26 +164,11 @@ export const Route = createRootRoute({
         href: '/fonts/schoolbell.woff2',
         crossOrigin: 'anonymous',
       },
-      { rel: 'icon', href: '/favicon.ico?v=6', sizes: 'any' },
-      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=6' },
-      {
-        rel: 'icon',
-        type: 'image/png',
-        sizes: '32x32',
-        href: '/favicon-32x32.png?v=6',
-      },
-      {
-        rel: 'icon',
-        type: 'image/png',
-        sizes: '16x16',
-        href: '/favicon-16x16.png?v=6',
-      },
-      {
-        rel: 'apple-touch-icon',
-        sizes: '180x180',
-        href: '/apple-touch-icon.png?v=6',
-      },
-      { rel: 'manifest', href: '/site.webmanifest' },
+      // Icons + manifest. On the dev deployment (dev.souso.app) we point at the
+      // DEV-badged variants and a dev manifest so an installed dev PWA and the
+      // browser favicon are visibly distinct from prod. IS_DEV_ENV is baked at
+      // build time, so prod ALWAYS gets the unchanged prod icons below.
+      ...devOrProdIconLinks(),
     ],
   }),
   component: RootComponent,
@@ -136,6 +189,10 @@ function RootDocument({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  // Feature flags resolved by the root loader (above), shared to every route via
+  // context so components read them synchronously with no flicker.
+  const { flags } = Route.useLoaderData()
+
   // Attach the signed-in user (id + email) to Sentry so every client event shows
   // WHO hit it; clear to anonymous when signed out. The setter is a no-op until
   // initObservability() has run and a no-op in dev where Sentry is off (#284).
@@ -220,10 +277,15 @@ function RootComponent() {
 
   return (
     <RootDocument>
+      {/* App-wide DEV / LOCAL indicator. Renders nothing on prod (gated on
+          appEnv(), baked at build time), so souso.app is never badged. */}
+      <DevEnvRibbon />
       <ErrorBoundary>
-        <QueryClientProvider>
-          <Outlet />
-        </QueryClientProvider>
+        <FlagsProvider flags={flags}>
+          <QueryClientProvider>
+            <Outlet />
+          </QueryClientProvider>
+        </FlagsProvider>
       </ErrorBoundary>
     </RootDocument>
   )

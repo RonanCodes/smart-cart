@@ -1,9 +1,10 @@
 /**
  * Client-only helper for opening a resolved store cart link (#293).
  *
- * Large AH / Jumbo bulk-add requests are chunked (~25 SKUs). We pre-open one tab
- * per chunk during the user's click (so popups are allowed), then navigate each
- * tab to its add URL with a short gap so AH's basketItemsAdd mutations don't race.
+ * Large AH / Jumbo bulk-add requests are chunked (~25 SKUs). We reserve ONE tab
+ * on the user's click (popup-safe), then chain each chunk GET in that same tab
+ * with a short gap so AH's basketItemsAdd mutations don't race. Multi-tab opens
+ * triggered Chrome's popup blocker on big weeks.
  */
 
 import type { BuiltCartLink } from './cart-build'
@@ -33,8 +34,8 @@ function navigateTab(tab: Window | null, url: string): void {
 
 /**
  * Open every chunk URL automatically. Single-chunk carts open one tab; multi-chunk
- * carts reserve tabs on the click gesture, then load each add-multiple URL in
- * sequence {@link CART_CHUNK_OPEN_MS} apart.
+ * carts reserve one tab on the click gesture, then load each add-multiple URL in
+ * that tab in sequence {@link CART_CHUNK_OPEN_MS} apart.
  */
 export function openStoreCart(link: BuiltCartLink): void {
   const { urls } = link
@@ -45,14 +46,13 @@ export function openStoreCart(link: BuiltCartLink): void {
     return
   }
 
-  // Reserve a tab per chunk synchronously (popup-safe), navigate with a stagger.
-  // Do NOT pass 'noopener' here: with noopener window.open returns null, so the
-  // reserved about:blank tabs would have no handle to navigate and would just
-  // sit blank (#cart-blank). We need the handle to set tab.location below.
-  const tabs = urls.map(() => window.open('about:blank', '_blank'))
+  // One tab only. Do NOT pass 'noopener' here: with noopener window.open returns
+  // null, so the reserved about:blank tab would have no handle to navigate
+  // (#cart-blank).
+  const tab = window.open('about:blank', '_blank')
 
   urls.forEach((url, index) => {
-    const run = () => navigateTab(tabs[index] ?? null, url)
+    const run = () => navigateTab(tab, url)
     if (index === 0) run()
     else window.setTimeout(run, index * CART_CHUNK_OPEN_MS)
   })

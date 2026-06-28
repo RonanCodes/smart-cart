@@ -8,6 +8,9 @@ import {
   onboardingReducer,
 } from '../form-state'
 import type { OnboardingDraft } from '../form-state'
+import { FlagsProvider } from '#/lib/flags-context'
+import { mergeFlags } from '#/lib/flags'
+import type { FlagSet } from '#/lib/flags'
 
 const track = vi.fn()
 vi.mock('#/lib/analytics', () => ({
@@ -26,6 +29,7 @@ beforeEach(() => {
 function withForm(
   ui: React.ReactElement,
   initial: OnboardingDraft = EMPTY_DRAFT,
+  flags: FlagSet = mergeFlags(null),
 ) {
   const latest = { draft: initial }
   function Harness() {
@@ -39,11 +43,18 @@ function withForm(
       }),
       [draft],
     )
-    return <OnboardingFormProvider value={value}>{ui}</OnboardingFormProvider>
+    return (
+      <FlagsProvider flags={flags}>
+        <OnboardingFormProvider value={value}>{ui}</OnboardingFormProvider>
+      </FlagsProvider>
+    )
   }
   render(<Harness />)
   return latest
 }
+
+/** Flags with Jumbo turned on (visible), for the "enabled" path. */
+const JUMBO_ON = mergeFlags({ 'store.jumbo.visible': true })
 
 describe('StoreStep', () => {
   it('renders exactly the three Dutch stores', () => {
@@ -54,15 +65,22 @@ describe('StoreStep', () => {
     expect(screen.getAllByRole('radio')).toHaveLength(3)
   })
 
-  it('shows Jumbo as a disabled "Coming soon" option that cannot be picked', () => {
+  it('shows Jumbo as a disabled "Coming soon" option by default (flag off)', () => {
     const latest = withForm(<StoreStep />)
     const jumbo = screen.getByRole('radio', { name: /Jumbo/ })
     expect(jumbo.getAttribute('aria-disabled')).toBe('true')
     expect((jumbo as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText('Coming soon')).toBeTruthy()
-    // A click on the disabled option must not change the draft store.
     fireEvent.click(jumbo)
     expect(latest.draft.store).toBeNull()
+  })
+
+  it('lets Jumbo be picked once its visible flag is on', () => {
+    const latest = withForm(<StoreStep />, EMPTY_DRAFT, JUMBO_ON)
+    const jumbo = screen.getByRole('radio', { name: /Jumbo/ })
+    expect((jumbo as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.click(jumbo)
+    expect(latest.draft.store).toBe('jumbo')
   })
 
   it('selects Albert Heijn into draft.store with the ah slug', () => {
@@ -80,10 +98,19 @@ describe('StoreStep', () => {
     })
   })
 
-  it('fires nothing when the disabled "Coming soon" store is tapped', () => {
+  it('fires nothing when the disabled "Coming soon" Jumbo is tapped (flag off)', () => {
     withForm(<StoreStep />)
     fireEvent.click(screen.getByRole('radio', { name: /Jumbo/ }))
     expect(track).not.toHaveBeenCalled()
+  })
+
+  it('fires store_selected (source onboarding) when Jumbo is picked (flag on)', () => {
+    withForm(<StoreStep />, EMPTY_DRAFT, JUMBO_ON)
+    fireEvent.click(screen.getByRole('radio', { name: /Jumbo/ }))
+    expect(track).toHaveBeenCalledWith('store_selected', {
+      store: 'jumbo',
+      source: 'onboarding',
+    })
   })
 
   it('shows already-selected store as checked', () => {

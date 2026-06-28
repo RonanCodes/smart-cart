@@ -20,6 +20,7 @@ import {
 } from '#/lib/use-price-comparison'
 import { effectiveStore } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
+import { useFlags } from '#/lib/flags-context'
 
 interface ShoppingSearch {
   /** Optional plan id, set when arriving from the week view's "Shopping list". */
@@ -78,44 +79,36 @@ function Shopping() {
     | null
     | undefined
 
-  // Fail-safe (server-hardening): if the loader ever resolves to null/undefined
-  // (a backend hiccup degrading gracefully rather than 500-ing), render the
-  // graceful empty-cart state instead of destructuring null (which crashed the
-  // client with "Cannot destructure property 'view' from null" in Sentry).
-  if (!data) return <EmptyCart initialStaples={[]} />
-
-  const {
-    view,
-    staples: initialStaples,
-    items: initialItems,
-    preferredStore,
-  } = data
+  const view = data?.view ?? {
+    list: { lines: [] },
+    waste: { hasSavings: false, sharedIngredientCount: 0 },
+    missingPlanId: false,
+    amountsEstimated: false,
+  }
+  const initialStaples = data?.staples ?? []
+  const initialItems = data?.items ?? []
+  const preferredStore = data?.preferredStore
   const hasSavedItems = initialItems.length > 0
 
   // The route OWNS the live list + extras + their selected state (#311), plus the
   // selected store (#cart-align), so the store switch, the per-item prices, the
   // floating total and the order button all recompute together from the SELECTED
-  // (in-order) set with no full reload.
+  // (in-order) set with no full reload. Hooks MUST run before any early return.
   const [liveItems, setLiveItems] = useState<Array<ShoppingItem>>(initialItems)
   const [liveStaples, setLiveStaples] =
     useState<Array<StapleLine>>(initialStaples)
   const [selectedExtraIds, setSelectedExtraIds] = useState<Set<string>>(
     new Set(),
   )
-  // Coerce any parked "Coming soon" preference (e.g. a saved 'jumbo') to the
-  // default so the switch, pricing and order bar never land on an untested store.
-  const [store, setStore] = useState<StoreSlug>(effectiveStore(preferredStore))
-
-  // The route reuses its loader result on back-nav within 30s (staleTime, #251).
-  // A "Clear all" persists server-side, but without invalidating that cache the
-  // stale pre-clear bootstrap was served on the next visit, then snapped to empty
-  // on the first tap ("the old data is cached for the view"). Invalidate after a
-  // successful clear so a re-load reflects the cleared list immediately; the 30s
-  // reuse stays intact for the unchanged case.
+  // Coerce a saved-but-now-hidden preference (e.g. a saved 'jumbo' while Jumbo's
+  // visible flag is off) to a visible store so the switch, pricing and order bar
+  // never land on a hidden store. Flags come from the root loader via context.
+  const flags = useFlags()
+  const [store, setStore] = useState<StoreSlug>(
+    effectiveStore(preferredStore ?? 'ah', flags),
+  )
   const router = useRouter()
 
-  // The extras as cart-set shape: a staple's saved slug already carries its
-  // store, so selecting it includes it in that store's basket + cart.
   const extras: Array<CartExtra> = useMemo(
     () =>
       liveStaples.map((s) => ({
@@ -127,30 +120,33 @@ function Shopping() {
     [liveStaples],
   )
 
-  // The single live SELECTED (in-order) set the comparison + cart consume.
   const liveSet = useMemo(
     () => deriveLiveCartSet(liveItems, extras, selectedExtraIds),
     [liveItems, extras, selectedExtraIds],
   )
 
-  // ONE shared price comparison feeds the switch, the per-item prices and the
-  // floating bar (#cart-align). The 4 MB catalogue stays server-side.
-  const { data: priceData, loading: priceLoading } = usePriceComparison(
-    liveSet.compareLines,
-  )
+  const {
+    data: priceData,
+    loading: priceLoading,
+    storePendingLineKeys,
+  } = usePriceComparison(liveSet.compareLines)
   const priceMap = useMemo(
     () => priceMapForStore(priceData, store),
     [priceData, store],
   )
+  const pendingLineKeys = storePendingLineKeys[store] ?? new Set<string>()
+  const pricingTotal = liveSet.compareLines.length
+  const pricingPendingCount = pendingLineKeys.size
 
-  // "Merged automatically from N recipes": distinct meals the list draws on,
-  // counted from the real consolidated lines' usedInMeals (no hardcoding).
   const recipeCount = useMemo(() => {
     const meals = new Set<string>()
     for (const line of view.list.lines)
       for (const meal of line.usedInMeals) meals.add(meal)
     return meals.size
   }, [view.list.lines])
+
+  // Fail-safe: loader returned null/undefined — render empty cart after hooks.
+  if (!data) return <EmptyCart initialStaples={[]} />
 
   // A `?plan=` deep-link to a plan that is not in this account: never show the
   // household's own saved list as if it were that week. Offer a way back to the
@@ -200,6 +196,8 @@ function Shopping() {
             <CartStoreSwitch
               data={priceData}
               loading={priceLoading}
+              lineTotal={pricingTotal}
+              storePendingLineKeys={storePendingLineKeys}
               selected={store}
               onSelect={setStore}
             />
@@ -242,6 +240,8 @@ function Shopping() {
             onItemsChange={setLiveItems}
             onCleared={() => void router.invalidate()}
             priceMap={priceMap}
+            priceLoading={priceLoading}
+            pendingLineKeys={pendingLineKeys}
           />
         </div>
       )}
@@ -266,6 +266,8 @@ function Shopping() {
         <FloatingOrderBar
           store={store}
           data={priceData}
+          priceLoading={priceLoading}
+          pricingPendingCount={pricingPendingCount}
           compareLines={liveSet.compareLines}
           extras={extras.filter((e) => selectedExtraIds.has(e.id))}
         />

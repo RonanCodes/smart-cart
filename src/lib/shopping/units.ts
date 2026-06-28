@@ -62,6 +62,53 @@ const UNIT_MAP: Record<string, CanonicalUnit> = {
 }
 
 /**
+ * Count-unit synonyms that mean the same grocery unit. Maps to one canonical
+ * base so "2 tenen" + "1 clove" merge. Deliberately excludes `stuk`/`stuks`:
+ * a garlic bulb (stuk) is not a clove (teen) — merging them would under- or
+ * over-buy (#367).
+ */
+const COUNT_UNIT_ALIASES: Readonly<Record<string, string>> = {
+  teen: 'teen',
+  tenen: 'teen',
+  clove: 'teen',
+  cloves: 'teen',
+  stuk: 'stuk',
+  stuks: 'stuk',
+}
+
+/** Cooking amounts with no reliable pack math — surface qualitatively, not "1 snuf". */
+const QUALITATIVE_UNITS = new Set([
+  'snuf',
+  'snufje',
+  'pinch',
+  'naar smaak',
+  'to taste',
+])
+
+/** Dutch-first display plurals where English `pluralise()` would be wrong. */
+const COUNT_DISPLAY_PLURAL: Readonly<Record<string, string>> = {
+  teen: 'tenen',
+  stuk: 'stuks',
+}
+
+/**
+ * True when the unit token is qualitative ("snuf", "pinch") — no numeric bucket.
+ */
+export function isQualitativeUnit(rawUnit?: string): boolean {
+  return QUALITATIVE_UNITS.has(normaliseUnitToken(rawUnit))
+}
+
+/** Human label for a qualitative unit on the shopping list. */
+export function qualitativeLabel(rawUnit?: string): string {
+  const token = normaliseUnitToken(rawUnit)
+  if (token === 'snuf') return 'snufje'
+  if (token === 'pinch') return 'a pinch'
+  if (token === 'naar smaak' || token === 'to taste') return 'to taste'
+  if (token === 'snufje') return 'snufje'
+  return token || 'to taste'
+}
+
+/**
  * Resolve a raw unit string to its canonical dimension/base. An empty or
  * unrecognised unit becomes the dimensionless `count` dimension keyed on the
  * normalised token, so 'clove' and 'cloves' add together but 'clove' and 'can'
@@ -70,9 +117,10 @@ const UNIT_MAP: Record<string, CanonicalUnit> = {
 export function canonicalUnit(rawUnit?: string): CanonicalUnit {
   const token = normaliseUnitToken(rawUnit)
   if (token && UNIT_MAP[token]) return UNIT_MAP[token]
-  // count dimension: the (singularised) token IS the base so unlike loose
-  // units never merge. Empty unit => the universal 'count' bucket.
-  const base = token ? singularise(token) : 'count'
+  // count dimension: alias map + singularise so unlike units never merge.
+  const base = token
+    ? (COUNT_UNIT_ALIASES[token] ?? singularise(token))
+    : 'count'
   return { dimension: 'count', toBase: 1, base }
 }
 
@@ -96,6 +144,27 @@ function pluralise(token: string): string {
   return token + 's'
 }
 
+function pluraliseCount(base: string, value: number): string {
+  if (value === 1) return base
+  return COUNT_DISPLAY_PLURAL[base] ?? pluralise(base)
+}
+
+/**
+ * Round scaled totals for display on a shopping list (#367). Internal base-unit
+ * sums stay exact; only the rendered string is shopper-friendly. Counts and
+ * spoons round UP (you cannot buy 0.6 stuks or half a tl); mass/volume round to
+ * the nearest whole g/ml.
+ */
+function displayValue(
+  dimension: CanonicalUnit['dimension'],
+  value: number,
+): number {
+  if (value <= 0) return 0
+  if (dimension === 'count' || dimension === 'spoon')
+    return Math.ceil(value - 1e-9)
+  return Math.round(value)
+}
+
 /**
  * Pick a human display unit + value for a base-unit total in a dimension.
  * Promotes to the larger unit when the number gets big (1500 g -> '1.5 kg').
@@ -106,23 +175,22 @@ export function renderFromBase(
   baseValue: number,
   countBase: string,
 ): { value: number; unit: string } {
+  const v = displayValue(dimension, baseValue)
   if (dimension === 'mass') {
-    if (baseValue >= 1000) return { value: round(baseValue / 1000), unit: 'kg' }
-    return { value: round(baseValue), unit: 'g' }
+    if (v >= 1000) return { value: round(v / 1000), unit: 'kg' }
+    return { value: v, unit: 'g' }
   }
   if (dimension === 'volume') {
-    if (baseValue >= 1000) return { value: round(baseValue / 1000), unit: 'l' }
-    return { value: round(baseValue), unit: 'ml' }
+    if (v >= 1000) return { value: round(v / 1000), unit: 'l' }
+    return { value: v, unit: 'ml' }
   }
   if (dimension === 'spoon') {
-    if (baseValue >= 3 && baseValue % 3 === 0)
-      return { value: round(baseValue / 3), unit: 'tbsp' }
-    return { value: round(baseValue), unit: 'tsp' }
+    if (v >= 3 && v % 3 === 0) return { value: v / 3, unit: 'tbsp' }
+    return { value: v, unit: 'tsp' }
   }
-  // count: base unit is the (singularised) token; no display unit when 'count'.
-  if (countBase === 'count') return { value: round(baseValue), unit: '' }
-  const value = round(baseValue)
-  return { value, unit: value === 1 ? countBase : pluralise(countBase) }
+  // count: base unit is the canonical token; no display unit when 'count'.
+  if (countBase === 'count') return { value: v, unit: '' }
+  return { value: v, unit: pluraliseCount(countBase, v) }
 }
 
 /** Round to 2 decimals, dropping a trailing `.0`/`.00`. */

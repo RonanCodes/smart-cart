@@ -1,13 +1,20 @@
 import { useRef, useState } from 'react'
 import { ShoppingCart } from 'lucide-react'
 import { Button } from '#/components/ui/button'
-import { formatCents } from '#/lib/pricing'
+import { CartPriceSlot } from '#/components/shopping/CartPriceSlot'
 import type { BasketComparison } from '#/lib/pricing'
 import { buildCartLinks } from '#/lib/cart-links-server'
 import type { CartLinkResult } from '#/lib/cart-links-server'
 import type { CartExtra, CompareLine } from '#/lib/shopping/cart-set'
 import { storeLabel } from '#/lib/store-pref-server'
 import type { StoreSlug } from '#/lib/store-pref-server'
+import {
+  orderBarCounts,
+  orderBarHeadline,
+  storeWithArticle,
+} from '#/components/shopping/order-bar-counts'
+import { storeOrderable } from '#/lib/flags'
+import { useFlags } from '#/lib/flags-context'
 import { TipSheet } from '#/components/shopping/TipSheet'
 import { startTip } from '#/lib/tip-server'
 import { openStoreCart } from '#/lib/open-store-cart'
@@ -17,10 +24,6 @@ import { track, FUNNEL_EVENTS } from '#/lib/analytics'
 
 /** Rough basket € total for the tip math fallback when we have no priced basket. */
 const EUR_PER_ITEM = 2.5
-
-/** The stores whose bulk-cart deep-link is wired today (#293). Picnic is
- *  selectable + priced, but its cart isn't built yet. */
-const CART_STORES = new Set<StoreSlug>(['ah', 'jumbo'])
 
 /**
  * The floating total + "Order at <store>" action pinned above the tab bar
@@ -40,6 +43,8 @@ export function FloatingOrderBar({
   data,
   compareLines,
   extras,
+  priceLoading = false,
+  pricingPendingCount = 0,
 }: {
   /** The store the top switch currently has selected. */
   store: StoreSlug
@@ -49,6 +54,10 @@ export function FloatingOrderBar({
   compareLines: Array<CompareLine>
   /** Live SELECTED (in-order) extras (staples) with their store + saved slug. */
   extras: Array<CartExtra>
+  /** True while the matcher is still resolving prices for the live cart. */
+  priceLoading?: boolean
+  /** How many selected lines are still being priced at the selected store. */
+  pricingPendingCount?: number
 }) {
   const [link, setLink] = useState<CartLinkResult | null>(null)
   const [error, setError] = useState(false)
@@ -61,10 +70,20 @@ export function FloatingOrderBar({
   // user never stares at a spinner waiting for the (slow, accurate-tier) match.
   const linkPromiseRef = useRef<Promise<CartLinkResult> | null>(null)
 
+  const flags = useFlags()
   const basket = data?.baskets.find((b) => b.store === store)
   const total = basket && basket.lineItems.length > 0 ? basket.totalCents : null
-  const productCount = basket?.lineItems.length ?? compareLines.length
-  const canOrder = CART_STORES.has(store)
+  const itemCounts = orderBarCounts(compareLines.length, basket, link)
+  const headline = orderBarHeadline(itemCounts, storeLabel(store))
+  const storeArticle = storeWithArticle(storeLabel(store))
+  const stillPricing =
+    pricingPendingCount > 0 || (priceLoading && total === null)
+  // Whether the selected store can receive a cart (feature flag). Picnic is
+  // priced but not orderable by default (#293); any store can be turned off.
+  const canOrder = storeOrderable(flags, store)
+  // Whether to ask for a tip on send (feature flag). When off, "Order" opens the
+  // store cart directly with no tip prompt.
+  const tippingEnabled = flags.tipping
 
   /**
    * Open the tip sheet INSTANTLY and start building the selected store's cart
@@ -80,17 +99,36 @@ export function FloatingOrderBar({
     setLink(null)
     // The user tapped "Order at <store>": the order intent, top of the checkout
     // rung. The basket link build kicks off in the background below.
-    track(FUNNEL_EVENTS.orderClicked, { store, productCount })
-    // Show the tip sheet first, on this gesture, so it appears with no wait.
-    // Opening it is its own funnel step (how many who tap Order see the tip ask).
-    track(FUNNEL_EVENTS.tipDialogOpened, { store, productCount })
-    setTipOpen(true)
+    track(FUNNEL_EVENTS.orderClicked, { store, productCount: itemCounts.total })
     const live = {
       items: compareLines.map((l) => ({ name: l.name, amount: l.amount })),
       staples: extras.map((e) => ({ slug: e.slug, store: e.store })),
     }
     const promise = buildCartLinks({ data: { store, live } })
     linkPromiseRef.current = promise
+
+    // Tipping disabled by feature flag: skip the tip ask entirely and open the
+    // store cart as soon as the link resolves (the no-tip path). Mirrors the
+    // confirmTip percent<=0 branch, just without the dialog.
+    if (!tippingEnabled) {
+      promise
+        .then((res) => {
+          if (linkPromiseRef.current !== promise) return
+          setLink(res)
+          if (res.urls.length) openCart(res)
+          else setError(true)
+        })
+        .catch(() => setError(true))
+      return
+    }
+
+    // Show the tip sheet first, on this gesture, so it appears with no wait.
+    // Opening it is its own funnel step (how many who tap Order see the tip ask).
+    track(FUNNEL_EVENTS.tipDialogOpened, {
+      store,
+      productCount: itemCounts.total,
+    })
+    setTipOpen(true)
     promise
       .then((res) => {
         // Only adopt this result if it's still the latest build (the user could
@@ -197,11 +235,16 @@ export function FloatingOrderBar({
         <div className="bg-card/95 border-border rounded-2xl border p-3 shadow-lg backdrop-blur">
           <div className="mb-2 flex items-baseline justify-between px-1">
             <span className="text-muted-foreground text-xs font-semibold">
-              {productCount} {productCount === 1 ? 'product' : 'products'} at{' '}
-              {storeLabel(store)}
+              {headline}
             </span>
             <span className="text-lg font-extrabold tabular-nums">
-              {total !== null ? formatCents(total) : '--'}
+              <CartPriceSlot
+                priceCents={total ?? undefined}
+                pending={stillPricing && total === null}
+                updating={stillPricing && total !== null}
+                size="bar"
+                reserve
+              />
             </span>
           </div>
 
@@ -224,30 +267,11 @@ export function FloatingOrderBar({
           </p>
 
           {!canOrder && (
-            <div className="mt-2 flex flex-col items-center gap-1 text-center">
-              <img
-                src="/stickers/person-ok.png"
-                alt=""
-                aria-hidden
-                className="souso-sticker h-20 w-auto object-contain"
-                style={{ transform: 'rotate(-3deg)' }}
-              />
-              <p className="text-muted-foreground text-[11px] font-medium">
-                Picnic goes live the second they say yes. This guy&rsquo;s ready
-                when they are. Pick Albert Heijn to send your cart now.
-              </p>
-            </div>
+            <p className="text-muted-foreground mt-2 text-center text-[11px] font-medium">
+              Picnic ordering isn&rsquo;t available yet. Pick Albert Heijn to
+              send your cart now.
+            </p>
           )}
-
-          {canOrder &&
-            link &&
-            link.urls.length > 0 &&
-            link.matched < link.total && (
-              <p className="text-muted-foreground/80 mt-1.5 text-center text-[11px]">
-                {link.matched} of {link.total} items matched a{' '}
-                {storeLabel(store)} product.
-              </p>
-            )}
 
           {error && (
             <p
@@ -255,7 +279,7 @@ export function FloatingOrderBar({
               role="alert"
             >
               {link && !link.urls.length
-                ? `None of your items matched a ${storeLabel(store)} product yet.`
+                ? `None of your items matched ${storeArticle} product yet.`
                 : 'Could not build the cart link. Try again.'}
             </p>
           )}

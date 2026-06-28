@@ -1,0 +1,145 @@
+name: Claude PR review
+
+# Advisory AI code review on every PR. Posts review comments only; it is NOT a
+# required status check and must never be added to branch protection. A failed
+# or skipped run does not block merge. Tool-agnostic: contributors on Codex,
+# Cursor, or anything else still get a Souso-canon review on their PR.
+
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened]
+
+# Cancel an in-flight review when the PR is re-pushed, so only the latest diff
+# is reviewed.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude code review
+        uses: anthropics/claude-code-action@v1
+        with:
+          # Auth: Claude subscription OAuth token. Generate with `claude setup-token` (see
+          # secretNeeded). To use a Claude subscription instead of pay-per-use,
+          # set it as the CLAUDE_CODE_OAUTH_TOKEN repo secret. Uses the Max plan, no per-token API cost.
+          # (token from `claude setup-token`).
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            You are reviewing a pull request for Souso (smart-cart). Review
+            against the project canon, not generic advice. Read these in the
+            checkout if you need the full reasoning behind a rule:
+            AGENTS.md; .claude/skills/{ai-safe-and-fast,
+            bounded-ai-on-request-paths,reproduce-first-tdd,
+            ship-flow-and-ownership}/SKILL.md; docs/adr/0004, 0005, 0006.
+
+            Read the diff with `gh pr diff ${{ github.event.pull_request.number }}`
+            and view the PR with `gh pr view`. Flag each issue with file:line and
+            a concrete fix. Be concise. Praise nothing. Only surface real issues.
+            If the PR is clean against this canon, say so briefly and stop.
+
+            Review for:
+
+            1. OWNERSHIP (ship-flow-and-ownership). These deep flows are Nic's and
+               are correct-by-design, locked by evals: the AH matcher in
+               src/lib/pricing/* (match*.ts, resolve-lines.ts,
+               expand-ingredient.ts, rerank-sku.ts, match-cache.ts); cart-build.ts
+               and cart-links*.ts / open-store-cart.ts / src/lib/shopping/; the
+               recipe-to-ingredient mapping; the planner / week-generation server
+               fns in src/lib/agent/ and the preference recommender in
+               src/lib/recsys/; Mollie tipping (src/lib/mollie.ts,
+               src/routes/api/mollie/). Any change to one of these MUST be at the
+               call-site (bound how much you hand it, read its output, wire it
+               into a screen), NOT a direct edit to the internals. Flag direct
+               internal edits and point at the call-site fix. The /shopping 1101
+               fix (chunkLines / mergeChunkBaskets, ADR-0005) is the model: a P0
+               in an owned flow fixed entirely at the call-site.
+
+            2. NO synonym / heuristic maps where embeddings belong (ADR-0004,
+               skill ai-safe-and-fast). Synonym maps, substring matching,
+               token-overlap scoring, CROSSLANG_EXCLUSION_GROUPS, term-synonyms
+               tables are all the same mistake: the multilingual embedding model
+               (text-embedding-3-small, NL/EN) already gives cross-language
+               semantics (mushroom <-> champignon <-> paddenstoel) for free. Flag
+               any hand-maintained term/synonym map or substring/token matcher and
+               say "use the embedding matcher instead". Catalogue embeddings must
+               be pre-computed offline and committed to data/embeddings/*, never
+               embedded at request time; only live user text is embedded at
+               runtime.
+
+            3. BOUNDED AI / heavy work on request paths (ADR-0005, skill
+               bounded-ai-on-request-paths). A Worker isolate has a hard ~128 MB
+               and CPU cap and D1 has subrequest limits; an overrun returns a 1101
+               (the /shopping outage). Anything that fans out per-item over a big
+               input on a request path (server fn, route loader) MUST be bounded
+               (cap items per isolate, e.g. PRICE_COMPARE_CHUNK_SIZE = 25),
+               chunked, batched/shared (batch embeds across lines, cache by
+               normalized text, share in-flight promises across stores), and MUST
+               degrade to a null partial (logged structured, e.g.
+               price_compare.chunk_degraded) rather than throw a full-page error.
+               Flag unbounded per-item fan-out, per-store re-paid work, or an AI
+               call on a hot path with no cap.
+
+            4. REPRODUCE-FIRST TDD (skill reproduce-first-tdd). This repo is
+               strict TDD: a bug fix, Sentry issue, user report, or new behaviour
+               MUST ship with a test that would have caught it, in the same PR,
+               and that test must fail before the fix. Flag new logic or a fix
+               with no accompanying test, and a test that asserts new behaviour
+               but would also have passed before the change (not a regression
+               test). For AI behaviour the eval IS the regression test: a new
+               matcher behaviour needs a golden/reject case in the matcher eval; a
+               replan change needs a scorer/case; flag AI changes that skip the
+               eval case. Also watch the three cart invariants (AH-URL
+               faithfulness, grams, ingredients<->recipes) and the recall gate
+               (ADR-0002) staying intact.
+
+            5. SAFETY (skills ai-safe-and-fast, ADR-0006). Hard filters
+               (diet / allergy) are safety constraints and MUST stay deterministic
+               set-maths applied before and after any model call: never let the
+               LLM decide them; flag any diet/allergy filtering routed through a
+               model or made non-deterministic. Observability / integration init
+               (Braintrust wrap + flush, Sentry, PostHog, webhook secret checks)
+               must FAIL CLOSED on a missing secret and must NEVER throw on a
+               missing optional key into the request path: flag init that can crash
+               a request, and any silent fallback to a weaker/legacy matcher on a
+               missing key (it must degrade honestly: replan declines with "AI
+               adjustments off", price match returns confidence: 'none' with a
+               visible note). Prefer soft penalties over hard bans for preferences;
+               bans are for safety only.
+
+            6. SLOP. Dead code, commented-out blocks, debug leftovers (stray
+               console.log, TODO without an issue), and copy containing em-dashes
+               (U+2014) or en-dashes (U+2013) or AI-tell filler (delve, leverage,
+               robust, seamless, "streamline", "empower", "unlock", "in today's
+               fast-paced world"). Flag each with the line.
+
+            7. SECURITY. Hardcoded secrets or keys, secrets logged or echoed,
+               prompt-injection surface in AI features (untrusted user/recipe text
+               concatenated into a prompt without isolation), and missing
+               server-side route guards on login-gated routes (a signed-out
+               visitor must never render a gated route; a beforeLoad redirect is
+               required, an API 401 is not sufficient).
+
+          # gh CLI tools for reading the PR + posting the review. Inline comments
+          # go through the github_inline_comment MCP tool; top-level summary via
+          # `gh pr comment`. Comment-only: no write/push tools are allowed.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --model claude-sonnet-4-5

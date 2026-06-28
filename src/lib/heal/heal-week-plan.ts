@@ -1,9 +1,9 @@
 /**
  * Auto-heal a stored week plan on load.
  *
- * Plans generated before the #161 AH/Jumbo + image filter can reference old
- * foodcom / themealdb recipes that are no longer servable (e.g. they render with
- * no image, like 'Bread Pudding with Jack Daniels Sauce'). New plans + the per-day
+ * Plans generated before the #161 AH/Jumbo + image filter, or before non-dinner
+ * recipes were dropped from the catalogue (crackers, smoothies, bijgerechten, …),
+ * can reference recipes that no longer surface as a card. New plans + the per-day
  * alternatives already only draw from servable recipes (source IN ('ah','jumbo')
  * with an image, the `hasImage` predicate). This repairs the gap for plans already
  * in the table: when a week loads, any day whose recipe is no longer servable is

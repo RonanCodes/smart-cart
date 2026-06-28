@@ -4,6 +4,14 @@ import {
   mergeStoreBasket,
   chunkLines,
   mergeChunkBaskets,
+  mergeIncrementalBasket,
+  linesNeedingPrice,
+  pruneComparison,
+  lineKey,
+  pricedLineCount,
+  pricedLineCountForStore,
+  pendingLineKeysForStore,
+  buildStoreProgress,
   PRICE_COMPARE_CHUNK_SIZE,
 } from './use-price-comparison'
 import type { PriceCompareLine } from '#/lib/price-compare-server'
@@ -151,5 +159,81 @@ describe('mergeChunkBaskets (recombine chunked baskets for one store, #shopping-
 
   it('returns null when every chunk failed (so the store is simply dropped)', () => {
     expect(mergeChunkBaskets('ah', 'Albert Heijn', [null, null])).toBeNull()
+  })
+})
+
+describe('incremental price compare (#cart-incremental-price)', () => {
+  it('keeps already-priced lines when the cart grows by one', () => {
+    const existing = basket('ah', 500, 1)
+    existing.lineItems[0] = {
+      ...existing.lineItems[0]!,
+      ingredient: 'tomato',
+      lineCents: 500,
+    }
+    const comparison = { baskets: [existing], cheapest: existing }
+    const lines = [
+      { name: 'tomato', amount: '2 stuks' },
+      { name: 'onion', amount: '1 stuks' },
+    ]
+    const priced = new Map<string, Set<string>>([
+      ['ah', new Set([lineKey(lines[0]!)])],
+    ])
+    expect(linesNeedingPrice(lines, ['ah'], priced).map((l) => l.name)).toEqual(
+      ['onion'],
+    )
+    const pruned = pruneComparison(comparison, [lines[0]!])
+    expect(pruned?.baskets[0]?.lineItems).toHaveLength(1)
+    expect(pruned?.baskets[0]?.lineItems[0]?.ingredient).toBe('tomato')
+  })
+
+  it('merges a delta basket without duplicating ingredients', () => {
+    const existing = basket('ah', 500, 1)
+    existing.lineItems[0] = {
+      ...existing.lineItems[0]!,
+      ingredient: 'tomato',
+      lineCents: 500,
+    }
+    const delta = basket('ah', 300, 1)
+    delta.lineItems[0] = {
+      ...delta.lineItems[0]!,
+      ingredient: 'onion',
+      lineCents: 300,
+    }
+    const merged = mergeIncrementalBasket(existing, delta)
+    expect(merged.totalCents).toBe(800)
+    expect(merged.lineItems.map((li) => li.ingredient)).toEqual([
+      'tomato',
+      'onion',
+    ])
+  })
+
+  it('counts a line priced only when every store has its key', () => {
+    const lines = [{ name: 'tomato', amount: '1 stuks' }]
+    const key = lineKey(lines[0]!)
+    const partial = new Map<string, Set<string>>([['ah', new Set([key])]])
+    expect(pricedLineCount(lines, ['ah', 'jumbo'], partial)).toBe(0)
+    const full = new Map<string, Set<string>>([
+      ['ah', new Set([key])],
+      ['jumbo', new Set([key])],
+    ])
+    expect(pricedLineCount(lines, ['ah', 'jumbo'], full)).toBe(1)
+  })
+
+  it('tracks per-store progress independently', () => {
+    const lines = [
+      { name: 'tomato', amount: '1 stuks' },
+      { name: 'onion', amount: '1 stuks' },
+    ]
+    const tomatoKey = lineKey(lines[0]!)
+    const priced = new Map<string, Set<string>>([
+      ['ah', new Set([tomatoKey])],
+      ['jumbo', new Set()],
+    ])
+    expect(pricedLineCountForStore(lines, 'ah', priced)).toBe(1)
+    expect(pricedLineCountForStore(lines, 'jumbo', priced)).toBe(0)
+    expect(pendingLineKeysForStore(lines, 'ah', priced).size).toBe(1)
+    const progress = buildStoreProgress(lines, ['ah', 'jumbo'], priced)
+    expect(progress.ah).toEqual({ priced: 1, total: 2 })
+    expect(progress.jumbo).toEqual({ priced: 0, total: 2 })
   })
 })

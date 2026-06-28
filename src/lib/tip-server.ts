@@ -205,7 +205,14 @@ export const startTip = createServerFn({ method: 'POST' })
     const { tipPayment } = await import('../db/tip-schema')
     const db = await getDb()
 
-    const amount = computeTipAmount(data.percent, data.basketTotal)
+    // Defence in depth: if tipping is disabled by feature flag, force the no-tip
+    // path regardless of the percent the client sent (a stale client or a direct
+    // call must never start a charge while the feature is off).
+    const { readFlags } = await import('./flags-read')
+    const flags = await readFlags()
+    const amount = flags.tipping
+      ? computeTipAmount(data.percent, data.basketTotal)
+      : null
     const tipPaymentId = crypto.randomUUID()
 
     // The effective Mollie mode (test|live) for this household: its override ??
@@ -234,6 +241,30 @@ export const startTip = createServerFn({ method: 'POST' })
     const { readEnv } = await import('./env')
     const appUrl = (await readEnv('APP_URL')) ?? ''
     const storeQuery = data.store ? `?store=${data.store}` : ''
+
+    // Playwright e2e (#480): same flag as deterministic cart links — skip Mollie
+    // and return a stable checkout URL the spec can trap on window.location.
+    const e2eCartLinks =
+      import.meta.env.VITE_PLAYWRIGHT_E2E_CART_LINKS === '1' ||
+      (await readEnv('PLAYWRIGHT_E2E_CART_LINKS')) === '1'
+    if (e2eCartLinks) {
+      await db.insert(tipPayment).values({
+        id: tipPaymentId,
+        householdId,
+        basketId: data.basketId ?? null,
+        percent: data.percent,
+        amount,
+        molliePaymentId: 'e2e-tip-payment',
+        status: 'open',
+        mode,
+      })
+      return {
+        checkoutUrl: 'https://www.mollie.test/checkout/e2e-tip-redirect',
+        tipPaymentId,
+        amount,
+      }
+    }
+
     const { createPayment } = await import('./mollie')
 
     // Wrap key-resolve + createPayment so a Mollie failure is LOUD and queryable

@@ -42,13 +42,20 @@ describe('canonicalUnit', () => {
     expect(canonicalUnit('cloves')).toEqual({
       dimension: 'count',
       toBase: 1,
-      base: 'clove',
+      base: 'teen',
     })
     expect(canonicalUnit('')).toEqual({
       dimension: 'count',
       toBase: 1,
       base: 'count',
     })
+  })
+
+  it('merges Dutch and English garlic-clove units onto one base', () => {
+    expect(canonicalUnit('tenen').base).toBe('teen')
+    expect(canonicalUnit('clove').base).toBe('teen')
+    expect(canonicalUnit('stuks').base).toBe('stuk')
+    expect(canonicalUnit('stuk').base).not.toBe(canonicalUnit('teen').base)
   })
 
   it('singularises so cloves and clove share a bucket but clove and can do not', () => {
@@ -83,13 +90,37 @@ describe('renderFromBase', () => {
 
   it('renders the universal count bucket with no unit', () => {
     expect(renderFromBase('count', 3, 'count')).toEqual({ value: 3, unit: '' })
-    expect(renderFromBase('count', 2, 'clove')).toEqual({
+    expect(renderFromBase('count', 2, 'teen')).toEqual({
       value: 2,
-      unit: 'cloves',
+      unit: 'tenen',
     })
-    expect(renderFromBase('count', 1, 'clove')).toEqual({
+    expect(renderFromBase('count', 1, 'teen')).toEqual({
       value: 1,
-      unit: 'clove',
+      unit: 'teen',
+    })
+  })
+
+  it('rounds scaled counts up and masses to whole numbers (#367)', () => {
+    expect(renderFromBase('count', 1.25, 'stuk')).toEqual({
+      value: 2,
+      unit: 'stuks',
+    })
+    expect(renderFromBase('mass', 93.75, 'g')).toEqual({ value: 94, unit: 'g' })
+  })
+
+  it('rounds scaled spoons up to whole tsp/tbsp (#367)', () => {
+    // 2.1 tsp ceils to 3 tsp → promoted to 1 tbsp
+    expect(renderFromBase('spoon', 2.1, 'tsp')).toEqual({
+      value: 1,
+      unit: 'tbsp',
+    })
+    expect(renderFromBase('spoon', 4.1, 'tsp')).toEqual({
+      value: 5,
+      unit: 'tsp',
+    })
+    expect(renderFromBase('spoon', 6, 'tsp')).toEqual({
+      value: 2,
+      unit: 'tbsp',
     })
   })
 })

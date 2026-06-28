@@ -93,6 +93,17 @@ async function buildAuth() {
     // the *.workers.dev URL, and localhost in dev, so all are trusted; extra
     // hosts (previews) can be added via the TRUSTED_ORIGINS env with no redeploy.
     trustedOrigins,
+    // Keep people signed in for a month, refreshed on activity, instead of being
+    // bounced to sign-in (reported daily re-logins). Better Auth's defaults are a
+    // 7-day session refreshed at most once a day; we set an explicit long, ROLLING
+    // window — expiresIn is the max lifetime AND the session-cookie max-age (so the
+    // cookie persists across browser/PWA restarts rather than dying with the
+    // session), and updateAge re-extends it on activity so an active user never
+    // hits the wall.
+    session: {
+      expiresIn: 60 * 60 * 24 * 30, // 30 days
+      updateAge: 60 * 60 * 24, // extend daily on activity (rolling window)
+    },
     advanced: {
       useSecureCookies: baseURL.startsWith('https://'),
       defaultCookieAttributes: {
@@ -146,17 +157,26 @@ async function buildAuth() {
     databaseHooks: {
       user: {
         create: {
-          // Fires exactly once when a brand-new account row is created, in ANY
-          // sign-up flow (anonymous onboarding ending in OTP verify, or a
-          // first-time approved email signing in). This is the central, correct
-          // place to notify admins of a real sign-up: the old waitlist-only
-          // notifier never fired here, so admins got no emails for real users.
+          // Fires when a brand-new account row is created — SYNCHRONOUSLY, and
+          // crucially BEFORE the client round-trips to completeOnboarding. It has
+          // no attribution ("How did you find us?"), so it must NOT send the
+          // admin new-signup notice: if it did, it would win the claim-once row
+          // and suppress the attributed send from completeOnboarding, leaving
+          // admins with "Source: not provided" for every onboarding signup
+          // (#521). We pass `fromHook: true` so this call is a non-pre-empting
+          // no-op; completeOnboarding is the authoritative sender of the single
+          // attributed admin email. (A brand-new account is always created via
+          // the onboarding email step, so completeOnboarding always runs.)
           after: async (newUser) => {
             try {
               if (newUser.email) {
                 const { notifyAdminsOfNewUser } =
                   await import('./waitlist-notify')
-                await notifyAdminsOfNewUser(newUser.email)
+                await notifyAdminsOfNewUser({
+                  email: newUser.email,
+                  userId: newUser.id,
+                  fromHook: true,
+                })
               }
             } catch {
               // Non-fatal: a notification failure must never break sign-up.

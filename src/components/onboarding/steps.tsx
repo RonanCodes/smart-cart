@@ -1,4 +1,5 @@
 import { BetaStep } from './steps/beta-step'
+import { AttributionStep } from './steps/attribution-step'
 import { HouseholdStep } from './steps/household-step'
 import { DislikesStep } from './steps/dislikes-step'
 import { DietStep } from './steps/diet-step'
@@ -68,6 +69,15 @@ export const STEPS: Array<OnboardingStep> = [
     title: 'Your goals',
     subtitle: 'What matters most? We weight the week toward it.',
     Component: GoalsStep,
+  },
+  {
+    // Penultimate profile step, right before the beta step + email/auth phase:
+    // "How did you find us?" signup attribution. Optional (the Next CTA never
+    // gates on it). The step owns its own option list + free-text fields.
+    id: 'attribution',
+    title: 'How did you find us?',
+    subtitle: 'Helps us know where to share Souso (totally optional).',
+    Component: AttributionStep,
   },
   {
     // Last step, just before the email/auth phase (#407): the beta-tester

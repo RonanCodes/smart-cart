@@ -12,7 +12,7 @@ import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
  * matches the basket cart-build adds to Albert Heijn. Cold misses can still cost
  * model calls and run for EVERY covered store on every list change / store
  * switch. The name -> product resolution is stable, so we cache the RESOLVED
- * MATCH (not the price) keyed by (store, normalised name).
+ * MATCH (not the price) keyed by (store, normalised name[, amount]).
  *
  * Read-through + write-on-miss: a cache hit rebuilds the IngredientMatch by
  * looking the slug up in the in-memory catalogue, so the PRICE stays fresh from
@@ -20,15 +20,16 @@ import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
  * step). A genuine no-match is cached too (slug null) so we do not re-pay model
  * cost to rediscover that an ingredient has no plausible product.
  *
- * One row per (store, normalisedName). `id` is the stable key `<store>:<name>`
- * so a re-resolution is an idempotent upsert. `slug` null means "resolved, but no
- * plausible match" (a cached negative). `confidence` is carried so the rebuilt
- * match keeps the same soft/hard semantics the UI relies on.
+ * One row per (store, normalisedName[, amount]). `id` is the stable key
+ * `<store>:<name>` or `<store>:<name>:<amount>` so a re-resolution is an
+ * idempotent upsert. `slug` null means "resolved, but no plausible match" (a
+ * cached negative). `confidence` is carried so the rebuilt match keeps the same
+ * soft/hard semantics the UI relies on.
  */
 export const matchCache = sqliteTable(
   'match_cache',
   {
-    /** Stable PK: `<store>:<normalisedName>`. */
+    /** Stable PK: `<store>:<normalisedName>` or with amount suffix when set. */
     id: text('id').primaryKey(),
     /** Store slug this resolution belongs to ('ah' | 'jumbo' | ...). */
     store: text('store').notNull(),

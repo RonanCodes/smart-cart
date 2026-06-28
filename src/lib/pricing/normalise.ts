@@ -144,6 +144,11 @@ export function normaliseName(name: string): string {
   )
 }
 
+/** Normalise a shopping-list amount for cache keys (lower-case, collapsed spaces). */
+export function normaliseAmount(amount: string | null | undefined): string {
+  return (amount ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
 /** Euros (possibly float) to integer cents, guarding NaN/negative. */
 export function eurosToCents(price: number | undefined): number | null {
   if (price === undefined || !Number.isFinite(price) || price < 0) return null

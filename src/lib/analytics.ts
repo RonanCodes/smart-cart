@@ -30,6 +30,8 @@ export const FUNNEL_EVENTS = {
   onboardingRestarted: 'onboarding_restarted',
   onboardingStepCompleted: 'onboarding_step_completed',
   emailSubmitted: 'email_submitted',
+  // Signup attribution ("How did you find us?"): which channel the user picked.
+  signupSource: 'signup_source',
   voiceOnboardingStarted: 'voice_onboarding_started',
   // Planning
   weekBuilt: 'week_built',

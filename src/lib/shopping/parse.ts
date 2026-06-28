@@ -28,18 +28,38 @@ export interface ParsedQty {
 }
 
 const NUMBER = String.raw`\d+(?:[.,]\d+)?`
+/** One bound in a range: mixed number, simple fraction, or decimal. */
+const BOUND = String.raw`\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?`
 
 /** A simple fraction like '1/2' or '3/4'. */
 const FRACTION_RE = new RegExp(`^(\\d+)\\s*/\\s*(\\d+)$`)
 /** A mixed number like '1 1/2'. */
 const MIXED_RE = new RegExp(`^(\\d+)\\s+(\\d+)\\s*/\\s*(\\d+)$`)
-/** A range like '1-2', '1 - 2', '1 to 2'. Captures both bounds. */
-const RANGE_RE = new RegExp(`^(${NUMBER})\\s*(?:-|to|–|—)\\s*(${NUMBER})$`, 'i')
+/** A range like '1-2', '1/2 - 2', '1 to 2'. Captures both bounds. */
+const RANGE_RE = new RegExp(`^(${BOUND})\\s*(?:-|to|–|—)\\s*(${BOUND})$`, 'i')
 /** A plain number, possibly with a European decimal comma. */
 const PLAIN_RE = new RegExp(`^(${NUMBER})$`)
 
 function toNumber(raw: string | undefined): number {
   return Number((raw ?? '').replace(',', '.'))
+}
+
+/** Parse one numeric bound (mixed, fraction, or plain). */
+function parseBound(raw: string): number | null {
+  const s = raw.trim()
+  const mixed = MIXED_RE.exec(s)
+  if (mixed) {
+    const den = Number(mixed[3])
+    if (den !== 0) return Number(mixed[1]) + Number(mixed[2]) / den
+  }
+  const frac = FRACTION_RE.exec(s)
+  if (frac) {
+    const den = Number(frac[2])
+    if (den !== 0) return Number(frac[1]) / den
+  }
+  const plain = PLAIN_RE.exec(s)
+  if (plain) return toNumber(plain[1])
+  return null
 }
 
 /**
@@ -66,8 +86,12 @@ export function parseQty(raw?: string): ParsedQty {
 
   const range = RANGE_RE.exec(s)
   if (range) {
-    // Take the upper bound so the list never under-buys.
-    return { value: Math.max(toNumber(range[1]), toNumber(range[2])) }
+    const lo = parseBound(range[1]!)
+    const hi = parseBound(range[2]!)
+    if (lo !== null && hi !== null) {
+      // Take the upper bound so the list never under-buys.
+      return { value: Math.max(lo, hi) }
+    }
   }
 
   const plain = PLAIN_RE.exec(s)
@@ -100,16 +124,21 @@ export function splitQtyAndUnit(raw?: string): {
   const s = (raw ?? '').trim()
   if (s === '') return { qty: undefined, unit: undefined }
 
+  // A range head first ('1/2 - 2', '1-2 el') — before a lone fraction is split.
+  const rangeHead = new RegExp(
+    `^(${BOUND})\\s*(?:-|to|–|—)\\s*(${BOUND})\\s*(.*)$`,
+    'i',
+  ).exec(s)
+  if (rangeHead) {
+    const qty = `${rangeHead[1]!.trim()} - ${rangeHead[2]!.trim()}`
+    return splitResult(qty, rangeHead[3])
+  }
+
   // A mixed number ('1 1/2 cup') or fraction ('1/2 tsp') head, then a unit tail.
   const mixed = /^(\d+\s+\d+\s*\/\s*\d+)\s*(.*)$/.exec(s)
   if (mixed) return splitResult(mixed[1], mixed[2])
   const frac = /^(\d+\s*\/\s*\d+)\s*(.*)$/.exec(s)
   if (frac) return splitResult(frac[1], frac[2])
-
-  // A range head ('1-2 el', '1 to 2 cloves') keeps the whole range as the qty.
-  const range =
-    /^(\d+(?:[.,]\d+)?\s*(?:-|to|–|—)\s*\d+(?:[.,]\d+)?)\s*(.*)$/i.exec(s)
-  if (range) return splitResult(range[1], range[2])
 
   // A plain number head ('350 g', '2 el', '200ml', '4'), then a unit tail.
   const plain = /^(\d+(?:[.,]\d+)?)\s*(.*)$/.exec(s)

@@ -60,7 +60,9 @@ that D1 (see "Where the data lives").
   - **Cart and price paths:** a very strong, clearly separated cosine winner is accepted
     directly. Ambiguous top-K candidates go through a `generateObject` rerank, which
     picks the right SKU or declines. Price comparison uses the same path through
-    `match_cache` so repeated store/name resolutions do not keep paying the model cost.
+    `match_cache` so repeated store/name (+ amount when present) resolutions do
+    not keep paying the model cost. A cached negative for one amount must not
+    block another — keys include the normalised amount when the line carries one.
   - **No weak cosine-only product truth:** ordinary/high-ish embedding neighbours are
     candidates, not final matches; they must clear the stricter fast-path threshold or
     go to rerank.
@@ -110,6 +112,18 @@ ADR-0004). It is still one D1; the vectors now live IN it.
 The only thing that genuinely goes stale is the checkjebon price snapshot. For now it is a
 committed snapshot; the longer-term shape is a periodic sync job (cron Worker re-seeds it),
 not a different database engine.
+
+## Cart correctness gates (#363)
+
+Three invariants lock cart → Albert Heijn correctness in `pnpm quality`:
+
+1. **Ingredients ↔ recipes** — `src/lib/shopping/consolidate.test.ts`
+2. **Grams + pack counts** — `consolidate.test.ts` + `src/lib/pricing/basket.test.ts`
+3. **AH URL faithfulness** — `src/lib/cart-build.test.ts`
+
+`src/lib/cart-invariants.test.ts` wires (1)+(2)+(3) through the week → consolidate →
+`packsForAmount` → URL path. Wrong-type matches (chilli flakes ≠ Doritos, etc.) are
+gated by `pnpm eval` golden cases with `rejectAny` filters in `scripts/eval.ts`.
 
 ## Note on offline analysis
 

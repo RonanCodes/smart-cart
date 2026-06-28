@@ -259,27 +259,34 @@ function Profile() {
   }
 
   if (!session?.user) {
-    return (
-      <AppShell>
-        <ScreenHeader title="Profile" />
-        <EmptyState
-          icon={<User aria-hidden />}
-          title="You're browsing as a guest"
-          hint="Sign in to save your week, your taste profile, and your basket across devices."
-          action={
-            <Link to="/sign-in">
-              <Button size="pill">Sign in to save</Button>
-            </Link>
-          }
-        />
-      </AppShell>
-    )
+    // requireUserBeforeLoad already redirected signed-out visitors server-side.
+    // In local dev open-access the Better Auth client session can be empty while
+    // the server treated the request as DEV_USER — still render settings.
+    if (!import.meta.env.DEV) {
+      return (
+        <AppShell>
+          <ScreenHeader title="Profile" />
+          <EmptyState
+            icon={<User aria-hidden />}
+            title="You're browsing as a guest"
+            hint="Sign in to save your week, your taste profile, and your basket across devices."
+            action={
+              <Link to="/sign-in">
+                <Button size="pill">Sign in to save</Button>
+              </Link>
+            }
+          />
+        </AppShell>
+      )
+    }
   }
+
+  const userEmail = session?.user.email ?? 'dev@souso.local'
 
   // The display name: the email's local-part, title-cased, as a friendly handle
   // (we don't store a separate display name yet). Falls back to "You".
   const displayName = (() => {
-    const local = session.user.email.split('@')[0]?.trim()
+    const local = userEmail.split('@')[0]?.trim()
     if (!local) return 'You'
     return local.charAt(0).toUpperCase() + local.slice(1)
   })()
@@ -300,7 +307,7 @@ function Profile() {
             <p className="text-muted-foreground truncate text-xs">
               {summary
                 ? `Souso since ${sousoSince(summary.createdAtMs)}`
-                : session.user.email}
+                : userEmail}
             </p>
           </div>
         </div>

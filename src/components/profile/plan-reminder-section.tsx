@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Loader2 } from 'lucide-react'
 import { getMyNotifyPrefs, setMyNotifyPrefs } from '#/lib/notify-prefs-server'
 import { DOW_LABELS, DEFAULT_NOTIFY_PREFS } from '#/lib/notify-prefs'
@@ -16,31 +16,38 @@ import { List } from '#/components/ui/list'
  * helpers/types, so no server-only module leaks into the client bundle.
  */
 export function PlanReminderSection() {
-  // Seed from a query so the saved values survive a tab switch with no refetch.
-  const { data } = useQuery({
+  const queryClient = useQueryClient()
+  const { data: serverPrefs } = useQuery({
     queryKey: ['notify-prefs'],
     queryFn: () => getMyNotifyPrefs(),
-    initialData: DEFAULT_NOTIFY_PREFS,
   })
 
-  const [prefs, setPrefs] = useState<NotifyPrefs>(data)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const saveQueue = useRef(Promise.resolve())
 
-  // Persist a change immediately (optimistic): reflect it locally, then write. On
-  // failure, roll back to the last-saved value the query holds.
-  async function save(next: NotifyPrefs) {
-    setPrefs(next)
-    setBusy(true)
-    setMessage(null)
-    try {
-      await setMyNotifyPrefs({ data: next })
-    } catch {
-      setPrefs(data)
-      setMessage('Could not save, try again.')
-    } finally {
-      setBusy(false)
-    }
+  const prefs = serverPrefs ?? DEFAULT_NOTIFY_PREFS
+
+  // Persist a change immediately (optimistic): update the query cache, then write.
+  // Saves are serialized so rapid day/time edits cannot land out of order.
+  function save(next: NotifyPrefs) {
+    saveQueue.current = saveQueue.current.then(async () => {
+      const previous =
+        queryClient.getQueryData<NotifyPrefs>(['notify-prefs']) ??
+        DEFAULT_NOTIFY_PREFS
+      queryClient.setQueryData(['notify-prefs'], next)
+      setBusy(true)
+      setMessage(null)
+      try {
+        await setMyNotifyPrefs({ data: next })
+      } catch {
+        queryClient.setQueryData(['notify-prefs'], previous)
+        setMessage('Could not save, try again.')
+      } finally {
+        setBusy(false)
+      }
+    })
+    void saveQueue.current
   }
 
   return (

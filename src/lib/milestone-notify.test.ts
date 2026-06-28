@@ -18,12 +18,23 @@ function buildFakeDb() {
     select: (cols: Record<string, unknown>) => ({
       from: async () => ('n' in cols ? [{ n: userCount }] : storedPrefs),
     }),
+    // Claim-once insert: always "wins" here so the milestone path is exercised.
+    insert: () => ({
+      values: () => ({
+        onConflictDoNothing: () => ({
+          returning: async () => [{ userId: 'u1' }],
+        }),
+      }),
+    }),
   }
 }
 
 vi.mock('../db/client', () => ({ getDb: async () => buildFakeDb() }))
 vi.mock('../db/auth-schema', () => ({
   user: { id: 'id-col', email: 'email-col' },
+}))
+vi.mock('../db/signup-notice-schema', () => ({
+  signupNotice: { userId: 'user-id-col' },
 }))
 vi.mock('../db/admin-prefs-schema', () => ({
   adminNotificationPref: { email: 'email-col', waitlistNotify: 'notify-col' },
@@ -32,8 +43,12 @@ vi.mock('./admin-emails', () => ({
   resolveAdminEmails: () => resolveAdminEmails(),
 }))
 vi.mock('./email', () => ({
-  sendNewUserNotice: (email: string, total: number, to: string) =>
-    sendNewUserNotice(email, total, to),
+  sendNewUserNotice: (
+    email: string,
+    total: number,
+    to: string,
+    attribution?: unknown,
+  ) => sendNewUserNotice(email, total, to, attribution),
   sendMilestoneEmail: (milestone: number, to: string) =>
     sendMilestoneEmail(milestone, to),
 }))
@@ -51,7 +66,7 @@ describe('notifyAdminsOfNewUser milestone celebration', () => {
     resolveAdminEmails.mockResolvedValue(['a@admin.com', 'b@admin.com'])
     userCount = 150
 
-    await notifyAdminsOfNewUser('new@user.com')
+    await notifyAdminsOfNewUser({ email: 'new@user.com', userId: 'u1' })
 
     // Ordinary notice still goes out to both.
     expect(sendNewUserNotice).toHaveBeenCalledTimes(2)
@@ -68,7 +83,7 @@ describe('notifyAdminsOfNewUser milestone celebration', () => {
     resolveAdminEmails.mockResolvedValue(['a@admin.com'])
     userCount = 200
 
-    await notifyAdminsOfNewUser('new@user.com')
+    await notifyAdminsOfNewUser({ email: 'new@user.com', userId: 'u1' })
 
     expect(sendMilestoneEmail).toHaveBeenCalledTimes(1)
     expect(sendMilestoneEmail).toHaveBeenCalledWith(200, 'a@admin.com')
@@ -78,7 +93,7 @@ describe('notifyAdminsOfNewUser milestone celebration', () => {
     resolveAdminEmails.mockResolvedValue(['a@admin.com', 'b@admin.com'])
     userCount = 151
 
-    await notifyAdminsOfNewUser('new@user.com')
+    await notifyAdminsOfNewUser({ email: 'new@user.com', userId: 'u1' })
 
     expect(sendNewUserNotice).toHaveBeenCalledTimes(2)
     expect(sendMilestoneEmail).not.toHaveBeenCalled()
@@ -89,7 +104,7 @@ describe('notifyAdminsOfNewUser milestone celebration', () => {
     storedPrefs = [{ email: 'b@admin.com', waitlistNotify: false }]
     userCount = 175
 
-    await notifyAdminsOfNewUser('new@user.com')
+    await notifyAdminsOfNewUser({ email: 'new@user.com', userId: 'u1' })
 
     expect(sendMilestoneEmail).toHaveBeenCalledTimes(1)
     expect(sendMilestoneEmail).toHaveBeenCalledWith(175, 'a@admin.com')
@@ -102,7 +117,9 @@ describe('notifyAdminsOfNewUser milestone celebration', () => {
       .mockRejectedValueOnce(new Error('resend down'))
       .mockResolvedValueOnce({ sent: true })
 
-    await expect(notifyAdminsOfNewUser('new@user.com')).resolves.toBeUndefined()
+    await expect(
+      notifyAdminsOfNewUser({ email: 'new@user.com', userId: 'u1' }),
+    ).resolves.toBeUndefined()
     expect(sendMilestoneEmail).toHaveBeenCalledTimes(2)
   })
 })

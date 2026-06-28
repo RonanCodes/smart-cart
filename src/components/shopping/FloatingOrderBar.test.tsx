@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { FloatingOrderBar } from './FloatingOrderBar'
 import type { CartLinkResult } from '#/lib/cart-links-server'
 import type { CompareLine } from '#/lib/shopping/cart-set'
+import { FlagsProvider } from '#/lib/flags-context'
+import { mergeFlags } from '#/lib/flags'
+import type { FlagSet } from '#/lib/flags'
 
 /**
  * #440 — tip sheet opens instantly; cart build runs in background.
@@ -43,6 +47,11 @@ const LINES: Array<CompareLine> = [
   { name: 'tomaten', amount: '500 g' },
 ] as Array<CompareLine>
 
+/** Render the order bar inside a FlagsProvider so flag gating can be exercised. */
+function withFlags(ui: ReactElement, flags: FlagSet) {
+  return <FlagsProvider flags={flags}>{ui}</FlagsProvider>
+}
+
 function link(over: Partial<CartLinkResult> = {}): CartLinkResult {
   return {
     store: 'ah',
@@ -80,6 +89,57 @@ describe('FloatingOrderBar approximate-price disclaimer', () => {
     expect(
       screen.getByText(/prices are approximate and may differ at checkout/i),
     ).toBeTruthy()
+  })
+
+  it('shows partial match in the headline when pricing knows not every line matched', () => {
+    render(
+      <FloatingOrderBar
+        store="ah"
+        data={{
+          baskets: [
+            {
+              store: 'ah',
+              displayName: 'Albert Heijn',
+              lineItems: [
+                {
+                  ingredient: 'tomaten',
+                  productName: 'Tomaat',
+                  packSize: '500 g',
+                  packPriceCents: 199,
+                  packs: 1,
+                  lineCents: 199,
+                  slug: 'wi1',
+                  confidence: 'high',
+                  estimated: false,
+                  waste: null,
+                },
+              ],
+              totalCents: 199,
+              totalWaste: {
+                cents: 0,
+                massGrams: 0,
+                volumeMl: 0,
+                count: 0,
+                unknownLines: 0,
+                hasUnknown: false,
+              },
+              unavailable: [{ ingredient: 'missing' }],
+              estimatedCount: 0,
+            },
+          ],
+          cheapest: null,
+        }}
+        compareLines={[
+          { name: 'tomaten', amount: '500 g' },
+          { name: 'missing', amount: '1' },
+        ]}
+        extras={[]}
+      />,
+    )
+    expect(
+      screen.getByText('1 of 2 items matched at Albert Heijn'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/items matched a Albert/i)).toBeNull()
   })
 })
 
@@ -309,5 +369,57 @@ describe('FloatingOrderBar — funnel instrumentation', () => {
     fireEvent.click(screen.getByRole('button', { name: /order at/i }))
     expect(track).not.toHaveBeenCalled()
     expect(buildCartLinks).not.toHaveBeenCalled()
+  })
+})
+
+describe('FloatingOrderBar — feature-flag gating', () => {
+  it('disables ordering when the store ordering flag is off (AH off)', () => {
+    render(
+      withFlags(
+        <FloatingOrderBar
+          store="ah"
+          data={null}
+          compareLines={LINES}
+          extras={[]}
+        />,
+        mergeFlags({ 'store.ah.ordering': false }),
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /order at/i }))
+    expect(track).not.toHaveBeenCalled()
+    expect(buildCartLinks).not.toHaveBeenCalled()
+  })
+
+  it('opens the cart directly with NO tip dialog when tipping is off', async () => {
+    buildCartLinks.mockResolvedValue(link())
+
+    render(
+      withFlags(
+        <FloatingOrderBar
+          store="ah"
+          data={null}
+          compareLines={LINES}
+          extras={[]}
+        />,
+        mergeFlags({ tipping: false }),
+      ),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /order at/i }))
+
+    // Cart opens straight away; the tip sheet never appears and startTip is never called.
+    await waitFor(() => expect(openStoreCart).toHaveBeenCalledTimes(1))
+    expect(
+      screen.queryByRole('dialog', { name: /send to your store/i }),
+    ).toBeNull()
+    expect(startTip).not.toHaveBeenCalled()
+    expect(track).toHaveBeenCalledWith(
+      'order_clicked',
+      expect.objectContaining({ store: 'ah' }),
+    )
+    expect(track).not.toHaveBeenCalledWith(
+      'tip_dialog_opened',
+      expect.anything(),
+    )
   })
 })
