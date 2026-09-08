@@ -10,6 +10,10 @@ import viteReact from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [viteReact()],
   test: {
+    // Cap workers so concurrent worktrees do not stampede the machine.
+    // Vitest defaults to roughly one worker per core, per run, and several
+    // worktrees running their gate at once oversubscribes an 8 core box.
+    maxWorkers: 2,
     environment: 'jsdom',
     globals: true,
     passWithNoTests: true,
