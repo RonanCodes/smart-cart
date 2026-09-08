@@ -200,11 +200,29 @@ describe('incremental price compare (#cart-incremental-price)', () => {
       lineCents: 300,
     }
     const merged = mergeIncrementalBasket(existing, delta)
-    expect(merged.totalCents).toBe(800)
-    expect(merged.lineItems.map((li) => li.ingredient)).toEqual([
+    // A real delta always merges to a basket; only a missing delta returns
+    // undefined (see the SOUSO-1Q cases below).
+    expect(merged).toBeDefined()
+    expect(merged!.totalCents).toBe(800)
+    expect(merged!.lineItems.map((li) => li.ingredient)).toEqual([
       'tomato',
       'onion',
     ])
+  })
+
+  // SOUSO-1Q: a `/_serverFn/*` 503 during the progressive price fan-out resolved
+  // to `undefined`, which slipped past the call site's `=== null` check and hit
+  // `delta.lineItems` inside the merge, crashing /shopping mid-render for a real
+  // user. The merge must degrade to "keep what we have" instead of throwing.
+  it('keeps the existing basket when a chunk failed to price (no delta)', () => {
+    const existing = basket('ah', 500)
+    expect(() => mergeIncrementalBasket(existing, undefined)).not.toThrow()
+    expect(mergeIncrementalBasket(existing, undefined)).toBe(existing)
+    expect(mergeIncrementalBasket(existing, null)).toBe(existing)
+  })
+
+  it('returns nothing when there is neither an existing basket nor a delta', () => {
+    expect(mergeIncrementalBasket(undefined, undefined)).toBeUndefined()
   })
 
   it('counts a line priced only when every store has its key', () => {

@@ -214,8 +214,12 @@ export function linesNeedingPrice(
  */
 export function mergeIncrementalBasket(
   existing: StoreBasket | undefined,
-  delta: StoreBasket,
-): StoreBasket {
+  delta: StoreBasket | null | undefined,
+): StoreBasket | undefined {
+  // A missing delta means that chunk never priced (a degraded/503 fan-out call).
+  // Keep what we already have rather than throwing through the render, which is
+  // what took /shopping down (SOUSO-1Q).
+  if (!delta) return existing
   const touched = new Set([
     ...delta.lineItems.map((li) => li.ingredient),
     ...delta.unavailable.map((u) => u.ingredient),
@@ -422,7 +426,13 @@ export function usePriceComparison(lines: Array<PriceCompareLine>): {
           const chunkOutcomes = await Promise.all(
             chunks.map(async (chunk): Promise<boolean> => {
               if (cancelled()) return false
-              let partial: StoreBasket | null
+              // `undefined` as well as `null`: the server fn is TYPED to return
+              // `StoreBasket | null`, but a 503 from `/_serverFn/*` resolves to
+              // undefined at runtime, which sailed past a `=== null` check and
+              // crashed /shopping with "Cannot read properties of undefined
+              // (reading 'lineItems')" (SOUSO-1Q). Same class as the #381
+              // fail-closed guard: trust the runtime, not the type.
+              let partial: StoreBasket | null | undefined
               try {
                 partial = await comparePriceForStore({
                   data: { store, lines: chunk },
@@ -437,7 +447,7 @@ export function usePriceComparison(lines: Array<PriceCompareLine>): {
                 })
                 return false
               }
-              if (cancelled() || partial === null) return false
+              if (cancelled() || partial == null) return false
 
               let keys = pricedKeysRef.current.get(store)
               if (!keys) {
@@ -450,6 +460,7 @@ export function usePriceComparison(lines: Array<PriceCompareLine>): {
                 setData((prev) => {
                   const existing = prev?.baskets.find((b) => b.store === store)
                   const merged = mergeIncrementalBasket(existing, partial)
+                  if (!merged) return prev
                   return mergeStoreBasket(prev, merged)
                 })
                 syncStorePendingLineKeys(snapshot, stores)
