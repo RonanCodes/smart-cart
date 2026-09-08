@@ -154,3 +154,46 @@ describe('forwardErrorToSentry', () => {
     ).resolves.toBeUndefined()
   })
 })
+
+/**
+ * Sentry's `environment` must be the REAL environment, not a hardcoded
+ * 'production'. Both server-side capture paths ship from dev.souso.app as well
+ * as prod, so hardcoding 'production' silently files dev errors under prod and
+ * makes Sentry's environment filter useless. This matters more now that the
+ * server-entry fix means `captureServerError` actually runs in production.
+ *
+ * Under vitest `VITE_SOUSO_ENV` is unset, so `APP_ENV` resolves to 'local':
+ * the assertion is simply "not the hardcoded literal, and equal to APP_ENV".
+ */
+describe('sentry environment tagging', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('tags captured server errors with the build environment, not a hardcoded production', async () => {
+    const bodies: Array<string> = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        bodies.push(String(init.body))
+        return new Response('', { status: 200 })
+      }),
+    )
+    const { captureServerError } = await import('./sentry-server-forward')
+    const { APP_ENV } = await import('./app-env')
+
+    await captureServerError(
+      { name: 'Error', message: 'boom' },
+      { url: 'https://example.test/x', status: 500 },
+    )
+
+    expect(bodies.length).toBeGreaterThan(0)
+    // The envelope is newline-delimited JSON; the event is the last line.
+    const event = JSON.parse(bodies[0]!.trim().split('\n').at(-1)!) as {
+      environment?: string
+    }
+    expect(event.environment).toBe(APP_ENV)
+    expect(event.environment).not.toBe('production')
+  })
+})
