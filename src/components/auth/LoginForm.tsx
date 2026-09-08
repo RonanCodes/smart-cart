@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ShoppingCart, MessageCircle } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
 import { Sheet } from '#/components/ui/sheet'
@@ -34,6 +34,10 @@ export function LoginForm() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Re-entry guard for verify(). `busy` state is enough to disable the button
+  // across renders, but two submits dispatched in the SAME tick both read the
+  // pre-update `busy`, so the ref is what actually makes the second one a no-op.
+  const verifying = useRef(false)
   // A user blocked at login (no code, rejected origin, gated email) can still
   // report it from here. Opens the shared FeedbackForm in a sheet; signed out,
   // the email field is editable so they can leave a contact (#feedback-and-videos).
@@ -92,6 +96,12 @@ export function LoginForm() {
 
   async function verify(e: React.FormEvent) {
     e.preventDefault()
+    // One verify at a time. An OTP is single-use: a second submit runs against a
+    // code the first submit already consumed, Better Auth rejects it, and the
+    // user is stranded on the login page reading "That code isn't right" while
+    // actually being signed in. That is the reported "stuck on the login page".
+    if (verifying.current) return
+    verifying.current = true
     // Digit-strip: iOS one-time-code autofill and the email's visual spacing can
     // turn "145284" into "1 4 5 2 8 4" or a trailing space, which fails Better
     // Auth's exact-match verify as "Invalid OTP". Send only the 6 digits.
@@ -102,8 +112,11 @@ export function LoginForm() {
       email,
       otp,
     })
-    setBusy(false)
     if (signErr) {
+      // Only a failure hands control back to the user, so only a failure
+      // re-enables the form. The success path stays busy until the navigation.
+      verifying.current = false
+      setBusy(false)
       const reason = mapVerifyError(signErr)
       const detail = {
         email,
