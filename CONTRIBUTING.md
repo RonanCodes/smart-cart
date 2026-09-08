@@ -87,6 +87,13 @@ test without touching prod data. A **DEV ribbon** and a **dev icon** mark it so
 you always know which environment you are looking at. Test every change there
 before promoting `develop` to `main`.
 
+## Agent loops (L1)
+
+Daily Triage runs on a schedule and writes to `STATE.md` — report-only, no
+auto-fixes. Design and limits live in `LOOP.md` and `loop-budget.md`; the
+triage skill is `.claude/skills/loop-triage/`. Read `STATE.md` over scrolling
+the issue board.
+
 ## Where things live
 
 - `CLAUDE.md`: pointer file + way of working for Claude.
@@ -94,7 +101,9 @@ before promoting `develop` to `main`.
   Codex/Cursor agents.
 - `.claude/skills/`: the engineering principles in long form
   (`ship-flow-and-ownership`, `reproduce-first-tdd`, `ai-safe-and-fast`,
-  `bounded-ai-on-request-paths`, `self-review-before-pr`).
+  `bounded-ai-on-request-paths`, `self-review-before-pr`, `loop-triage`).
+- `LOOP.md` / `STATE.md` / `loop-budget.md`: agent loop design, memory, and
+  token limits (L1 report-only Daily Triage).
 - `docs/adr/`: the locked architecture decisions (0001 to 0006).
 - `docs/brand/`: brand guidelines and voice/tone.
 - `CONTEXT.md` / `docs/decisions.md` / `docs/PRD.md`: what Souso is, the locked
