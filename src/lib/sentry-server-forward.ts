@@ -18,6 +18,7 @@
  * wrapped so a failure is swallowed; the caller still returns 204.
  */
 import { SENTRY_DSN as SENTRY_DSN_CLIENT } from '#/config/observability'
+import { APP_ENV } from './app-env'
 import { readEnv } from './env'
 import { isIgnorableNetworkError } from './ignorable-error'
 
@@ -196,7 +197,10 @@ export async function forwardErrorToSentry(body: ClientLogBody): Promise<void> {
       platform: 'javascript',
       level: 'error',
       logger: 'client-ship',
-      environment: 'production',
+      // Real environment, not hardcoded: dev.souso.app ships client errors
+      // through this same path, and tagging them 'production' makes the Sentry
+      // environment filter useless.
+      environment: APP_ENV,
       exception: { values: [buildException(error)] },
       tags: {
         ...(typeof event === 'string' ? { log_event: event } : {}),
@@ -231,7 +235,12 @@ export async function captureServerError(
       platform: 'javascript',
       level: 'error',
       logger: 'server',
-      environment: 'production',
+      // The real environment, not a hardcoded 'production'. This wrapper only
+      // started running in production at all with the server-entry fix, and it
+      // runs on dev.souso.app too — tagging dev 500s as 'production' would
+      // poison the very Sentry data we now rely on. APP_ENV is baked at build
+      // time from VITE_SOUSO_ENV ('production' | 'dev' | 'local').
+      environment: APP_ENV,
       exception: { values: [buildException(err)] },
       tags: { origin: 'server' },
       ...(context ? { extra: context } : {}),
