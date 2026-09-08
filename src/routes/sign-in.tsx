@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { authClient } from '#/lib/auth-client'
 import { log } from '#/lib/log'
@@ -30,6 +30,9 @@ export function SignIn() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Re-entry guard for verify(); see LoginForm for why the ref is needed as
+  // well as `busy` (same-tick double submit reads the pre-update state).
+  const verifying = useRef(false)
 
   async function sendCode(e: React.FormEvent) {
     e.preventDefault()
@@ -74,6 +77,10 @@ export function SignIn() {
 
   async function verify(e: React.FormEvent) {
     e.preventDefault()
+    // One verify at a time: an OTP is single-use, so a second submit burns the
+    // consumed code and strands the user on the login page. See LoginForm.
+    if (verifying.current) return
+    verifying.current = true
     // Digit-strip: iOS one-time-code autofill and the email's visual spacing can
     // turn "145284" into "1 4 5 2 8 4" or a trailing space, which fails Better
     // Auth's exact-match verify as "Invalid OTP". Send only the 6 digits.
@@ -84,8 +91,11 @@ export function SignIn() {
       email,
       otp,
     })
-    setBusy(false)
     if (signErr) {
+      // Only a failure hands control back to the user; the success path stays
+      // busy until the navigation is issued.
+      verifying.current = false
+      setBusy(false)
       const reason = mapVerifyError(signErr)
       const detail = {
         email,
