@@ -33,12 +33,15 @@ export const Route = createFileRoute('/api/log')({
             else console.warn(line)
 
             // Errors ALSO go to Sentry server-side (unblockable by ad-blockers).
-            // Fire-and-forget: the route handler has no easy access to the CF
-            // execution context for `waitUntil`, so we don't await it — the
-            // forward is fully guarded and never throws, and the 204 returns
-            // immediately. `keepalive`-style behaviour isn't needed because the
-            // Worker outlives this synchronous handler frame.
-            if (level === 'error') void forwardErrorToSentry(body)
+            // MUST be awaited: a Cloudflare Worker tears down a request's
+            // in-flight I/O (any un-awaited, non-`waitUntil`'d fetch) the
+            // instant the handler's Response is returned. Firing this
+            // fire-and-forget let the Worker cancel the still-in-flight Sentry
+            // ingest fetch, which surfaced as a bare, stackless
+            // `TypeError: Network connection lost.` in Workers Logs. The
+            // forward is fully guarded and never throws, so awaiting it here
+            // only adds latency, never risk.
+            if (level === 'error') await forwardErrorToSentry(body)
           }
         } catch {
           // swallow — logging must never throw into the request path
