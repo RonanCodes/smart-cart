@@ -1,0 +1,12 @@
+# Souso
+
+> Souso is an AI household food planner. It learns how a household eats, plans
+> the week, and fills a ready-to-order basket at a Dutch supermarket (Albert
+> Heijn or Jumbo). The user always checks out themselves; Souso never buys
+> anything automatically.
+
+Souso removes the weekly "what's for dinner, and what do I need to buy" mental
+load. A household swipes on recipes to seed its preferences, gets an instant
+first week (one recipe per day), can adjust the week by chat, and fills a
+basket at AH or Jumbo in under a minute. Meal plans are grounded in a real
+recipe catalogue, never hallucinated.
