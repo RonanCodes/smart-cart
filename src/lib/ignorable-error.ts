@@ -8,6 +8,11 @@
  * `NetworkError when attempting to fetch resource.` (Firefox); an explicitly
  * aborted fetch surfaces as a `DOMException`/`Error` named `AbortError`.
  *
+ * The same blip happens on the OTHER side of the Worker: an outbound `fetch`
+ * from inside the Worker (to Mollie, Cala, Pixverse, ...) whose underlying
+ * connection drops mid-request surfaces as workerd's
+ * `TypeError: Network connection lost.` Same story, different hop.
+ *
  * These are expected blips, not actionable crashes, and they were burying the
  * real signal. The client `beforeSend` and the server forward both drop them
  * via this pure predicate.
@@ -24,6 +29,8 @@ const BENIGN_MESSAGES = new Set([
   'failed to fetch',
   'networkerror when attempting to fetch resource.',
   'networkerror when attempting to fetch resource',
+  'network connection lost.',
+  'network connection lost',
 ])
 
 /** Error `name`s that mark an aborted request. */

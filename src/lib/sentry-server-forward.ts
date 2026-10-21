@@ -223,12 +223,20 @@ export async function forwardErrorToSentry(body: ClientLogBody): Promise<void> {
  * the request path can't crash a request (diagnose canon). The caller reports the
  * error here and then rethrows / returns the response unchanged — this only
  * ADDITIONALLY reports, it never swallows.
+ *
+ * Drops benign server-fn network blips (SOUSO-A/Y/X, #417) the same way
+ * `forwardErrorToSentry` does for the client-via-server path, so a transient
+ * `Network connection lost.` from an outbound fetch doesn't page as a real
+ * error. The request itself is unaffected: the caller still rethrows / returns
+ * the response unchanged, this only skips the Sentry POST.
  */
 export async function captureServerError(
   err: SerialisedError,
   context?: { url?: string; status?: number; [key: string]: unknown },
 ): Promise<void> {
   try {
+    if (isIgnorableNetworkError(err)) return
+
     await sendEvent({
       event_id: eventId(),
       timestamp: Date.now() / 1000,

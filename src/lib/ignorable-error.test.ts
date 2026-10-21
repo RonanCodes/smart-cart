@@ -53,6 +53,18 @@ describe('isIgnorableNetworkError', () => {
     ).toBe(true)
   })
 
+  it('drops "Network connection lost." (Worker-side fetch connection drop)', () => {
+    expect(
+      isIgnorableNetworkError(new TypeError('Network connection lost.')),
+    ).toBe(true)
+    expect(
+      isIgnorableNetworkError({
+        name: 'TypeError',
+        message: 'Network connection lost.',
+      }),
+    ).toBe(true)
+  })
+
   it('KEEPS a genuine application error', () => {
     expect(
       isIgnorableNetworkError(new Error('Cannot read properties of undefined')),

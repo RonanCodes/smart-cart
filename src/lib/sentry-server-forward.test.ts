@@ -3,6 +3,7 @@ import {
   parseDsn,
   ingestUrl,
   forwardErrorToSentry,
+  captureServerError,
 } from './sentry-server-forward'
 
 // env.ts imports `cloudflare:workers`, a virtual module Vitest can't resolve, so
@@ -152,6 +153,45 @@ describe('forwardErrorToSentry', () => {
     await expect(
       forwardErrorToSentry({ level: 'error', event: 'x' }),
     ).resolves.toBeUndefined()
+  })
+})
+
+describe('captureServerError', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  /**
+   * A fetch from WITHIN the Worker (to Mollie, Cala, Pixverse, etc.) can lose its
+   * underlying connection mid-request; workerd surfaces this as
+   * `TypeError: Network connection lost.` It's the server-side equivalent of the
+   * client blips `forwardErrorToSentry` already drops (SOUSO-A/Y/X #417) — a
+   * transient network hiccup, not an actionable app bug — so it must not reach
+   * Sentry as a reportable exception either. Before the fix, `captureServerError`
+   * had no benign-network filter at all (only the client-forward path did), so
+   * this POSTed to Sentry as noise.
+   */
+  it('drops a benign server-side network blip without POSTing', async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      captureServerError({
+        name: 'TypeError',
+        message: 'Network connection lost.',
+      }),
+    ).resolves.toBeUndefined()
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('still forwards a real server error', async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await captureServerError({ name: 'Error', message: 'boom' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
 
