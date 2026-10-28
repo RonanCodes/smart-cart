@@ -125,8 +125,16 @@ describe('forwardErrorToSentry', () => {
         error: { name: 'TypeError', message: 'Failed to fetch' },
       }),
     ).resolves.toBeUndefined()
+    await expect(
+      forwardErrorToSentry({
+        level: 'error',
+        event: 'react.error_boundary',
+        // find_cd430082: Safari/WebKit's mid-request connectivity-drop variant.
+        error: { name: 'TypeError', message: 'Network connection lost.' },
+      }),
+    ).resolves.toBeUndefined()
 
-    // Neither benign error reached the Sentry ingest endpoint.
+    // None of the benign errors reached the Sentry ingest endpoint.
     expect(fetchMock).not.toHaveBeenCalled()
   })
 

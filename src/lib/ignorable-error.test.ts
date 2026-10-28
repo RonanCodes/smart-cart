@@ -53,6 +53,18 @@ describe('isIgnorableNetworkError', () => {
     ).toBe(true)
   })
 
+  it('drops "Network connection lost." (Safari/WebKit fetch dropped mid-request, worker-logs noise)', () => {
+    expect(
+      isIgnorableNetworkError(new TypeError('Network connection lost.')),
+    ).toBe(true)
+    expect(
+      isIgnorableNetworkError({
+        name: 'TypeError',
+        message: 'Network connection lost.',
+      }),
+    ).toBe(true)
+  })
+
   it('KEEPS a genuine application error', () => {
     expect(
       isIgnorableNetworkError(new Error('Cannot read properties of undefined')),

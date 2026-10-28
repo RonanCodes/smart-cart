@@ -6,7 +6,10 @@
  * or loses connectivity. The browser surfaces this as `TypeError: Load failed`
  * (iOS Safari), `TypeError: Failed to fetch` (Chromium), or
  * `NetworkError when attempting to fetch resource.` (Firefox); an explicitly
- * aborted fetch surfaces as a `DOMException`/`Error` named `AbortError`.
+ * aborted fetch surfaces as a `DOMException`/`Error` named `AbortError`. Safari /
+ * WebKit also surfaces a mid-request connectivity drop as
+ * `TypeError: Network connection lost.` (find_cd430082: this exact message was
+ * reaching Workers Logs unfiltered).
  *
  * These are expected blips, not actionable crashes, and they were burying the
  * real signal. The client `beforeSend` and the server forward both drop them
@@ -24,6 +27,8 @@ const BENIGN_MESSAGES = new Set([
   'failed to fetch',
   'networkerror when attempting to fetch resource.',
   'networkerror when attempting to fetch resource',
+  'network connection lost.',
+  'network connection lost',
 ])
 
 /** Error `name`s that mark an aborted request. */
