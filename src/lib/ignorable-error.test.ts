@@ -53,6 +53,12 @@ describe('isIgnorableNetworkError', () => {
     ).toBe(true)
   })
 
+  it('drops "Network connection lost." (workerd, client disconnected mid-response)', () => {
+    expect(
+      isIgnorableNetworkError(new TypeError('Network connection lost.')),
+    ).toBe(true)
+  })
+
   it('KEEPS a genuine application error', () => {
     expect(
       isIgnorableNetworkError(new Error('Cannot read properties of undefined')),
