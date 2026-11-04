@@ -8,6 +8,12 @@
  * `NetworkError when attempting to fetch resource.` (Firefox); an explicitly
  * aborted fetch surfaces as a `DOMException`/`Error` named `AbortError`.
  *
+ * The identical condition one layer down, server-side: when the client
+ * disconnects while workerd is still writing the response, Cloudflare Workers
+ * throws `TypeError: Network connection lost.` — there is no one left to
+ * receive that response, so this is the same benign "client is gone" blip, not
+ * an app crash.
+ *
  * These are expected blips, not actionable crashes, and they were burying the
  * real signal. The client `beforeSend` and the server forward both drop them
  * via this pure predicate.
@@ -24,6 +30,8 @@ const BENIGN_MESSAGES = new Set([
   'failed to fetch',
   'networkerror when attempting to fetch resource.',
   'networkerror when attempting to fetch resource',
+  'network connection lost.',
+  'network connection lost',
 ])
 
 /** Error `name`s that mark an aborted request. */

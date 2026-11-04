@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-start/server'
 import type { Register } from '@tanstack/react-router'
 import type { RequestHandler } from '@tanstack/react-start/server'
+import { isIgnorableNetworkError } from '#/lib/ignorable-error'
 
 const fetch = createStartHandler(defaultStreamHandler)
 
@@ -32,11 +33,17 @@ function execCtxFrom(args: Array<unknown>): ExecutionContext | undefined {
  * client errors were. This is the most central safe point: every request flows
  * through this one fetch wrapper.
  *
- * Behaviour is UNCHANGED — we only additionally report:
+ * Behaviour otherwise UNCHANGED — we only additionally report:
  *  - a THROWN error is captured, then rethrown as-is;
  *  - a 500 response is captured, then returned as-is.
  * Capture is fire-and-forget and `captureServerError` never throws (diagnose
  * canon: observability must never crash a request), so this can't break the path.
+ *
+ * One exception: a benign client-disconnect throw (`isIgnorableNetworkError`,
+ * e.g. workerd's `Network connection lost.`) is neither reported nor rethrown
+ * — there is no client left to see a response or an uncaught exception, so we
+ * just return a throwaway response instead of adding noise to Sentry and
+ * Workers Logs.
  */
 export function createServerEntry(entry: ServerEntry): ServerEntry {
   return {
@@ -74,12 +81,20 @@ export function createServerEntry(entry: ServerEntry): ServerEntry {
         }
         return res
       } catch (err) {
-        report(
+        const serialised =
           err instanceof Error
             ? { name: err.name, message: err.message, stack: err.stack }
-            : { message: String(err) },
-          { url },
-        )
+            : { message: String(err) }
+        // The client disconnected mid-request (closed tab, lost connectivity):
+        // workerd throws `Network connection lost.` while writing the response.
+        // There is no one left to receive a response or an error, so this is
+        // the server-side twin of the client's `Failed to fetch` / `Load
+        // failed` blips (#417) — drop it rather than report + rethrow it as an
+        // uncaught exception.
+        if (isIgnorableNetworkError(serialised)) {
+          return new Response(null, { status: 499 })
+        }
+        report(serialised, { url })
         throw err
       }
     },
