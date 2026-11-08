@@ -27,6 +27,36 @@ function execCtxFrom(args: Array<unknown>): ExecutionContext | undefined {
 }
 
 /**
+ * TanStack Start's `createStartHandler` hardcodes this exact body + 500 status
+ * when a request's `Accept` header doesn't include `text/html` or a wildcard
+ * (see `executeRouter` in `@tanstack/start-server-core`). That's a content-
+ * negotiation mismatch — e.g. a scanner/SSE client probing any route with
+ * `Accept: text/event-stream` — not a server failure, so it must not be
+ * reported as one (the `/sse` worker-log finding: every such probe was logged
+ * and Sentry-reported as a server error).
+ */
+const UNSUPPORTED_ACCEPT_MESSAGE = 'Only HTML requests are supported here'
+
+/**
+ * Detect the framework's unsupported-Accept 500 by its exact body, and if
+ * found, reclassify it as the 406 Not Acceptable it actually is instead of a
+ * server error. Reads a clone so the original response body is untouched for
+ * every other case. Never throws: a body-read failure just means "not this".
+ */
+async function asContentNegotiationMismatch(
+  res: Response,
+): Promise<Response | undefined> {
+  if (res.status !== 500) return undefined
+  try {
+    const body: { error?: unknown } = await res.clone().json()
+    if (body.error !== UNSUPPORTED_ACCEPT_MESSAGE) return undefined
+  } catch {
+    return undefined
+  }
+  return Response.json({ error: UNSUPPORTED_ACCEPT_MESSAGE }, { status: 406 })
+}
+
+/**
  * Server-side Sentry capture for unhandled server errors (server-hardening). The
  * real 500s on gated `/_serverFn/*` calls were never reaching Sentry — only
  * client errors were. This is the most central safe point: every request flows
@@ -35,6 +65,8 @@ function execCtxFrom(args: Array<unknown>): ExecutionContext | undefined {
  * Behaviour is UNCHANGED — we only additionally report:
  *  - a THROWN error is captured, then rethrown as-is;
  *  - a 500 response is captured, then returned as-is.
+ * The one exception is the framework's content-negotiation 500 (above), which
+ * is reclassified to 406 and never reported — it isn't a server error.
  * Capture is fire-and-forget and `captureServerError` never throws (diagnose
  * canon: observability must never crash a request), so this can't break the path.
  */
@@ -65,6 +97,8 @@ export function createServerEntry(entry: ServerEntry): ServerEntry {
 
       try {
         const res = await entry.fetch(...args)
+        const mismatch = await asContentNegotiationMismatch(res)
+        if (mismatch) return mismatch
         // A 500 (the gated-page failure mode) is reported but returned untouched.
         if (res.status >= 500) {
           report(
