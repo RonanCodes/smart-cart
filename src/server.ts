@@ -27,14 +27,38 @@ function execCtxFrom(args: Array<unknown>): ExecutionContext | undefined {
 }
 
 /**
+ * TanStack Start's SSR handler can only render HTML. For any request whose
+ * `Accept` header can't be satisfied by an HTML page (bots/crawlers probing
+ * discovery paths like `/.well-known/mcp` typically send `Accept:
+ * application/json`), it synthesizes this exact 500 JSON body instead of
+ * raising a real error. That isn't an application failure, so it should
+ * neither page us via Sentry nor show up as a worker 5xx in Cloudflare's own
+ * request logs — both of which a raw `status >= 500` check would trigger.
+ */
+const UNSUPPORTED_ACCEPT_BODY = JSON.stringify({
+  error: 'Only HTML requests are supported here',
+})
+
+async function isUnsupportedAcceptPlaceholder(res: Response): Promise<boolean> {
+  if (res.status !== 500) return false
+  const text = await res
+    .clone()
+    .text()
+    .catch(() => '')
+  return text === UNSUPPORTED_ACCEPT_BODY
+}
+
+/**
  * Server-side Sentry capture for unhandled server errors (server-hardening). The
  * real 500s on gated `/_serverFn/*` calls were never reaching Sentry — only
  * client errors were. This is the most central safe point: every request flows
  * through this one fetch wrapper.
  *
- * Behaviour is UNCHANGED — we only additionally report:
+ * Behaviour is otherwise UNCHANGED — we only additionally report:
  *  - a THROWN error is captured, then rethrown as-is;
- *  - a 500 response is captured, then returned as-is.
+ *  - a 500 response is captured, then returned as-is — except the TanStack
+ *    "Only HTML requests are supported here" placeholder (see
+ *    `isUnsupportedAcceptPlaceholder`), which is downgraded to 404 first.
  * Capture is fire-and-forget and `captureServerError` never throws (diagnose
  * canon: observability must never crash a request), so this can't break the path.
  */
@@ -64,7 +88,11 @@ export function createServerEntry(entry: ServerEntry): ServerEntry {
           : undefined
 
       try {
-        const res = await entry.fetch(...args)
+        let res = await entry.fetch(...args)
+        // Not a real error: downgrade to 404 so it isn't logged/reported as one.
+        if (await isUnsupportedAcceptPlaceholder(res)) {
+          res = new Response(res.body, { status: 404, headers: res.headers })
+        }
         // A 500 (the gated-page failure mode) is reported but returned untouched.
         if (res.status >= 500) {
           report(
